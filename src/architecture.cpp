@@ -60,6 +60,8 @@ decltype (architecture_t::s_next_architecture_id)
 class amdgcn_architecture_t : public architecture_t
 {
 protected:
+  mutable std::optional<amd_comgr_disassembly_info_t> m_disassembly_info;
+
   /* Instruction decoding helpers.  */
   enum class cbranch_cond_t
   {
@@ -186,6 +188,14 @@ protected:
   {
   }
 
+  ~amdgcn_architecture_t ()
+  {
+    if (m_disassembly_info)
+      amd_comgr_destroy_disassembly_info (*m_disassembly_info);
+  }
+
+  amd_comgr_disassembly_info_t disassembly_info () const;
+
 public:
   amd_dbgapi_status_t convert_address_space (
     const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
@@ -226,6 +236,8 @@ public:
   std::string register_name (amdgpu_regnum_t regnum) const override;
   std::string register_type (amdgpu_regnum_t regnum) const override;
   amd_dbgapi_size_t register_size (amdgpu_regnum_t regnum) const override;
+  amd_dbgapi_register_properties_t
+  register_properties (amdgpu_regnum_t regnum) const override;
 
   bool is_pseudo_register_available (const wave_t &wave,
                                      amdgpu_regnum_t regnum) const override;
@@ -321,12 +333,21 @@ protected:
   branch_target (wave_t &wave, amd_dbgapi_global_address_t pc,
                  const instruction_t &instruction) const;
 
+  amd_dbgapi_size_t
+  instruction_size (const instruction_t &instruction) const override;
+
   std::tuple<amd_dbgapi_instruction_kind_t,       /* instruction_kind  */
              amd_dbgapi_instruction_properties_t, /* instruction_properties  */
              size_t,                              /* instruction_size  */
              std::vector<uint64_t> /* instruction_information  */>
   classify_instruction (amd_dbgapi_global_address_t address,
                         const instruction_t &instruction) const override;
+
+  std::tuple<amd_dbgapi_size_t /* instruction_size  */,
+             std::string /* instruction_text  */,
+             std::vector<amd_dbgapi_global_address_t> /* address_operands  */>
+  disassemble_instruction (amd_dbgapi_global_address_t address,
+                           const instruction_t &instruction) const override;
 
   bool can_execute_displaced (wave_t &wave,
                               const instruction_t &instruction) const override;
@@ -344,6 +365,122 @@ protected:
   virtual bool simulate (wave_t &wave, amd_dbgapi_global_address_t pc,
                          const instruction_t &instruction) const override;
 };
+
+namespace detail
+{
+
+struct disassembly_user_data_t
+{
+  const void *memory;
+  size_t offset;
+  size_t size;
+  std::string *instruction;
+  std::vector<amd_dbgapi_global_address_t> *operands;
+};
+
+} /* namespace detail */
+
+amd_comgr_disassembly_info_t
+amdgcn_architecture_t::disassembly_info () const
+{
+  if (!m_disassembly_info)
+    {
+      auto read_memory_callback = [] (uint64_t from, char *to, uint64_t size,
+                                      void *user_data) -> uint64_t
+      {
+        detail::disassembly_user_data_t *data
+          = static_cast<detail::disassembly_user_data_t *> (user_data);
+
+        size_t offset = from - data->offset;
+        if (offset >= data->size)
+          return 0;
+
+        size = std::min (size, data->size - offset);
+        memcpy (to, static_cast<const char *> (data->memory) + offset, size);
+
+        return size;
+      };
+
+      auto print_instruction_callback
+        = [] (const char *instruction, void *user_data)
+      {
+        detail::disassembly_user_data_t *data
+          = static_cast<detail::disassembly_user_data_t *> (user_data);
+
+        while (isspace (*instruction))
+          ++instruction;
+
+        if (data->instruction)
+          data->instruction->assign (instruction);
+      };
+
+      auto print_address_annotation_callback
+        = [] (uint64_t address, void *user_data)
+      {
+        detail::disassembly_user_data_t *data
+          = static_cast<detail::disassembly_user_data_t *> (user_data);
+        if (data->operands)
+          data->operands->emplace_back (
+            static_cast<amd_dbgapi_global_address_t> (address));
+      };
+
+      if (amd_comgr_create_disassembly_info (
+            target_triple ().c_str (), read_memory_callback,
+            print_instruction_callback, print_address_annotation_callback,
+            &m_disassembly_info.emplace ()))
+        error ("amd_comgr_create_disassembly_info failed");
+    }
+
+  return *m_disassembly_info;
+}
+
+amd_dbgapi_size_t
+amdgcn_architecture_t::instruction_size (
+  const instruction_t &instruction) const
+{
+  struct detail::disassembly_user_data_t user_data
+    = { /* .memory =  */ instruction.data (),
+        /* .offset =  */ 0,
+        /* .size =  */ instruction.capacity (),
+        /* .instruction =  */ nullptr,
+        /* .operands =  */ nullptr };
+  size_t size;
+
+  /* Disassemble one instruction.  */
+  if (amd_comgr_disassemble_instruction (disassembly_info (), 0, &user_data,
+                                         &size)
+      != AMD_COMGR_STATUS_SUCCESS)
+    return 0;
+
+  return size;
+}
+
+std::tuple<amd_dbgapi_size_t /* instruction_size  */,
+           std::string /* instruction_text  */,
+           std::vector<amd_dbgapi_global_address_t> /* address_operands  */>
+amdgcn_architecture_t::disassemble_instruction (
+  amd_dbgapi_global_address_t address, const instruction_t &instruction) const
+{
+  std::string instruction_text;
+  std::vector<uint64_t> address_operands;
+  size_t size;
+
+  struct detail::disassembly_user_data_t user_data
+    = { /* .memory =  */ instruction.data (),
+        /* .offset =  */ address,
+        /* .size =  */ instruction.capacity (),
+        /* .instruction =  */ &instruction_text,
+        /* .operands =  */ &address_operands };
+
+  /* Disassemble one instruction.  */
+  if (amd_comgr_disassemble_instruction (disassembly_info (),
+                                         static_cast<uint64_t> (address),
+                                         &user_data, &size)
+      != AMD_COMGR_STATUS_SUCCESS)
+    return { 0, "<illegal instruction>", {} };
+
+  return std::make_tuple (size, instruction_text, address_operands);
+}
 
 namespace
 {
@@ -1838,6 +1975,34 @@ amdgcn_architecture_t::register_size (amdgpu_regnum_t regnum) const
     }
 }
 
+amd_dbgapi_register_properties_t
+amdgcn_architecture_t::register_properties (amdgpu_regnum_t regnum) const
+{
+  switch (regnum)
+    {
+    case amdgpu_regnum_t::pc:
+    case amdgpu_regnum_t::trapsts:
+    case amdgpu_regnum_t::mode:
+      return AMD_DBGAPI_REGISTER_PROPERTY_READONLY_BITS;
+
+    case amdgpu_regnum_t::pseudo_status:
+      /* Writing to the vcc register may change the status.vccz bit.  */
+      return AMD_DBGAPI_REGISTER_PROPERTY_VOLATILE
+             | AMD_DBGAPI_REGISTER_PROPERTY_READONLY_BITS;
+
+    case amdgpu_regnum_t::pseudo_exec_32:
+    case amdgpu_regnum_t::pseudo_exec_64:
+    case amdgpu_regnum_t::pseudo_vcc_32:
+    case amdgpu_regnum_t::pseudo_vcc_64:
+      /* Writing to the exec or vcc register may change the status.execz
+      status.vccz bits respectively.  */
+      return AMD_DBGAPI_REGISTER_PROPERTY_INVALIDATE_VOLATILE;
+
+    default:
+      return AMD_DBGAPI_REGISTER_PROPERTY_NONE;
+    }
+}
+
 bool
 amdgcn_architecture_t::is_pseudo_register_available (
   const wave_t & /* wave  */, amdgpu_regnum_t regnum) const
@@ -2460,7 +2625,6 @@ gfx9_architecture_t::register_type (amdgpu_regnum_t regnum) const
   switch (regnum)
     {
     case amdgpu_regnum_t::pseudo_status:
-    case amdgpu_regnum_t::status:
       return "flags32_t status {"
              "  bool SCC @0;"
              "  uint32_t SPI_PRIO @1-2;"
@@ -3541,7 +3705,6 @@ gfx10_architecture_t::register_type (amdgpu_regnum_t regnum) const
   switch (regnum)
     {
     case amdgpu_regnum_t::pseudo_status:
-    case amdgpu_regnum_t::status:
       return "flags32_t status {"
              "  bool SCC @0;"
              "  uint32_t SPI_PRIO @1-2;"
@@ -4344,7 +4507,6 @@ architecture_t::architecture_t (elf_amdgpu_machine_t e_machine,
                                 std::string target_triple)
   : m_architecture_id (
     amd_dbgapi_architecture_id_t{ s_next_architecture_id () }),
-    m_disassembly_info (new amd_comgr_disassembly_info_t{ 0 }),
     m_e_machine (e_machine), m_target_triple (std::move (target_triple))
 {
 }
@@ -4353,8 +4515,6 @@ architecture_t::~architecture_t ()
 {
   if (this == detail::last_found_architecture)
     detail::last_found_architecture = nullptr;
-  if (*m_disassembly_info != amd_comgr_disassembly_info_t{ 0 })
-    amd_comgr_destroy_disassembly_info (*m_disassembly_info);
 }
 
 std::string
@@ -4426,121 +4586,6 @@ architecture_t::is_register_available (amdgpu_regnum_t regnum) const
     if (register_class.contains (regnum))
       return true;
   return false;
-}
-
-namespace detail
-{
-
-struct disassembly_user_data_t
-{
-  const void *memory;
-  size_t offset;
-  size_t size;
-  std::string *instruction;
-  std::vector<amd_dbgapi_global_address_t> *operands;
-};
-
-} /* namespace detail */
-
-amd_comgr_disassembly_info_t
-architecture_t::disassembly_info () const
-{
-  if (*m_disassembly_info == amd_comgr_disassembly_info_t{ 0 })
-    {
-      auto read_memory_callback = [] (uint64_t from, char *to, uint64_t size,
-                                      void *user_data) -> uint64_t
-      {
-        detail::disassembly_user_data_t *data
-          = static_cast<detail::disassembly_user_data_t *> (user_data);
-
-        size_t offset = from - data->offset;
-        if (offset >= data->size)
-          return 0;
-
-        size = std::min (size, data->size - offset);
-        memcpy (to, static_cast<const char *> (data->memory) + offset, size);
-
-        return size;
-      };
-
-      auto print_instruction_callback
-        = [] (const char *instruction, void *user_data)
-      {
-        detail::disassembly_user_data_t *data
-          = static_cast<detail::disassembly_user_data_t *> (user_data);
-
-        while (isspace (*instruction))
-          ++instruction;
-
-        if (data->instruction)
-          data->instruction->assign (instruction);
-      };
-
-      auto print_address_annotation_callback
-        = [] (uint64_t address, void *user_data)
-      {
-        detail::disassembly_user_data_t *data
-          = static_cast<detail::disassembly_user_data_t *> (user_data);
-        if (data->operands)
-          data->operands->emplace_back (
-            static_cast<amd_dbgapi_global_address_t> (address));
-      };
-
-      if (amd_comgr_create_disassembly_info (
-            target_triple ().c_str (), read_memory_callback,
-            print_instruction_callback, print_address_annotation_callback,
-            m_disassembly_info.get ()))
-        error ("amd_comgr_create_disassembly_info failed");
-    }
-
-  return *m_disassembly_info;
-}
-
-amd_dbgapi_size_t
-architecture_t::instruction_size (const instruction_t &instruction) const
-{
-  struct detail::disassembly_user_data_t user_data
-    = { /* .memory =  */ instruction.data (),
-        /* .offset =  */ 0,
-        /* .size =  */ instruction.capacity (),
-        /* .instruction =  */ nullptr,
-        /* .operands =  */ nullptr };
-  size_t size;
-
-  /* Disassemble one instruction.  */
-  if (amd_comgr_disassemble_instruction (disassembly_info (), 0, &user_data,
-                                         &size)
-      != AMD_COMGR_STATUS_SUCCESS)
-    return 0;
-
-  return size;
-}
-
-std::tuple<amd_dbgapi_size_t /* instruction_size  */,
-           std::string /* instruction_text  */,
-           std::vector<amd_dbgapi_global_address_t> /* address_operands  */>
-architecture_t::disassemble_instruction (
-  amd_dbgapi_global_address_t address, const instruction_t &instruction) const
-{
-  std::string instruction_text;
-  std::vector<uint64_t> address_operands;
-  size_t size;
-
-  struct detail::disassembly_user_data_t user_data
-    = { /* .memory =  */ instruction.data (),
-        /* .offset =  */ address,
-        /* .size =  */ instruction.capacity (),
-        /* .instruction =  */ &instruction_text,
-        /* .operands =  */ &address_operands };
-
-  /* Disassemble one instruction.  */
-  if (amd_comgr_disassemble_instruction (disassembly_info (),
-                                         static_cast<uint64_t> (address),
-                                         &user_data, &size)
-      != AMD_COMGR_STATUS_SUCCESS)
-    return { 0, "<illegal instruction>", {} };
-
-  return std::make_tuple (size, instruction_text, address_operands);
 }
 
 amd_dbgapi_status_t

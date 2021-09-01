@@ -316,15 +316,22 @@ enum class os_wave_launch_mode_t : uint32_t
 class os_driver_t
 {
 protected:
-  amd_dbgapi_os_process_id_t const m_os_pid;
+  std::optional<amd_dbgapi_os_process_id_t> const m_os_pid;
 
-  os_driver_t (amd_dbgapi_os_process_id_t os_pid) : m_os_pid (os_pid) {}
+  os_driver_t (std::optional<amd_dbgapi_os_process_id_t> os_pid)
+    : m_os_pid (os_pid)
+  {
+  }
 
 public:
   virtual ~os_driver_t () = default;
 
+  /* Disable copies.  */
+  os_driver_t (const os_driver_t &) = delete;
+  os_driver_t &operator= (const os_driver_t &) = delete;
+
   static std::unique_ptr<os_driver_t>
-  create_driver (amd_dbgapi_os_process_id_t os_pid);
+  create_driver (std::optional<amd_dbgapi_os_process_id_t> os_pid);
 
   virtual bool is_valid () const = 0;
 
@@ -351,7 +358,7 @@ public:
 
   virtual amd_dbgapi_status_t
   query_debug_event (os_exception_mask_t *exceptions_present,
-                     os_source_id_t *os_source_id,
+                     os_queue_id_t *os_queue_id, os_agent_id_t *os_agent_id,
                      os_exception_mask_t exceptions_cleared)
     = 0;
 

@@ -266,6 +266,18 @@ to_string (amd_dbgapi_breakpoint_id_t breakpoint_id)
 
 template <>
 std::string
+to_string (amd_dbgapi_agent_state_t agent_state)
+{
+  switch (agent_state)
+    {
+      CASE (AGENT_STATE_SUPPORTED);
+      CASE (AGENT_STATE_NOT_SUPPORTED);
+    }
+  return to_string (make_hex (agent_state));
+}
+
+template <>
+std::string
 to_string (amd_dbgapi_changed_t changed)
 {
   switch (changed)
@@ -437,6 +449,51 @@ to_string (amd_dbgapi_instruction_properties_t instruction_properties)
       str += one_instruction_property_to_string (one_bit);
 
       instruction_properties ^= one_bit;
+    }
+
+  return str;
+}
+
+namespace
+{
+
+inline std::string
+one_register_property_to_string (
+  amd_dbgapi_register_properties_t register_property)
+{
+  switch (register_property)
+    {
+      CASE (REGISTER_PROPERTY_NONE);
+      CASE (REGISTER_PROPERTY_READONLY_BITS);
+      CASE (REGISTER_PROPERTY_VOLATILE);
+      CASE (REGISTER_PROPERTY_INVALIDATE_VOLATILE);
+      CASE (REGISTER_PROPERTY_RESERVED);
+    }
+  return to_string (make_hex (register_property));
+}
+
+} /* namespace */
+
+template <>
+std::string
+to_string (amd_dbgapi_register_properties_t register_properties)
+{
+  std::string str;
+
+  if (!register_properties)
+    return one_register_property_to_string (register_properties);
+
+  while (register_properties)
+    {
+      amd_dbgapi_register_properties_t one_bit
+        = register_properties
+          ^ (register_properties & (register_properties - 1));
+
+      if (!str.empty ())
+        str += " | ";
+      str += one_register_property_to_string (one_bit);
+
+      register_properties ^= one_bit;
     }
 
   return str;
@@ -679,6 +736,7 @@ to_string (amd_dbgapi_agent_info_t agent_info)
       CASE (AGENT_INFO_PROCESS);
       CASE (AGENT_INFO_NAME);
       CASE (AGENT_INFO_ARCHITECTURE);
+      CASE (AGENT_INFO_STATE);
       CASE (AGENT_INFO_PCI_SLOT);
       CASE (AGENT_INFO_PCI_VENDOR_ID);
       CASE (AGENT_INFO_PCI_DEVICE_ID);
@@ -704,6 +762,9 @@ to_string (detail::query_ref<amd_dbgapi_agent_info_t> ref)
     case AMD_DBGAPI_AGENT_INFO_ARCHITECTURE:
       return to_string (
         make_ref (static_cast<const amd_dbgapi_architecture_id_t *> (value)));
+    case AMD_DBGAPI_AGENT_INFO_STATE:
+      return to_string (
+        make_ref (static_cast<const amd_dbgapi_agent_state_t *> (value)));
     case AMD_DBGAPI_AGENT_INFO_PCI_SLOT:
       return to_string (
         make_hex (make_ref (static_cast<const uint16_t *> (value))));
@@ -1204,6 +1265,7 @@ to_string (amd_dbgapi_register_info_t register_info)
       CASE (REGISTER_INFO_SIZE);
       CASE (REGISTER_INFO_TYPE);
       CASE (REGISTER_INFO_DWARF);
+      CASE (REGISTER_INFO_PROPERTIES);
     }
   return to_string (make_hex (register_info));
 }
@@ -1226,6 +1288,9 @@ to_string (detail::query_ref<amd_dbgapi_register_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_size_t *> (value)));
     case AMD_DBGAPI_REGISTER_INFO_DWARF:
       return to_string (make_ref (static_cast<const uint64_t *> (value)));
+    case AMD_DBGAPI_REGISTER_INFO_PROPERTIES:
+      return to_string (make_ref (
+        static_cast<const amd_dbgapi_register_properties_t *> (value)));
     }
   error ("unhandled amd_dbgapi_register_info_t query (%s)",
          to_string (query).c_str ());
