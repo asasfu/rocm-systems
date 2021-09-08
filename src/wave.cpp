@@ -345,13 +345,25 @@ wave_t::update (const wave_t &group_leader,
       m_register_cache.reset (*register_cache_begin,
                               register_cache_end - *register_cache_begin);
 
+      /* Zero-initialize the ttmp registers if they weren't set up by the
+         hardware.  Some ttmp registers are used to determine if the wave was
+         stopped by the trap handler because of an exception or a trap.  */
+      if (!process ().is_flag_set (process_t::flag_t::ttmps_setup_enabled)
+          && first_update)
+        {
+          const uint32_t zero = 0;
+          for (auto regnum = amdgpu_regnum_t::first_ttmp;
+               regnum <= amdgpu_regnum_t::last_ttmp; ++regnum)
+            write_register (regnum, &zero);
+        }
+
       std::tie (m_state, m_stop_reason)
         = architecture ().wave_get_state (*this);
     }
   else
     {
       /* The address of this cwsr_record may have changed since the last
-       context save, relocate the hwregs cache.  */
+         context save, relocate the hwregs cache.  */
       m_register_cache.relocate (*register_cache_begin);
     }
 
@@ -903,8 +915,10 @@ wave_t::xfer_segment_memory (const address_space_t &address_space,
                                                        size);
 
     default:
-      error ("xfer_segment_memory from address space `%s' not supported",
-             address_space.name ().c_str ());
+      dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
+                  "xfer_segment_memory from address space `%s' not supported",
+                  address_space.name ().c_str ());
+      return AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS;
     }
 }
 
