@@ -3443,10 +3443,10 @@ public:
   }
 };
 
-class gfx90a_t final : public mi_architecture_t
+class gfx90a_t : public mi_architecture_t
 {
 protected:
-  class cwsr_record_t final : public mi_architecture_t::cwsr_record_t
+  class cwsr_record_t : public mi_architecture_t::cwsr_record_t
   {
   private:
   protected:
@@ -3496,6 +3496,11 @@ protected:
                                             context_save_address);
   }
 
+  gfx90a_t (elf_amdgpu_machine_t e_machine, std::string target_triple)
+    : mi_architecture_t (e_machine, std::move (target_triple))
+  {
+  }
+
 public:
   gfx90a_t ()
     : mi_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX90A,
@@ -3529,6 +3534,329 @@ gfx90a_t::cwsr_record_t::lds_size () const
 {
   return compute_relaunch_state_payload_lds_size (m_compute_relaunch_state)
          * 128 * sizeof (uint32_t);
+}
+
+class gfx940_t : public gfx90a_t
+{
+protected:
+  static constexpr uint32_t sq_wave_trapsts_host_trap_mask = 1 << 22;
+  static constexpr uint32_t sq_wave_trapsts_wave_begin_mask = 1 << 23;
+  static constexpr uint32_t sq_wave_trapsts_wave_end_mask = 1 << 24;
+  static constexpr uint32_t sq_wave_trapsts_trap_after_inst_mask = 1 << 25;
+  static constexpr uint32_t sq_wave_trapsts_perf_snapshot_mask = 1 << 26;
+
+  static constexpr uint32_t ttmp11_queue_packet_id_mask
+    = utils::bit_mask (6, 30);
+  static constexpr int ttmp11_queue_packet_id_shift = 6;
+  static constexpr uint32_t ttmp11_wave_id_valid_mask = 1 << 31;
+
+  class cwsr_record_t final : public gfx90a_t::cwsr_record_t
+  {
+  private:
+  protected:
+    static constexpr uint32_t
+    compute_relaunch_wave_payload_se_id (uint32_t relaunch_wave)
+    {
+      return utils::bit_extract (relaunch_wave, 9, 10);
+    }
+
+  public:
+    cwsr_record_t (queue_t &queue, uint32_t compute_relaunch_wave,
+                   uint32_t compute_relaunch_state,
+                   amd_dbgapi_global_address_t context_save_address)
+      : gfx90a_t::cwsr_record_t (queue, compute_relaunch_wave,
+                                 compute_relaunch_state, context_save_address)
+    {
+    }
+
+    std::optional<amd_dbgapi_wave_id_t> id () const override;
+
+    uint32_t shader_engine_id () const override
+    {
+      return compute_relaunch_wave_payload_se_id (m_compute_relaunch_wave);
+    }
+  };
+
+  std::unique_ptr<architecture_t::cwsr_record_t> make_gfx9_cwsr_record (
+    queue_t &queue, uint32_t compute_relaunch_wave,
+    uint32_t compute_relaunch_state,
+    amd_dbgapi_global_address_t context_save_address) const override
+  {
+    return std::make_unique<cwsr_record_t> (queue, compute_relaunch_wave,
+                                            compute_relaunch_state,
+                                            context_save_address);
+  }
+
+  std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
+  wave_get_state (wave_t &wave) const override;
+  void wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state,
+                       amd_dbgapi_exceptions_t exceptions
+                       = AMD_DBGAPI_EXCEPTION_NONE) const override;
+
+public:
+  gfx940_t ()
+    : gfx90a_t (EF_AMDGPU_MACH_AMDGCN_GFX940, "amdgcn-amd-amdhsa--gfx940")
+  {
+  }
+
+  std::string register_type (amdgpu_regnum_t regnum) const override;
+
+  amd_dbgapi_global_address_t dispatch_packet_address (
+    const architecture_t::cwsr_record_t &cwsr_record) const override;
+
+  void write_pseudo_register (wave_t &wave, amdgpu_regnum_t regnum,
+                              size_t offset, size_t value_size,
+                              const void *value) const override;
+
+  size_t watchpoint_mask_bits () const override
+  {
+    return utils::bit_mask (7, 30);
+  }
+
+  bool supports_precise_memory () const override { return true; }
+  bool can_halt_at_endpgm () const override { return true; }
+};
+
+std::optional<amd_dbgapi_wave_id_t>
+gfx940_t::cwsr_record_t::id () const
+{
+  dbgapi_assert (
+    process ().is_flag_set (process_t::flag_t::ttmps_setup_enabled));
+
+  const amd_dbgapi_global_address_t ttmp11_address
+    = register_address (amdgpu_regnum_t::ttmp11).value ();
+
+  uint32_t ttmp11;
+  process ().read_global_memory (ttmp11_address, &ttmp11);
+
+  if (!(ttmp11 & ttmp11_wave_id_valid_mask))
+    return std::nullopt;
+
+  const amd_dbgapi_global_address_t wave_id_address
+    = register_address (amdgpu_regnum_t::ttmp4).value ();
+
+  amd_dbgapi_wave_id_t wave_id;
+  process ().read_global_memory (wave_id_address, &wave_id.handle);
+
+  dbgapi_assert (wave_id != wave_t::undefined);
+  return wave_id;
+}
+
+std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
+gfx940_t::wave_get_state (wave_t &wave) const
+{
+  auto [state, stop_reason] = amdgcn_architecture_t::wave_get_state (wave);
+
+  /* gfx940 precisely reports single-step exception by setting a bit in the
+    trapsts register.  */
+
+  if (wave.state () != AMD_DBGAPI_WAVE_STATE_STOP
+      && state == AMD_DBGAPI_WAVE_STATE_STOP)
+    {
+      uint32_t trapsts;
+      wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+
+      if (trapsts & sq_wave_trapsts_trap_after_inst_mask)
+        stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP;
+      if (trapsts
+          & (sq_wave_trapsts_wave_begin_mask | sq_wave_trapsts_wave_end_mask))
+        stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_TRAP;
+    }
+
+  return { state, stop_reason };
+}
+
+void
+gfx940_t::wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state,
+                          amd_dbgapi_exceptions_t exceptions) const
+{
+  amdgcn_architecture_t::wave_set_state (wave, state, exceptions);
+
+  /* When resuming a wave, clear the exceptions in the trapsts register that
+     have already been reported by a stop event (stop_reason != 0).  */
+  if (state != AMD_DBGAPI_WAVE_STATE_STOP
+      && wave.state () == AMD_DBGAPI_WAVE_STATE_STOP
+      && wave.stop_reason () != AMD_DBGAPI_WAVE_STOP_REASON_NONE)
+    {
+      amd_dbgapi_wave_stop_reasons_t stop_reason = wave.stop_reason ();
+      uint32_t clear_exceptions
+        = sq_wave_trapsts_wave_begin_mask | sq_wave_trapsts_wave_end_mask;
+
+      if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP)
+        clear_exceptions |= sq_wave_trapsts_trap_after_inst_mask;
+
+      if (clear_exceptions)
+        {
+          uint32_t trapsts;
+          wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+          trapsts &= ~clear_exceptions;
+          wave.write_register (amdgpu_regnum_t::trapsts, &trapsts);
+        }
+    }
+}
+
+std::string
+gfx940_t::register_type (amdgpu_regnum_t regnum) const
+{
+  if (regnum >= amdgpu_regnum_t::first_accvgpr_64
+      && regnum <= amdgpu_regnum_t::last_accvgpr_64)
+    {
+      return "int32_t[64]";
+    }
+
+  switch (regnum)
+    {
+    case amdgpu_regnum_t::pseudo_status:
+      return "flags32_t status {"
+             "  bool SCC @0;"
+             "  uint32_t SPI_PRIO @1-2;"
+             "  uint32_t USER_PRIO @3-4;"
+             "  bool PRIV @5;"
+             "  bool TRAP_EN @6;"
+             "  bool TTRACE_EN @7;"
+             "  bool EXPORT_RDY @8;"
+             "  bool EXECZ @9;"
+             "  bool VCCZ @10;"
+             "  bool IN_TG @11;"
+             "  bool IN_BARRIER @12;"
+             "  bool HALT @13;"
+             "  bool TRAP @14;"
+             "  bool TTRACE_CU_EN @15;"
+             "  bool VALID @16;"
+             "  bool ECC_ERR @17;"
+             "  bool SKIP_EXPORT @18;"
+             "  bool PERF_EN @19;"
+             "  bool COND_DBG_USER @20;"
+             "  bool COND_DBG_SYS @21;"
+             "  bool ALLOW_REPLAY @22;"
+             "  bool FATAL_HALT @23;"
+             "  bool MUST_EXPORT @27;"
+             "  bool SCRATCH_EN @28;"
+             "  bool IDLE @31;"
+             "}";
+
+    case amdgpu_regnum_t::mode:
+      return "flags32_t mode {"
+             "  enum fp_round {"
+             "    NEAREST_EVEN = 0,"
+             "    PLUS_INF  = 1,"
+             "    MINUS_INF = 2,"
+             "    ZERO      = 3"
+             "  } FP_ROUND.32 @0-1;"
+             "  enum fp_round FP_ROUND.64_16 @2-3;"
+             "  enum fp_denorm {"
+             "    FLUSH_SRC_DST = 0,"
+             "    FLUSH_DST     = 1,"
+             "    FLUSH_SRC     = 2,"
+             "    FLUSH_NONE    = 3"
+             "  } FP_DENORM.32 @4-5;"
+             "  enum fp_denorm FP_DENORM.64_16 @6-7;"
+             "  bool DX10_CLAMP @8;"
+             "  bool IEEE @9;"
+             "  bool LOD_CLAMPED @10;"
+             "  bool DEBUG_EN @11;"
+             "  bool EXCP_EN.INVALID @12;"
+             "  bool EXCP_EN.DENORM @13;"
+             "  bool EXCP_EN.DIV0 @14;"
+             "  bool EXCP_EN.OVERFLOW @15;"
+             "  bool EXCP_EN.UNDERFLOW @16;"
+             "  bool EXCP_EN.INEXACT @17;"
+             "  bool EXCP_EN.INT_DIV0 @18;"
+             "  bool EXCP_EN.ADDR_WATCH @19;"
+             "  bool TRAP_ON_END @21;"
+             "  bool FP16_OVFL @23;"
+             "  bool POPS_PACKER0 @24;"
+             "  bool POPS_PACKER1 @25;"
+             "  bool DISABLE_PERF @26;"
+             "  bool GPR_IDX_EN @27;"
+             "  bool VSKIP @28;"
+             "  uint32_t CSP @29-31;"
+             "}";
+
+    case amdgpu_regnum_t::trapsts:
+      return "flags32_t trapsts {"
+             "  bool EXCP.INVALID @0;"
+             "  bool EXCP.DENORM @1;"
+             "  bool EXCP.DIV0 @2;"
+             "  bool EXCP.OVERFLOW @3;"
+             "  bool EXCP.UNDERFLOW @4;"
+             "  bool EXCP.INEXACT @5;"
+             "  bool EXCP.INT_DIV0 @6;"
+             "  bool EXCP.ADDR_WATCH @7;"
+             "  bool EXCP.MEM_VIOL @8;"
+             "  bool SAVE_CTX @10;"
+             "  bool ILLEGAL_INST @11;"
+             "  bool EXCP_HI.ADDR_WATCH1 @12;"
+             "  bool EXCP_HI.ADDR_WATCH2 @13;"
+             "  bool EXCP_HI.ADDR_WATCH3 @14;"
+             "  uint32_t EXCP_CYCLE @16-21;"
+             "  bool HOST_TRAP @22;"
+             "  bool WAVE_BEGIN @23;"
+             "  bool WAVE_END @24;"
+             "  bool TRAP_AFTER_INST @25;"
+             "  bool PERF_SNAPSHOT @26;"
+             "  bool XNACK_ERROR @28;"
+             "  enum dp_rate {"
+             "    NONE    = 0,"
+             "    QUARTER = 1,"
+             "    FULL    = 4"
+             "  } DP_RATE @29-31;"
+             "}";
+
+    default:
+      return gfx90a_t::register_type (regnum);
+    }
+}
+
+amd_dbgapi_global_address_t
+gfx940_t::dispatch_packet_address (
+  const architecture_t::cwsr_record_t &cwsr_record) const
+{
+  static constexpr uint64_t aql_packet_size = 64;
+
+  const amd_dbgapi_global_address_t ttmp11_address
+    = cwsr_record.register_address (amdgpu_regnum_t::ttmp11).value ();
+
+  uint32_t ttmp11;
+  cwsr_record.process ().read_global_memory (ttmp11_address, &ttmp11);
+
+  amd_dbgapi_os_queue_packet_id_t os_queue_packet_id
+    = (ttmp11 & ttmp11_queue_packet_id_mask) >> ttmp11_queue_packet_id_shift;
+  return cwsr_record.queue ().address ()
+         + (os_queue_packet_id * aql_packet_size);
+}
+
+void
+gfx940_t::write_pseudo_register (wave_t &wave, amdgpu_regnum_t regnum,
+                                 size_t offset, size_t value_size,
+                                 const void *value) const
+{
+  if (regnum == amdgpu_regnum_t::wave_id)
+    {
+      amd_dbgapi_wave_id_t wave_id;
+
+      /* If this is a partial write, we need to read the parts of the register
+         that will not change.  */
+      if (offset != 0 || value_size != sizeof (amd_dbgapi_wave_id_t))
+        read_pseudo_register (wave, regnum, 0, sizeof (wave_id), &wave_id);
+
+      memcpy (reinterpret_cast<char *> (&wave_id) + offset,
+              static_cast<const char *> (value) + offset, value_size);
+
+      uint32_t ttmp11;
+      wave.read_register (amdgpu_regnum_t::ttmp11, &ttmp11);
+
+      if (wave_id == wave_t::undefined)
+        ttmp11 &= ~ttmp11_wave_id_valid_mask;
+      else
+        ttmp11 |= ttmp11_wave_id_valid_mask;
+
+      wave.write_register (amdgpu_regnum_t::ttmp11, &ttmp11);
+
+      /* Fall-through to write the ttmp[4:5] registers.  */
+    }
+
+  gfx90a_t::write_pseudo_register (wave, regnum, offset, value_size, value);
 }
 
 class gfx10_architecture_t : public gfx9_architecture_t
@@ -4753,6 +5081,7 @@ decltype (architecture_t::s_architecture_map)
       map.emplace (make_architecture<gfx906_t> ());
       map.emplace (make_architecture<gfx908_t> ());
       map.emplace (make_architecture<gfx90a_t> ());
+      map.emplace (make_architecture<gfx940_t> ());
       map.emplace (make_architecture<gfx1010_t> ());
       map.emplace (make_architecture<gfx1011_t> ());
       map.emplace (make_architecture<gfx1012_t> ());
