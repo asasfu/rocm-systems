@@ -3599,6 +3599,10 @@ public:
   {
   }
 
+  std::optional<amd_dbgapi_global_address_t>
+  simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
+                        const instruction_t &instruction) const override;
+
   std::string register_type (amdgpu_regnum_t regnum) const override;
 
   amd_dbgapi_global_address_t dispatch_packet_address (
@@ -3693,6 +3697,30 @@ gfx940_t::wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state,
           wave.write_register (amdgpu_regnum_t::trapsts, &trapsts);
         }
     }
+}
+
+std::optional<amd_dbgapi_global_address_t>
+gfx940_t::simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
+                                const instruction_t &instruction) const
+{
+  auto next_pc = gfx90a_t::simulate_instruction (wave, pc, instruction);
+
+  if (next_pc)
+    {
+      uint32_t mode_reg;
+      wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
+
+      /* If single-stepping, raise the trap_after_inst exception.  */
+      if (mode_reg & sq_wave_mode_debug_en_mask)
+        {
+          uint32_t trapsts;
+          wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+          trapsts |= sq_wave_trapsts_trap_after_inst_mask;
+          wave.write_register (amdgpu_regnum_t::trapsts, &trapsts);
+        }
+    }
+
+  return next_pc;
 }
 
 std::string
