@@ -22,6 +22,7 @@
 #include "agent.h"
 #include "architecture.h"
 #include "debug.h"
+#include "exception.h"
 #include "initialization.h"
 #include "logging.h"
 #include "process.h"
@@ -42,22 +43,13 @@ dispatch_t::dispatch_t (amd_dbgapi_dispatch_id_t dispatch_id, queue_t &queue,
   : handle_object (dispatch_id), m_os_queue_packet_id (os_queue_packet_id),
     m_queue (queue)
 {
-  amd_dbgapi_status_t status;
-
   /* If this is a dummy dispatch, we don't have a packet to read from.  */
   if (dispatch_id == AMD_DBGAPI_DISPATCH_NONE)
     return;
 
-  status = process ().read_global_memory (packet_address, &m_packet,
-                                          sizeof (m_packet));
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("Could not read the dispatch's packet (rc=%d)", status);
-
-  status = process ().read_global_memory (m_packet.kernel_object,
-                                          &m_kernel_descriptor,
-                                          sizeof (m_kernel_descriptor));
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("Could not read the dispatch's kernel descriptor (rc=%d)", status);
+  /* Read the dispatch packet and kernel descriptor.  */
+  process ().read_global_memory (packet_address, &m_packet);
+  process ().read_global_memory (m_packet.kernel_object, &m_kernel_descriptor);
 }
 
 amd_dbgapi_global_address_t
@@ -73,34 +65,40 @@ dispatch_t::kernel_code_entry_address () const
          + m_kernel_descriptor.kernel_code_entry_byte_offset;
 }
 
-amd_dbgapi_status_t
+void
 dispatch_t::get_info (amd_dbgapi_dispatch_info_t query, size_t value_size,
                       void *value) const
 {
   switch (query)
     {
     case AMD_DBGAPI_DISPATCH_INFO_QUEUE:
-      return utils::get_info (value_size, value, queue ().id ());
+      utils::get_info (value_size, value, queue ().id ());
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_AGENT:
-      return utils::get_info (value_size, value, agent ().id ());
+      utils::get_info (value_size, value, agent ().id ());
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_PROCESS:
-      return utils::get_info (value_size, value, process ().id ());
+      utils::get_info (value_size, value, process ().id ());
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_ARCHITECTURE:
-      return utils::get_info (value_size, value, architecture ().id ());
+      utils::get_info (value_size, value, architecture ().id ());
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_OS_QUEUE_PACKET_ID:
-      return utils::get_info (value_size, value, m_os_queue_packet_id);
+      utils::get_info (value_size, value, m_os_queue_packet_id);
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_BARRIER:
-      return utils::get_info (value_size, value,
-                              utils::bit_extract (m_packet.header,
-                                                  HSA_PACKET_HEADER_BARRIER,
-                                                  HSA_PACKET_HEADER_BARRIER)
-                                ? AMD_DBGAPI_DISPATCH_BARRIER_PRESENT
-                                : AMD_DBGAPI_DISPATCH_BARRIER_NONE);
+      utils::get_info (value_size, value,
+                       utils::bit_extract (m_packet.header,
+                                           HSA_PACKET_HEADER_BARRIER,
+                                           HSA_PACKET_HEADER_BARRIER)
+                         ? AMD_DBGAPI_DISPATCH_BARRIER_PRESENT
+                         : AMD_DBGAPI_DISPATCH_BARRIER_NONE);
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_ACQUIRE_FENCE:
       static_assert ((int)AMD_DBGAPI_DISPATCH_FENCE_SCOPE_NONE
@@ -113,65 +111,77 @@ dispatch_t::get_info (amd_dbgapi_dispatch_info_t query, size_t value_size,
                        == (int)HSA_FENCE_SCOPE_SYSTEM,
                      "amd_dbgapi_dispatch_fence_scope_t != hsa_fence_scope_t");
 
-      return utils::get_info (
+      utils::get_info (
         value_size, value,
         static_cast<amd_dbgapi_dispatch_fence_scope_t> (utils::bit_extract (
           m_packet.header, HSA_PACKET_HEADER_SCACQUIRE_FENCE_SCOPE,
           HSA_PACKET_HEADER_SCACQUIRE_FENCE_SCOPE
             + HSA_PACKET_HEADER_WIDTH_SCACQUIRE_FENCE_SCOPE - 1)));
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_RELEASE_FENCE:
-      return utils::get_info (
+      utils::get_info (
         value_size, value,
         static_cast<amd_dbgapi_dispatch_fence_scope_t> (utils::bit_extract (
           m_packet.header, HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE,
           HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE
             + HSA_PACKET_HEADER_WIDTH_SCRELEASE_FENCE_SCOPE - 1)));
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_GRID_DIMENSIONS:
-      return utils::get_info (
+      utils::get_info (
         value_size, value,
         static_cast<uint32_t> (utils::bit_extract (
           m_packet.setup, HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS,
           HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS
             + HSA_KERNEL_DISPATCH_PACKET_SETUP_WIDTH_DIMENSIONS - 1)));
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_WORK_GROUP_SIZES:
       {
         uint16_t workgroup_sizes[3]
           = { m_packet.workgroup_size_x, m_packet.workgroup_size_y,
               m_packet.workgroup_size_z };
-        return utils::get_info (value_size, value, workgroup_sizes);
+        utils::get_info (value_size, value, workgroup_sizes);
+        return;
       }
     case AMD_DBGAPI_DISPATCH_INFO_GRID_SIZES:
       {
         uint32_t grid_sizes[3] = { m_packet.grid_size_x, m_packet.grid_size_y,
                                    m_packet.grid_size_z };
-        return utils::get_info (value_size, value, grid_sizes);
+        utils::get_info (value_size, value, grid_sizes);
+        return;
       }
     case AMD_DBGAPI_DISPATCH_INFO_PRIVATE_SEGMENT_SIZE:
-      return utils::get_info (
+      utils::get_info (
         value_size, value,
         static_cast<amd_dbgapi_size_t> (m_packet.private_segment_size));
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_GROUP_SEGMENT_SIZE:
-      return utils::get_info (
+      utils::get_info (
         value_size, value,
         static_cast<amd_dbgapi_size_t> (m_packet.group_segment_size));
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_KERNEL_ARGUMENT_SEGMENT_ADDRESS:
-      return utils::get_info (value_size, value, m_packet.kernarg_address);
+      utils::get_info (value_size, value, m_packet.kernarg_address);
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_KERNEL_DESCRIPTOR_ADDRESS:
-      return utils::get_info (value_size, value, kernel_descriptor_address ());
+      utils::get_info (value_size, value, kernel_descriptor_address ());
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_KERNEL_CODE_ENTRY_ADDRESS:
-      return utils::get_info (value_size, value, kernel_code_entry_address ());
+      utils::get_info (value_size, value, kernel_code_entry_address ());
+      return;
 
     case AMD_DBGAPI_DISPATCH_INFO_KERNEL_COMPLETION_ADDRESS:
-      return utils::get_info (value_size, value, m_packet.completion_signal);
+      utils::get_info (value_size, value, m_packet.completion_signal);
+      return;
     }
-  return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+
+  throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 }
 
 } /* namespace amd::dbgapi */
@@ -185,19 +195,25 @@ amd_dbgapi_dispatch_get_info (amd_dbgapi_dispatch_id_t dispatch_id,
 {
   TRACE_BEGIN (param_in (dispatch_id), param_in (query), param_in (value_size),
                param_in (value));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    dispatch_t *dispatch = find (dispatch_id);
 
-  dispatch_t *dispatch = find (dispatch_id);
+    if (!dispatch)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_DISPATCH_ID);
 
-  if (!dispatch)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_DISPATCH_ID;
+    dispatch->get_info (query, value_size, value);
 
-  return dispatch->get_info (query, value_size, value);
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_DISPATCH_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END (make_query_ref (query, param_out (value)));
 }
 
@@ -209,63 +225,54 @@ amd_dbgapi_process_dispatch_list (amd_dbgapi_process_id_t process_id,
 {
   TRACE_BEGIN (param_in (process_id), param_in (dispatch_count),
                param_in (dispatches), param_in (changed));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    std::vector<process_t *> processes = process_t::match (process_id);
 
-  std::vector<process_t *> processes;
-  if (process_id != AMD_DBGAPI_PROCESS_NONE)
-    {
-      process_t *process = process_t::find (process_id);
+    if (!dispatches || !dispatch_count)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
-      if (!process)
-        return AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID;
+    std::vector<std::pair<process_t *, std::vector<queue_t *>>>
+      queues_needing_resume;
 
-      if (amd_dbgapi_status_t status = process->update_queues ();
-          status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("process_t::update_queues failed (rc=%d)", status);
+    for (auto &&process : processes)
+      {
+        process->update_queues ();
 
-      processes.emplace_back (process);
-    }
-  else
-    {
-      for (auto &&process : process_t::all ())
-        {
-          if (amd_dbgapi_status_t status = process.update_queues ();
-              status != AMD_DBGAPI_STATUS_SUCCESS)
-            error ("process_t::update_queues failed (rc=%d)", status);
+        std::vector<queue_t *> queues;
+        for (auto &&queue : process->range<queue_t> ())
+          if (!queue.is_suspended ())
+            queues.emplace_back (&queue);
 
-          processes.emplace_back (&process);
-        }
-    }
+        process->suspend_queues (queues, "refresh dispatch list");
 
-  std::vector<std::pair<process_t *, std::vector<queue_t *>>>
-    queues_needing_resume;
+        if (process->forward_progress_needed ())
+          queues_needing_resume.emplace_back (process, std::move (queues));
+      }
 
-  for (auto &&process : processes)
-    {
-      std::vector<queue_t *> queues;
+    amd_dbgapi_changed_t dispatch_list_changed;
+    auto dispatch_list = utils::get_handle_list<dispatch_t> (
+      processes, changed ? &dispatch_list_changed : nullptr);
 
-      for (auto &&queue : process->range<queue_t> ())
-        if (!queue.is_suspended ())
-          queues.emplace_back (&queue);
+    auto deallocate_dispatch_list = utils::make_scope_fail (
+      [&] () { amd::dbgapi::deallocate_memory (dispatches); });
 
-      process->suspend_queues (queues, "refresh dispatch list");
+    for (auto &&[process, queues] : queues_needing_resume)
+      process->resume_queues (queues, "refresh dispatch list");
 
-      if (process->forward_progress_needed ())
-        queues_needing_resume.emplace_back (process, std::move (queues));
-    }
+    std::tie (*dispatches, *dispatch_count) = dispatch_list;
+    if (changed)
+      *changed = dispatch_list_changed;
 
-  amd_dbgapi_status_t status = utils::get_handle_list<dispatch_t> (
-    processes, dispatch_count, dispatches, changed);
-
-  for (auto &&[process, queues] : queues_needing_resume)
-    process->resume_queues (queues, "refresh dispatch list");
-
-  return status;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END (make_ref (param_out (dispatch_count)),
              make_ref (make_ref (param_out (dispatches)), *dispatch_count),
              make_ref (param_out (changed)));

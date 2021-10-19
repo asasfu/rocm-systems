@@ -89,18 +89,21 @@ public:
   epoch_t mark () const { return m_mark; }
   void set_mark (epoch_t mark) { m_mark = mark; }
 
-  amd_dbgapi_status_t
+  amd_dbgapi_global_address_t address () const;
+  amd_dbgapi_size_t size () const;
+
+  void
   active_packets_info (amd_dbgapi_os_queue_packet_id_t *read_packet_id_p,
                        amd_dbgapi_os_queue_packet_id_t *write_packet_id_p,
                        size_t *packets_byte_size_p) const;
 
-  amd_dbgapi_status_t
+  void
   active_packets_bytes (amd_dbgapi_os_queue_packet_id_t read_packet_id,
                         amd_dbgapi_os_queue_packet_id_t write_packet_id,
                         void *memory, size_t memory_size) const;
 
-  amd_dbgapi_status_t get_info (amd_dbgapi_queue_info_t query,
-                                size_t value_size, void *value) const;
+  void get_info (amd_dbgapi_queue_info_t query, size_t value_size,
+                 void *value) const;
 
   agent_t &agent () const { return m_agent; }
   process_t &process () const { return agent ().process (); }
@@ -153,7 +156,7 @@ private:
     void resize (size_t size)
     {
       if (size > m_capacity)
-        error ("size exceeds capacity");
+        fatal_error ("size exceeds capacity");
       m_size = size;
     }
 

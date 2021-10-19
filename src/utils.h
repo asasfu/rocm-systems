@@ -23,6 +23,7 @@
 
 #include "amd-dbgapi.h"
 #include "debug.h"
+#include "exception.h"
 
 #include <array>
 #include <cstdarg>
@@ -36,19 +37,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-
-#define TRY                                                                   \
-  try                                                                         \
-    {
-
-#define CATCH                                                                 \
-  }                                                                           \
-  catch (const amd::dbgapi::exception_t &e)                                   \
-  {                                                                           \
-    e.print_message ();                                                       \
-    return e.error_code ();                                                   \
-  }                                                                           \
-  catch (...) { return AMD_DBGAPI_STATUS_FATAL; }
 
 #define CONCAT_NX(x, y) x##y
 #define CONCAT(x, y) CONCAT_NX (x, y)
@@ -605,36 +593,31 @@ using detected_t = typename is_detected<Op, Args...>::type;
 
 /* Check the size, and copy `value' into the memory pointed to by `ret'.  */
 template <typename T>
-amd_dbgapi_status_t
+void
 get_info (size_t value_size, void *ret, const T &value)
 {
   if (!ret)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+    throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
   if (value_size != sizeof (T))
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY;
+    throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY);
 
   memcpy (ret, &value, sizeof (T));
-  return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
 template <>
-amd_dbgapi_status_t get_info (size_t value_size, void *ret,
-                              const std::string &value);
+void get_info (size_t value_size, void *ret, const std::string &value);
 
 template <>
-amd_dbgapi_status_t get_info (size_t value_size, void *ret,
-                              const instruction_t &value);
+void get_info (size_t value_size, void *ret, const instruction_t &value);
 
 template <typename T>
-amd_dbgapi_status_t get_info (size_t value_size, void *ret,
-                              const std::vector<T> &value);
+void get_info (size_t value_size, void *ret, const std::vector<T> &value);
 
 template <typename Object>
-amd_dbgapi_status_t get_handle_list (const std::vector<process_t *> &processes,
-                                     size_t *count,
-                                     typename Object::handle_type **objects,
-                                     amd_dbgapi_changed_t *changed);
+std::pair<typename Object::handle_type * /* objects */, size_t /* count */>
+get_handle_list (const std::vector<process_t *> &processes,
+                 amd_dbgapi_changed_t *changed);
 
 template <char... Chars> struct string_literal
 {
@@ -866,8 +849,7 @@ struct is_flag<amd_dbgapi_instruction_properties_t> : std::true_type
 };
 
 /* Enable bitwise operations for amd_dbgapi_register_properties_t.  */
-template <>
-struct is_flag<amd_dbgapi_register_properties_t> : std::true_type
+template <> struct is_flag<amd_dbgapi_register_properties_t> : std::true_type
 {
 };
 
@@ -898,7 +880,7 @@ public:
   {
     value_type old_value = m_value++;
     if (WrapAroundCheck{}(old_value, m_value))
-      error ("monotonic counter wrapped around");
+      fatal_error ("monotonic counter wrapped around");
 
     return old_value;
   }

@@ -25,6 +25,7 @@
 #include "code_object.h"
 #include "debug.h"
 #include "event.h"
+#include "exception.h"
 #include "initialization.h"
 #include "logging.h"
 #include "os_driver.h"
@@ -47,20 +48,6 @@
 
 #include <link.h>
 
-#if defined(WITH_API_TRACING)
-
-#define TRACE_CALLBACK_BEGIN(...)                                             \
-  TRACE_BEGIN_HELPER (AMD_DBGAPI_LOG_LEVEL_VERBOSE, "callback: ", __VA_ARGS__)
-
-#define TRACE_CALLBACK_END(...) TRACE_END_HELPER (__VA_ARGS__)
-
-#else /* !defined (WITH_API_TRACING) */
-
-#define TRACE_CALLBACK_BEGIN(...)
-#define TRACE_CALLBACK_END(...)
-
-#endif /* !defined (WITH_API_TRACING) */
-
 namespace amd::dbgapi
 {
 
@@ -80,18 +67,18 @@ process_t::process_t (amd_dbgapi_process_id_t process_id,
   amd_dbgapi_os_process_id_t os_process_id;
   amd_dbgapi_status_t status = get_os_pid (&os_process_id);
   if (status == AMD_DBGAPI_STATUS_SUCCESS)
-    m_os_process_id.emplace(os_process_id);
+    m_os_process_id.emplace (os_process_id);
   else if (status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    error ("get_os_pid () failed (rc=%d)", status);
+    fatal_error ("get_os_pid () failed (rc=%d)", status);
 
   /* Create the notifier pipe.  */
   m_client_notifier_pipe.open ();
   if (!m_client_notifier_pipe.is_valid ())
-    error ("Could not create the client notifier pipe");
+    fatal_error ("Could not create the client notifier pipe");
 
   m_os_driver = os_driver_t::create_driver (m_os_process_id);
   if (!m_os_driver->is_valid ())
-    error ("Could not create the OS driver");
+    fatal_error ("Could not create the OS driver");
 }
 
 process_t::~process_t ()
@@ -178,9 +165,9 @@ process_t::detach ()
               wave.displaced_stepping_complete ();
             }
 
-          /* Restore the wave_id register to its default value.  */
-          uint64_t zero = 0;
-          wave.write_register (amdgpu_regnum_t::wave_id, &zero);
+          /* Invalidate the wave_id.  */
+          amd_dbgapi_wave_id_t wave_id = wave_t::undefined;
+          wave.write_register (amdgpu_regnum_t::wave_id, &wave_id);
 
           /* Resume the wave if it is single-stepping, or if it is stopped
              because of a debug event (completed single-step, breakpoint,
@@ -189,9 +176,7 @@ process_t::detach ()
           if ((wave.state () == AMD_DBGAPI_WAVE_STATE_SINGLE_STEP)
               || (wave.state () == AMD_DBGAPI_WAVE_STATE_STOP
                   && !(wave.stop_reason ()
-                       & ~(AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP
-                           | AMD_DBGAPI_WAVE_STOP_REASON_BREAKPOINT
-                           | AMD_DBGAPI_WAVE_STOP_REASON_WATCHPOINT))))
+                       & ~wave_t::resumable_stop_reason_mask)))
             {
               wave.set_state (AMD_DBGAPI_WAVE_STATE_RUN);
             }
@@ -210,7 +195,7 @@ process_t::detach ()
       amd_dbgapi_status_t status = os_driver ().disable_debug ();
       if (status != AMD_DBGAPI_STATUS_SUCCESS
           && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-        error ("Could not disable debug (rc=%d)", status);
+        fatal_error ("Could not disable debug (rc=%d)", status);
 
       dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO, "debugging is disabled for %s",
                   to_string (id ()).c_str ());
@@ -236,32 +221,27 @@ process_t::detach ()
     std::rethrow_exception (exception);
 }
 
-amd_dbgapi_status_t
+size_t
 process_t::read_global_memory_partial (amd_dbgapi_global_address_t address,
-                                       void *buffer, size_t *size) const
+                                       void *buffer, size_t size)
 {
-  return os_driver ().xfer_global_memory_partial (address, buffer, nullptr,
-                                                  size);
+  amd_dbgapi_status_t status = os_driver ().xfer_global_memory_partial (
+    address, buffer, nullptr, &size);
+
+  if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
+    throw process_exited_exception_t (*this);
+  else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
+    throw memory_access_error_t (address);
+  else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+    fatal_error ("process_t::read_global_memory_partial failed (rc=%d)",
+                 status);
+
+  return size;
 }
 
-amd_dbgapi_status_t
-process_t::read_global_memory (amd_dbgapi_global_address_t address,
-                               void *buffer, size_t size) const
-{
-  amd_dbgapi_status_t status;
-  size_t requested_size = size;
-
-  status = read_global_memory_partial (address, buffer, &size);
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    return status;
-
-  return (size == requested_size) ? AMD_DBGAPI_STATUS_SUCCESS
-                                  : AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS;
-}
-
-amd_dbgapi_status_t
+void
 process_t::read_string (amd_dbgapi_global_address_t address,
-                        std::string *string, size_t size) const
+                        std::string *string, size_t size)
 {
   constexpr size_t chunk_size = 16;
   static_assert (!(chunk_size & (chunk_size - 1)), "must be a power of 2");
@@ -278,18 +258,13 @@ process_t::read_string (amd_dbgapi_global_address_t address,
          aligned.  */
 
       size_t request_size = chunk_size - (address & (chunk_size - 1));
-      size_t xfer_size = request_size;
-
-      amd_dbgapi_status_t status
-        = read_global_memory_partial (address, staging_buffer, &xfer_size);
-
-      if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        return status;
+      size_t xfer_size
+        = read_global_memory_partial (address, staging_buffer, request_size);
 
       size_t length = std::min (size, xfer_size);
 
       if (!length)
-        return AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS;
+        throw memory_access_error_t (address);
 
       /* Copy the staging buffer into the string, stop at the '\0'
          terminating char if seen.  */
@@ -297,43 +272,36 @@ process_t::read_string (amd_dbgapi_global_address_t address,
         {
           char c = staging_buffer[i];
           if (c == '\0')
-            return AMD_DBGAPI_STATUS_SUCCESS;
+            return;
           string->push_back (c);
         }
 
       /* If unable to read full request, then no point trying again as it will
          just fail again.  */
       if (request_size != xfer_size)
-        return AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS;
+        throw memory_access_error_t (address);
 
       address += length;
       size -= length;
     }
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
-amd_dbgapi_status_t
+size_t
 process_t::write_global_memory_partial (amd_dbgapi_global_address_t address,
-                                        const void *buffer, size_t *size) const
+                                        const void *buffer, size_t size)
 {
-  return os_driver ().xfer_global_memory_partial (address, nullptr, buffer,
-                                                  size);
-}
+  amd_dbgapi_status_t status = os_driver ().xfer_global_memory_partial (
+    address, nullptr, buffer, &size);
 
-amd_dbgapi_status_t
-process_t::write_global_memory (amd_dbgapi_global_address_t address,
-                                const void *buffer, size_t size) const
-{
-  amd_dbgapi_status_t status;
-  size_t requested_size = size;
+  if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
+    throw process_exited_exception_t (*this);
+  else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
+    throw memory_access_error_t (address);
+  else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+    fatal_error ("process_t::write_global_memory_partial failed (rc=%d)",
+                 status);
 
-  status = write_global_memory_partial (address, buffer, &size);
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    return status;
-
-  return (size == requested_size) ? AMD_DBGAPI_STATUS_SUCCESS
-                                  : AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS;
+  return size;
 }
 
 void
@@ -357,21 +325,21 @@ process_t::set_forward_progress_needed (bool forward_progress_needed)
     }
 }
 
-amd_dbgapi_status_t
+void
 process_t::set_wave_launch_mode (os_wave_launch_mode_t wave_launch_mode)
 {
   if (m_wave_launch_mode == wave_launch_mode)
-    return AMD_DBGAPI_STATUS_SUCCESS;
+    return;
 
   if (os_driver ().is_debug_enabled ())
     {
       amd_dbgapi_status_t status
         = os_driver ().set_wave_launch_mode (wave_launch_mode);
       if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-        return status;
+        throw process_exited_exception_t (*this);
       else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("agent_t::set_wave_launch_mode (%s) failed (rc=%d)",
-               to_string (wave_launch_mode).c_str (), status);
+        fatal_error ("os_driver_t::set_wave_launch_mode (%s) failed (rc=%d)",
+                     to_string (wave_launch_mode).c_str (), status);
 
       /* When changing the wave launch mode from WAVE_LAUNCH_MODE_HALT, all
          waves halted at launch need to be resumed and reported to the client.
@@ -394,14 +362,7 @@ process_t::set_wave_launch_mode (os_wave_launch_mode_t wave_launch_mode)
           for (auto &&wave : range<wave_t> ())
             if (wave.visibility ()
                 == wave_t::visibility_t::hidden_halted_at_launch)
-              {
-                dbgapi_assert (wave.state () == AMD_DBGAPI_WAVE_STATE_STOP
-                               && wave.stop_reason ()
-                                    == AMD_DBGAPI_WAVE_STOP_REASON_NONE);
-
-                wave.set_visibility (wave_t::visibility_t::visible);
-                wave.set_state (AMD_DBGAPI_WAVE_STATE_RUN);
-              }
+              wave.set_visibility (wave_t::visibility_t::visible);
 
           if (forward_progress_needed ())
             resume_queues (queues, "halt waves at launch");
@@ -409,10 +370,9 @@ process_t::set_wave_launch_mode (os_wave_launch_mode_t wave_launch_mode)
     }
 
   m_wave_launch_mode = wave_launch_mode;
-  return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
-amd_dbgapi_status_t
+void
 process_t::set_wave_launch_trap_override (os_wave_launch_trap_mask_t value,
                                           os_wave_launch_trap_mask_t mask)
 {
@@ -422,7 +382,7 @@ process_t::set_wave_launch_trap_override (os_wave_launch_trap_mask_t value,
     = (m_wave_trap_mask & ~mask) | (value & mask);
 
   if (wave_trap_mask == m_wave_trap_mask)
-    return AMD_DBGAPI_STATUS_SUCCESS;
+    return;
 
   if (os_driver ().is_debug_enabled ())
     {
@@ -430,37 +390,61 @@ process_t::set_wave_launch_trap_override (os_wave_launch_trap_mask_t value,
         os_wave_launch_trap_override_t::apply, value, mask);
 
       if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-        return status;
+        throw process_exited_exception_t (*this);
       else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("os_driver::set_wave_launch_trap_override failed (rc=%d)",
-               status);
+        fatal_error ("os_driver::set_wave_launch_trap_override failed (rc=%d)",
+                     status);
     }
 
   m_wave_trap_mask = wave_trap_mask;
-  return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
-amd_dbgapi_status_t
+void
 process_t::set_precise_memory (bool enabled)
 {
   if (m_precise_memory == enabled)
-    return AMD_DBGAPI_STATUS_SUCCESS;
+    return;
 
   if (!m_supports_precise_memory)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_SUPPORTED;
+    throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_SUPPORTED);
 
   if (os_driver ().is_debug_enabled ())
     {
       amd_dbgapi_status_t status = os_driver ().set_precise_memory (enabled);
 
       if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-        return status;
+        throw process_exited_exception_t (*this);
       else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("os_driver::set_precise_memory failed (rc=%d)", status);
+        fatal_error ("os_driver::set_precise_memory failed (rc=%d)", status);
     }
 
   m_precise_memory = enabled;
-  return AMD_DBGAPI_STATUS_SUCCESS;
+}
+
+std::vector<process_t *>
+process_t::match (amd_dbgapi_process_id_t process_id)
+{
+  std::vector<process_t *> processes;
+
+  if (process_id != AMD_DBGAPI_PROCESS_NONE)
+    {
+      process_t *process = process_t::find (process_id);
+
+      if (!process)
+        throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
+
+      processes.emplace_back (process);
+    }
+  else
+    {
+      for (auto &&process : process_t::all ())
+        {
+          process.update_queues ();
+          processes.emplace_back (&process);
+        }
+    }
+
+  return processes;
 }
 
 process_t *
@@ -511,7 +495,7 @@ process_t::update_agents ()
       if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
         agent_count = 0;
       else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("os_driver_t::agent_snapshot failed (rc=%d)", status);
+        fatal_error ("os_driver_t::agent_snapshot failed (rc=%d)", status);
     }
   while (agent_infos.size () < agent_count);
   agent_infos.resize (agent_count);
@@ -535,12 +519,11 @@ process_t::update_agents ()
                      agent_info.os_agent_id, agent_info.name.c_str ());
 
           if (agent_mark != 1)
-            error ("gpu hot pluging is not supported");
+            fatal_error ("gpu hot pluging is not supported");
 
           agent = &create<agent_t> (*this,        /* process  */
                                     architecture, /* architecture  */
                                     agent_info);  /* os_agent_info  */
-
         }
 
       agent->set_mark (agent_mark);
@@ -549,9 +532,21 @@ process_t::update_agents ()
     }
 
   /* Remove agents that are no longer online.  */
-  for (auto &&agent : range<agent_t> ())
-    if (agent.mark () < agent_mark)
-      error ("gpu hot pluging is not supported");
+  auto &&agent_range = range<agent_t> ();
+  for (auto it = agent_range.begin (); it != agent_range.end ();)
+    if (it->mark () < agent_mark)
+      {
+        amd_dbgapi_agent_id_t agent_id = it->id ();
+        os_agent_id_t os_agent_id = it->os_agent_id ();
+
+        it = destroy (it);
+
+        dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
+                    "destroyed deleted %s (os_agent_id=%d)",
+                    to_string (agent_id).c_str (), os_agent_id);
+      }
+    else
+      ++it;
 
   /* Precise memory reporting is not supported if there are no agents.  */
   if ((count<agent_t> () == 0))
@@ -569,8 +564,8 @@ process_t::watchpoint_count () const
   size_t max_watchpoint_count = std::numeric_limits<size_t>::max ();
 
   for (auto &&agent : range<agent_t> ())
-    max_watchpoint_count = std::min (
-      max_watchpoint_count, agent.watchpoint_count ());
+    max_watchpoint_count
+      = std::min (max_watchpoint_count, agent.watchpoint_count ());
 
   return max_watchpoint_count;
 }
@@ -606,7 +601,7 @@ process_t::watchpoint_shared_kind () const
   return kind;
 }
 
-amd_dbgapi_status_t
+void
 process_t::insert_watchpoint (const watchpoint_t &watchpoint,
                               amd_dbgapi_global_address_t *adjusted_address,
                               amd_dbgapi_global_address_t *adjusted_size)
@@ -619,17 +614,11 @@ process_t::insert_watchpoint (const watchpoint_t &watchpoint,
   const bool first_watchpoint = count<watchpoint_t> () == 1;
   if (first_watchpoint)
     {
-      amd_dbgapi_status_t status;
-
-      status = set_wave_launch_trap_override (
+      set_wave_launch_trap_override (
         os_wave_launch_trap_mask_t::address_watch,
         os_wave_launch_trap_mask_t::address_watch);
-      if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        return status;
 
-      status = update_queues ();
-      if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("process_t::update_queues failed (rc=%d)", status);
+      update_queues ();
 
       std::vector<queue_t *> queues;
       queues.reserve (count<queue_t> ());
@@ -752,14 +741,16 @@ process_t::insert_watchpoint (const watchpoint_t &watchpoint,
       watch_mode = os_watch_mode_t::all;
       break;
     default:
-      return AMD_DBGAPI_STATUS_ERROR_NO_WATCHPOINT_AVAILABLE;
+      throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NO_WATCHPOINT_AVAILABLE);
     }
 
   os_watch_id_t os_watch_id;
   amd_dbgapi_status_t status = os_driver ().set_address_watch (
     watch_address, watch_mask, watch_mode, &os_watch_id);
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    return status;
+
+  if (status != AMD_DBGAPI_STATUS_SUCCESS
+      && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
+    fatal_error ("os_driver_t::set_address_watch () failed (rc=%d)", status);
 
   dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
               "%s: set address_watch%d [%#lx-%#lx] (%s)",
@@ -768,12 +759,10 @@ process_t::insert_watchpoint (const watchpoint_t &watchpoint,
               to_string (watchpoint.kind ()).c_str ());
 
   if (!m_watchpoint_map.emplace (os_watch_id, &watchpoint).second)
-    error ("os_watch_id %d is already in use", os_watch_id);
+    fatal_error ("os_watch_id %d is already in use", os_watch_id);
 
   *adjusted_address = watch_address;
   *adjusted_size = -watch_mask;
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
 void
@@ -786,14 +775,14 @@ process_t::remove_watchpoint (const watchpoint_t &watchpoint)
                           { return value.second == &watchpoint; });
 
   if (it == m_watchpoint_map.end ())
-    error ("watchpoint is not inserted");
+    fatal_error ("watchpoint is not inserted");
 
   os_watch_id_t os_watch_id = it->first;
 
   amd_dbgapi_status_t status = os_driver ().clear_address_watch (os_watch_id);
   if (status != AMD_DBGAPI_STATUS_SUCCESS
       && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    error ("failed to remove watchpoint (rc=%d)", status);
+    fatal_error ("failed to remove watchpoint (rc=%d)", status);
 
   m_watchpoint_map.erase (it);
 
@@ -803,17 +792,11 @@ process_t::remove_watchpoint (const watchpoint_t &watchpoint)
   const bool last_watchpoint = count<watchpoint_t> () == 1;
   if (last_watchpoint)
     {
-      status = set_wave_launch_trap_override (
+      set_wave_launch_trap_override (
         os_wave_launch_trap_mask_t::none,
         os_wave_launch_trap_mask_t::address_watch);
-      if (status != AMD_DBGAPI_STATUS_SUCCESS
-          && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-        error ("process_t::set_wave_launch_trap_override failed (rc=%d)",
-               status);
 
-      status = update_queues ();
-      if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("process_t::update_queues failed (rc=%d)", status);
+      update_queues ();
 
       std::vector<queue_t *> queues;
       queues.reserve (count<queue_t> ());
@@ -895,7 +878,7 @@ process_t::suspend_queues (const std::vector<queue_t *> &queues,
       return 0;
     }
   else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("os_driver::suspend_queues failed (rc=%d)", status);
+    fatal_error ("os_driver::suspend_queues failed (rc=%d)", status);
 
   size_t num_invalid_queues = 0;
   for (size_t i = 0; i < queue_ids.size (); ++i)
@@ -907,8 +890,8 @@ process_t::suspend_queues (const std::vector<queue_t *> &queues,
 
       if (queue_ids[i] & os_queue_error_mask)
         {
-          error ("failed to suspend %s (%#x)",
-                 to_string (queues[i]->id ()).c_str (), queue_ids[i]);
+          fatal_error ("failed to suspend %s (%#x)",
+                       to_string (queues[i]->id ()).c_str (), queue_ids[i]);
         }
       else if (queue_ids[i] & os_queue_invalid_mask)
         {
@@ -984,7 +967,7 @@ process_t::resume_queues (const std::vector<queue_t *> &queues,
       return 0;
     }
   else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("os_driver::resume_queues failed (rc=%d)", status);
+    fatal_error ("os_driver::resume_queues failed (rc=%d)", status);
 
   size_t num_invalid_queues = 0;
   for (size_t i = 0; i < queue_ids.size (); ++i)
@@ -996,8 +979,8 @@ process_t::resume_queues (const std::vector<queue_t *> &queues,
 
       if (queue_ids[i] & os_queue_error_mask)
         {
-          error ("failed to resume %s (%#x)",
-                 to_string (queues[i]->id ()).c_str (), queue_ids[i]);
+          fatal_error ("failed to resume %s (%#x)",
+                       to_string (queues[i]->id ()).c_str (), queue_ids[i]);
         }
       else if (queue_ids[i] & os_queue_invalid_mask)
         {
@@ -1014,13 +997,37 @@ process_t::resume_queues (const std::vector<queue_t *> &queues,
   return num_resumed_queues;
 }
 
-amd_dbgapi_status_t
+void
+process_t::update_waves ()
+{
+  try
+    {
+      update_queues ();
+
+      std::vector<queue_t *> queues;
+      for (auto &&queue : range<queue_t> ())
+        if (!queue.is_suspended ())
+          queues.emplace_back (&queue);
+
+      suspend_queues (queues, "process_t::update_waves");
+      if (forward_progress_needed ())
+        resume_queues (queues, "process_t::update_waves");
+    }
+  catch (const process_exited_exception_t &)
+    {
+      auto &&wave_range = range<wave_t> ();
+      for (auto it = wave_range.begin (); it != wave_range.end ();)
+        it = destroy (it);
+    }
+}
+
+void
 process_t::update_queues ()
 {
   /* If the runtime is not loaded, or loaded with restrictions, then we should
      not update the queue list.  */
   if (m_runtime_state != AMD_DBGAPI_RUNTIME_STATE_LOADED_SUCCESS)
-    return AMD_DBGAPI_STATUS_SUCCESS;
+    return;
 
   epoch_t queue_mark;
   std::vector<os_queue_snapshot_entry_t> snapshots;
@@ -1052,7 +1059,7 @@ process_t::update_queues ()
           queue_count = 0;
         }
       else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        return status;
+        fatal_error ("queue_snapshot failed (rc=%d)", status);
 
       /* We have to process the snapshots returned by the ioctl now, even
          if the list is incomplete, because we only get notified once that
@@ -1077,7 +1084,8 @@ process_t::update_queues ()
           /* TODO: investigate when this could happen, e.g. the debugger
              cgroups not matching the application cgroups?  */
           if (!agent)
-            error ("could not find an agent for gpu_id %d", queue_info.gpu_id);
+            fatal_error ("could not find an agent for gpu_id %d",
+                         queue_info.gpu_id);
           else if (!agent->supports_debugging ())
             {
               dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
@@ -1121,9 +1129,10 @@ process_t::update_queues ()
                  exception was reported (we consumed the event without action),
                  or KFD did not report the new queue.  */
               if (!queue)
-                error ("os_queue_id %d should have been reported as a new "
-                       "queue before",
-                       queue_info.queue_id);
+                fatal_error (
+                  "os_queue_id %d should have been reported as a new "
+                  "queue before",
+                  queue_info.queue_id);
 
               /* If the queue mark is null, the queue was created outside of
                  update_queues, and it does not have all the information yet
@@ -1140,12 +1149,12 @@ process_t::update_queues ()
                   /* A queue that is not new should have the same agent it had
                      when created.  */
                   if (queue->agent () != *agent)
-                    error ("%s (os_queue_id %d) has a different %s than the "
-                           "%s it had when created",
-                           to_string (queue->id ()).c_str (),
-                           queue_info.queue_id,
-                           to_string (agent->id ()).c_str (),
-                           to_string (queue->agent ().id ()).c_str ());
+                    fatal_error (
+                      "%s (os_queue_id %d) has a different %s than the "
+                      "%s it had when created",
+                      to_string (queue->id ()).c_str (), queue_info.queue_id,
+                      to_string (agent->id ()).c_str (),
+                      to_string (queue->agent ().id ()).c_str ());
 
                   /* This isn't a new queue, and it is fully initialized.
                      Mark it as active, and continue to the next snapshot.  */
@@ -1192,85 +1201,74 @@ process_t::update_queues ()
       }
     else
       ++it;
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
-amd_dbgapi_status_t
+void
 process_t::update_code_objects ()
 {
   /* If the runtime is not loaded, or loaded with restrictions, then we should
      not update the code object list.  */
   if (m_runtime_state != AMD_DBGAPI_RUNTIME_STATE_LOADED_SUCCESS)
-    return AMD_DBGAPI_STATUS_SUCCESS;
+    return;
 
   epoch_t code_object_mark = m_next_code_object_mark ();
-  amd_dbgapi_status_t status;
 
-  decltype (r_debug::r_state) state;
-  status
-    = read_global_memory (m_runtime_info.r_debug + offsetof (r_debug, r_state),
-                          &state, sizeof (state));
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("read_global_memory failed (rc=%d)", status);
-
-  /* If the state is not RT_CONSISTENT then that indicates there is a thread
-     actively updating the code object list.  We cannot read the list as it is
-     not consistent. But once the thread completes the update it will set state
-     back to RT_CONSISTENT and hit the exiting breakpoint in the r_brk function
-     which will trigger a read of the code object list.  */
-  if (state != r_debug::RT_CONSISTENT)
-    return AMD_DBGAPI_STATUS_SUCCESS;
-
-  amd_dbgapi_global_address_t link_map_address;
-  status
-    = read_global_memory (m_runtime_info.r_debug + offsetof (r_debug, r_map),
-                          &link_map_address, sizeof (link_map_address));
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("read_global_memory failed (rc=%d)", status);
-
-  while (link_map_address)
+  try
     {
-      amd_dbgapi_global_address_t load_address;
-      status
-        = read_global_memory (link_map_address + offsetof (link_map, l_addr),
-                              &load_address, sizeof (load_address));
-      if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("read_global_memory failed (rc=%d)", status);
+      decltype (r_debug::r_state) state;
+      read_global_memory (m_runtime_info.r_debug + offsetof (r_debug, r_state),
+                          &state);
 
-      amd_dbgapi_global_address_t l_name_address;
-      status
-        = read_global_memory (link_map_address + offsetof (link_map, l_name),
-                              &l_name_address, sizeof (l_name_address));
-      if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("read_global_memory failed (rc=%d)", status);
+      /* If the state is not RT_CONSISTENT then that indicates there is a
+         thread actively updating the code object list.  We cannot read the
+         list as it is not consistent. But once the thread completes the update
+         it will set state back to RT_CONSISTENT and hit the exiting breakpoint
+         in the r_brk function which will trigger a read of the code object
+         list.  */
+      if (state != r_debug::RT_CONSISTENT)
+        return;
 
-      std::string uri;
-      status = read_string (l_name_address, &uri, -1);
-      if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("read_string failed (rc=%d)", status);
+      amd_dbgapi_global_address_t link_map_address;
+      read_global_memory (m_runtime_info.r_debug + offsetof (r_debug, r_map),
+                          &link_map_address);
 
-      /* Check if the code object already exists.  */
-      code_object_t *code_object = find_if (
-        [&] (const code_object_t &x)
+      while (link_map_address)
         {
-          /* FIXME: We have an ABA problem for memory based code objects. A new
-             code object of the same size could have been loaded at the same
-             address as an old stale code object. We could add a unique
-             identifier to the URI.  */
-          return x.load_address () == load_address && x.uri () == uri;
-        });
+          amd_dbgapi_global_address_t load_address;
+          read_global_memory (link_map_address + offsetof (link_map, l_addr),
+                              &load_address);
 
-      if (!code_object)
-        code_object = &create<code_object_t> (*this, uri, load_address);
+          amd_dbgapi_global_address_t l_name_address;
+          read_global_memory (link_map_address + offsetof (link_map, l_name),
+                              &l_name_address);
 
-      code_object->set_mark (code_object_mark);
+          std::string uri;
+          read_string (l_name_address, &uri, -1);
 
-      status
-        = read_global_memory (link_map_address + offsetof (link_map, l_next),
-                              &link_map_address, sizeof (link_map_address));
-      if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("read_global_memory failed (rc=%d)", status);
+          /* Check if the code object already exists.  */
+          code_object_t *code_object = find_if (
+            [&] (const code_object_t &x)
+            {
+              /* FIXME: We have an ABA problem for memory based code objects. A
+                 new code object of the same size could have been loaded at the
+                 same address as an old stale code object. We could add a
+                 unique identifier to the URI.  */
+              return x.load_address () == load_address && x.uri () == uri;
+            });
+
+          if (!code_object)
+            code_object = &create<code_object_t> (*this, uri, load_address);
+
+          code_object->set_mark (code_object_mark);
+
+          read_global_memory (link_map_address + offsetof (link_map, l_next),
+                              &link_map_address);
+        }
+    }
+  catch (const process_exited_exception_t &)
+    {
+      /* Prune all code objects */
+      code_object_mark = m_next_code_object_mark ();
     }
 
   /* Iterate all the code objects in this process, and prune those with a mark
@@ -1283,8 +1281,6 @@ process_t::update_code_objects ()
       else
         ++code_object_it;
     }
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
 void
@@ -1310,11 +1306,8 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
 
     /* Check the r_version.  */
     int r_version;
-    status = read_global_memory (runtime_info.r_debug
-                                   + offsetof (struct r_debug, r_version),
-                                 &r_version, sizeof (r_version));
-    if (status != AMD_DBGAPI_STATUS_SUCCESS)
-      error ("read_global_memory failed (rc=%d)", status);
+    read_global_memory (
+      runtime_info.r_debug + offsetof (struct r_debug, r_version), &r_version);
 
     if (r_version != ROCR_RDEBUG_VERSION)
       {
@@ -1334,7 +1327,8 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
       status = os_driver ().set_exceptions_reported (
         os_exception_mask_t::process_runtime);
       if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        error ("os_driver_t::set_exceptions_reported failed (rc=%d)", status);
+        fatal_error ("os_driver_t::set_exceptions_reported failed (rc=%d)",
+                     status);
 
       /* Destruct the code objects.  */
       std::get<handle_object_set_t<code_object_t>> (m_handle_object_sets)
@@ -1374,7 +1368,8 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
     | os_exception_mask_t::device_memory_violation
     | os_exception_mask_t::process_runtime);
   if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("os_driver_t::set_exceptions_reported failed (rc=%d)", status);
+    fatal_error ("os_driver_t::set_exceptions_reported failed (rc=%d)",
+                 status);
 
   /* Install a breakpoint at _amd_r_debug.r_brk.  The runtime calls this
      function before updating the code object list, and after completing
@@ -1394,7 +1389,7 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
                                      | saved_changed))
       {
         *action = AMD_DBGAPI_BREAKPOINT_ACTION_RESUME;
-        return AMD_DBGAPI_STATUS_SUCCESS;
+        return;
       }
 
     /* Create a breakpoint resume event that will be enqueued when the code
@@ -1413,36 +1408,28 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
        breakpoint resume event for this breakpoint_id and report it as
        processed.  */
     *action = AMD_DBGAPI_BREAKPOINT_ACTION_HALT;
-    return AMD_DBGAPI_STATUS_SUCCESS;
   };
 
   amd_dbgapi_global_address_t r_brk_address;
-  status = read_global_memory (m_runtime_info.r_debug
-                                 + offsetof (struct r_debug, r_brk),
-                               &r_brk_address, sizeof (r_brk_address));
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("read_global_memory failed (rc=%d)", status);
+  read_global_memory (m_runtime_info.r_debug + offsetof (r_debug, r_brk),
+                      &r_brk_address);
 
   if (!create<breakpoint_t> (*this, r_brk_address, r_brk_callback)
          .is_inserted ())
     return;
 
-  status = update_queues ();
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("update_queues failed (rc=%d)", status);
+  update_queues ();
 
   if (!is_flag_set (flag_t::runtime_enable_during_attach) && count<queue_t> ())
-    error ("no queue can exist before the runtime is enabled");
+    fatal_error ("no queue can exist before the runtime is enabled");
 
-  status = update_code_objects ();
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("update_code_objects failed (rc=%d)", status);
+  update_code_objects ();
 
   status = os_driver ().set_wave_launch_mode (m_wave_launch_mode);
   if (status != AMD_DBGAPI_STATUS_SUCCESS
       && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    error ("Could not set the wave launch mode for %s (rc=%d).",
-           to_string (id ()).c_str (), status);
+    fatal_error ("Could not set the wave launch mode for %s (rc=%d).",
+                 to_string (id ()).c_str (), status);
 
   os_wave_launch_trap_mask_t supported_wave_trap_mask;
   status = os_driver ().set_wave_launch_trap_override (
@@ -1450,29 +1437,30 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
     os_wave_launch_trap_mask_t::none, nullptr, &supported_wave_trap_mask);
   if (status != AMD_DBGAPI_STATUS_SUCCESS
       && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    error ("Could not set the wave launch trap override for %s (rc=%d).",
-           to_string (id ()).c_str (), status);
+    fatal_error ("Could not set the wave launch trap override for %s (rc=%d).",
+                 to_string (id ()).c_str (), status);
 
   if ((m_wave_trap_mask & ~supported_wave_trap_mask) != 0)
-    error ("Unsupported wave trap mask (%s) requested for %s",
-           to_string (m_wave_trap_mask & ~supported_wave_trap_mask).c_str (),
-           to_string (id ()).c_str ());
+    fatal_error (
+      "Unsupported wave trap mask (%s) requested for %s",
+      to_string (m_wave_trap_mask & ~supported_wave_trap_mask).c_str (),
+      to_string (id ()).c_str ());
 
   status = os_driver ().set_wave_launch_trap_override (
     os_wave_launch_trap_override_t::apply, m_wave_trap_mask,
     supported_wave_trap_mask);
   if (status != AMD_DBGAPI_STATUS_SUCCESS
       && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    error ("Could not set the wave launch trap override for %s (rc=%d).",
-           to_string (id ()).c_str (), status);
+    fatal_error ("Could not set the wave launch trap override for %s (rc=%d).",
+                 to_string (id ()).c_str (), status);
 
   if (m_supports_precise_memory)
     {
       status = os_driver ().set_precise_memory (m_precise_memory);
       if (status != AMD_DBGAPI_STATUS_SUCCESS
           && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-        error ("Could not set precise memory for %s (rc=%d).",
-               to_string (id ()).c_str (), status);
+        fatal_error ("Could not set precise memory for %s (rc=%d).",
+                     to_string (id ()).c_str (), status);
     }
 
   std::vector<queue_t *> queues;
@@ -1490,7 +1478,7 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
   restriction_error.release ();
 }
 
-amd_dbgapi_status_t
+void
 process_t::attach ()
 {
   dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO, "attaching %s to %s",
@@ -1500,20 +1488,20 @@ process_t::attach ()
                 : string_printf ("OS process %d", *m_os_process_id).c_str ());
 
   if (os_driver ().check_version () != AMD_DBGAPI_STATUS_SUCCESS)
-    return AMD_DBGAPI_STATUS_ERROR_RESTRICTION;
+    throw api_error_t (AMD_DBGAPI_STATUS_ERROR_RESTRICTION);
 
   os_runtime_info_t runtime_info{};
   if (auto status = os_driver ().enable_debug (
         os_exception_mask_t::process_runtime,
         m_client_notifier_pipe.write_fd (), &runtime_info);
       status == AMD_DBGAPI_STATUS_ERROR_RESTRICTION)
-    return status;
+    throw api_error_t (AMD_DBGAPI_STATUS_ERROR_RESTRICTION);
   else if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
     runtime_info.runtime_state
       = static_cast<decltype (runtime_info.runtime_state)> (
         os_runtime_state_t::disabled);
   else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("enable_debug failed (rc=%d)", status);
+    fatal_error ("enable_debug failed (rc=%d)", status);
 
   auto disable_debug = utils::make_scope_exit (
     [this] ()
@@ -1521,7 +1509,7 @@ process_t::attach ()
       if (auto status = os_driver ().disable_debug ();
           status != AMD_DBGAPI_STATUS_SUCCESS
           && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-        error ("disable_debug failed (rc=%d)", status);
+        fatal_error ("disable_debug failed (rc=%d)", status);
     });
 
   /* Update the agent now, regardless of the runtime state, so that agents can
@@ -1543,39 +1531,41 @@ process_t::attach ()
   disable_debug.release ();
   dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO, "debugging is enabled for %s",
               to_string (id ()).c_str ());
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
-amd_dbgapi_status_t
+void
 process_t::get_info (amd_dbgapi_process_info_t query, size_t value_size,
                      void *value) const
 {
   switch (query)
     {
     case AMD_DBGAPI_PROCESS_INFO_NOTIFIER:
-      return utils::get_info (value_size, value,
-                              m_client_notifier_pipe.read_fd ());
+      utils::get_info (value_size, value, m_client_notifier_pipe.read_fd ());
+      return;
 
     case AMD_DBGAPI_PROCESS_INFO_WATCHPOINT_COUNT:
-      return utils::get_info (value_size, value, watchpoint_count ());
+      utils::get_info (value_size, value, watchpoint_count ());
+      return;
 
     case AMD_DBGAPI_PROCESS_INFO_WATCHPOINT_SHARE:
-      return utils::get_info (value_size, value, watchpoint_shared_kind ());
+      utils::get_info (value_size, value, watchpoint_shared_kind ());
+      return;
 
     case AMD_DBGAPI_PROCESS_INFO_PRECISE_MEMORY_SUPPORTED:
-      return utils::get_info (value_size, value,
-                              m_supports_precise_memory
-                                ? AMD_DBGAPI_MEMORY_PRECISION_PRECISE
-                                : AMD_DBGAPI_MEMORY_PRECISION_NONE);
+      utils::get_info (value_size, value,
+                       m_supports_precise_memory
+                         ? AMD_DBGAPI_MEMORY_PRECISION_PRECISE
+                         : AMD_DBGAPI_MEMORY_PRECISION_NONE);
+      return;
 
     case AMD_DBGAPI_PROCESS_INFO_OS_ID:
-      return !m_os_process_id
-               ? AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE
-               : utils::get_info (value_size, value, *m_os_process_id);
+      if (!m_os_process_id)
+        throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE);
+      utils::get_info (value_size, value, *m_os_process_id);
+      return;
     }
 
-  return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+  throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 }
 
 void
@@ -1619,7 +1609,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
 
       if (status != AMD_DBGAPI_STATUS_SUCCESS
           && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-        error ("os_driver_t::query_debug_event failed (rc=%d)", status);
+        fatal_error ("os_driver_t::query_debug_event failed (rc=%d)", status);
 
       if (exceptions == os_exception_mask_t::none
           || status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
@@ -1645,7 +1635,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
                        { return q.os_agent_id () == os_agent_id; });
 
           if (!agent)
-            error ("could not find os_agent_id %d", os_agent_id);
+            fatal_error ("could not find os_agent_id %d", os_agent_id);
 
           if (!agent->supports_debugging ())
             {
@@ -1683,7 +1673,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
                        { return q.os_agent_id () == os_agent_id; });
 
           if (!agent)
-            error ("could not find os_agent_id %d", os_agent_id);
+            fatal_error ("could not find os_agent_id %d", os_agent_id);
 
           if (!agent->supports_debugging ())
             {
@@ -1763,8 +1753,9 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
       if (queue)
         return { queue, exceptions };
 
-      error ("os_queue_id %d should have been reported as a new_queue before",
-             os_queue_id);
+      fatal_error (
+        "os_queue_id %d should have been reported as a new_queue before",
+        os_queue_id);
     }
 }
 
@@ -1883,16 +1874,17 @@ process_t::next_pending_event ()
                        != os_runtime_state_t::disabled)
                       == (m_runtime_info.runtime_state
                           != os_runtime_state_t::disabled))
-                    error ("spurious runtime exception (runtime_state %d->%d)",
-                           m_runtime_info.runtime_state,
-                           runtime_info.runtime_state);
+                    fatal_error (
+                      "spurious runtime exception (runtime_state %d->%d)",
+                      m_runtime_info.runtime_state,
+                      runtime_info.runtime_state);
 
                   runtime_enable (runtime_info);
                   enqueue_event (create<event_t> (
                     *this, AMD_DBGAPI_EVENT_KIND_RUNTIME, m_runtime_state));
                 }
               else if (status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-                error ("query_exception_info failed (rc=%d).", status);
+                fatal_error ("query_exception_info failed (rc=%d).", status);
             }
         }
 
@@ -2015,7 +2007,7 @@ process_t::send_exceptions (
 
   if (status != AMD_DBGAPI_STATUS_SUCCESS
       && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    error ("send_exceptions failed (rc=%d)", status);
+    fatal_error ("send_exceptions failed (rc=%d)", status);
 }
 
 amd_dbgapi_status_t
@@ -2046,22 +2038,6 @@ process_t::remove_breakpoint (amd_dbgapi_breakpoint_id_t breakpoint_id)
   TRACE_CALLBACK_END ();
 }
 
-void *
-allocate_memory (size_t byte_size)
-{
-  TRACE_CALLBACK_BEGIN (byte_size);
-  return detail::process_callbacks.allocate_memory (byte_size);
-  TRACE_CALLBACK_END ();
-}
-
-void
-deallocate_memory (void *data)
-{
-  TRACE_CALLBACK_BEGIN (data);
-  detail::process_callbacks.deallocate_memory (data);
-  TRACE_CALLBACK_END ();
-}
-
 } /* namespace amd::dbgapi */
 
 using namespace amd::dbgapi;
@@ -2071,40 +2047,42 @@ amd_dbgapi_process_set_progress (amd_dbgapi_process_id_t process_id,
                                  amd_dbgapi_progress_t progress)
 {
   TRACE_BEGIN (param_in (process_id), param_in (progress));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    bool forward_progress_needed;
+    switch (progress)
+      {
+      case AMD_DBGAPI_PROGRESS_NORMAL:
+        forward_progress_needed = true;
+        break;
+      case AMD_DBGAPI_PROGRESS_NO_FORWARD:
+        forward_progress_needed = false;
+        break;
+      default:
+        THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
+      }
 
-  bool forward_progress_needed;
-  switch (progress)
-    {
-    case AMD_DBGAPI_PROGRESS_NORMAL:
-      forward_progress_needed = true;
-      break;
-    case AMD_DBGAPI_PROGRESS_NO_FORWARD:
-      forward_progress_needed = false;
-      break;
-    default:
-      return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
-    }
+    if (process_id == AMD_DBGAPI_PROCESS_NONE)
+      {
+        for (auto &&process : process_t::all ())
+          process.set_forward_progress_needed (forward_progress_needed);
+      }
+    else
+      {
+        if (process_t *process = process_t::find (process_id); process)
+          process->set_forward_progress_needed (forward_progress_needed);
+        else
+          THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
+      }
 
-  if (process_id == AMD_DBGAPI_PROCESS_NONE)
-    {
-      for (auto &&process : process_t::all ())
-        process.set_forward_progress_needed (forward_progress_needed);
-    }
-  else
-    {
-      if (process_t *process = process_t::find (process_id); process)
-        process->set_forward_progress_needed (forward_progress_needed);
-      else
-        return AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID;
-    }
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
   TRACE_END ();
 }
 
@@ -2113,37 +2091,33 @@ amd_dbgapi_process_set_wave_creation (amd_dbgapi_process_id_t process_id,
                                       amd_dbgapi_wave_creation_t creation)
 {
   TRACE_BEGIN (param_in (process_id), param_in (creation));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    process_t *process = process_t::find (process_id);
 
-  process_t *process = process_t::find (process_id);
+    if (!process)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
-  if (!process)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID;
+    switch (creation)
+      {
+      case AMD_DBGAPI_WAVE_CREATION_NORMAL:
+        process->set_wave_launch_mode (os_wave_launch_mode_t::normal);
+        break;
+      case AMD_DBGAPI_WAVE_CREATION_STOP:
+        process->set_wave_launch_mode (os_wave_launch_mode_t::halt);
+        break;
+      default:
+        THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
+      }
 
-  amd_dbgapi_status_t status;
-  switch (creation)
-    {
-    case AMD_DBGAPI_WAVE_CREATION_NORMAL:
-      status = process->set_wave_launch_mode (os_wave_launch_mode_t::normal);
-      break;
-    case AMD_DBGAPI_WAVE_CREATION_STOP:
-      status = process->set_wave_launch_mode (os_wave_launch_mode_t::halt);
-      break;
-    default:
-      return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
-    }
-
-  if (status != AMD_DBGAPI_STATUS_SUCCESS
-      && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    error ("Could not set wave creation for %s (rc=%d)",
-           to_string (process_id).c_str (), status);
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
   TRACE_END ();
 }
 
@@ -2152,45 +2126,56 @@ amd_dbgapi_process_attach (amd_dbgapi_client_process_id_t client_process_id,
                            amd_dbgapi_process_id_t *process_id)
 {
   TRACE_BEGIN (param_in (client_process_id), param_in (process_id));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    if (!client_process_id || !process_id)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
-  if (!client_process_id || !process_id)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+    /* Return an error if the client_process_id is already attached to another
+       process instance.  */
+    if (process_t::find (client_process_id))
+      THROW (AMD_DBGAPI_STATUS_ERROR_ALREADY_ATTACHED);
 
-  /* Return an error if the client_process_id is already attached to another
-     process instance.  */
-  if (process_t::find (client_process_id))
-    return AMD_DBGAPI_STATUS_ERROR_ALREADY_ATTACHED;
+    process_t *process;
 
-  process_t *process;
-  try
-    {
-      process = &process_t::create_process (client_process_id);
-    }
-  catch (const exception_t &)
-    {
-      /* process_t::create_process could throw a fatal error if it fails to
-         create a new os_driver instance or create a pipe for the notifier,
-         simply return an error.  */
-      return AMD_DBGAPI_STATUS_ERROR;
-    }
+    try
+      {
+        process = &process_t::create_process (client_process_id);
+      }
+    catch (const exception_t &)
+      {
+        /* process_t::create_process could throw a fatal error if it fails to
+           create a new os_driver instance or create a pipe for the notifier,
+           simply return an error.  */
+        THROW (AMD_DBGAPI_STATUS_ERROR);
+      }
 
-  amd_dbgapi_status_t status = process->attach ();
-  if (status != AMD_DBGAPI_STATUS_SUCCESS
-      && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    {
-      process_t::destroy_process (process);
-      return status;
-    }
+    try
+      {
+        process->attach ();
+      }
+    catch (const process_exited_exception_t &)
+      {
+        /* Leave the process attached in case of a process exited exception. */
+      }
+    catch (const api_error_t &e)
+      {
+        /* For all other exceptions, destroy the newly created process.  */
+        process_t::destroy_process (process);
+        THROW (e.code ());
+      }
 
-  *process_id = amd_dbgapi_process_id_t{ process->id () };
+    *process_id = amd_dbgapi_process_id_t{ process->id () };
 
-  return AMD_DBGAPI_STATUS_SUCCESS;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_ALREADY_ATTACHED,
+         AMD_DBGAPI_STATUS_ERROR_RESTRICTION,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT, AMD_DBGAPI_STATUS_ERROR);
   TRACE_END (make_ref (param_out (process_id)));
 }
 
@@ -2198,22 +2183,29 @@ amd_dbgapi_status_t AMD_DBGAPI
 amd_dbgapi_process_detach (amd_dbgapi_process_id_t process_id)
 {
   TRACE_BEGIN (param_in (process_id));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    process_t *process = process_t::find (process_id);
 
-  process_t *process = process_t::find (process_id);
+    if (!process)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
-  if (!process)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID;
+    try
+      {
+        process->detach ();
+      }
+    catch (const process_exited_exception_t &)
+      {
+      }
+    process_t::destroy_process (process);
 
-  process->detach ();
-  process_t::destroy_process (process);
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
   TRACE_END ();
 }
 
@@ -2224,18 +2216,25 @@ amd_dbgapi_process_get_info (amd_dbgapi_process_id_t process_id,
 {
   TRACE_BEGIN (param_in (process_id), param_in (query), param_in (value_size),
                param_in (value));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    process_t *process = process_t::find (process_id);
 
-  process_t *process = process_t::find (process_id);
+    if (!process)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
-  if (!process)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID;
+    process->get_info (query, value_size, value);
 
-  return process->get_info (query, value_size, value);
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY,
+         AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END (make_query_ref (query, param_out (value)));
 }

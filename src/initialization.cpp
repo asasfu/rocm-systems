@@ -20,6 +20,7 @@
 
 #include "amd-dbgapi.h"
 #include "debug.h"
+#include "exception.h"
 #include "logging.h"
 #include "process.h"
 #include "utils.h"
@@ -52,26 +53,28 @@ amd_dbgapi_initialize (struct amd_dbgapi_callbacks_s *callbacks)
   detail::process_callbacks = *callbacks;
 
   TRACE_BEGIN (callbacks);
-  TRY;
+  TRY
+  {
+    process_t::reset_all_ids ();
+    detail::is_initialized = true;
 
-  process_t::reset_all_ids ();
-  detail::is_initialized = true;
+    dbgapi_log (
+      AMD_DBGAPI_LOG_LEVEL_VERBOSE,
+      "library info: file_name=\"%s\", build_info=%s",
+      [] ()
+      {
+        Dl_info dl_info{};
+        if (!dladdr (&detail::process_callbacks, &dl_info))
+          return "";
+        return dl_info.dli_fname;
+      }(),
+      AMD_DBGAPI_BUILD_INFO);
 
-  dbgapi_log (
-    AMD_DBGAPI_LOG_LEVEL_VERBOSE,
-    "library info: file_name=\"%s\", build_info=%s",
-    [] ()
-    {
-      Dl_info dl_info{};
-      if (!dladdr (&detail::process_callbacks, &dl_info))
-        return "";
-      return dl_info.dli_fname;
-    }(),
-    AMD_DBGAPI_BUILD_INFO);
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_ALREADY_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END ();
 }
 
@@ -87,22 +90,23 @@ amd_dbgapi_finalize ()
     });
 
   TRACE_BEGIN ();
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    /* Detach all remaining processes.  */
+    auto &&range = process_t::all ();
+    for (auto it = range.begin (); it != range.end ();)
+      {
+        auto &process = *it++;
+        process.detach ();
+        process_t::destroy_process (&process);
+      }
 
-  /* Detach all remaining processes.  */
-  auto &&range = process_t::all ();
-  for (auto it = range.begin (); it != range.end ();)
-    {
-      auto &process = *it++;
-      process.detach ();
-      process_t::destroy_process (&process);
-    }
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END ();
 }

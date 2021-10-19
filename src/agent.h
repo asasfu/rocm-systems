@@ -43,7 +43,7 @@ private:
   os_exception_mask_t m_exceptions{ os_exception_mask_t::none };
   epoch_t m_mark{ 0 };
 
-  const architecture_t * const m_architecture;
+  const architecture_t *const m_architecture;
   process_t &m_process;
 
 public:
@@ -84,8 +84,8 @@ public:
   void clear_exceptions (os_exception_mask_t exceptions);
   os_exception_mask_t exceptions () const { return m_exceptions; }
 
-  amd_dbgapi_status_t get_info (amd_dbgapi_agent_info_t query,
-                                size_t value_size, void *value) const;
+  void get_info (amd_dbgapi_agent_info_t query, size_t value_size,
+                 void *value) const;
 
   amd_dbgapi_global_address_t shared_address_space_aperture () const
   {
@@ -104,10 +104,7 @@ public:
     return m_os_agent_info.shader_engine_count;
   }
 
-  const architecture_t *architecture () const
-  {
-    return m_architecture;
-  }
+  const architecture_t *architecture () const { return m_architecture; }
 
   process_t &process () const { return m_process; }
 };

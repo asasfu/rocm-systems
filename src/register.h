@@ -134,7 +134,6 @@ enum class amdgpu_regnum_t : uint32_t
   xnack_mask_lo,   /* XNACK mask lower 32 bits.  */
   xnack_mask_hi,   /* XNACK mask higher 32 bits.  */
 
-  wave_id,       /* Debug[0:1].  */
   dispatch_grid, /* Dispatch grid X, Y, Z  */
 
   last_aliased = dispatch_grid,
@@ -152,6 +151,7 @@ enum class amdgpu_regnum_t : uint32_t
   pseudo_vcc_32,  /* Read from vcc_32, write to vcc_32 and status.vccz.  */
   pseudo_vcc_64,  /* Read from vcc_64, write to vcc_64 and status.vccz.  */
 
+  wave_id,       /* The wave's globally unique identifier.  */
   wave_in_group, /* The wave position in the thread group.  */
   csp,           /* Conditional-branch Stack Pointer.  */
 
@@ -251,8 +251,8 @@ public:
   bool contains (amdgpu_regnum_t regnum) const;
   std::set<amdgpu_regnum_t> register_set () const;
 
-  amd_dbgapi_status_t get_info (amd_dbgapi_register_class_info_t query,
-                                size_t value_size, void *value) const;
+  void get_info (amd_dbgapi_register_class_info_t query, size_t value_size,
+                 void *value) const;
 
   const architecture_t &architecture () const { return m_architecture; }
 

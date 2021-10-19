@@ -20,7 +20,7 @@
 
 cmake_minimum_required(VERSION 3.8)
 
-project(AMD_DBGAPI VERSION 0.56.0)
+project(AMD_DBGAPI VERSION 0.58.0)
 
 # The project command does not set the <PROJECT-NAME>_NAME variable so must set
 # it explicitly.
@@ -43,7 +43,7 @@ add_library(amd-dbgapi SHARED ${SOURCES})
 set_target_properties(amd-dbgapi PROPERTIES
   CXX_STANDARD 17
   CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF
+  CXX_EXTENSIONS ON
   OUTPUT_NAME "rocm-dbgapi"
   DEFINE_SYMBOL "AMD_DBGAPI_EXPORTS"
   VERSION ${AMD_DBGAPI_VERSION}

@@ -20,6 +20,7 @@
 
 #include "callbacks.h"
 #include "debug.h"
+#include "exception.h"
 #include "initialization.h"
 #include "logging.h"
 #include "process.h"
@@ -37,34 +38,37 @@ breakpoint_t::breakpoint_t (amd_dbgapi_breakpoint_id_t breakpoint_id,
   : handle_object (breakpoint_id), m_address (address), m_action (action),
     m_process (process)
 {
-  m_inserted = m_process.insert_breakpoint (address, breakpoint_id)
-               == AMD_DBGAPI_STATUS_SUCCESS;
+  amd_dbgapi_status_t status
+    = m_process.insert_breakpoint (address, breakpoint_id);
+
+  m_inserted = (status == AMD_DBGAPI_STATUS_SUCCESS);
 
   if (!m_inserted)
-    warning ("Could not insert breakpoint at %#lx", address);
+    warning ("Could not insert breakpoint at %#lx (rc=%d)", address, status);
 }
 
 breakpoint_t::~breakpoint_t ()
 {
-  if (m_inserted)
-    {
-      amd_dbgapi_status_t status = process ().remove_breakpoint (id ());
-      if (status != AMD_DBGAPI_STATUS_SUCCESS)
-        warning ("remove_breakpoint failed (rc=%d)", status);
-    }
+  if (!m_inserted)
+    return;
+
+  amd_dbgapi_status_t status = process ().remove_breakpoint (id ());
+  if (status != AMD_DBGAPI_STATUS_SUCCESS)
+    warning ("remove_breakpoint failed (rc=%d)", status);
 }
 
-amd_dbgapi_status_t
+void
 breakpoint_t::get_info (amd_dbgapi_breakpoint_info_t query, size_t value_size,
                         void *value) const
 {
   switch (query)
     {
     case AMD_DBGAPI_BREAKPOINT_INFO_PROCESS:
-      return utils::get_info (value_size, value, process ().id ());
+      utils::get_info (value_size, value, process ().id ());
+      return;
     }
 
-  return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+  throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 }
 
 } /* namespace amd::dbgapi */
@@ -79,22 +83,26 @@ amd_dbgapi_report_breakpoint_hit (
 {
   TRACE_BEGIN (param_in (breakpoint_id), param_in (client_thread_id),
                param_in (breakpoint_action));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    if (!breakpoint_action)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
-  if (!breakpoint_action)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+    breakpoint_t *breakpoint = find (breakpoint_id);
 
-  breakpoint_t *breakpoint = find (breakpoint_id);
+    if (!breakpoint)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_BREAKPOINT_ID);
 
-  if (!breakpoint)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_BREAKPOINT_ID;
+    breakpoint->action () (*breakpoint, client_thread_id, breakpoint_action);
 
-  return breakpoint->action () (*breakpoint, client_thread_id,
-                                breakpoint_action);
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_BREAKPOINT_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
   TRACE_END (make_ref (param_out (breakpoint_action)));
 }
 
@@ -105,18 +113,24 @@ amd_dbgapi_breakpoint_get_info (amd_dbgapi_breakpoint_id_t breakpoint_id,
 {
   TRACE_BEGIN (param_in (breakpoint_id), param_in (query),
                param_in (value_size), param_in (value));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    breakpoint_t *breakpoint = find (breakpoint_id);
 
-  breakpoint_t *breakpoint = find (breakpoint_id);
+    if (!breakpoint)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_BREAKPOINT_ID);
 
-  if (!breakpoint)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_BREAKPOINT_ID;
+    breakpoint->get_info (query, value_size, value);
 
-  return breakpoint->get_info (query, value_size, value);
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_BREAKPOINT_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END (make_query_ref (query, param_out (value)));
 }

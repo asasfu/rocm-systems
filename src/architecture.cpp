@@ -21,6 +21,7 @@
 #include "architecture.h"
 #include "agent.h"
 #include "debug.h"
+#include "exception.h"
 #include "initialization.h"
 #include "logging.h"
 #include "memory.h"
@@ -92,6 +93,9 @@ protected:
   static constexpr uint32_t ttmp6_saved_trap_id_mask
     = utils::bit_mask (25, 28);
   static constexpr int ttmp6_saved_trap_id_shift = 25;
+  static constexpr uint32_t ttmp6_queue_packet_id_mask
+    = utils::bit_mask (0, 24);
+  static constexpr int ttmp6_queue_packet_id_shift = 0;
 
   /* See https://llvm.org/docs/AMDGPUUsage.html#trap-handler-abi  */
   enum class trap_id_t : uint8_t
@@ -111,11 +115,6 @@ protected:
     if (uint8_t trap_id = utils::bit_extract (x, 25, 28); trap_id != 0)
       return trap_id_t{ trap_id };
     return std::nullopt;
-  }
-
-  static constexpr uint32_t ttmp6_queue_packet_id (uint32_t x)
-  {
-    return utils::bit_extract (x, 0, 24);
   }
 
   static constexpr uint32_t sq_wave_mode_debug_en_mask = 1 << 11;
@@ -197,7 +196,7 @@ protected:
   amd_comgr_disassembly_info_t disassembly_info () const;
 
 public:
-  amd_dbgapi_status_t convert_address_space (
+  void convert_address_space (
     const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
     const address_space_t &from_address_space,
     const address_space_t &to_address_space,
@@ -255,6 +254,9 @@ public:
   void wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state,
                        amd_dbgapi_exceptions_t exceptions
                        = AMD_DBGAPI_EXCEPTION_NONE) const override;
+
+  bool wave_get_halt (wave_t &wave) const override;
+  void wave_set_halt (wave_t &wave, bool halt) const override;
 
   virtual uint32_t os_wave_launch_trap_mask_to_wave_mode (
     os_wave_launch_trap_mask_t mask) const;
@@ -428,7 +430,7 @@ amdgcn_architecture_t::disassembly_info () const
             target_triple ().c_str (), read_memory_callback,
             print_instruction_callback, print_address_annotation_callback,
             &m_disassembly_info.emplace ()))
-        error ("amd_comgr_create_disassembly_info failed");
+        fatal_error ("amd_comgr_create_disassembly_info failed");
     }
 
   return *m_disassembly_info;
@@ -508,7 +510,7 @@ address_space_for_generic_address (
     [=] (const address_space_t &as)
     { return as.kind () == address_space_kind; });
   if (!segment_address_space)
-    error ("address space not found in architecture");
+    fatal_error ("address space not found in architecture");
 
   return *segment_address_space;
 }
@@ -531,7 +533,7 @@ generic_address_for_address_space (
     aperture = wave.agent ().private_address_space_aperture ();
   else if (segment_address_space.kind () != address_space_t::global)
     /* not a valid address space conversion.  */
-    return {};
+    return std::nullopt;
 
   if (segment_address == segment_address_space.null_address ())
     return segment_address_space.null_address ();
@@ -544,7 +546,7 @@ generic_address_for_address_space (
 
 } /* namespace */
 
-amd_dbgapi_status_t
+void
 amdgcn_architecture_t::convert_address_space (
   const wave_t &wave, amd_dbgapi_lane_id_t /* lane_id  */,
   const address_space_t &from_address_space,
@@ -558,7 +560,7 @@ amdgcn_architecture_t::convert_address_space (
   if (from_address_space.kind () == to_address_space.kind ())
     {
       *to_address = from_address;
-      return AMD_DBGAPI_STATUS_SUCCESS;
+      return;
     }
 
   if (from_address_space.kind () == address_space_t::generic)
@@ -566,35 +568,38 @@ amdgcn_architecture_t::convert_address_space (
       if (from_address == from_address_space.null_address ())
         {
           *to_address = to_address_space.null_address ();
-          return AMD_DBGAPI_STATUS_SUCCESS;
+          return;
         }
 
       /* Check that the generic from_address is compatible with the
          to_address_space.  */
       if (address_space_for_generic_address (wave, from_address).kind ()
           != to_address_space.kind ())
-        return AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION;
+        throw api_error_t (
+          AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
 
       *to_address
         = from_address
           & utils::bit_mask (0, to_address_space.address_size () - 1);
 
-      return AMD_DBGAPI_STATUS_SUCCESS;
+      return;
     }
 
   /* Other conversions from local, private or global can only be to the generic
      address space.  */
 
   if (to_address_space.kind () != address_space_t::generic)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION;
+    throw api_error_t (
+      AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
 
   auto generic_address = generic_address_for_address_space (
     wave, from_address_space, from_address);
+
   if (!generic_address)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION;
+    throw api_error_t (
+      AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
 
   *to_address = *generic_address;
-  return AMD_DBGAPI_STATUS_SUCCESS;
 }
 
 void
@@ -1361,9 +1366,7 @@ amdgcn_architecture_t::wave_get_state (wave_t &wave) const
     pc = wave.pc ();
 
   amd_dbgapi_wave_stop_reasons_t stop_reason
-    = wave.state () == AMD_DBGAPI_WAVE_STATE_SINGLE_STEP
-        ? AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP
-        : AMD_DBGAPI_WAVE_STOP_REASON_NONE;
+    = AMD_DBGAPI_WAVE_STOP_REASON_NONE;
 
   uint32_t trapsts, mode_reg;
   wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
@@ -1434,50 +1437,7 @@ amdgcn_architecture_t::wave_get_state (wave_t &wave) const
               = wave.instruction_at_pc (-breakpoint_instruction_pc_adjust ());
             return instruction && is_trap (*instruction);
           }())
-        error ("trap exception not raised by a trap instruction");
-    }
-
-  /* Check for spurious single-step stop events:
-
-     Current architectures do not report single-step exceptions in the trapsts
-     register, so there is no way to tell if a single-step exception has
-     occurred in the presence of other exceptions (for example, context save).
-
-     To work around this limitation, the 1st level trap handler calls the 2nd
-     level trap handler when mode.debug_en == 1  && status.halt == 0, which may
-     cause a spurious single-step stop event to be reported.
-
-     To detect spurious events, a wave's last stopped pc is recorded before it
-     is resumed so that it is possible to tell if the pc has changed as the
-     result of executing the instruction.
-
-     Non-sequential instructions may jump to self, making detecting execution
-     difficult, so they are simulated when the wave is resumed instead of
-     single-stepped on hardware.
-
-     Instructions with invalid encodings, which may be non-sequential but
-     cannot be simulated, may still report the spurious single-step exception
-     to avoid infinite loops.
-   */
-
-  if (pc == wave.last_stopped_pc ()
-      /* The only exception present is a single-step exception.  */
-      && stop_reason == AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP)
-    {
-      if (auto instruction = wave.instruction_at_pc ();
-          /* The instruction is sequential.  */
-          instruction && is_sequential (*instruction))
-        {
-          /* Resume the wave in single-step mode.  */
-          wave_set_state (wave, AMD_DBGAPI_WAVE_STATE_SINGLE_STEP);
-
-          dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
-                      "%s (pc=%#lx) ignore spurious single-step",
-                      to_string (wave.id ()).c_str (), pc);
-
-          return { AMD_DBGAPI_WAVE_STATE_SINGLE_STEP,
-                   AMD_DBGAPI_WAVE_STOP_REASON_NONE };
-        }
+        fatal_error ("trap exception not raised by a trap instruction");
     }
 
   return { AMD_DBGAPI_WAVE_STATE_STOP, stop_reason };
@@ -1501,7 +1461,7 @@ amdgcn_architecture_t::wave_set_state (
   if (state != AMD_DBGAPI_WAVE_STATE_STOP
       && exceptions != AMD_DBGAPI_EXCEPTION_NONE)
     /* Halt the wave if resuming with exceptions.  */
-    ttmp6 |= ttmp6_saved_status_halt_mask;
+    wave_set_halt (wave, true);
 
   switch (state)
     {
@@ -1586,11 +1546,55 @@ amdgcn_architecture_t::wave_set_state (
                             | sq_wave_trapsts_excp_hi_addr_watch2_mask
                             | sq_wave_trapsts_excp_hi_addr_watch3_mask;
 
-      uint32_t trapsts;
-      wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
-      trapsts &= ~clear_exceptions;
-      wave.write_register (amdgpu_regnum_t::trapsts, &trapsts);
+      if (clear_exceptions)
+        {
+          uint32_t trapsts;
+          wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+          trapsts &= ~clear_exceptions;
+          wave.write_register (amdgpu_regnum_t::trapsts, &trapsts);
+        }
     }
+}
+
+bool
+amdgcn_architecture_t::wave_get_halt (wave_t &wave) const
+{
+  uint32_t ttmp6;
+  wave.read_register (amdgpu_regnum_t::ttmp6, &ttmp6);
+
+  /* If the wave is stopped, status.halt is saved in ttmp6.  */
+  if (ttmp6 & ttmp6_wave_stopped_mask)
+    return ttmp6 & ttmp6_saved_status_halt_mask;
+
+  uint32_t status_reg;
+  wave.read_register (amdgpu_regnum_t::status, &status_reg);
+  return status_reg & sq_wave_status_halt_mask;
+}
+
+void
+amdgcn_architecture_t::wave_set_halt (wave_t &wave, bool halt) const
+{
+  uint32_t ttmp6;
+  wave.read_register (amdgpu_regnum_t::ttmp6, &ttmp6);
+
+  /* When the wave is stopped by the trap handler, status.halt is saved in
+     ttmp6 so that it can be restored when the wave is resumed.  */
+  if (ttmp6 & ttmp6_wave_stopped_mask)
+    {
+      ttmp6 = halt ? ttmp6 | ttmp6_saved_status_halt_mask
+                   : ttmp6 & ~ttmp6_saved_status_halt_mask;
+
+      wave.write_register (amdgpu_regnum_t::ttmp6, &ttmp6);
+      return;
+    }
+
+  uint32_t status_reg;
+  wave.read_register (amdgpu_regnum_t::status, &status_reg);
+
+  status_reg = halt ? status_reg | sq_wave_status_halt_mask
+                    : status_reg & ~sq_wave_status_halt_mask;
+
+  wave.write_register (amdgpu_regnum_t::status, &status_reg);
 }
 
 /* Convert an os_wave_launch_trap_mask to a bit mask that can be or'ed in the
@@ -2014,6 +2018,7 @@ amdgcn_architecture_t::is_pseudo_register_available (
     case amdgpu_regnum_t::pseudo_status:
     case amdgpu_regnum_t::pseudo_exec_64:
     case amdgpu_regnum_t::pseudo_vcc_64:
+    case amdgpu_regnum_t::wave_id:
     case amdgpu_regnum_t::wave_in_group:
     case amdgpu_regnum_t::csp:
       return true;
@@ -2028,13 +2033,11 @@ amdgcn_architecture_t::read_pseudo_register (const wave_t &wave,
                                              size_t offset, size_t value_size,
                                              void *value) const
 {
-  dbgapi_assert (is_pseudo_register (regnum));
+  dbgapi_assert (is_pseudo_register (regnum)
+                 && is_pseudo_register_available (wave, regnum));
 
-  if (!is_pseudo_register_available (wave, regnum))
-    throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_ID);
-
-  if (!value_size || (offset + value_size) > register_size (regnum))
-    throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY);
+  dbgapi_assert (value_size && (offset + value_size) <= register_size (regnum)
+                 && "read_pseudo_register is out of bounds");
 
   if (regnum == amdgpu_regnum_t::pseudo_exec_64
       || regnum == amdgpu_regnum_t::pseudo_vcc_64)
@@ -2079,6 +2082,19 @@ amdgcn_architecture_t::read_pseudo_register (const wave_t &wave,
       return;
     }
 
+  if (regnum == amdgpu_regnum_t::wave_id)
+    {
+      std::array<uint32_t, 2> wave_id;
+
+      wave.read_register (amdgpu_regnum_t::ttmp4, &wave_id[0]);
+      wave.read_register (amdgpu_regnum_t::ttmp5, &wave_id[1]);
+
+      memcpy (static_cast<char *> (value) + offset,
+              reinterpret_cast<const char *> (wave_id.data ()) + offset,
+              value_size);
+      return;
+    }
+
   if (regnum == amdgpu_regnum_t::csp)
     {
       uint32_t mode;
@@ -2092,7 +2108,7 @@ amdgcn_architecture_t::read_pseudo_register (const wave_t &wave,
       return;
     }
 
-  throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_ID);
+  dbgapi_assert_not_reached ("Unhandled pseudo register");
 }
 
 void
@@ -2101,13 +2117,11 @@ amdgcn_architecture_t::write_pseudo_register (wave_t &wave,
                                               size_t offset, size_t value_size,
                                               const void *value) const
 {
-  dbgapi_assert (is_pseudo_register (regnum));
+  dbgapi_assert (is_pseudo_register (regnum)
+                 && is_pseudo_register_available (wave, regnum));
 
-  if (!is_pseudo_register_available (wave, regnum))
-    throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_ID);
-
-  if (!value_size || (offset + value_size) > register_size (regnum))
-    throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY);
+  dbgapi_assert (value_size && (offset + value_size) <= register_size (regnum)
+                 && "write_pseudo_register is out of bounds");
 
   if (regnum == amdgpu_regnum_t::wave_in_group)
     /* Writing to wave_in_group is a no-op.  */
@@ -2177,6 +2191,21 @@ amdgcn_architecture_t::write_pseudo_register (wave_t &wave,
       return;
     }
 
+  if (regnum == amdgpu_regnum_t::wave_id)
+    {
+      std::array<uint32_t, 2> wave_id;
+
+      wave.read_register (amdgpu_regnum_t::ttmp4, &wave_id[0]);
+      wave.read_register (amdgpu_regnum_t::ttmp5, &wave_id[1]);
+
+      memcpy (reinterpret_cast<char *> (wave_id.data ()) + offset,
+              static_cast<const char *> (value) + offset, value_size);
+
+      wave.write_register (amdgpu_regnum_t::ttmp4, &wave_id[0]);
+      wave.write_register (amdgpu_regnum_t::ttmp5, &wave_id[1]);
+      return;
+    }
+
   if (regnum == amdgpu_regnum_t::csp)
     {
       uint32_t mode, csp;
@@ -2193,7 +2222,7 @@ amdgcn_architecture_t::write_pseudo_register (wave_t &wave,
       return;
     }
 
-  throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_ID);
+  dbgapi_assert_not_reached ("Unhandled pseudo register");
 }
 
 std::optional<size_t>
@@ -2279,6 +2308,8 @@ protected:
     {
     }
 
+    std::optional<amd_dbgapi_wave_id_t> id () const override;
+
     /* Number for vector registers.  */
     size_t vgpr_count () const override;
     /* Number of scalar registers.  */
@@ -2333,6 +2364,9 @@ protected:
   scalar_operand_to_regnum (int operand) const override;
   size_t scalar_register_count () const override { return 102; }
   size_t scalar_alias_count () const override { return 6; }
+
+  std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
+  wave_get_state (wave_t &wave) const override;
 
   gfx9_architecture_t (elf_amdgpu_machine_t e_machine,
                        std::string target_triple);
@@ -2477,6 +2511,90 @@ gfx9_architecture_t::gfx9_architecture_t (elf_amdgpu_machine_t e_machine,
                                    amdgpu_regnum_t::pseudo_vcc_64);
 }
 
+std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
+gfx9_architecture_t::wave_get_state (wave_t &wave) const
+{
+  amd_dbgapi_wave_state_t prev_state = wave.state ();
+  auto [new_state, stop_reason] = amdgcn_architecture_t::wave_get_state (wave);
+
+  if (prev_state != AMD_DBGAPI_WAVE_STATE_SINGLE_STEP
+      || new_state != AMD_DBGAPI_WAVE_STATE_STOP)
+    return { new_state, stop_reason };
+
+  /* Check for spurious single-step stop events (if the architecture does not
+     support precise single-step exceptions reporting):
+
+     Current architectures do not report single-step exceptions in the trapsts
+     register, so there is no way to tell if a single-step exception has
+     occurred in the presence of other exceptions (for example, context save).
+
+     To work around this limitation, the 1st level trap handler calls the 2nd
+     level trap handler when mode.debug_en == 1  && status.halt == 0, which may
+     cause a spurious single-step stop event to be reported.
+
+     To detect spurious events, a wave's last stopped pc is recorded before it
+     is resumed so that it is possible to tell if the pc has changed as the
+     result of executing the instruction.
+
+     Non-sequential instructions may jump to self, making detecting execution
+     difficult, so they are simulated when the wave is resumed instead of
+     single-stepped on hardware.
+
+     Instructions with invalid encodings, which may be non-sequential but
+     cannot be simulated, may still report the spurious single-step exception
+     to avoid infinite loops.
+   */
+
+  if (wave.pc () != wave.last_stopped_pc ())
+    {
+      stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP;
+    }
+  else if (stop_reason == AMD_DBGAPI_WAVE_STOP_REASON_NONE)
+    /* The only exception present is a single-step exception.  */
+    {
+      if (auto instruction = wave.instruction_at_pc ();
+          /* The instruction is sequential.  */
+          instruction && is_sequential (*instruction))
+        {
+          /* Resume the wave in single-step mode.  */
+          wave_set_state (wave, AMD_DBGAPI_WAVE_STATE_SINGLE_STEP);
+
+          dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
+                      "%s (pc=%#lx) ignore spurious single-step",
+                      to_string (wave.id ()).c_str (), wave.pc ());
+
+          return { AMD_DBGAPI_WAVE_STATE_SINGLE_STEP,
+                   AMD_DBGAPI_WAVE_STOP_REASON_NONE };
+        }
+
+      /* The pc is unchanged, the instruction is inaccessible, invalid, or
+         non-sequential, and no other exceptions were reported, yet the wave
+         has stopped. The best we can do is report a possibly spurious
+         single-step exception.  */
+      stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP;
+    }
+
+  return { AMD_DBGAPI_WAVE_STATE_STOP, stop_reason };
+}
+
+std::optional<amd_dbgapi_wave_id_t>
+gfx9_architecture_t::cwsr_record_t::id () const
+{
+  dbgapi_assert (
+    process ().is_flag_set (process_t::flag_t::ttmps_setup_enabled));
+
+  const amd_dbgapi_global_address_t wave_id_address
+    = register_address (amdgpu_regnum_t::ttmp4).value ();
+
+  amd_dbgapi_wave_id_t wave_id;
+  process ().read_global_memory (wave_id_address, &wave_id);
+
+  if (wave_id == wave_t::undefined)
+    return std::nullopt;
+
+  return wave_id;
+}
+
 size_t
 gfx9_architecture_t::cwsr_record_t::vgpr_count () const
 {
@@ -2542,10 +2660,7 @@ gfx9_architecture_t::cwsr_record_t::is_halted () const
     = register_address (amdgpu_regnum_t::status).value ();
 
   uint32_t status_reg;
-  if (process ().read_global_memory (status_reg_address, &status_reg,
-                                     sizeof (status_reg))
-      != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("Could not read the 'status' register");
+  process ().read_global_memory (status_reg_address, &status_reg);
 
   return (status_reg & sq_wave_status_halt_mask) != 0;
 }
@@ -2557,9 +2672,7 @@ gfx9_architecture_t::cwsr_record_t::is_stopped () const
     = register_address (amdgpu_regnum_t::ttmp6).value ();
 
   uint32_t ttmp6;
-  if (process ().read_global_memory (ttmp6_address, &ttmp6, sizeof (ttmp6))
-      != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("Could not read the 'ttmp6' register");
+  process ().read_global_memory (ttmp6_address, &ttmp6);
 
   return (ttmp6 & ttmp6_wave_stopped_mask) != 0;
 }
@@ -2571,10 +2684,7 @@ gfx9_architecture_t::cwsr_record_t::is_priv () const
     = register_address (amdgpu_regnum_t::status).value ();
 
   uint32_t status_reg;
-  if (process ().read_global_memory (status_reg_address, &status_reg,
-                                     sizeof (status_reg))
-      != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("Could not read the 'status' register");
+  process ().read_global_memory (status_reg_address, &status_reg);
 
   return (status_reg & sq_wave_status_priv_mask) != 0;
 }
@@ -2704,7 +2814,7 @@ gfx9_architecture_t::register_type (amdgpu_regnum_t regnum) const
              "  bool EXCP_HI.ADDR_WATCH1 @12;"
              "  bool EXCP_HI.ADDR_WATCH2 @13;"
              "  bool EXCP_HI.ADDR_WATCH3 @14;"
-             "  uint32_t EXCP_CYCLE @16-19;"
+             "  uint32_t EXCP_CYCLE @16-21;"
              "  bool XNACK_ERROR @28;"
              "  enum dp_rate {"
              "    NONE    = 0,"
@@ -2920,9 +3030,6 @@ gfx9_architecture_t::cwsr_record_t::register_address (
 
   switch (regnum)
     {
-    case amdgpu_regnum_t::wave_id:
-      regnum = amdgpu_regnum_t::ttmp4;
-      break;
     case amdgpu_regnum_t::dispatch_grid:
       regnum = amdgpu_regnum_t::ttmp8;
       break;
@@ -3080,7 +3187,7 @@ gfx9_architecture_t::control_stack_iterate (
      the wave save area, and last_wave_area should point to the bottom of the
      wave save area.  */
   if (last_wave_area != (wave_area_address - wave_area_size))
-    error ("Corrupted control stack or wave save area");
+    fatal_error ("Corrupted control stack or wave save area");
 }
 
 amd_dbgapi_global_address_t
@@ -3089,24 +3196,16 @@ gfx9_architecture_t::dispatch_packet_address (
 {
   static constexpr uint64_t aql_packet_size = 64;
 
-  amd_dbgapi_global_address_t packets_address;
-  amd_dbgapi_status_t status = cwsr_record.queue ().get_info (
-    AMD_DBGAPI_QUEUE_INFO_ADDRESS, sizeof (packets_address), &packets_address);
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("Could not get the queue address (rc=%d)", status);
-
   const amd_dbgapi_global_address_t ttmp6_address
     = cwsr_record.register_address (amdgpu_regnum_t::ttmp6).value ();
 
   uint32_t ttmp6;
-  status = cwsr_record.process ().read_global_memory (ttmp6_address, &ttmp6,
-                                                      sizeof (ttmp6));
-  if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    error ("Could not read the 'ttmp6' register (rc=%d)", status);
+  cwsr_record.process ().read_global_memory (ttmp6_address, &ttmp6);
 
   amd_dbgapi_os_queue_packet_id_t os_queue_packet_id
-    = ttmp6_queue_packet_id (ttmp6);
-  return packets_address + (os_queue_packet_id * aql_packet_size);
+    = (ttmp6 & ttmp6_queue_packet_id_mask) >> ttmp6_queue_packet_id_shift;
+  return cwsr_record.queue ().address ()
+         + (os_queue_packet_id * aql_packet_size);
 }
 
 std::pair<amd_dbgapi_size_t /* offset  */, amd_dbgapi_size_t /* size  */>
@@ -3873,13 +3972,11 @@ gfx10_architecture_t::read_pseudo_register (const wave_t &wave,
                                             size_t offset, size_t value_size,
                                             void *value) const
 {
-  dbgapi_assert (is_pseudo_register (regnum));
+  dbgapi_assert (is_pseudo_register (regnum)
+                 && is_pseudo_register_available (wave, regnum));
 
-  if (!is_pseudo_register_available (wave, regnum))
-    throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_ID);
-
-  if (!value_size || (offset + value_size) > register_size (regnum))
-    throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY);
+  dbgapi_assert (value_size && (offset + value_size) <= register_size (regnum)
+                 && "read_pseudo_register is out of bounds");
 
   if (regnum == amdgpu_regnum_t::null)
     {
@@ -3909,13 +4006,11 @@ gfx10_architecture_t::write_pseudo_register (wave_t &wave,
                                              size_t offset, size_t value_size,
                                              const void *value) const
 {
-  dbgapi_assert (is_pseudo_register (regnum));
+  dbgapi_assert (is_pseudo_register (regnum)
+                 && is_pseudo_register_available (wave, regnum));
 
-  if (!is_pseudo_register_available (wave, regnum))
-    throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_ID);
-
-  if (!value_size || (offset + value_size) > register_size (regnum))
-    throw exception_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY);
+  dbgapi_assert (value_size && (offset + value_size) <= register_size (regnum)
+                 && "write_pseudo_register is out of bounds");
 
   if (regnum == amdgpu_regnum_t::null)
     /* Writing to null is a no-op.  */
@@ -4052,7 +4147,7 @@ gfx10_architecture_t::cwsr_record_t::register_address (
     case amdgpu_regnum_t::xnack_mask_hi:
     case amdgpu_regnum_t::xnack_mask_64:
       /* On gfx10, xnack_mask is now a 32bit register.  */
-      return {};
+      return std::nullopt;
 
     case amdgpu_regnum_t::flat_scratch:
       /* On gfx10, flat_scratch is an architected register, so it is saved
@@ -4444,7 +4539,7 @@ gfx10_architecture_t::control_stack_iterate (
      the wave save area, and last_wave_area should point to the bottom of the
      wave save area.  */
   if (last_wave_area != (wave_area_address - wave_area_size))
-    error ("Corrupted control stack or wave save area");
+    fatal_error ("Corrupted control stack or wave save area");
 }
 
 class gfx10_1_t : public gfx10_architecture_t
@@ -4598,41 +4693,47 @@ architecture_t::is_register_available (amdgpu_regnum_t regnum) const
   return false;
 }
 
-amd_dbgapi_status_t
+void
 architecture_t::get_info (amd_dbgapi_architecture_info_t query,
                           size_t value_size, void *value) const
 {
   switch (query)
     {
     case AMD_DBGAPI_ARCHITECTURE_INFO_NAME:
-      return utils::get_info (value_size, value, m_target_triple);
+      utils::get_info (value_size, value, m_target_triple);
+      return;
 
     case AMD_DBGAPI_ARCHITECTURE_INFO_ELF_AMDGPU_MACHINE:
-      return utils::get_info (value_size, value, elf_amdgpu_machine ());
+      utils::get_info (value_size, value, elf_amdgpu_machine ());
+      return;
 
     case AMD_DBGAPI_ARCHITECTURE_INFO_LARGEST_INSTRUCTION_SIZE:
-      return utils::get_info (value_size, value, largest_instruction_size ());
+      utils::get_info (value_size, value, largest_instruction_size ());
+      return;
 
     case AMD_DBGAPI_ARCHITECTURE_INFO_MINIMUM_INSTRUCTION_ALIGNMENT:
-      return utils::get_info (value_size, value,
-                              minimum_instruction_alignment ());
+      utils::get_info (value_size, value, minimum_instruction_alignment ());
+      return;
 
     case AMD_DBGAPI_ARCHITECTURE_INFO_BREAKPOINT_INSTRUCTION_SIZE:
-      return utils::get_info (value_size, value,
-                              breakpoint_instruction ().size ());
+      utils::get_info (value_size, value, breakpoint_instruction ().size ());
+      return;
 
     case AMD_DBGAPI_ARCHITECTURE_INFO_BREAKPOINT_INSTRUCTION:
-      return utils::get_info (value_size, value, breakpoint_instruction ());
+      utils::get_info (value_size, value, breakpoint_instruction ());
+      return;
 
     case AMD_DBGAPI_ARCHITECTURE_INFO_BREAKPOINT_INSTRUCTION_PC_ADJUST:
-      return utils::get_info (value_size, value,
-                              breakpoint_instruction_pc_adjust ());
+      utils::get_info (value_size, value, breakpoint_instruction_pc_adjust ());
+      return;
 
     case AMD_DBGAPI_ARCHITECTURE_INFO_PC_REGISTER:
-      return utils::get_info (value_size, value,
-                              regnum_to_register_id (amdgpu_regnum_t::pc));
+      utils::get_info (value_size, value,
+                       regnum_to_register_id (amdgpu_regnum_t::pc));
+      return;
     }
-  return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+
+  throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 }
 
 template <typename Architecture, typename... Args>
@@ -4680,25 +4781,27 @@ amd_dbgapi_get_architecture (uint32_t elf_amdgpu_machine,
                              amd_dbgapi_architecture_id_t *architecture_id)
 {
   TRACE_BEGIN (param_in (elf_amdgpu_machine), param_in (architecture_id));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    if (!architecture_id)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
-  if (!architecture_id)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+    const architecture_t *architecture = architecture_t::find (
+      static_cast<elf_amdgpu_machine_t> (elf_amdgpu_machine));
 
-  const architecture_t *architecture = architecture_t::find (
-    static_cast<elf_amdgpu_machine_t> (elf_amdgpu_machine));
+    if (!architecture)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ELF_AMDGPU_MACHINE);
 
-  if (!architecture)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ELF_AMDGPU_MACHINE;
+    *architecture_id = architecture->id ();
 
-  *architecture_id = architecture->id ();
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ELF_AMDGPU_MACHINE,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
   TRACE_END (make_ref (param_out (architecture_id)));
 }
 
@@ -4709,19 +4812,26 @@ amd_dbgapi_architecture_get_info (amd_dbgapi_architecture_id_t architecture_id,
 {
   TRACE_BEGIN (param_in (architecture_id), param_in (query),
                param_in (value_size), param_in (value));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    const architecture_t *architecture
+      = architecture_t::find (architecture_id);
 
-  const architecture_t *architecture = architecture_t::find (architecture_id);
+    if (!architecture)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID);
 
-  if (!architecture)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID;
+    architecture->get_info (query, value_size, value);
 
-  return architecture->get_info (query, value_size, value);
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END (make_query_ref (query, param_out (value)));
 }
 
@@ -4740,97 +4850,100 @@ amd_dbgapi_disassemble_instruction (
                make_hex (make_ref (param_in (memory), size ? *size : 0)),
                param_in (instruction_text), param_in (symbolizer_id),
                param_in (symbolizer));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    if (!memory || !size || !*size)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
-  if (!memory || !size || !*size)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+    const architecture_t *architecture
+      = architecture_t::find (architecture_id);
 
-  const architecture_t *architecture = architecture_t::find (architecture_id);
+    if (!architecture)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID);
 
-  if (!architecture)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID;
+    if (utils::align_down (address,
+                           architecture->minimum_instruction_alignment ())
+        != address)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
-  if (utils::align_down (address,
-                         architecture->minimum_instruction_alignment ())
-      != address)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+    instruction_t instruction (
+      *architecture, std::vector<std::byte> (
+                       static_cast<const std::byte *> (memory),
+                       static_cast<const std::byte *> (memory) + *size));
 
-  instruction_t instruction (
-    *architecture,
-    std::vector<std::byte> (static_cast<const std::byte *> (memory),
-                            static_cast<const std::byte *> (memory) + *size));
+    if (!instruction_text)
+      {
+        if (!instruction.is_valid ())
+          THROW (AMD_DBGAPI_STATUS_ERROR_ILLEGAL_INSTRUCTION);
 
-  if (!instruction_text)
-    {
-      if (!instruction.is_valid ())
-        return AMD_DBGAPI_STATUS_ERROR_ILLEGAL_INSTRUCTION;
+        *size = instruction.size ();
+        return AMD_DBGAPI_STATUS_SUCCESS;
+      }
 
-      *size = instruction.size ();
-      return AMD_DBGAPI_STATUS_SUCCESS;
-    }
+    /* Don't call instruction_t::is_valid () as we would end-up calling the
+       disassembler twice, first to validate the instruction's size, and a
+       second time to disassemble the instruction.  Instead, check that the
+       returned instruction size is not 0.  */
 
-  /* Don't call instruction_t::is_valid () as we would end-up calling the
-     disassembler twice, first to validate the instruction's size, and a
-     second time to disassemble the instruction.  Instead, check that the
-     returned instruction size is not 0.  */
+    auto [instruction_size, instruction_str, address_operands]
+      = architecture->disassemble_instruction (address, instruction);
 
-  auto [instruction_size, instruction_str, address_operands]
-    = architecture->disassemble_instruction (address, instruction);
+    if (!instruction_size)
+      THROW (AMD_DBGAPI_STATUS_ERROR_ILLEGAL_INSTRUCTION);
 
-  if (!instruction_size)
-    return AMD_DBGAPI_STATUS_ERROR_ILLEGAL_INSTRUCTION;
+    std::string address_operands_str;
+    for (auto &&operand : address_operands)
+      {
+        address_operands_str += address_operands_str.empty () ? "  # " : ", ";
 
-  std::string address_operands_str;
-  for (auto &&operand : address_operands)
-    {
-      address_operands_str += address_operands_str.empty () ? "  # " : ", ";
+        if (symbolizer)
+          {
+            char *symbol_text{};
 
-      if (symbolizer)
-        {
-          char *symbol_text{};
+            amd_dbgapi_status_t status
+              = symbolizer (symbolizer_id, operand, &symbol_text);
 
-          amd_dbgapi_status_t status
-            = symbolizer (symbolizer_id, operand, &symbol_text);
+            if (status == AMD_DBGAPI_STATUS_SUCCESS)
+              {
+                if (!symbol_text)
+                  THROW (AMD_DBGAPI_STATUS_ERROR);
 
-          if (status == AMD_DBGAPI_STATUS_SUCCESS)
-            {
-              if (!symbol_text)
-                return AMD_DBGAPI_STATUS_ERROR;
+                auto deallocate_symbol_text = utils::make_scope_exit (
+                  [&] () { deallocate_memory (symbol_text); });
 
-              const bool empty = !symbol_text[0];
-              address_operands_str += symbol_text;
-              deallocate_memory (symbol_text);
+                if (!symbol_text[0])
+                  THROW (AMD_DBGAPI_STATUS_ERROR);
 
-              if (empty)
-                return AMD_DBGAPI_STATUS_ERROR;
+                address_operands_str += symbol_text;
+                continue;
+              }
+            else if (status != AMD_DBGAPI_STATUS_ERROR_SYMBOL_NOT_FOUND)
+              THROW (AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
+          }
 
-              continue;
-            }
-          else if (status != AMD_DBGAPI_STATUS_ERROR_SYMBOL_NOT_FOUND)
-            return AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK;
-        }
+        address_operands_str += string_printf ("%#lx", operand);
+      }
 
-      address_operands_str += string_printf ("%#lx", operand);
-    }
+    instruction_str += address_operands_str;
 
-  instruction_str += address_operands_str;
+    /* Return the instruction text in client allocated memory.  */
+    size_t mem_size = instruction_str.size () + 1;
+    auto mem = allocate_memory<char[]> (mem_size);
 
-  /* Return the instruction text in client allocated memory.  */
-  size_t mem_size = instruction_str.size () + 1;
-  void *mem = allocate_memory (mem_size);
-  if (!mem)
-    return AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK;
+    memcpy (mem.get (), instruction_str.c_str (), mem_size);
+    *instruction_text = mem.release ();
+    *size = instruction_size;
 
-  memcpy (mem, instruction_str.c_str (), mem_size);
-  *instruction_text = static_cast<char *> (mem);
-  *size = instruction_size;
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT, AMD_DBGAPI_STATUS_ERROR,
+         AMD_DBGAPI_STATUS_ERROR_ILLEGAL_INSTRUCTION,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END (make_ref (param_out (size)),
              make_ref (param_out (instruction_text)));
 }
@@ -4849,64 +4962,66 @@ amd_dbgapi_classify_instruction (
                param_in (instruction_kind_p),
                param_in (instruction_properties_p),
                param_in (instruction_information_p));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    if (!memory || !size_p || !*size_p || !instruction_kind_p)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
-  if (!memory || !size_p || !*size_p || !instruction_kind_p)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+    const architecture_t *architecture
+      = architecture_t::find (architecture_id);
 
-  const architecture_t *architecture = architecture_t::find (architecture_id);
+    if (!architecture)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID);
 
-  if (!architecture)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID;
+    if (utils::align_down (address,
+                           architecture->minimum_instruction_alignment ())
+        != address)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
-  if (utils::align_down (address,
-                         architecture->minimum_instruction_alignment ())
-      != address)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+    instruction_t instruction (
+      *architecture, std::vector<std::byte> (
+                       static_cast<const std::byte *> (memory),
+                       static_cast<const std::byte *> (memory) + *size_p));
 
-  instruction_t instruction (
-    *architecture, std::vector<std::byte> (
-                     static_cast<const std::byte *> (memory),
-                     static_cast<const std::byte *> (memory) + *size_p));
+    if (!instruction.is_valid ())
+      THROW (AMD_DBGAPI_STATUS_ERROR_ILLEGAL_INSTRUCTION);
 
-  if (!instruction.is_valid ())
-    return AMD_DBGAPI_STATUS_ERROR_ILLEGAL_INSTRUCTION;
+    auto [kind, properties, size, information]
+      = architecture->classify_instruction (address, instruction);
 
-  auto [kind, properties, size, information]
-    = architecture->classify_instruction (address, instruction);
+    if (instruction_information_p)
+      {
+        using information_type = decltype (information)::value_type;
+        size_t mem_size = information.size () * sizeof (information_type);
 
-  if (instruction_information_p)
-    {
-      size_t mem_size
-        = information.size () * sizeof (decltype (information)::value_type);
+        if (!mem_size)
+          {
+            *instruction_information_p = nullptr;
+          }
+        else
+          {
+            auto mem = allocate_memory (mem_size);
+            memcpy (mem.get (), information.data (), mem_size);
+            *instruction_information_p = mem.release ();
+          }
+      }
 
-      if (!mem_size)
-        {
-          *instruction_information_p = nullptr;
-        }
-      else
-        {
-          void *mem = allocate_memory (mem_size);
-          if (!mem)
-            return AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK;
+    if (instruction_properties_p)
+      *instruction_properties_p = properties;
 
-          memcpy (mem, information.data (), mem_size);
-          *instruction_information_p = mem;
-        }
-    }
+    *size_p = size;
+    *instruction_kind_p = kind;
 
-  if (instruction_properties_p)
-    *instruction_properties_p = properties;
-
-  *size_p = size;
-  *instruction_kind_p = kind;
-
-  return AMD_DBGAPI_STATUS_SUCCESS;
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT, AMD_DBGAPI_STATUS_ERROR,
+         AMD_DBGAPI_STATUS_ERROR_ILLEGAL_INSTRUCTION,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END (
     make_ref (param_out (size_p)), make_ref (param_out (instruction_kind_p)),
     make_ref (param_out (instruction_properties_p)),

@@ -28,6 +28,7 @@
 #include "dispatch.h"
 #include "displaced_stepping.h"
 #include "event.h"
+#include "exception.h"
 #include "handle_object.h"
 #include "initialization.h"
 #include "logging.h"
@@ -179,21 +180,22 @@ public:
   inline void clear_flag (flag_t flags);
   inline bool is_flag_set (flag_t flags) const;
 
-  amd_dbgapi_status_t
+  [[nodiscard]] size_t
   read_global_memory_partial (amd_dbgapi_global_address_t address,
-                              void *buffer, size_t *size) const;
-  amd_dbgapi_status_t
+                              void *buffer, size_t size);
+  [[nodiscard]] size_t
   write_global_memory_partial (amd_dbgapi_global_address_t address,
-                               const void *buffer, size_t *size) const;
+                               const void *buffer, size_t size);
 
-  amd_dbgapi_status_t read_global_memory (amd_dbgapi_global_address_t address,
-                                          void *buffer, size_t size) const;
-  amd_dbgapi_status_t write_global_memory (amd_dbgapi_global_address_t address,
-                                           const void *buffer,
-                                           size_t size) const;
+  template <typename T>
+  void read_global_memory (amd_dbgapi_global_address_t address, T *ptr,
+                           size_t size = sizeof (T));
+  template <typename T>
+  void write_global_memory (amd_dbgapi_global_address_t address, const T *ptr,
+                            size_t size = sizeof (T));
 
-  amd_dbgapi_status_t read_string (amd_dbgapi_global_address_t address,
-                                   std::string *string, size_t size) const;
+  void read_string (amd_dbgapi_global_address_t address, std::string *string,
+                    size_t size);
 
   bool forward_progress_needed () const { return m_forward_progress_needed; }
   void set_forward_progress_needed (bool forward_progress_needed);
@@ -202,14 +204,12 @@ public:
   {
     return m_wave_launch_mode;
   }
-  amd_dbgapi_status_t
-  set_wave_launch_mode (os_wave_launch_mode_t wave_launch_mode);
+  void set_wave_launch_mode (os_wave_launch_mode_t wave_launch_mode);
 
-  amd_dbgapi_status_t
-  set_wave_launch_trap_override (os_wave_launch_trap_mask_t value,
-                                 os_wave_launch_trap_mask_t mask);
+  void set_wave_launch_trap_override (os_wave_launch_trap_mask_t value,
+                                      os_wave_launch_trap_mask_t mask);
 
-  amd_dbgapi_status_t set_precise_memory (bool enabled);
+  void set_precise_memory (bool enabled);
 
   /* Suspend/resume a list of queues.  Queues may become invalid as a result of
      suspension/resumption, but not destroyed.  Queues made invalid will
@@ -227,8 +227,9 @@ public:
      no longer valid.  When an object is deleted, all objects associated with
      it are also deleted.  */
   void update_agents ();
-  amd_dbgapi_status_t update_queues ();
-  amd_dbgapi_status_t update_code_objects ();
+  void update_waves ();
+  void update_queues ();
+  void update_code_objects ();
 
   void runtime_enable (os_runtime_info_t runtime_info);
 
@@ -236,7 +237,7 @@ public:
     os_exception_mask_t exceptions,
     std::variant<process_t *, agent_t *, queue_t *> source) const;
 
-  amd_dbgapi_status_t attach ();
+  void attach ();
   void detach ();
 
   void enqueue_event (event_t &event);
@@ -244,10 +245,9 @@ public:
 
   size_t watchpoint_count () const;
   amd_dbgapi_watchpoint_share_kind_t watchpoint_shared_kind () const;
-  amd_dbgapi_status_t
-  insert_watchpoint (const watchpoint_t &watchpoint,
-                     amd_dbgapi_global_address_t *adjusted_address,
-                     amd_dbgapi_global_address_t *adjusted_size);
+  void insert_watchpoint (const watchpoint_t &watchpoint,
+                          amd_dbgapi_global_address_t *adjusted_address,
+                          amd_dbgapi_global_address_t *adjusted_size);
   void remove_watchpoint (const watchpoint_t &watchpoint);
   const watchpoint_t *find_watchpoint (os_watch_id_t os_watch_id) const;
 
@@ -263,11 +263,12 @@ public:
   }
 
   static auto all () { return s_process_map.range (); }
+  static std::vector<process_t *> match (amd_dbgapi_process_id_t process_id);
   static process_t *find (amd_dbgapi_process_id_t process_id);
   static process_t *find (amd_dbgapi_client_process_id_t client_process_id);
 
-  amd_dbgapi_status_t get_info (amd_dbgapi_process_info_t query,
-                                size_t value_size, void *value) const;
+  void get_info (amd_dbgapi_process_info_t query, size_t value_size,
+                 void *value) const;
 
   amd_dbgapi_status_t get_os_pid (amd_dbgapi_os_process_id_t *pid) const;
   amd_dbgapi_status_t
@@ -362,6 +363,40 @@ public:
   pipe_t &client_notifier_pipe () { return m_client_notifier_pipe; }
 };
 
+template <typename T>
+void
+process_t::read_global_memory (amd_dbgapi_global_address_t address, T *ptr,
+                               size_t size)
+{
+  try
+    {
+      if (size_t xfer_size = read_global_memory_partial (address, ptr, size);
+          xfer_size != size)
+        throw memory_access_error_t (address + xfer_size);
+    }
+  catch (const memory_access_error_t &e)
+    {
+      fatal_error ("process_t::read_global_memory failed: %s", e.what ());
+    }
+}
+
+template <typename T>
+void
+process_t::write_global_memory (amd_dbgapi_global_address_t address,
+                                const T *ptr, size_t size)
+{
+  try
+    {
+      if (size_t xfer_size = write_global_memory_partial (address, ptr, size);
+          xfer_size != size)
+        throw memory_access_error_t (address + xfer_size);
+    }
+  catch (const memory_access_error_t &e)
+    {
+      fatal_error ("process_t::write_global_memory failed: %s", e.what ());
+    }
+}
+
 namespace detail
 {
 template <typename Handle>
@@ -420,8 +455,44 @@ process_t::is_flag_set (flag_t flag) const
   return (m_flags & flag) != 0;
 }
 
-void *allocate_memory (size_t byte_size);
-void deallocate_memory (void *data);
+namespace /* anonymous */
+{
+
+void
+deallocate_memory (void *data)
+{
+  TRACE_CALLBACK_BEGIN (data);
+  detail::process_callbacks.deallocate_memory (data);
+  TRACE_CALLBACK_END ();
+}
+
+} /* namespace anonymous */
+
+namespace detail
+{
+
+struct DeallocateMemory
+{
+  constexpr DeallocateMemory () noexcept = default;
+  void operator() (void *mem) const noexcept { deallocate_memory (mem); }
+};
+
+} /* namespace detail */
+
+template <typename T = void, typename D = detail::DeallocateMemory>
+std::unique_ptr<T, D>
+allocate_memory (size_t byte_size)
+{
+  TRACE_CALLBACK_BEGIN (byte_size);
+  void *memory = detail::process_callbacks.allocate_memory (byte_size);
+
+  if (!memory && byte_size)
+    throw api_error_t (AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
+
+  return std::unique_ptr<T, D> (
+    static_cast<typename std::unique_ptr<T, D>::pointer> (memory));
+  TRACE_CALLBACK_END ();
+}
 
 } /* namespace amd::dbgapi */
 

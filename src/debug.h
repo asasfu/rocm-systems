@@ -38,34 +38,16 @@
   ((void)((expr) ? 0 : (dbgapi_assert_fail (#expr, __FILE__, __LINE__), 0)))
 
 #define dbgapi_assert_not_reached(message)                                    \
-  amd::dbgapi::error ("%s:%d: Should not reach here: " message, __FILE__,     \
-                      __LINE__)
+  amd::dbgapi::fatal_error ("%s:%d: Should not reach here: " message,         \
+                            __FILE__, __LINE__)
 #endif /* !defined(NDEBUG) */
 
 #define dbgapi_assert_fail(assertion, file, line)                             \
-  amd::dbgapi::error ("%s:%d: Assertion `%s' failed.", file, line, assertion)
+  amd::dbgapi::fatal_error ("%s:%d: Assertion `%s' failed.", file, line,      \
+                            assertion)
 
 namespace amd::dbgapi
 {
-
-/* AMD Debugger API exception.  */
-
-class exception_t : public std::runtime_error
-{
-private:
-  /* The error code for this exception.  */
-  amd_dbgapi_status_t m_error_code;
-
-public:
-  exception_t (amd_dbgapi_status_t error_code, std::string message = {})
-    : std::runtime_error (std::move (message)), m_error_code (error_code)
-  {
-  }
-
-  void print_message () const noexcept;
-
-  amd_dbgapi_status_t error_code () const noexcept { return m_error_code; }
-};
 
 extern void warning (const char *format, ...)
 #if defined(__GNUC__)
@@ -73,7 +55,7 @@ extern void warning (const char *format, ...)
 #endif /* defined (__GNUC__) */
   ;
 
-extern void error [[noreturn]] (const char *format, ...)
+extern void fatal_error [[noreturn]] (const char *format, ...)
 #if defined(__GNUC__)
 __attribute__ ((format (printf, 1, 2)))
 #endif /* defined (__GNUC__) */

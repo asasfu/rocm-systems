@@ -21,6 +21,7 @@
 #include "agent.h"
 #include "architecture.h"
 #include "debug.h"
+#include "exception.h"
 #include "handle_object.h"
 #include "initialization.h"
 #include "logging.h"
@@ -97,51 +98,61 @@ agent_t::clear_exceptions (os_exception_mask_t exceptions)
   m_exceptions &= ~exceptions;
 }
 
-amd_dbgapi_status_t
+void
 agent_t::get_info (amd_dbgapi_agent_info_t query, size_t value_size,
                    void *value) const
 {
   switch (query)
     {
     case AMD_DBGAPI_AGENT_INFO_PROCESS:
-      return utils::get_info (value_size, value, process ().id ());
+      utils::get_info (value_size, value, process ().id ());
+      return;
 
     case AMD_DBGAPI_AGENT_INFO_NAME:
-      return utils::get_info (value_size, value, m_os_agent_info.name);
+      utils::get_info (value_size, value, m_os_agent_info.name);
+      return;
 
     case AMD_DBGAPI_AGENT_INFO_ARCHITECTURE:
-      return architecture () == nullptr
-               ? AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE
-               : utils::get_info (value_size, value, architecture ()->id ());
+      if (architecture () == nullptr)
+        throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE);
+      utils::get_info (value_size, value, architecture ()->id ());
+      return;
 
     case AMD_DBGAPI_AGENT_INFO_STATE:
-      return utils::get_info (value_size, value,
-                              supports_debugging ()
-                                ? AMD_DBGAPI_AGENT_STATE_SUPPORTED
-                                : AMD_DBGAPI_AGENT_STATE_NOT_SUPPORTED);
+      utils::get_info (value_size, value,
+                       supports_debugging ()
+                         ? AMD_DBGAPI_AGENT_STATE_SUPPORTED
+                         : AMD_DBGAPI_AGENT_STATE_NOT_SUPPORTED);
+      return;
 
     case AMD_DBGAPI_AGENT_INFO_PCI_SLOT:
-      return utils::get_info (value_size, value, m_os_agent_info.location_id);
+      utils::get_info (value_size, value, m_os_agent_info.location_id);
+      return;
 
     case AMD_DBGAPI_AGENT_INFO_PCI_VENDOR_ID:
-      return utils::get_info (value_size, value, m_os_agent_info.vendor_id);
+      utils::get_info (value_size, value, m_os_agent_info.vendor_id);
+      return;
 
     case AMD_DBGAPI_AGENT_INFO_PCI_DEVICE_ID:
-      return utils::get_info (value_size, value, m_os_agent_info.device_id);
+      utils::get_info (value_size, value, m_os_agent_info.device_id);
+      return;
 
     case AMD_DBGAPI_AGENT_INFO_EXECUTION_UNIT_COUNT:
-      return utils::get_info (value_size, value, m_os_agent_info.simd_count);
+      utils::get_info (value_size, value, m_os_agent_info.simd_count);
+      return;
 
     case AMD_DBGAPI_AGENT_INFO_MAX_WAVES_PER_EXECUTION_UNIT:
-      return utils::get_info (value_size, value,
-                              m_os_agent_info.max_waves_per_simd);
+      utils::get_info (value_size, value, m_os_agent_info.max_waves_per_simd);
+      return;
 
     case AMD_DBGAPI_AGENT_INFO_OS_ID:
-      return utils::get_info (
+      utils::get_info (
         value_size, value,
         static_cast<amd_dbgapi_os_agent_id_t> (m_os_agent_info.os_agent_id));
+      return;
     }
-  return AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT;
+
+  throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 }
 
 } /* namespace amd::dbgapi */
@@ -155,19 +166,26 @@ amd_dbgapi_agent_get_info (amd_dbgapi_agent_id_t agent_id,
 {
   TRACE_BEGIN (param_in (agent_id), param_in (query), param_in (value_size),
                param_in (value));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    agent_t *agent = find (agent_id);
 
-  agent_t *agent = find (agent_id);
+    if (!agent)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_AGENT_ID);
 
-  if (!agent)
-    return AMD_DBGAPI_STATUS_ERROR_INVALID_AGENT_ID;
+    agent->get_info (query, value_size, value);
 
-  return agent->get_info (query, value_size, value);
-
-  CATCH;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_AGENT_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY,
+         AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END (make_query_ref (query, param_out (value)));
 }
 
@@ -179,34 +197,28 @@ amd_dbgapi_process_agent_list (amd_dbgapi_process_id_t process_id,
 {
   TRACE_BEGIN (param_in (process_id), param_in (agent_count),
                param_in (agents), param_in (changed));
-  TRY;
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-  if (!detail::is_initialized)
-    return AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED;
+    std::vector<process_t *> processes = process_t::match (process_id);
 
-  std::vector<process_t *> processes;
-  if (process_id != AMD_DBGAPI_PROCESS_NONE)
-    {
-      process_t *process = process_t::find (process_id);
+    if (!agents || !agent_count)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
-      if (!process)
-        return AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID;
-
+    for (auto &&process : processes)
       process->update_agents ();
-      processes.emplace_back (process);
-    }
-  else
-    {
-      for (auto &&process : process_t::all ())
-        {
-          process.update_agents ();
-          processes.emplace_back (&process);
-        }
-    }
 
-  return utils::get_handle_list<agent_t> (processes, agent_count, agents,
-                                          changed);
-  CATCH;
+    std::tie (*agents, *agent_count)
+      = utils::get_handle_list<agent_t> (processes, changed);
+
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
   TRACE_END (make_ref (param_out (agent_count)),
              make_ref (make_ref (param_out (agents)), *agent_count),
              make_ref (param_out (changed)));

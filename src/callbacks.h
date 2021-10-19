@@ -35,9 +35,9 @@ class process_t;
 class breakpoint_t : public detail::handle_object<amd_dbgapi_breakpoint_id_t>
 {
 private:
-  using action_callback_t = std::function<amd_dbgapi_status_t (
-    breakpoint_t &, amd_dbgapi_client_thread_id_t,
-    amd_dbgapi_breakpoint_action_t *)>;
+  using action_callback_t
+    = std::function<void (breakpoint_t &, amd_dbgapi_client_thread_id_t,
+                          amd_dbgapi_breakpoint_action_t *)>;
 
   bool m_inserted{ false };
 
@@ -57,8 +57,8 @@ public:
   amd_dbgapi_global_address_t address () const { return m_address; }
   action_callback_t action () const { return m_action; }
 
-  amd_dbgapi_status_t get_info (amd_dbgapi_breakpoint_info_t query,
-                                size_t value_size, void *value) const;
+  void get_info (amd_dbgapi_breakpoint_info_t query, size_t value_size,
+                 void *value) const;
 
   process_t &process () const { return m_process; }
 };

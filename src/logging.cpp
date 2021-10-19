@@ -384,8 +384,8 @@ to_string (detail::query_ref<amd_dbgapi_architecture_info_t> ref)
       return to_string (
         make_ref (static_cast<const amd_dbgapi_register_id_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_architecture_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_architecture_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -422,7 +422,6 @@ one_instruction_property_to_string (
   switch (instruction_property)
     {
       CASE (INSTRUCTION_PROPERTY_NONE);
-      CASE (INSTRUCTION_PROPERTY_RESERVED);
     }
   return to_string (make_hex (instruction_property));
 }
@@ -467,7 +466,6 @@ one_register_property_to_string (
       CASE (REGISTER_PROPERTY_READONLY_BITS);
       CASE (REGISTER_PROPERTY_VOLATILE);
       CASE (REGISTER_PROPERTY_INVALIDATE_VOLATILE);
-      CASE (REGISTER_PROPERTY_RESERVED);
     }
   return to_string (make_hex (register_property));
 }
@@ -547,8 +545,8 @@ to_string (detail::query_ref<amd_dbgapi_instruction_kind_t> ref)
       return to_string (make_ref (
         make_ref (static_cast<const uint64_t *const *> (information))));
     }
-  error ("unhandled amd_dbgapi_instruction_kind_t kind (%s)",
-         to_string (kind).c_str ());
+  fatal_error ("unhandled amd_dbgapi_instruction_kind_t kind (%s)",
+               to_string (kind).c_str ());
 }
 
 template <>
@@ -588,8 +586,8 @@ to_string (detail::query_ref<amd_dbgapi_process_info_t> ref)
       return to_string (
         make_ref (static_cast<const amd_dbgapi_os_process_id_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_process_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_process_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -638,8 +636,8 @@ to_string (detail::query_ref<amd_dbgapi_watchpoint_info_t> ref)
       return to_string (
         make_ref (static_cast<const amd_dbgapi_process_id_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_watchpoint_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_watchpoint_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -671,8 +669,8 @@ to_string (detail::query_ref<amd_dbgapi_code_object_info_t> ref)
       return to_string (
         make_hex (make_ref (static_cast<const ptrdiff_t *> (value))));
     }
-  error ("unhandled amd_dbgapi_code_object_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_code_object_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -697,8 +695,8 @@ to_string (detail::query_ref<amd_dbgapi_breakpoint_info_t> ref)
       return to_string (
         make_ref (static_cast<const amd_dbgapi_process_id_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_breakpoint_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_breakpoint_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -723,8 +721,8 @@ to_string (detail::query_ref<amd_dbgapi_displaced_stepping_info_t> ref)
       return to_string (
         make_ref (static_cast<const amd_dbgapi_process_id_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_displaced_stepping_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_displaced_stepping_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -779,8 +777,8 @@ to_string (detail::query_ref<amd_dbgapi_agent_info_t> ref)
       return to_string (
         make_ref (static_cast<const amd_dbgapi_os_agent_id_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_agent_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_agent_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -837,8 +835,8 @@ to_string (detail::query_ref<amd_dbgapi_queue_info_t> ref)
       return to_string (
         make_ref (static_cast<const amd_dbgapi_os_queue_id_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_queue_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_queue_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -896,7 +894,6 @@ one_queue_error_reason_to_string (amd_dbgapi_exceptions_t queue_error_reason)
       CASE (EXCEPTION_PACKET_DISPATCH_REGISTER_COUNT_TOO_LARGE);
       CASE (EXCEPTION_PACKET_VENDOR_UNSUPPORTED);
       CASE (EXCEPTION_QUEUE_PREEMPTION_ERROR);
-      CASE (EXCEPTION_RESERVED);
     }
   return to_string (make_hex (queue_error_reason));
 }
@@ -1000,8 +997,8 @@ to_string (detail::query_ref<amd_dbgapi_dispatch_info_t> ref)
       return to_string (make_hex (
         make_ref (static_cast<const amd_dbgapi_global_address_t *> (value))));
     }
-  error ("unhandled amd_dbgapi_dispatch_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_dispatch_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -1102,8 +1099,8 @@ to_string (detail::query_ref<amd_dbgapi_wave_info_t> ref)
     case AMD_DBGAPI_WAVE_INFO_LANE_COUNT:
       return to_string (make_ref (static_cast<const size_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_wave_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_wave_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -1148,7 +1145,6 @@ one_stop_reason_to_string (amd_dbgapi_wave_stop_reasons_t stop_reason)
       CASE (WAVE_STOP_REASON_ILLEGAL_INSTRUCTION);
       CASE (WAVE_STOP_REASON_ECC_ERROR);
       CASE (WAVE_STOP_REASON_FATAL_HALT);
-      CASE (WAVE_STOP_REASON_RESERVED);
     }
   return to_string (make_hex (stop_reason));
 }
@@ -1250,8 +1246,8 @@ to_string (detail::query_ref<amd_dbgapi_register_class_info_t> ref)
     case AMD_DBGAPI_REGISTER_CLASS_INFO_NAME:
       return to_string (make_ref (static_cast<char *const *> (value)));
     }
-  error ("unhandled amd_dbgapi_register_class_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_register_class_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -1292,8 +1288,8 @@ to_string (detail::query_ref<amd_dbgapi_register_info_t> ref)
       return to_string (make_ref (
         static_cast<const amd_dbgapi_register_properties_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_register_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_register_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -1352,8 +1348,8 @@ to_string (detail::query_ref<amd_dbgapi_address_class_info_t> ref)
     case AMD_DBGAPI_ADDRESS_CLASS_INFO_DWARF:
       return to_string (make_ref (static_cast<const uint64_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_address_class_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_address_class_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -1409,8 +1405,8 @@ to_string (detail::query_ref<amd_dbgapi_address_space_info_t> ref)
     case AMD_DBGAPI_ADDRESS_SPACE_INFO_DWARF:
       return to_string (make_ref (static_cast<const uint64_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_address_space_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_address_space_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>
@@ -1525,8 +1521,8 @@ to_string (detail::query_ref<amd_dbgapi_event_info_t> ref)
       return to_string (
         make_ref (static_cast<const amd_dbgapi_queue_id_t *> (value)));
     }
-  error ("unhandled amd_dbgapi_event_info_t query (%s)",
-         to_string (query).c_str ());
+  fatal_error ("unhandled amd_dbgapi_event_info_t query (%s)",
+               to_string (query).c_str ());
 }
 
 template <>

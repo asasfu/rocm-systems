@@ -177,6 +177,9 @@ public:
     /* cwsr_record_t is a polymorphic base class.  */
     virtual ~cwsr_record_t () = default;
 
+    /* Return the globally unique wave identifier.  */
+    virtual std::optional<amd_dbgapi_wave_id_t> id () const = 0;
+
     /* Number of work-items in one wave.  */
     virtual size_t lane_count () const = 0;
     /* Last wave of threadgroup.  */
@@ -244,7 +247,7 @@ public:
   scratch_slot (const architecture_t::cwsr_record_t &cwsr_record,
                 uint32_t compute_tmpring_size_register) const = 0;
 
-  virtual amd_dbgapi_status_t
+  virtual void
   convert_address_space (const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
                          const address_space_t &from_address_space,
                          const address_space_t &to_address_space,
@@ -332,6 +335,9 @@ public:
                                amd_dbgapi_exceptions_t exceptions
                                = AMD_DBGAPI_EXCEPTION_NONE) const = 0;
 
+  virtual bool wave_get_halt (wave_t &wave) const = 0;
+  virtual void wave_set_halt (wave_t &wave, bool halt) const = 0;
+
   virtual void wave_enable_traps (wave_t &wave,
                                   os_wave_launch_trap_mask_t mask) const = 0;
   virtual void wave_disable_traps (wave_t &wave,
@@ -395,8 +401,8 @@ public:
                                       size_t offset, size_t value_size,
                                       const void *value) const = 0;
 
-  amd_dbgapi_status_t get_info (amd_dbgapi_architecture_info_t query,
-                                size_t value_size, void *value) const;
+  void get_info (amd_dbgapi_architecture_info_t query, size_t value_size,
+                 void *value) const;
 
   template <typename Object, typename... Args> auto &create (Args &&...args)
   {
