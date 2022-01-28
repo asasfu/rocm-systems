@@ -3702,6 +3702,7 @@ public:
                         const instruction_t &instruction) const override;
 
   std::string register_type (amdgpu_regnum_t regnum) const override;
+  const void *register_read_only_mask (amdgpu_regnum_t regnum) const override;
 
   std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
     const architecture_t::cwsr_record_t &cwsr_record) const override;
@@ -3925,6 +3926,36 @@ gfx940_t::register_type (amdgpu_regnum_t regnum) const
 
     default:
       return gfx90a_t::register_type (regnum);
+    }
+}
+
+const void *
+gfx940_t::register_read_only_mask (amdgpu_regnum_t regnum) const
+{
+  switch (regnum)
+    {
+    case amdgpu_regnum_t::trapsts:
+      static uint32_t trapsts_read_only_bits
+        = utils::bit_mask (9, 9) /* 0  */ | utils::bit_mask (15, 15) /* 0  */
+          | utils::bit_mask (27, 27) /* 0  */;
+      return &trapsts_read_only_bits;
+
+    case amdgpu_regnum_t::mode:
+      static uint32_t mode_read_only_bits = utils::bit_mask (22, 22); /* 0 */
+      return &mode_read_only_bits;
+
+    case amdgpu_regnum_t::pseudo_status:
+      static uint32_t status_read_only_bits
+        = utils::bit_mask (5, 7)      /* priv, trap_en, ttrace_en  */
+          | utils::bit_mask (9, 12)   /* execz, vccz, in_tg, in_barrier  */
+          | utils::bit_mask (14, 16)  /* trap, ttrace_cu_en, valid  */
+          | utils::bit_mask (19, 19)  /* perf_en  */
+          | utils::bit_mask (22, 26)  /* allow_replay, fatal_halt, 0  */
+          | utils::bit_mask (29, 30); /* 0  */
+      return &status_read_only_bits;
+
+    default:
+      return gfx90a_t::register_read_only_mask (regnum);
     }
 }
 
