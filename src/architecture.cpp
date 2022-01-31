@@ -3342,7 +3342,7 @@ protected:
   static constexpr uint32_t ttmp11_queue_packet_id_mask
     = utils::bit_mask (6, 30);
   static constexpr int ttmp11_queue_packet_id_shift = 6;
-  static constexpr uint32_t ttmp11_wave_id_valid_mask = 1 << 31;
+  static constexpr uint32_t ttmp11_trap_hander_ttmps_setup_mask = 1 << 31;
 
   class cwsr_record_t final : public gfx90a_t::cwsr_record_t
   {
@@ -3381,16 +3381,20 @@ protected:
                                             context_save_address);
   }
 
-  std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
-  wave_get_state (wave_t &wave) const override;
-  void wave_set_state (wave_t &wave,
-                       amd_dbgapi_wave_state_t state) const override;
-
 public:
   gfx940_t ()
     : gfx90a_t (EF_AMDGPU_MACH_AMDGCN_GFX940, "amdgcn-amd-amdhsa--gfx940")
   {
   }
+
+  bool are_trap_handler_ttmps_initialized (const wave_t &wave) const override;
+  void initialize_spi_ttmps (const wave_t &wave) const override;
+  void initialize_trap_handler_ttmps (const wave_t &wave) const override;
+
+  std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
+  wave_get_state (wave_t &wave) const override;
+  void wave_set_state (wave_t &wave,
+                       amd_dbgapi_wave_state_t state) const override;
 
   std::optional<amd_dbgapi_global_address_t>
   simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
@@ -3402,10 +3406,6 @@ public:
   amd_dbgapi_global_address_t dispatch_packet_address (
     const architecture_t::cwsr_record_t &cwsr_record) const override;
 
-  void write_pseudo_register (const wave_t &wave, amdgpu_regnum_t regnum,
-                              size_t offset, size_t value_size,
-                              const void *value) const override;
-
   bool can_halt_at_endpgm () const override { return true; }
 };
 
@@ -3413,7 +3413,7 @@ amd_dbgapi_wave_id_t
 gfx940_t::cwsr_record_t::id () const
 {
   dbgapi_assert (
-    process ().is_flag_set (process_t::flag_t::ttmps_setup_enabled));
+    process ().is_flag_set (process_t::flag_t::spi_ttmps_setup_enabled));
 
   const amd_dbgapi_global_address_t ttmp11_address
     = register_address (amdgpu_regnum_t::ttmp11).value ();
@@ -3421,7 +3421,7 @@ gfx940_t::cwsr_record_t::id () const
   uint32_t ttmp11;
   process ().read_global_memory (ttmp11_address, &ttmp11);
 
-  if (!(ttmp11 & ttmp11_wave_id_valid_mask))
+  if (!(ttmp11 & ttmp11_trap_hander_ttmps_setup_mask))
     return wave_t::undefined;
 
   const amd_dbgapi_global_address_t wave_id_address
@@ -3431,6 +3431,36 @@ gfx940_t::cwsr_record_t::id () const
   process ().read_global_memory (wave_id_address, &wave_id.handle);
 
   return wave_id;
+}
+
+bool
+gfx940_t::are_trap_handler_ttmps_initialized (const wave_t &wave) const
+{
+  uint32_t ttmp11;
+  wave.read_register (amdgpu_regnum_t::ttmp11, &ttmp11);
+  return ttmp11 & ttmp11_trap_hander_ttmps_setup_mask;
+}
+
+void
+gfx940_t::initialize_spi_ttmps (const wave_t &wave) const
+{
+  for (amdgpu_regnum_t regnum = amdgpu_regnum_t::ttmp8;
+       regnum <= amdgpu_regnum_t::ttmp10; ++regnum)
+    wave.write_register (regnum, uint32_t{ 0 });
+}
+
+void
+gfx940_t::initialize_trap_handler_ttmps (const wave_t &wave) const
+{
+  uint32_t ttmp11;
+  wave.read_register (amdgpu_regnum_t::ttmp11, &ttmp11);
+
+  dbgapi_assert (!(ttmp11 & ttmp11_trap_hander_ttmps_setup_mask)
+                 && "ttmps are already initialized");
+
+  ttmp11 |= ttmp11_trap_hander_ttmps_setup_mask;
+  wave.write_register (amdgpu_regnum_t::ttmp6, 0);
+  wave.write_register (amdgpu_regnum_t::ttmp11, ttmp11);
 }
 
 std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
@@ -3673,39 +3703,6 @@ gfx940_t::dispatch_packet_address (
                  dispatch_packet_index, to_string (queue.id ()).c_str ());
 
   return queue.address () + (dispatch_packet_index * queue.packet_size ());
-}
-
-void
-gfx940_t::write_pseudo_register (const wave_t &wave, amdgpu_regnum_t regnum,
-                                 size_t offset, size_t value_size,
-                                 const void *value) const
-{
-  if (regnum == amdgpu_regnum_t::wave_id)
-    {
-      amd_dbgapi_wave_id_t wave_id;
-
-      /* If this is a partial write, we need to read the parts of the register
-         that will not change.  */
-      if (offset != 0 || value_size != sizeof (amd_dbgapi_wave_id_t))
-        read_pseudo_register (wave, regnum, 0, sizeof (wave_id), &wave_id);
-
-      memcpy (reinterpret_cast<char *> (&wave_id) + offset,
-              static_cast<const char *> (value) + offset, value_size);
-
-      uint32_t ttmp11;
-      wave.read_register (amdgpu_regnum_t::ttmp11, &ttmp11);
-
-      if (wave_id == wave_t::undefined)
-        ttmp11 &= ~ttmp11_wave_id_valid_mask;
-      else
-        ttmp11 |= ttmp11_wave_id_valid_mask;
-
-      wave.write_register (amdgpu_regnum_t::ttmp11, ttmp11);
-
-      /* Fall-through to write the ttmp[4:5] registers.  */
-    }
-
-  gfx90a_t::write_pseudo_register (wave, regnum, offset, value_size, value);
 }
 
 class gfx10_architecture_t : public gfx9_architecture_t
