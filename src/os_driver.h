@@ -74,6 +74,8 @@ struct os_agent_info_t
   size_t max_waves_per_simd{ 0 };
   /* Number of shader engines.  */
   size_t shader_engine_count{ 0 };
+  /* Number of Compute Accelerator Chips.  */
+  size_t xcc_count{ 0 };
   /* PCI vendor id.  */
   uint32_t vendor_id{ 0 };
   /* PCI device id.  */

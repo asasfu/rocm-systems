@@ -110,10 +110,6 @@ private:
   amd_dbgapi_global_address_t m_scratch_backing_memory_address{ 0 };
   uint32_t m_compute_tmpring_size{ 0 };
 
-  /* The content of the context save area header the last time the queue was
-     suspended.  */
-  context_save_area_header_s m_last_context_save_header{};
-
   /* The memory reserved by the thunk library for the debugger is used to store
      instruction buffers.  Instruction buffers are lazily allocated from the
      reserved memory, and when freed, their index is returned to a free list.
@@ -430,15 +426,16 @@ aql_queue_t::~aql_queue_t ()
      If the process is being detached, then there's really no need to discard
      since the process will be destructed and the cache destructed.  */
 
-  auto wave_save_address = m_os_queue_info.ctx_save_restore_address
-                           + m_last_context_save_header.wave_state_offset
-                           - m_last_context_save_header.wave_state_size;
-  auto wave_save_size = m_last_context_save_header.wave_state_size;
+  const auto xcc_count = agent ().os_info ().xcc_count;
 
   /* Need to write back only because discard requires no dirty data exists.  */
-  process.memory_cache ().write_back (wave_save_address, wave_save_size);
+  process.memory_cache ().write_back (
+    m_os_queue_info.ctx_save_restore_address,
+    xcc_count * m_os_queue_info.ctx_save_restore_area_size);
 
-  process.memory_cache ().discard (wave_save_address, wave_save_size);
+  process.memory_cache ().discard (
+    m_os_queue_info.ctx_save_restore_address,
+    xcc_count * m_os_queue_info.ctx_save_restore_area_size);
 }
 
 compute_queue_t::displaced_instruction_ptr_t
@@ -505,6 +502,8 @@ aql_queue_t::allocate_displaced_instruction (const instruction_t &instruction)
 void
 aql_queue_t::queue_state_changed ()
 {
+  const auto xcc_count = agent ().os_info ().xcc_count;
+
   switch (state ())
     {
     case state_t::running:
@@ -521,10 +520,8 @@ aql_queue_t::queue_state_changed ()
          saved state cache lines will be discarded when this queue is next
          suspended again (see the 'case state_t::suspended:' below).  */
       process ().memory_cache ().write_back (
-        m_os_queue_info.ctx_save_restore_address
-          + m_last_context_save_header.wave_state_offset
-          - m_last_context_save_header.wave_state_size,
-        m_last_context_save_header.wave_state_size);
+        m_os_queue_info.ctx_save_restore_address,
+        xcc_count * m_os_queue_info.ctx_save_restore_area_size);
       break;
 
     case state_t::suspended:
@@ -532,10 +529,8 @@ aql_queue_t::queue_state_changed ()
          areas may be mapped to a different address in this new context wave
          save.  */
       process ().memory_cache ().discard (
-        m_os_queue_info.ctx_save_restore_address
-          + m_last_context_save_header.wave_state_offset
-          - m_last_context_save_header.wave_state_size,
-        m_last_context_save_header.wave_state_size);
+        m_os_queue_info.ctx_save_restore_address,
+        xcc_count * m_os_queue_info.ctx_save_restore_area_size);
 
       /* Refresh the scratch_backing_memory_location and
          scratch_backing_memory_size everytime the queue is suspended.
@@ -771,50 +766,59 @@ aql_queue_t::update_waves ()
   };
 
   process_t &process = this->process ();
+  size_t wave_count = 0; /* Number of waves seen in the context save area.  */
 
-  auto ctx_save_address = m_os_queue_info.ctx_save_restore_address;
-
-  /* Retrieve the control stack and wave save area memory locations.  */
-  process.read_global_memory (ctx_save_address, &m_last_context_save_header);
-
-  const auto &header = m_last_context_save_header;
-  auto control_stack_begin = ctx_save_address + header.control_stack_offset;
-  auto control_stack_end = control_stack_begin + header.control_stack_size;
-  auto wave_area_end = ctx_save_address + header.wave_state_offset;
-  auto wave_area_begin = wave_area_end - header.wave_state_size;
-
-  /* The control stack and the wave save area should be contiguous.  */
-  if (control_stack_end != wave_area_begin)
-    fatal_error ("corrupted context save area header");
-
-  /* Start with 0 running waves.  When iterating the control stack (below) each
-     discovered wave in the running state will increment this count.  */
+  /* Start with 0 running waves.  When iterating the control stack (below)
+     each discovered wave in the running state will increment this count.  */
   m_waves_running.emplace (0);
 
-  if (control_stack_begin != control_stack_end)
+  for (size_t xcc_id = 0; xcc_id < agent ().os_info ().xcc_count; ++xcc_id)
     {
-      log_info ("decoding %s's context save area: "
-                "ctrl_stk:[0x%llx..0x%llx[, wave_area:[0x%llx..0x%llx[",
-                to_cstring (id ()), control_stack_begin, control_stack_end,
-                wave_area_begin, wave_area_end);
+      auto ctx_save_address
+        = m_os_queue_info.ctx_save_restore_address
+          + xcc_id * m_os_queue_info.ctx_save_restore_area_size;
 
-      /* Read the entire control stack from the inferior in one go.  */
-      amd_dbgapi_size_t size = control_stack_end - control_stack_begin;
-      if (!utils::is_aligned (size, sizeof (uint32_t)))
-        fatal_error ("corrupted control stack");
+      /* Retrieve the control stack and wave save area memory locations.  */
+      context_save_area_header_s header;
+      process.read_global_memory (ctx_save_address, &header);
 
-      auto memory = std::make_unique<uint32_t[]> (size / sizeof (uint32_t));
-      process.read_global_memory (control_stack_begin, &memory[0], size);
+      auto control_stack_begin
+        = ctx_save_address + header.control_stack_offset;
+      auto control_stack_end = control_stack_begin + header.control_stack_size;
+      auto wave_area_end = ctx_save_address + header.wave_state_offset;
+      auto wave_area_begin = wave_area_end - header.wave_state_size;
 
-      /* Decode the control stack.  For each entry in the control stack,
-         the provided callback function is called with a CWSR record.  */
-      size_t wave_count = architecture ().control_stack_iterate (
-        *this, &memory[0], size / sizeof (uint32_t), wave_area_end,
-        wave_area_end - wave_area_begin, process_cwsr_record);
+      /* The control stack and the wave save area should be contiguous.  */
+      if (control_stack_end != wave_area_begin)
+        fatal_error ("corrupted context save area header");
 
-      log_info ("%zu out of %zu wave%s running on %s", *m_waves_running,
-                wave_count, wave_count > 1 ? "s" : "", to_cstring (id ()));
+      if (control_stack_begin != control_stack_end)
+        {
+          log_info ("decoding %s's context save area #%zu: "
+                    "ctrl_stk:[0x%llx..0x%llx[, wave_area:[0x%llx..0x%llx[",
+                    to_cstring (id ()), xcc_id, control_stack_begin,
+                    control_stack_end, wave_area_begin, wave_area_end);
+
+          /* Read the entire control stack from the inferior in one go.  */
+          amd_dbgapi_size_t size = control_stack_end - control_stack_begin;
+          if (!utils::is_aligned (size, sizeof (uint32_t)))
+            fatal_error ("corrupted control stack");
+
+          auto memory
+            = std::make_unique<uint32_t[]> (size / sizeof (uint32_t));
+          process.read_global_memory (control_stack_begin, &memory[0], size);
+
+          /* Decode the control stack.  For each entry in the control stack,
+             the provided callback function is called with a CWSR record.  */
+          wave_count += architecture ().control_stack_iterate (
+            *this, &memory[0], size / sizeof (uint32_t), wave_area_end,
+            wave_area_end - wave_area_begin, process_cwsr_record);
+        }
     }
+
+  if (wave_count)
+    log_info ("%zu out of %zu wave%s running on %s", *m_waves_running,
+              wave_count, wave_count > 1 ? "s" : "", to_cstring (id ()));
 
   /* Iterate all waves, workgroups and dispatches belonging to this queue, and
      prune waves and workgroups with a mark older than the current mark, and

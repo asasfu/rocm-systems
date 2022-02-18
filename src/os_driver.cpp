@@ -673,6 +673,8 @@ kfd_driver_t::agent_snapshot (os_agent_info_t *snapshots,
             agent_info.max_waves_per_simd = static_cast<size_t> (prop_value);
           else if (prop_name == "array_count")
             array_count = static_cast<size_t> (prop_value);
+          else if (prop_name == "num_xcc")
+            agent_info.xcc_count = static_cast<uint32_t> (prop_value);
           else if (prop_name == "simd_arrays_per_engine")
             arrays_per_engine = static_cast<size_t> (prop_value);
           else if (prop_name == "vendor_id")
@@ -720,6 +722,11 @@ kfd_driver_t::agent_snapshot (os_agent_info_t *snapshots,
                 = debug_properties & HSA_DBG_WATCHPOINTS_EXCLUSIVE;
             }
         }
+
+      /* On older kernels, the number of compute accelerator chips may not be
+         reported, so default to 1 per agent.  */
+      if (!agent_info.xcc_count)
+        agent_info.xcc_count = 1;
 
       if (!agent_info.simd_count || !agent_info.max_waves_per_simd
           || !array_count || !arrays_per_engine)
