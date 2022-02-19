@@ -96,6 +96,13 @@ protected:
     cdbgsys_and_user, /* Conditional Debug for System and User is 1.  */
   };
 
+  static constexpr amd_dbgapi_global_address_t local_address_aperture_base
+    = amd_dbgapi_global_address_t{ 1 } << 48;
+  static constexpr amd_dbgapi_global_address_t private_address_aperture_base
+    = amd_dbgapi_global_address_t{ 1 } << 49;
+  static constexpr amd_dbgapi_global_address_t address_aperture_mask
+    = utils::bit_mask (48, 63);
+
   static constexpr uint32_t sq_wave_status_scc_mask = 1 << 0;
   static constexpr uint32_t sq_wave_status_priv_mask = 1 << 5;
   static constexpr uint32_t sq_wave_status_trap_en_mask = 1 << 6;
@@ -106,6 +113,7 @@ protected:
   static constexpr uint32_t sq_wave_status_cond_dbg_sys_mask = 1 << 21;
 
   static constexpr uint32_t ttmp11_wave_in_group_mask = utils::bit_mask (0, 5);
+  static constexpr int ttmp11_wave_in_group_shift = 0;
   static constexpr uint32_t ttmp6_wave_stopped_mask = 1 << 30;
   static constexpr uint32_t ttmp6_saved_status_halt_mask = 1 << 29;
   static constexpr uint32_t ttmp6_saved_trap_id_mask
@@ -243,41 +251,11 @@ public:
       process, kernel_descriptor_address);
   }
 
-  std::pair<amd_dbgapi_segment_address_t /* to_address  */,
-            amd_dbgapi_size_t /* to_contiguous_bytes  */>
-  convert_address_space (
-    const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
-    const address_space_t &from_address_space,
-    const address_space_t &to_address_space,
-    amd_dbgapi_segment_address_t from_address) const override;
-
-  std::pair<const address_space_t & /* lowered_address_space  */,
-            amd_dbgapi_segment_address_t /* lowered_address  */>
-  lower_address_space (
-    const wave_t &wave, const address_space_t &original_address_space,
-    amd_dbgapi_segment_address_t original_address) const override;
-
-  bool address_is_in_address_class (
-    const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
-    const address_space_t &address_space,
-    amd_dbgapi_segment_address_t segment_address,
-    const address_class_t &address_class) const override;
-
   bool is_address_space_supported (
     const address_space_t &address_space) const override;
 
   bool is_address_class_supported (
     const address_class_t &address_class) const override;
-
-  amd_dbgapi_global_address_t address_aperture_mask () const override
-  {
-    return utils::bit_mask (48, 63);
-  }
-
-  amd_dbgapi_size_t private_swizzled_interleave_size () const override
-  {
-    return sizeof (uint32_t);
-  };
 
   std::vector<os_watch_id_t>
   triggered_watchpoints (const wave_t &wave) const override;
@@ -296,15 +274,14 @@ public:
                              size_t offset, size_t value_size,
                              void *value) const override;
 
-  void write_pseudo_register (wave_t &wave, amdgpu_regnum_t regnum,
+  void write_pseudo_register (const wave_t &wave, amdgpu_regnum_t regnum,
                               size_t offset, size_t value_size,
                               const void *value) const override;
 
   std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
   wave_get_state (wave_t &wave) const override;
-  void wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state,
-                       amd_dbgapi_exceptions_t exceptions
-                       = AMD_DBGAPI_EXCEPTION_NONE) const override;
+  void wave_set_state (wave_t &wave,
+                       amd_dbgapi_wave_state_t state) const override;
 
   bool wave_get_halt (const wave_t &wave) const override;
   void wave_set_halt (wave_t &wave, bool halt) const override;
@@ -540,274 +517,11 @@ amdgcn_architecture_t::disassemble_instruction (
   return std::make_tuple (size, instruction_text, address_operands);
 }
 
-namespace
-{
-
-/* Helper routine to return the address space for a given generic address.  The
-   returned address space can only be one of LOCAL, PRIVATE_SWIZZLED or GLOBAL
-   address space. The queue_t is used to retrieve the apertures.
- */
-const address_space_t &
-address_space_for_generic_address (
-  const wave_t &wave, amd_dbgapi_segment_address_t generic_address)
-{
-  amd_dbgapi_global_address_t aperture
-    = generic_address & wave.architecture ().address_aperture_mask ();
-
-  address_space_t::kind_t kind;
-  if (aperture == wave.agent ().os_info ().private_address_space_aperture)
-    kind = address_space_t::kind_t::private_swizzled;
-  else if (aperture == wave.agent ().os_info ().local_address_space_aperture)
-    kind = address_space_t::kind_t::local;
-  else /* all other addresses (including the NULL address) are treated as
-          global addresses.  */
-    kind = address_space_t::kind_t::global;
-
-  const address_space_t *segment_address_space = wave.architecture ().find_if (
-    [=] (const address_space_t &as) { return as.kind () == kind; });
-
-  dbgapi_assert (segment_address_space != nullptr
-                 && "address space not found in architecture");
-  return *segment_address_space;
-}
-
-/* Helper routine to return the generic address for a given segment address
-   space, segment address pair.  Converting an address from an address space
-   other than LOCAL, PRIVATE_SWIZZLED or GLOBAL is invalid, and an error is
-   returned.  The agent_t::os_info is used to retrieve the apertures.
- */
-std::optional<amd_dbgapi_segment_address_t>
-generic_address_for_address_space (
-  const wave_t &wave, const address_space_t &segment_address_space,
-  amd_dbgapi_segment_address_t segment_address)
-{
-  amd_dbgapi_segment_address_t aperture;
-
-  switch (segment_address_space.kind ())
-    {
-    case address_space_t::kind_t::local:
-      aperture = wave.agent ().os_info ().local_address_space_aperture;
-      break;
-    case address_space_t::kind_t::private_swizzled:
-      aperture = wave.agent ().os_info ().private_address_space_aperture;
-      break;
-    case address_space_t::kind_t::global:
-      aperture = 0;
-      break;
-    default:
-      /* not a valid address space conversion.  */
-      return std::nullopt;
-    }
-
-  /* A segment NULL should be converted to a generic NULL.  */
-  if (segment_address == segment_address_space.null_address ())
-    {
-      /* generic NULL is the same as global NULL.  */
-      return address_space_t::s_global.null_address ();
-    }
-
-  amd_dbgapi_segment_address_t segment_mask
-    = utils::bit_mask (0, segment_address_space.address_size () - 1);
-
-  dbgapi_assert ((aperture & segment_mask) == 0
-                 && "the segment address bits overlap with the aperture");
-  return aperture | (segment_address & segment_mask);
-}
-
-} /* namespace */
-
-std::pair<const address_space_t & /* lowered_address_space  */,
-          amd_dbgapi_segment_address_t /* lowered_address  */>
-amdgcn_architecture_t::lower_address_space (
-  const wave_t &wave, const address_space_t &original_address_space,
-  amd_dbgapi_segment_address_t original_address) const
-{
-  /* Remove the unused bits from the address.  */
-  original_address
-    &= utils::bit_mask (0, original_address_space.address_size () - 1);
-
-  if (original_address_space.kind () != address_space_t::kind_t::generic)
-    return { original_address_space, original_address };
-
-  /* Convert a generic address into a local/private/global address.  */
-
-  const address_space_t &segment_address_space
-    = address_space_for_generic_address (wave, original_address);
-
-  if (original_address == original_address_space.null_address ())
-    return { segment_address_space, segment_address_space.null_address () };
-
-  amd_dbgapi_size_t segment_mask
-    = utils::bit_mask (0, segment_address_space.address_size () - 1);
-
-  return { segment_address_space, original_address & segment_mask };
-}
-
-std::pair<amd_dbgapi_segment_address_t /* to_address  */,
-          amd_dbgapi_size_t /* to_contiguous_bytes  */>
-amdgcn_architecture_t::convert_address_space (
-  const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
-  const address_space_t &from_address_space,
-  const address_space_t &to_address_space,
-  amd_dbgapi_segment_address_t from_address) const
-{
-  const bool is_null = (from_address == from_address_space.null_address ());
-
-  /* A generic NULL converts to any other address spaces NULL.  */
-  if (from_address_space.kind () == address_space_t::kind_t::generic
-      && is_null)
-    return { to_address_space.null_address (), 0 };
-
-  auto [lowered_address_space, lowered_address]
-    = wave.architecture ().lower_address_space (wave, from_address_space,
-                                                from_address);
-
-  amd_dbgapi_size_t contiguous_bytes
-    = utils::bit_mask (0, lowered_address_space.address_size () - 1)
-      - lowered_address + 1;
-
-  if (lowered_address_space.kind () == to_address_space.kind ())
-    return { lowered_address, is_null ? 0 : contiguous_bytes };
-
-  /* Convert local, private_swizzled, global -> generic.  */
-  if (to_address_space.kind () == address_space_t::kind_t::generic)
-    {
-      auto generic_address = generic_address_for_address_space (
-        wave, lowered_address_space, lowered_address);
-
-      if (!generic_address)
-        throw api_error_t (
-          AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
-
-      return { *generic_address, is_null ? 0 : contiguous_bytes };
-    }
-
-  /* Convert private_unswizzled -> global.  */
-  if (lowered_address_space.kind ()
-        == address_space_t::kind_t::private_unswizzled
-      && to_address_space.kind () == address_space_t::kind_t::global)
-    {
-      auto [scratch_base, scratch_size] = wave.scratch_memory_region ();
-
-      if (lowered_address >= scratch_size)
-        throw api_error_t (
-          AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
-
-      return { scratch_base + lowered_address,
-               scratch_size - lowered_address };
-    }
-
-  /* Convert global -> private_unswizzled.  */
-  if (lowered_address_space.kind () == address_space_t::kind_t::global
-      && to_address_space.kind ()
-           == address_space_t::kind_t::private_unswizzled)
-    {
-      auto [scratch_base, scratch_size] = wave.scratch_memory_region ();
-
-      if (lowered_address < scratch_base
-          || lowered_address >= (scratch_base + scratch_size))
-        throw api_error_t (
-          AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
-
-      return { lowered_address - scratch_base,
-               scratch_base + scratch_size - lowered_address };
-    }
-
-  /* Convert private_swizzled -> global.  */
-  if (lowered_address_space.kind ()
-        == address_space_t::kind_t::private_swizzled
-      && to_address_space.kind () == address_space_t::kind_t::global)
-    {
-      const amd_dbgapi_size_t interleave = private_swizzled_interleave_size ();
-      auto [scratch_base, scratch_size] = wave.scratch_memory_region ();
-
-      dbgapi_assert (lane_id < wave.lane_count ());
-      amd_dbgapi_size_t offset
-        = ((lowered_address / interleave) * wave.lane_count () * interleave)
-          + (lane_id * interleave) + (lowered_address % interleave);
-
-      if (offset > scratch_size)
-        throw api_error_t (
-          AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
-
-      return { scratch_base + offset, interleave - (offset % interleave) };
-    }
-
-  /* Convert global -> private_swizzled.  */
-  if (lowered_address_space.kind () == address_space_t::kind_t::global
-      && to_address_space.kind () == address_space_t::kind_t::private_swizzled)
-    {
-      const amd_dbgapi_size_t interleave = private_swizzled_interleave_size ();
-      auto [scratch_base, scratch_size] = wave.scratch_memory_region ();
-
-      if (lowered_address < scratch_base
-          || lowered_address >= (scratch_base + scratch_size))
-        throw api_error_t (
-          AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
-
-      amd_dbgapi_size_t offset = lowered_address - scratch_base;
-
-      dbgapi_assert (lane_id < wave.lane_count ());
-      if (lane_id != (offset / interleave) % wave.lane_count ())
-        throw api_error_t (
-          AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
-
-      return { (offset / (wave.lane_count () * interleave)) * interleave
-                 + offset % interleave,
-               interleave - offset % interleave };
-    }
-
-  throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
-}
-
-bool
-amdgcn_architecture_t::address_is_in_address_class (
-  const wave_t &wave, amd_dbgapi_lane_id_t /* lane_id  */,
-  const address_space_t &address_space,
-  amd_dbgapi_segment_address_t segment_address,
-  const address_class_t &address_class) const
-{
-  /* The implementation follows this table:
-
-     address_space     is in  address_class
-     private_swizzled         generic, private
-     local                    generic, local
-     global                   generic, global
-     generic                  generic, lowered generic address_space
-     private_unswizzled       -
-   */
-
-  /* private_unswizzled addresses are not in any address classes.  */
-  if (address_space.kind () == address_space_t::kind_t::private_unswizzled)
-    return false;
-
-  /* private_swizzled, local, global, and generic are in the generic address
-     class.  */
-  if (address_class.address_space ().kind ()
-      == address_space_t::kind_t::generic)
-    return true;
-
-  if (address_space.kind () == address_space_t::kind_t::generic)
-    {
-      auto &lowered_address_space
-        = lower_address_space (wave, address_space, segment_address).first;
-
-      /* A generic private address is in the private address class, a generic
-         local address is in the local address class, etc...  */
-      return lowered_address_space.kind ()
-             == address_class.address_space ().kind ();
-    }
-
-  /* The private_swizzled address space is in private address class, the local
-     address space is in the local address class, etc...  */
-  return address_space.kind () == address_class.address_space ().kind ();
-}
-
 bool
 amdgcn_architecture_t::is_address_space_supported (
   const address_space_t &address_space) const
 {
-  return address_space == address_space_t::s_global
+  return address_space == address_space_t::global ()
          || this->find (address_space.id ()) != nullptr;
 }
 
@@ -1284,7 +998,7 @@ amdgcn_architecture_t::simulate (wave_t &wave, amd_dbgapi_global_address_t pc,
        handler with no trap_id.  */
     simulate_trap_handler (wave, *new_pc);
 
-  log_info ("%s simulated \"%s\" (pc=%#lx)", to_string (wave.id ()).c_str (),
+  log_info ("%s simulated \"%s\" (pc=%#lx)", to_cstring (wave.id ()),
             std::get<std::string> (
               wave.architecture ().disassemble_instruction (pc, instruction))
               .c_str (),
@@ -1559,41 +1273,24 @@ amdgcn_architecture_t::wave_get_state (wave_t &wave) const
           stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_TRAP;
           break;
         }
-
-      /* For all trap IDs except trap_id_t::breakpoint, check that the PC
-         points past an actual trap instruction.  We can't check
-         trap_id_t::breakpoint because the debugger may have removed the
-         breakpoint and restored the original instruction.  */
-      if (*trap_id != trap_id_t::breakpoint && ![&] () {
-            auto instruction
-              = wave.instruction_at_pc (-breakpoint_instruction_pc_adjust ());
-            return instruction && is_trap (*instruction);
-          }())
-        fatal_error ("trap exception not raised by a trap instruction");
     }
+
+  /* NOTE: Each derived architecture must check for a single-step stop reason.
+     Some architectures report trapping after executing an instruction by
+     raising a bit in the trapsts register, some don't, and in the absence of
+     any other stop reason, a single-step is assumed.  */
 
   return { AMD_DBGAPI_WAVE_STATE_STOP, stop_reason };
 }
 
 void
-amdgcn_architecture_t::wave_set_state (
-  wave_t &wave, amd_dbgapi_wave_state_t state,
-  amd_dbgapi_exceptions_t exceptions) const
+amdgcn_architecture_t::wave_set_state (wave_t &wave,
+                                       amd_dbgapi_wave_state_t state) const
 {
-  dbgapi_assert ((exceptions == AMD_DBGAPI_EXCEPTION_NONE
-                  || state != AMD_DBGAPI_WAVE_STATE_STOP)
-                 && "raising an exception requires the wave to be resumed");
-
   uint32_t status_reg, mode_reg, ttmp6;
-
   wave.read_register (amdgpu_regnum_t::status, &status_reg);
   wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
   wave.read_register (amdgpu_regnum_t::ttmp6, &ttmp6);
-
-  if (state != AMD_DBGAPI_WAVE_STATE_STOP
-      && exceptions != AMD_DBGAPI_EXCEPTION_NONE)
-    /* Halt the wave if resuming with exceptions.  */
-    wave_set_halt (wave, true);
 
   switch (state)
     {
@@ -1969,10 +1666,6 @@ amdgcn_architecture_t::register_name (amdgpu_regnum_t regnum) const
       return "flat_scratch";
     case amdgpu_regnum_t::wave_id:
       return "wave_id";
-    case amdgpu_regnum_t::dispatch_grid:
-      return "dispatch_grid";
-    case amdgpu_regnum_t::wave_in_group:
-      return "wave_in_group";
     case amdgpu_regnum_t::csp:
       return "csp";
     case amdgpu_regnum_t::null:
@@ -2032,7 +1725,6 @@ amdgcn_architecture_t::register_type (amdgpu_regnum_t regnum) const
     case amdgpu_regnum_t::xnack_mask_lo:
     case amdgpu_regnum_t::xnack_mask_hi:
     case amdgpu_regnum_t::pseudo_status:
-    case amdgpu_regnum_t::wave_in_group:
     case amdgpu_regnum_t::csp:
     case amdgpu_regnum_t::null:
       return "uint32_t";
@@ -2040,9 +1732,6 @@ amdgcn_architecture_t::register_type (amdgpu_regnum_t regnum) const
     case amdgpu_regnum_t::wave_id:
     case amdgpu_regnum_t::flat_scratch:
       return "uint64_t";
-
-    case amdgpu_regnum_t::dispatch_grid:
-      return "uint32_t[3]";
 
     default:
       dbgapi_assert_not_reached ("invalid register number");
@@ -2098,7 +1787,6 @@ amdgcn_architecture_t::register_size (amdgpu_regnum_t regnum) const
     case amdgpu_regnum_t::xnack_mask_lo:
     case amdgpu_regnum_t::xnack_mask_hi:
     case amdgpu_regnum_t::pseudo_status:
-    case amdgpu_regnum_t::wave_in_group:
     case amdgpu_regnum_t::csp:
     case amdgpu_regnum_t::null:
       return sizeof (uint32_t);
@@ -2106,9 +1794,6 @@ amdgcn_architecture_t::register_size (amdgpu_regnum_t regnum) const
     case amdgpu_regnum_t::wave_id:
     case amdgpu_regnum_t::flat_scratch:
       return sizeof (uint64_t);
-
-    case amdgpu_regnum_t::dispatch_grid:
-      return sizeof (uint32_t[3]);
 
     default:
       dbgapi_assert_not_reached ("invalid register number");
@@ -2182,7 +1867,6 @@ amdgcn_architecture_t::is_pseudo_register_available (
     case amdgpu_regnum_t::pseudo_exec_64:
     case amdgpu_regnum_t::pseudo_vcc_64:
     case amdgpu_regnum_t::wave_id:
-    case amdgpu_regnum_t::wave_in_group:
     case amdgpu_regnum_t::csp:
     case amdgpu_regnum_t::null:
       return true;
@@ -2239,18 +1923,6 @@ amdgcn_architecture_t::read_pseudo_register (const wave_t &wave,
       return;
     }
 
-  if (regnum == amdgpu_regnum_t::wave_in_group)
-    {
-      uint32_t ttmp11;
-
-      wave.read_register (amdgpu_regnum_t::ttmp11, &ttmp11);
-      ttmp11 &= ttmp11_wave_in_group_mask;
-
-      memcpy (value, reinterpret_cast<const char *> (&ttmp11) + offset,
-              value_size);
-      return;
-    }
-
   if (regnum == amdgpu_regnum_t::wave_id)
     {
       std::array<uint32_t, 2> wave_id;
@@ -2280,7 +1952,7 @@ amdgcn_architecture_t::read_pseudo_register (const wave_t &wave,
 }
 
 void
-amdgcn_architecture_t::write_pseudo_register (wave_t &wave,
+amdgcn_architecture_t::write_pseudo_register (const wave_t &wave,
                                               amdgpu_regnum_t regnum,
                                               size_t offset, size_t value_size,
                                               const void *value) const
@@ -2291,9 +1963,8 @@ amdgcn_architecture_t::write_pseudo_register (wave_t &wave,
   dbgapi_assert (value_size && (offset + value_size) <= register_size (regnum)
                  && "write_pseudo_register is out of bounds");
 
-  if (regnum == amdgpu_regnum_t::null
-      || regnum == amdgpu_regnum_t::wave_in_group)
-    /* Writing to null or wave_in_group is a no-op.  */
+  if (regnum == amdgpu_regnum_t::null)
+    /* Writing to null is a no-op.  */
     return;
 
   if (regnum == amdgpu_regnum_t::pseudo_exec_64
@@ -2450,7 +2121,9 @@ protected:
     {
     }
 
-    std::optional<amd_dbgapi_wave_id_t> id () const override;
+    amd_dbgapi_wave_id_t id () const override;
+    std::array<uint32_t, 3> group_ids () const override;
+    uint32_t position_in_group () const override;
 
     /* Number for vector registers.  */
     size_t vgpr_count () const override;
@@ -2542,8 +2215,13 @@ public:
     const std::function<void (std::unique_ptr<architecture_t::cwsr_record_t>)>
       &wave_callback) const override;
 
-  std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
+  amd_dbgapi_global_address_t dispatch_packet_address (
     const architecture_t::cwsr_record_t &cwsr_record) const override;
+
+  size_t maximum_queue_packet_count () const override
+  {
+    return ttmp6_queue_packet_id_mask + 1;
+  }
 
   std::pair<amd_dbgapi_size_t /* offset  */, amd_dbgapi_size_t /* size  */>
   scratch_memory_region (uint32_t compute_tmpring_size_register,
@@ -2557,40 +2235,27 @@ gfx9_architecture_t::gfx9_architecture_t (elf_amdgpu_machine_t e_machine,
 {
   /* Create address spaces.  */
 
-  auto &as_generic = create<address_space_t> (
-    "generic", address_space_t::kind_t::generic, DW_ASPACE_AMDGPU_generic, 64,
-    /* generic NULL is the same as global NULL  */
-    address_space_t::s_global.null_address (),
-    AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL);
+  auto &local = create<local_address_space_t> ("local");
+  auto &private_lane = create<private_swizzled_address_space_t> (
+    "private_lane", /* interleave_size  */ sizeof (uint32_t));
+  create<private_unswizzled_address_space_t> ("private_wave");
 
-  auto &as_region = create<address_space_t> (
-    "region", address_space_t::kind_t::region, DW_ASPACE_AMDGPU_region, 32,
-    0xFFFFFFFF, AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL);
-
-  auto &as_local = create<address_space_t> (
-    "local", address_space_t::kind_t::local, DW_ASPACE_AMDGPU_local, 32,
-    0xFFFFFFFF, AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL);
-
-  auto &as_private_lane = create<address_space_t> (
-    "private_lane", address_space_t::kind_t::private_swizzled,
-    DW_ASPACE_AMDGPU_private_lane, 32, 0x00000000,
-    AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL);
-
-  create<address_space_t> ("private_wave",
-                           address_space_t::kind_t::private_unswizzled,
-                           DW_ASPACE_AMDGPU_private_wave, 32, 0x00000000,
-                           AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL);
+  auto &generic = create<generic_address_space_t> (
+    "generic",
+    std::vector<generic_address_space_t::aperture_t>{
+      { local_address_aperture_base, address_aperture_mask, local },
+      { private_address_aperture_base, address_aperture_mask, private_lane },
+      { 0, 0, address_space_t::global () } });
 
   /* Create address classes.  */
 
-  create<address_class_t> ("none", DW_ADDR_none, as_generic);
+  create<address_class_t> ("none", DW_ADDR_none, generic);
   create<address_class_t> ("global", DW_ADDR_LLVM_global,
-                           address_space_t::s_global);
+                           address_space_t::global ());
   create<address_class_t> ("constant", DW_ADDR_LLVM_constant,
-                           address_space_t::s_global);
-  create<address_class_t> ("group", DW_ADDR_LLVM_group, as_local);
-  create<address_class_t> ("private", DW_ADDR_LLVM_private, as_private_lane);
-  create<address_class_t> ("region", DW_ADDR_AMDGPU_region, as_region);
+                           address_space_t::global ());
+  create<address_class_t> ("group", DW_ADDR_LLVM_group, local);
+  create<address_class_t> ("private", DW_ADDR_LLVM_private, private_lane);
 
   /* Create register classes.  */
 
@@ -2691,7 +2356,7 @@ gfx9_architecture_t::wave_get_state (wave_t &wave) const
           wave_set_state (wave, AMD_DBGAPI_WAVE_STATE_SINGLE_STEP);
 
           log_info ("%s (pc=%#lx) ignore spurious single-step",
-                    to_string (wave.id ()).c_str (), wave.pc ());
+                    to_cstring (wave.id ()), wave.pc ());
 
           return { AMD_DBGAPI_WAVE_STATE_SINGLE_STEP,
                    AMD_DBGAPI_WAVE_STOP_REASON_NONE };
@@ -2707,22 +2372,40 @@ gfx9_architecture_t::wave_get_state (wave_t &wave) const
   return { AMD_DBGAPI_WAVE_STATE_STOP, stop_reason };
 }
 
-std::optional<amd_dbgapi_wave_id_t>
+amd_dbgapi_wave_id_t
 gfx9_architecture_t::cwsr_record_t::id () const
 {
-  dbgapi_assert (
-    process ().is_flag_set (process_t::flag_t::ttmps_setup_enabled));
-
   const amd_dbgapi_global_address_t wave_id_address
     = register_address (amdgpu_regnum_t::ttmp4).value ();
 
   amd_dbgapi_wave_id_t wave_id;
   process ().read_global_memory (wave_id_address, &wave_id);
 
-  if (wave_id == wave_t::undefined)
-    return std::nullopt;
-
   return wave_id;
+}
+
+std::array<uint32_t, 3>
+gfx9_architecture_t::cwsr_record_t::group_ids () const
+{
+  const amd_dbgapi_global_address_t group_ids_address
+    = register_address (amdgpu_regnum_t::ttmp8).value ();
+
+  std::array<uint32_t, 3> coordinates;
+  process ().read_global_memory (group_ids_address, &coordinates);
+
+  return coordinates;
+}
+
+uint32_t
+gfx9_architecture_t::cwsr_record_t::position_in_group () const
+{
+  const amd_dbgapi_global_address_t ttmp11_address
+    = register_address (amdgpu_regnum_t::ttmp11).value ();
+
+  uint32_t ttmp11;
+  process ().read_global_memory (ttmp11_address, &ttmp11);
+
+  return (ttmp11 & ttmp11_wave_in_group_mask) >> ttmp11_wave_in_group_shift;
 }
 
 size_t
@@ -3123,15 +2806,6 @@ gfx9_architecture_t::cwsr_record_t::register_address (
   size_t ttmp_count = 16;
   size_t ttmps_addr = save_area_addr - ttmp_count * ttmp_size;
 
-  switch (regnum)
-    {
-    case amdgpu_regnum_t::dispatch_grid:
-      regnum = amdgpu_regnum_t::ttmp8;
-      break;
-    default:
-      break;
-    }
-
   if (regnum >= amdgpu_regnum_t::first_ttmp
       && regnum <= amdgpu_regnum_t::last_ttmp)
     {
@@ -3289,7 +2963,7 @@ gfx9_architecture_t::control_stack_iterate (
   return wave_count;
 }
 
-std::optional<amd_dbgapi_global_address_t>
+amd_dbgapi_global_address_t
 gfx9_architecture_t::dispatch_packet_address (
   const architecture_t::cwsr_record_t &cwsr_record) const
 {
@@ -3305,12 +2979,8 @@ gfx9_architecture_t::dispatch_packet_address (
     = (ttmp6 & ttmp6_queue_packet_id_mask) >> ttmp6_queue_packet_id_shift;
 
   if ((dispatch_packet_index * queue.packet_size ()) >= queue.size ())
-    {
-      /* The dispatch_packet_index is out of bounds.  */
-      warning ("dispatch_packet_index %#lx is out of bounds in %s",
-               dispatch_packet_index, to_string (queue.id ()).c_str ());
-      return std::nullopt;
-    }
+    fatal_error ("dispatch_packet_index %#lx is out of bounds in %s",
+                 dispatch_packet_index, to_cstring (queue.id ()));
 
   return queue.address () + (dispatch_packet_index * queue.packet_size ());
 }
@@ -3667,7 +3337,7 @@ protected:
     {
     }
 
-    std::optional<amd_dbgapi_wave_id_t> id () const override;
+    amd_dbgapi_wave_id_t id () const override;
 
     uint32_t shader_engine_id () const override
     {
@@ -3687,9 +3357,8 @@ protected:
 
   std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
   wave_get_state (wave_t &wave) const override;
-  void wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state,
-                       amd_dbgapi_exceptions_t exceptions
-                       = AMD_DBGAPI_EXCEPTION_NONE) const override;
+  void wave_set_state (wave_t &wave,
+                       amd_dbgapi_wave_state_t state) const override;
 
 public:
   gfx940_t ()
@@ -3704,17 +3373,17 @@ public:
   std::string register_type (amdgpu_regnum_t regnum) const override;
   const void *register_read_only_mask (amdgpu_regnum_t regnum) const override;
 
-  std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
+  amd_dbgapi_global_address_t dispatch_packet_address (
     const architecture_t::cwsr_record_t &cwsr_record) const override;
 
-  void write_pseudo_register (wave_t &wave, amdgpu_regnum_t regnum,
+  void write_pseudo_register (const wave_t &wave, amdgpu_regnum_t regnum,
                               size_t offset, size_t value_size,
                               const void *value) const override;
 
   bool can_halt_at_endpgm () const override { return true; }
 };
 
-std::optional<amd_dbgapi_wave_id_t>
+amd_dbgapi_wave_id_t
 gfx940_t::cwsr_record_t::id () const
 {
   dbgapi_assert (
@@ -3727,7 +3396,7 @@ gfx940_t::cwsr_record_t::id () const
   process ().read_global_memory (ttmp11_address, &ttmp11);
 
   if (!(ttmp11 & ttmp11_wave_id_valid_mask))
-    return std::nullopt;
+    return wave_t::undefined;
 
   const amd_dbgapi_global_address_t wave_id_address
     = register_address (amdgpu_regnum_t::ttmp4).value ();
@@ -3735,7 +3404,6 @@ gfx940_t::cwsr_record_t::id () const
   amd_dbgapi_wave_id_t wave_id;
   process ().read_global_memory (wave_id_address, &wave_id.handle);
 
-  dbgapi_assert (wave_id != wave_t::undefined);
   return wave_id;
 }
 
@@ -3764,10 +3432,9 @@ gfx940_t::wave_get_state (wave_t &wave) const
 }
 
 void
-gfx940_t::wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state,
-                          amd_dbgapi_exceptions_t exceptions) const
+gfx940_t::wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state) const
 {
-  amdgcn_architecture_t::wave_set_state (wave, state, exceptions);
+  amdgcn_architecture_t::wave_set_state (wave, state);
 
   /* When resuming a wave, clear the exceptions in the trapsts register that
      have already been reported by a stop event (stop_reason != 0).  */
@@ -3959,7 +3626,7 @@ gfx940_t::register_read_only_mask (amdgpu_regnum_t regnum) const
     }
 }
 
-std::optional<amd_dbgapi_global_address_t>
+amd_dbgapi_global_address_t
 gfx940_t::dispatch_packet_address (
   const architecture_t::cwsr_record_t &cwsr_record) const
 {
@@ -3975,18 +3642,15 @@ gfx940_t::dispatch_packet_address (
     = (ttmp11 & ttmp11_queue_packet_id_mask) >> ttmp11_queue_packet_id_shift;
 
   if ((dispatch_packet_index * queue.packet_size ()) >= queue.size ())
-    {
-      /* The dispatch_packet_index is out of bounds.  */
-      warning ("dispatch_packet_index %#lx is out of bounds in %s",
-               dispatch_packet_index, to_string (queue.id ()).c_str ());
-      return std::nullopt;
-    }
+    /* The dispatch_packet_index is out of bounds.  */
+    fatal_error ("dispatch_packet_index %#lx is out of bounds in %s",
+                 dispatch_packet_index, to_string (queue.id ()).c_str ());
 
   return queue.address () + (dispatch_packet_index * queue.packet_size ());
 }
 
 void
-gfx940_t::write_pseudo_register (wave_t &wave, amdgpu_regnum_t regnum,
+gfx940_t::write_pseudo_register (const wave_t &wave, amdgpu_regnum_t regnum,
                                  size_t offset, size_t value_size,
                                  const void *value) const
 {
@@ -4137,7 +3801,7 @@ public:
                              size_t offset, size_t value_size,
                              void *value) const override;
 
-  void write_pseudo_register (wave_t &wave, amdgpu_regnum_t regnum,
+  void write_pseudo_register (const wave_t &wave, amdgpu_regnum_t regnum,
                               size_t offset, size_t value_size,
                               const void *value) const override;
 
@@ -4480,7 +4144,7 @@ gfx10_architecture_t::read_pseudo_register (const wave_t &wave,
 }
 
 void
-gfx10_architecture_t::write_pseudo_register (wave_t &wave,
+gfx10_architecture_t::write_pseudo_register (const wave_t &wave,
                                              amdgpu_regnum_t regnum,
                                              size_t offset, size_t value_size,
                                              const void *value) const

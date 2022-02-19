@@ -47,6 +47,7 @@ class dispatch_t;
 class event_t;
 class displaced_stepping_t;
 class process_t;
+class workgroup_t;
 
 /* AMD Debugger API Wave.  */
 
@@ -89,7 +90,7 @@ private:
   amd_dbgapi_wave_state_t m_state{ AMD_DBGAPI_WAVE_STATE_RUN };
   bool m_stop_requested{ false };
   amd_dbgapi_wave_stop_reasons_t m_stop_reason{};
-  amd_dbgapi_global_address_t m_parked_pc{ 0 };
+  mutable amd_dbgapi_global_address_t m_parked_pc{ 0 };
   amd_dbgapi_global_address_t m_last_stopped_pc{ 0 };
   epoch_t m_mark{ 0 };
 
@@ -97,27 +98,19 @@ private:
   visibility_t m_visibility{ visibility_t::visible };
   bool m_is_parked{ false };
 
-  std::array<uint32_t, 3> m_group_ids{ 0, 0, 0 };
-  uint32_t m_wave_in_group{ 0 };
-
   std::unique_ptr<architecture_t::cwsr_record_t> m_cwsr_record{};
 
   displaced_stepping_t *m_displaced_stepping{ nullptr };
-  const wave_t *m_group_leader{ nullptr };
-  const dispatch_t &m_dispatch;
+  std::optional<uint32_t> const m_wave_in_group;
+  workgroup_t &m_workgroup;
 
-  [[nodiscard]] size_t
-  xfer_private_memory_swizzled (amd_dbgapi_segment_address_t segment_address,
-                                amd_dbgapi_lane_id_t lane_id, void *read,
-                                const void *write, size_t size);
+  [[nodiscard]] size_t xfer_private_memory_swizzled (
+    amd_dbgapi_size_t interleave, amd_dbgapi_segment_address_t segment_address,
+    amd_dbgapi_lane_id_t lane_id, void *read, const void *write, size_t size);
 
   [[nodiscard]] size_t
   xfer_private_memory_unswizzled (amd_dbgapi_segment_address_t segment_address,
                                   void *read, const void *write, size_t size);
-
-  [[nodiscard]] size_t
-  xfer_local_memory (amd_dbgapi_segment_address_t segment_address, void *read,
-                     const void *write, size_t size);
 
   void raise_event (amd_dbgapi_event_kind_t event_kind);
 
@@ -125,7 +118,8 @@ private:
   void unpark ();
 
 public:
-  wave_t (amd_dbgapi_wave_id_t wave_id, const dispatch_t &dispatch);
+  wave_t (amd_dbgapi_wave_id_t wave_id, workgroup_t &workgroup,
+          std::optional<uint32_t> wave_in_group);
   ~wave_t ();
 
   /* Disable copies.  */
@@ -144,17 +138,7 @@ public:
      processed and destroyed.  */
   const event_t *last_stop_event () const;
 
-  const wave_t &group_leader () const
-  {
-    dbgapi_assert (m_group_leader
-                   /* Make sure the group leader truly is a group leader.  */
-                   && m_group_leader == m_group_leader->m_group_leader);
-    return *m_group_leader;
-  }
-
   size_t lane_count () const { return m_cwsr_record->lane_count (); }
-
-  auto group_ids () const { return m_group_ids; }
 
   uint64_t exec_mask () const;
   amd_dbgapi_global_address_t pc () const;
@@ -176,8 +160,7 @@ public:
   }
 
   /* Update the wave's status from its saved state in the context save area. */
-  void update (const wave_t &group_leader,
-               std::unique_ptr<architecture_t::cwsr_record_t> cwsr_record);
+  void update (std::unique_ptr<architecture_t::cwsr_record_t> cwsr_record);
 
   static epoch_t next_mark ()
   {
@@ -212,7 +195,7 @@ public:
                       void *value) const;
 
   void write_register (amdgpu_regnum_t regnum, size_t offset,
-                       size_t value_size, const void *value);
+                       size_t value_size, const void *value) const;
 
   template <typename T, /* T is a pointer or an array.  */
             std::enable_if_t<std::is_pointer_v<std::decay_t<T>>, int> = 0>
@@ -230,7 +213,8 @@ public:
       }
   }
 
-  template <typename T> void write_register (amdgpu_regnum_t regnum, T &&value)
+  template <typename T>
+  void write_register (amdgpu_regnum_t regnum, T &&value) const
   {
     try
       {
@@ -258,7 +242,8 @@ public:
   void get_info (amd_dbgapi_wave_info_t query, size_t value_size,
                  void *value) const;
 
-  const dispatch_t &dispatch () const { return m_dispatch; }
+  workgroup_t &workgroup () const { return m_workgroup; }
+  const dispatch_t &dispatch () const;
   compute_queue_t &queue () const;
   const agent_t &agent () const;
   process_t &process () const;

@@ -136,6 +136,16 @@ to_string (amd_dbgapi_queue_id_t queue_id)
 
 template <>
 std::string
+to_string (amd_dbgapi_workgroup_id_t workgroup_id)
+{
+  if (workgroup_id == AMD_DBGAPI_WORKGROUP_NONE)
+    return "WORKGROUP_NONE";
+
+  return string_printf ("workgroup_%ld", workgroup_id.handle);
+}
+
+template <>
+std::string
 to_string (amd_dbgapi_dispatch_id_t dispatch_id)
 {
   if (dispatch_id == AMD_DBGAPI_DISPATCH_NONE)
@@ -337,6 +347,7 @@ to_string (amd_dbgapi_status_t status)
       CASE (STATUS_ERROR_INVALID_CLIENT_PROCESS_ID);
       CASE (STATUS_ERROR_SYMBOL_NOT_FOUND);
       CASE (STATUS_ERROR_REGISTER_NOT_AVAILABLE);
+      CASE (STATUS_ERROR_INVALID_WORKGROUP_ID);
     }
   return to_string (make_hex (status));
 }
@@ -384,7 +395,7 @@ to_string (detail::query_ref<amd_dbgapi_architecture_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_register_id_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_architecture_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -545,7 +556,7 @@ to_string (detail::query_ref<amd_dbgapi_instruction_kind_t> ref)
         make_ref (static_cast<const uint64_t *const *> (information))));
     }
   fatal_error ("unhandled amd_dbgapi_instruction_kind_t kind (%s)",
-               to_string (kind).c_str ());
+               to_cstring (kind));
 }
 
 template <>
@@ -586,7 +597,7 @@ to_string (detail::query_ref<amd_dbgapi_process_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_os_process_id_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_process_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -644,7 +655,7 @@ to_string (detail::query_ref<amd_dbgapi_watchpoint_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_size_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_watchpoint_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -677,7 +688,7 @@ to_string (detail::query_ref<amd_dbgapi_code_object_info_t> ref)
         make_hex (make_ref (static_cast<const ptrdiff_t *> (value))));
     }
   fatal_error ("unhandled amd_dbgapi_code_object_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -703,7 +714,7 @@ to_string (detail::query_ref<amd_dbgapi_breakpoint_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_process_id_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_breakpoint_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -729,7 +740,7 @@ to_string (detail::query_ref<amd_dbgapi_displaced_stepping_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_process_id_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_displaced_stepping_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -785,7 +796,7 @@ to_string (detail::query_ref<amd_dbgapi_agent_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_os_agent_id_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_agent_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -843,7 +854,7 @@ to_string (detail::query_ref<amd_dbgapi_queue_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_os_queue_id_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_queue_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -897,7 +908,7 @@ one_queue_error_reason_to_string (amd_dbgapi_exceptions_t queue_error_reason)
       CASE (EXCEPTION_PACKET_DISPATCH_GROUP_SEGMENT_SIZE_INVALID);
       CASE (EXCEPTION_PACKET_DISPATCH_CODE_INVALID);
       CASE (EXCEPTION_PACKET_UNSUPPORTED);
-      CASE (EXCEPTION_PACKET_DISPATCH_WORK_GROUP_SIZE_INVALID);
+      CASE (EXCEPTION_PACKET_DISPATCH_WORKGROUP_SIZE_INVALID);
       CASE (EXCEPTION_PACKET_DISPATCH_REGISTER_COUNT_TOO_LARGE);
       CASE (EXCEPTION_PACKET_VENDOR_UNSUPPORTED);
       CASE (EXCEPTION_QUEUE_PREEMPTION_ERROR);
@@ -946,7 +957,7 @@ to_string (amd_dbgapi_dispatch_info_t dispatch_info)
       CASE (DISPATCH_INFO_ACQUIRE_FENCE);
       CASE (DISPATCH_INFO_RELEASE_FENCE);
       CASE (DISPATCH_INFO_GRID_DIMENSIONS);
-      CASE (DISPATCH_INFO_WORK_GROUP_SIZES);
+      CASE (DISPATCH_INFO_WORKGROUP_SIZES);
       CASE (DISPATCH_INFO_GRID_SIZES);
       CASE (DISPATCH_INFO_PRIVATE_SEGMENT_SIZE);
       CASE (DISPATCH_INFO_GROUP_SEGMENT_SIZE);
@@ -989,7 +1000,7 @@ to_string (detail::query_ref<amd_dbgapi_dispatch_info_t> ref)
         static_cast<const amd_dbgapi_dispatch_fence_scope_t *> (value)));
     case AMD_DBGAPI_DISPATCH_INFO_GRID_DIMENSIONS:
       return to_string (make_ref (static_cast<const uint32_t *> (value)));
-    case AMD_DBGAPI_DISPATCH_INFO_WORK_GROUP_SIZES:
+    case AMD_DBGAPI_DISPATCH_INFO_WORKGROUP_SIZES:
       return to_string (make_ref (static_cast<const uint16_t *> (value), 3));
     case AMD_DBGAPI_DISPATCH_INFO_GRID_SIZES:
       return to_string (make_ref (static_cast<const uint32_t *> (value), 3));
@@ -1005,7 +1016,7 @@ to_string (detail::query_ref<amd_dbgapi_dispatch_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_global_address_t *> (value))));
     }
   fatal_error ("unhandled amd_dbgapi_dispatch_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -1042,6 +1053,7 @@ to_string (amd_dbgapi_wave_info_t wave_info)
       CASE (WAVE_INFO_STATE);
       CASE (WAVE_INFO_STOP_REASON);
       CASE (WAVE_INFO_WATCHPOINTS);
+      CASE (WAVE_INFO_WORKGROUP);
       CASE (WAVE_INFO_DISPATCH);
       CASE (WAVE_INFO_QUEUE);
       CASE (WAVE_INFO_AGENT);
@@ -1049,8 +1061,8 @@ to_string (amd_dbgapi_wave_info_t wave_info)
       CASE (WAVE_INFO_ARCHITECTURE);
       CASE (WAVE_INFO_PC);
       CASE (WAVE_INFO_EXEC_MASK);
-      CASE (WAVE_INFO_WORK_GROUP_COORD);
-      CASE (WAVE_INFO_WAVE_NUMBER_IN_WORK_GROUP);
+      CASE (WAVE_INFO_WORKGROUP_COORD);
+      CASE (WAVE_INFO_WAVE_NUMBER_IN_WORKGROUP);
       CASE (WAVE_INFO_LANE_COUNT);
     }
   return to_string (make_hex (wave_info));
@@ -1075,9 +1087,12 @@ to_string (detail::query_ref<amd_dbgapi_wave_info_t> ref)
           = static_cast<const amd_dbgapi_watchpoint_list_t *> (value);
         return string_printf (
           "[%zu,%s]@%p", list->count,
-          to_string (make_ref (list->watchpoint_ids, list->count)).c_str (),
+          to_cstring (make_ref (list->watchpoint_ids, list->count)),
           static_cast<const void *> (list));
       }
+    case AMD_DBGAPI_WAVE_INFO_WORKGROUP:
+      return to_string (
+        make_ref (static_cast<const amd_dbgapi_workgroup_id_t *> (value)));
     case AMD_DBGAPI_WAVE_INFO_DISPATCH:
       return to_string (
         make_ref (static_cast<const amd_dbgapi_dispatch_id_t *> (value)));
@@ -1099,15 +1114,15 @@ to_string (detail::query_ref<amd_dbgapi_wave_info_t> ref)
     case AMD_DBGAPI_WAVE_INFO_EXEC_MASK:
       return to_string (
         make_hex (make_ref (static_cast<const uint64_t *> (value))));
-    case AMD_DBGAPI_WAVE_INFO_WORK_GROUP_COORD:
+    case AMD_DBGAPI_WAVE_INFO_WORKGROUP_COORD:
       return to_string (make_ref (static_cast<const uint32_t *> (value), 3));
-    case AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORK_GROUP:
+    case AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORKGROUP:
       return to_string (make_ref (static_cast<const uint32_t *> (value)));
     case AMD_DBGAPI_WAVE_INFO_LANE_COUNT:
       return to_string (make_ref (static_cast<const size_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_wave_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -1254,7 +1269,7 @@ to_string (detail::query_ref<amd_dbgapi_register_class_info_t> ref)
       return to_string (make_ref (static_cast<char *const *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_register_class_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -1296,7 +1311,7 @@ to_string (detail::query_ref<amd_dbgapi_register_info_t> ref)
         static_cast<const amd_dbgapi_register_properties_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_register_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -1352,7 +1367,7 @@ to_string (detail::query_ref<amd_dbgapi_address_class_info_t> ref)
       return to_string (make_ref (static_cast<const uint64_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_address_class_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -1405,7 +1420,7 @@ to_string (detail::query_ref<amd_dbgapi_address_space_info_t> ref)
       return to_string (make_ref (static_cast<const uint64_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_address_space_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -1509,7 +1524,7 @@ to_string (detail::query_ref<amd_dbgapi_event_info_t> ref)
         make_ref (static_cast<const amd_dbgapi_queue_id_t *> (value)));
     }
   fatal_error ("unhandled amd_dbgapi_event_info_t query (%s)",
-               to_string (query).c_str ());
+               to_cstring (query));
 }
 
 template <>
@@ -1596,6 +1611,51 @@ to_string (os_wave_launch_trap_mask_t value)
     }
 
   return str;
+}
+
+template <>
+std::string
+to_string (amd_dbgapi_workgroup_info_t workgroup_info)
+{
+  switch (workgroup_info)
+    {
+      CASE (WORKGROUP_INFO_DISPATCH);
+      CASE (WORKGROUP_INFO_QUEUE);
+      CASE (WORKGROUP_INFO_AGENT);
+      CASE (WORKGROUP_INFO_PROCESS);
+      CASE (WORKGROUP_INFO_ARCHITECTURE);
+      CASE (WORKGROUP_INFO_WORKGROUP_COORD);
+    }
+  return to_string (make_hex (workgroup_info));
+}
+
+template <>
+std::string
+to_string (detail::query_ref<amd_dbgapi_workgroup_info_t> ref)
+{
+  auto [query, value] = ref;
+  switch (query)
+    {
+    case AMD_DBGAPI_WORKGROUP_INFO_DISPATCH:
+      return to_string (
+        make_ref (static_cast<const amd_dbgapi_dispatch_id_t *> (value)));
+    case AMD_DBGAPI_WORKGROUP_INFO_QUEUE:
+      return to_string (
+        make_ref (static_cast<const amd_dbgapi_queue_id_t *> (value)));
+    case AMD_DBGAPI_WORKGROUP_INFO_AGENT:
+      return to_string (
+        make_ref (static_cast<const amd_dbgapi_agent_id_t *> (value)));
+    case AMD_DBGAPI_WORKGROUP_INFO_PROCESS:
+      return to_string (
+        make_ref (static_cast<const amd_dbgapi_process_id_t *> (value)));
+    case AMD_DBGAPI_WORKGROUP_INFO_ARCHITECTURE:
+      return to_string (
+        make_ref (static_cast<const amd_dbgapi_architecture_id_t *> (value)));
+    case AMD_DBGAPI_WORKGROUP_INFO_WORKGROUP_COORD:
+      return to_string (make_ref (static_cast<const uint32_t *> (value), 3));
+    }
+  fatal_error ("unhandled amd_dbgapi_workgroup_info_t query (%s)",
+               to_cstring (query));
 }
 
 #undef CASE

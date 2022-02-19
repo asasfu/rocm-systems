@@ -33,6 +33,7 @@
 #include "register.h"
 #include "utils.h"
 #include "watchpoint.h"
+#include "workgroup.h"
 
 #include <algorithm>
 #include <cstring>
@@ -43,8 +44,10 @@
 namespace amd::dbgapi
 {
 
-wave_t::wave_t (amd_dbgapi_wave_id_t wave_id, const dispatch_t &dispatch)
-  : handle_object (wave_id), m_dispatch (dispatch)
+wave_t::wave_t (amd_dbgapi_wave_id_t wave_id, workgroup_t &workgroup,
+                std::optional<uint32_t> wave_in_group)
+  : handle_object (wave_id), m_wave_in_group (wave_in_group),
+    m_workgroup (workgroup)
 {
 }
 
@@ -63,6 +66,12 @@ wave_t::~wave_t ()
      event, or a command terminated event.  */
   if (state () == AMD_DBGAPI_WAVE_STATE_SINGLE_STEP)
     raise_event (AMD_DBGAPI_EVENT_KIND_WAVE_COMMAND_TERMINATED);
+}
+
+const dispatch_t &
+wave_t::dispatch () const
+{
+  return m_workgroup.dispatch ();
 }
 
 compute_queue_t &
@@ -107,7 +116,7 @@ wave_t::set_visibility (visibility_t visibility)
   if (m_visibility == visibility)
     return;
 
-  log_info ("changing %s's visibility to %s", to_string (id ()).c_str (),
+  log_info ("changing %s's visibility to %s", to_cstring (id ()),
             visibility == visibility_t::visible ? "visible" : "hidden");
 
   m_visibility = visibility;
@@ -190,7 +199,7 @@ wave_t::park ()
   /* From now on, every read/write to the pc register will be from/to
      m_parked_pc.  The real pc in the context save area will be untouched.  */
 
-  log_verbose ("parked %s (pc=%#lx)", to_string (id ()).c_str (), m_parked_pc);
+  log_verbose ("parked %s (pc=%#lx)", to_cstring (id ()), m_parked_pc);
 }
 
 void
@@ -209,7 +218,7 @@ wave_t::unpark ()
 
   write_register (amdgpu_regnum_t::pc, saved_pc);
 
-  log_verbose ("unparked %s (pc=%#lx)", to_string (id ()).c_str (), pc ());
+  log_verbose ("unparked %s (pc=%#lx)", to_cstring (id ()), pc ());
 }
 
 void
@@ -302,9 +311,9 @@ wave_t::displaced_stepping_start (const void *saved_instruction_bytes)
       write_register (amdgpu_regnum_t::pc, *displaced_stepping->to ());
 
       log_info ("changing %s's pc from %#lx to %#lx (started %s)",
-                to_string (id ()).c_str (), displaced_stepping->from (),
+                to_cstring (id ()), displaced_stepping->from (),
                 *displaced_stepping->to (),
-                to_string (displaced_stepping->id ()).c_str ());
+                to_cstring (displaced_stepping->id ()));
     }
 
   displaced_stepping_t::retain (displaced_stepping);
@@ -326,10 +335,10 @@ wave_t::displaced_stepping_complete ()
       write_register (amdgpu_regnum_t::pc, restored_pc);
 
       log_info ("changing %s's pc from %#lx to %#lx (%s %s)",
-                to_string (id ()).c_str (), displaced_pc, pc (),
+                to_cstring (id ()), displaced_pc, pc (),
                 displaced_pc == *m_displaced_stepping->to () ? "aborted"
                                                              : "completed",
-                to_string (m_displaced_stepping->id ()).c_str ());
+                to_cstring (m_displaced_stepping->id ()));
     }
 
   displaced_stepping_t::release (m_displaced_stepping);
@@ -337,21 +346,19 @@ wave_t::displaced_stepping_complete ()
 }
 
 void
-wave_t::update (const wave_t &group_leader,
-                std::unique_ptr<architecture_t::cwsr_record_t> cwsr_record)
+wave_t::update (std::unique_ptr<architecture_t::cwsr_record_t> cwsr_record)
 {
   dbgapi_assert (queue ().is_suspended ());
   const bool first_update = !m_mark;
 
   dbgapi_assert (cwsr_record != nullptr);
   m_cwsr_record = std::move (cwsr_record);
-  m_group_leader = &group_leader;
 
   /* Check that the PC in the wave state save area is correctly aligned.  */
   if (!utils::is_aligned (pc (),
                           architecture ().minimum_instruction_alignment ()))
     fatal_error ("corrupted state for %s: misaligned pc: %#lx",
-                 to_string (id ()).c_str (), pc ());
+                 to_cstring (id ()), pc ());
 
   /* Update the wave's state if this is a new wave, or if the wave was running
      the last time the queue it belongs to was resumed.  */
@@ -361,11 +368,7 @@ wave_t::update (const wave_t &group_leader,
       /* Zero-initialize the ttmp registers if they weren't set up by the
          hardware.  Some ttmp registers are used to determine if the wave was
          stopped by the trap handler because of an exception or a trap.  */
-      bool ttmps_initialized
-        = process ().is_flag_set (process_t::flag_t::ttmps_setup_enabled)
-          || agent ().os_info ().ttmps_always_initialized;
-
-      if (first_update && !ttmps_initialized)
+      if (first_update && !agent ().ttmps_initialized ())
         {
           for (auto regnum = amdgpu_regnum_t::first_ttmp;
                regnum <= amdgpu_regnum_t::last_ttmp; ++regnum)
@@ -376,11 +379,12 @@ wave_t::update (const wave_t &group_leader,
         = architecture ().wave_get_state (*this);
     }
 
-  log_verbose ("%s %s%s (pc=%#lx, state=%s) context_save:[%#lx..%#lx[",
+  log_verbose ("%s %s%s in %s (pc=%#lx, state=%s) context_save:[%#lx..%#lx[",
                first_update ? "created" : "updated",
                visibility () != visibility_t::visible ? "invisible " : "",
-               to_string (id ()).c_str (), pc (), to_string (m_state).c_str (),
-               m_cwsr_record->begin (), m_cwsr_record->end ());
+               to_cstring (id ()), to_cstring (workgroup ().id ()), pc (),
+               to_cstring (m_state), m_cwsr_record->begin (),
+               m_cwsr_record->end ());
 
   /* The wave was running, and it is now stopped.  */
   if (prev_state != AMD_DBGAPI_WAVE_STATE_STOP
@@ -396,21 +400,9 @@ wave_t::update (const wave_t &group_leader,
         raise_event (AMD_DBGAPI_EVENT_KIND_WAVE_STOP);
     }
 
-  /* If this is the first time we update this wave, store the wave_id, and load
-     the immutable state from the ttmp registers (group_ids, wave_in_group,
-     scratch_offset).  */
+  /* If this is the first time we update this wave, store the wave_id.  */
   if (first_update)
-    {
-      /* Write the wave_id register.  */
-      write_register (amdgpu_regnum_t::wave_id, id ());
-
-      /* Read group_ids[0:3].  */
-      read_register (amdgpu_regnum_t::dispatch_grid, 0, sizeof (m_group_ids),
-                     &m_group_ids[0]);
-
-      /* Read the wave's position in the thread group.  */
-      read_register (amdgpu_regnum_t::wave_in_group, &m_wave_in_group);
-    }
+    write_register (amdgpu_regnum_t::wave_id, id ());
 }
 
 void
@@ -461,14 +453,13 @@ wave_t::set_state (amd_dbgapi_wave_state_t state,
 
   log_info ("changing %s%s's state from %s to %s %s(pc=%#lx)",
             visibility () != visibility_t::visible ? "invisible " : "",
-            to_string (id ()).c_str (), to_string (prev_state).c_str (),
-            to_string (state).c_str (),
+            to_cstring (id ()), to_cstring (prev_state), to_cstring (state),
             exceptions != AMD_DBGAPI_EXCEPTION_NONE
               ? ("with " + to_string (exceptions) + " ").c_str ()
               : "",
             pc ());
 
-  architecture.wave_set_state (*this, state, exceptions);
+  architecture.wave_set_state (*this, state);
   m_state = state;
   queue ().wave_state_changed (*this);
 
@@ -531,7 +522,7 @@ wave_t::set_state (amd_dbgapi_wave_state_t state,
     {
       /* The instruction was successfully executed, update wave state and
          raise a stop event.  */
-      update (*m_group_leader, std::move (m_cwsr_record));
+      update (std::move (m_cwsr_record));
       queue ().wave_state_changed (*this);
     }
 
@@ -575,6 +566,9 @@ wave_t::set_state (amd_dbgapi_wave_state_t state,
       /* A wave should only send queue exceptions, sometimes combined with a
          device_memory_exception.  */
       dbgapi_assert ((os_exceptions & os_queue_exception_mask) != 0);
+
+      /* Halt the wave if resuming with exceptions.  */
+      architecture.wave_set_halt (*this, true);
 
       process ().send_exceptions (os_exceptions, &queue ());
     }
@@ -631,10 +625,14 @@ wave_t::read_register (amdgpu_regnum_t regnum, size_t offset,
       && !process ().memory_cache ().contains_all (*reg_addr + offset,
                                                    value_size))
     {
+      /* Get the wave_id before suspending the queue, as this wave could have
+         exited, and queue_t::update_waves may destroy this wave_t.  */
+      amd_dbgapi_wave_id_t wave_id = id ();
+
       suspend.emplace (queue (), "read register");
 
       /* Look for the wave_id again, the wave may have exited.  */
-      wave_t *wave = find (id ());
+      wave_t *wave = find (wave_id);
       if (!wave)
         throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID);
 
@@ -649,7 +647,7 @@ wave_t::read_register (amdgpu_regnum_t regnum, size_t offset,
 
 void
 wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
-                        size_t value_size, const void *value)
+                        size_t value_size, const void *value) const
 {
   if (is_pseudo_register (regnum))
     return architecture ().write_pseudo_register (*this, regnum, offset,
@@ -698,10 +696,14 @@ wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
   std::optional<scoped_queue_suspend_t> suspend;
   if (!queue ().is_suspended ())
     {
+      /* Get the wave_id before suspending the queue, as this wave could have
+         exited, and queue_t::update_waves may destroy this wave_t.  */
+      amd_dbgapi_wave_id_t wave_id = id ();
+
       suspend.emplace (queue (), "write register");
 
       /* Look for the wave_id again, the wave may have exited.  */
-      wave_t *wave = find (id ());
+      wave_t *wave = find (wave_id);
       if (!wave)
         throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID);
 
@@ -750,13 +752,12 @@ wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
 
 size_t
 wave_t::xfer_private_memory_swizzled (
-  amd_dbgapi_segment_address_t segment_address, amd_dbgapi_lane_id_t lane_id,
-  void *read, const void *write, size_t size)
+  amd_dbgapi_size_t interleave, amd_dbgapi_segment_address_t segment_address,
+  amd_dbgapi_lane_id_t lane_id, void *read, const void *write, size_t size)
 {
-  dbgapi_assert (lane_id != AMD_DBGAPI_LANE_NONE && lane_id < lane_count ());
+  if (lane_id == AMD_DBGAPI_LANE_NONE || lane_id >= lane_count ())
+    THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_LANE_ID);
 
-  const amd_dbgapi_size_t interleave
-    = architecture ().private_swizzled_interleave_size ();
   auto [scratch_base, scratch_size] = scratch_memory_region ();
 
   size_t bytes = size;
@@ -827,50 +828,6 @@ wave_t::xfer_private_memory_unswizzled (
                                                      size);
 }
 
-size_t
-wave_t::xfer_local_memory (amd_dbgapi_segment_address_t segment_address,
-                           void *read, const void *write, size_t size)
-{
-  /* The LDS is stored in the context save area.  */
-  std::optional<scoped_queue_suspend_t> suspend;
-  if (!queue ().is_suspended ())
-    {
-      suspend.emplace (queue (), "xfer local memory");
-
-      /* Look for the wave_id again, the wave may have exited.  */
-      wave_t *wave = find (id ());
-      if (!wave)
-        throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID);
-
-      dbgapi_assert (wave == this);
-    }
-
-  auto local_memory_base_address
-    = group_leader ().m_cwsr_record->register_address (amdgpu_regnum_t::lds_0);
-
-  if (!local_memory_base_address)
-    fatal_error ("local memory is not accessible");
-
-  amd_dbgapi_size_t limit = m_cwsr_record->lds_size ();
-  amd_dbgapi_size_t offset = segment_address;
-
-  if ((offset + size) > limit)
-    {
-      size_t max_size = offset < limit ? limit - offset : 0;
-      if (max_size == 0 && size != 0)
-        throw memory_access_error_t (*local_memory_base_address + limit);
-      size = max_size;
-    }
-
-  amd_dbgapi_global_address_t global_address
-    = *local_memory_base_address + offset;
-
-  return read
-           ? process ().read_global_memory_partial (global_address, read, size)
-           : process ().write_global_memory_partial (global_address, write,
-                                                     size);
-}
-
 /* Return the wave's scratch memory region (address and size).  */
 std::pair<amd_dbgapi_global_address_t /* address */,
           amd_dbgapi_size_t /* size */>
@@ -891,32 +848,30 @@ wave_t::xfer_segment_memory (const address_space_t &address_space,
                  && "the wave must be stopped to read/write memory");
   dbgapi_assert (!read != !write && "either read or write buffer");
 
-  /* Zero-extend the segment address.  */
-  segment_address &= utils::bit_mask (0, address_space.address_size () - 1);
+  auto [lowered_address_space, lowered_address]
+    = address_space.lower (segment_address);
 
-  switch (address_space.kind ())
+  switch (lowered_address_space.kind ())
     {
     case address_space_t::kind_t::private_swizzled:
-      return xfer_private_memory_swizzled (segment_address, lane_id, read,
-                                           write, size);
+      {
+        const auto &private_swizzled_address_space
+          = static_cast<const private_swizzled_address_space_t &> (
+            lowered_address_space);
+
+        return xfer_private_memory_swizzled (
+          private_swizzled_address_space.interleave_size (), lowered_address,
+          lane_id, read, write, size);
+      }
 
     case address_space_t::kind_t::private_unswizzled:
-      return xfer_private_memory_unswizzled (segment_address, read, write,
+      return xfer_private_memory_unswizzled (lowered_address, read, write,
                                              size);
-
-    case address_space_t::kind_t::local:
-      return xfer_local_memory (segment_address, read, write, size);
-
-    case address_space_t::kind_t::global:
-      return read ? process ().read_global_memory_partial (segment_address,
-                                                           read, size)
-                  : process ().write_global_memory_partial (segment_address,
-                                                            write, size);
 
     default:
       throw memory_access_error_t (string_printf (
         "xfer_segment_memory from address space `%s' not supported",
-        address_space.name ().c_str ()));
+        lowered_address_space.name ().c_str ()));
     }
 }
 
@@ -973,6 +928,12 @@ wave_t::get_info (amd_dbgapi_wave_info_t query, size_t value_size,
       utils::get_info (value_size, value, stop_reason ());
       return;
 
+    case AMD_DBGAPI_WAVE_INFO_WORKGROUP:
+      if (workgroup ().id () == AMD_DBGAPI_WORKGROUP_NONE)
+        throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE);
+      utils::get_info (value_size, value, workgroup ().id ());
+      return;
+
     case AMD_DBGAPI_WAVE_INFO_DISPATCH:
       if (dispatch ().id () == AMD_DBGAPI_DISPATCH_NONE)
         throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE);
@@ -1003,16 +964,16 @@ wave_t::get_info (amd_dbgapi_wave_info_t query, size_t value_size,
       utils::get_info (value_size, value, exec_mask ());
       return;
 
-    case AMD_DBGAPI_WAVE_INFO_WORK_GROUP_COORD:
-      if (dispatch ().id () == AMD_DBGAPI_DISPATCH_NONE)
+    case AMD_DBGAPI_WAVE_INFO_WORKGROUP_COORD:
+      if (!workgroup ().group_ids ())
         throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE);
-      utils::get_info (value_size, value, m_group_ids);
+      utils::get_info (value_size, value, *workgroup ().group_ids ());
       return;
 
-    case AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORK_GROUP:
-      if (dispatch ().id () == AMD_DBGAPI_DISPATCH_NONE)
+    case AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORKGROUP:
+      if (!m_wave_in_group)
         throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE);
-      utils::get_info (value_size, value, m_wave_in_group);
+      utils::get_info (value_size, value, *m_wave_in_group);
       return;
 
     case AMD_DBGAPI_WAVE_INFO_WATCHPOINTS:
@@ -1028,7 +989,7 @@ wave_t::get_info (amd_dbgapi_wave_info_t query, size_t value_size,
             = process ().find_watchpoint (os_watch_id);
           if (!watchpoint)
             fatal_error ("kfd_watch_%d not set on %s", os_watch_id,
-                         to_string (agent ().id ()).c_str ());
+                         to_cstring (agent ().id ()));
           return watchpoint->id ();
         };
 

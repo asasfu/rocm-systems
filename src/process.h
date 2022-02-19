@@ -118,12 +118,12 @@ private:
 
   std::queue<event_t *> m_pending_events{};
 
-  std::tuple<handle_object_set_t<agent_t>, handle_object_set_t<breakpoint_t>,
-             handle_object_set_t<code_object_t>,
-             handle_object_set_t<dispatch_t>,
-             handle_object_set_t<displaced_stepping_t>,
-             handle_object_set_t<event_t>, handle_object_set_t<queue_t>,
-             handle_object_set_t<watchpoint_t>, handle_object_set_t<wave_t>>
+  std::tuple<
+    handle_object_set_t<agent_t>, handle_object_set_t<breakpoint_t>,
+    handle_object_set_t<code_object_t>, handle_object_set_t<dispatch_t>,
+    handle_object_set_t<displaced_stepping_t>, handle_object_set_t<event_t>,
+    handle_object_set_t<queue_t>, handle_object_set_t<watchpoint_t>,
+    handle_object_set_t<wave_t>, handle_object_set_t<workgroup_t>>
     m_handle_object_sets{};
 
   const agent_t m_dummy_agent;
@@ -192,6 +192,11 @@ public:
 
   void read_string (amd_dbgapi_global_address_t address, std::string *string,
                     size_t size);
+
+  [[nodiscard]] size_t
+  xfer_segment_memory (const address_space_t &address_space,
+                       amd_dbgapi_segment_address_t segment_address,
+                       void *read, const void *write, size_t size);
 
   bool forward_progress_needed () const { return m_forward_progress_needed; }
   void set_forward_progress_needed (bool forward_progress_needed);
@@ -271,7 +276,11 @@ public:
   amd_dbgapi_status_t
   remove_breakpoint (amd_dbgapi_breakpoint_id_t breakpoint_id);
 
-  template <typename Object, typename... Args> auto &create (Args &&...args);
+  template <typename Object, typename... Args> auto &create (Args &&...args)
+  {
+    return get_base_type_element<Object> (m_handle_object_sets)
+      .template create_object<Object> (std::forward<Args> (args)...);
+  }
 
   /* Destroy the given object.  */
   template <typename Object> void destroy (Object *object)
@@ -355,21 +364,21 @@ public:
 
   /* Find an object for which the unary predicate f returns true.  */
   template <typename Functor>
-  auto *find_if (Functor predicate, bool all = false)
+  auto *find_if (Functor &&predicate, bool all = false)
   {
     using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
 
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
-      .find_if (predicate, all);
+      .find_if (std::forward<Functor> (predicate), all);
   }
 
   template <typename Functor>
-  auto const *find_if (Functor predicate, bool all = false) const
+  auto const *find_if (Functor &&predicate, bool all = false) const
   {
     using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
 
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
-      .find_if (predicate, all);
+      .find_if (std::forward<Functor> (predicate), all);
   }
 
   pipe_t &client_notifier_pipe () { return m_client_notifier_pipe; }
@@ -411,41 +420,6 @@ process_t::write_global_memory (amd_dbgapi_global_address_t address,
 
 namespace detail
 {
-template <typename Object, std::size_t N, typename... Args>
-struct get_base_type_index
-{
-  static constexpr auto value = N;
-};
-
-template <typename Object, std::size_t N, typename HandleObjectSet,
-          typename... Args>
-struct get_base_type_index<Object, N, HandleObjectSet, Args...>
-{
-  static constexpr auto value
-    = std::is_base_of_v<typename HandleObjectSet::object_type, Object>
-        ? N
-        : get_base_type_index<Object, N + 1, Args...>::value;
-};
-
-template <typename Object, typename... Args>
-auto &
-get_base_type_element (std::tuple<Args...> &tuple)
-{
-  return std::get<detail::get_base_type_index<Object, 0, Args...>::value> (
-    tuple);
-}
-} /* namespace detail */
-
-template <typename Object, typename... Args>
-auto &
-process_t::create (Args &&...args)
-{
-  return detail::get_base_type_element<Object> (m_handle_object_sets)
-    .template create_object<Object> (std::forward<Args> (args)...);
-}
-
-namespace detail
-{
 template <typename Handle>
 using process_find_t
   = decltype (std::declval<process_t> ().find (std::declval<Handle> ()));
@@ -455,8 +429,8 @@ using process_find_t
 template <typename Handle,
           std::enable_if_t<
             utils::is_detected_v<detail::process_find_t, Handle>, int> = 0>
-auto *
-find (Handle id)
+auto
+find (Handle id) -> decltype (std::declval<process_t> ().find (id))
 {
   if (detail::last_found_process)
     if (auto value = detail::last_found_process->find (id); value)
@@ -474,7 +448,7 @@ find (Handle id)
         }
     }
 
-  return decltype (std::declval<process_t> ().find (id)){};
+  return nullptr;
 }
 
 template <> struct is_flag<process_t::flag_t> : std::true_type

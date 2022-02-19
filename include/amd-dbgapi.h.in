@@ -164,21 +164,21 @@
  * same arguments.
  *
  * The dispatch grid is organized as a three-dimensional collection of
- * work-groups, where each work-group is the same size (except for potential
- * boundary partial work-groups).  The work-groups form a three-dimensional
+ * workgroups, where each workgroup is the same size (except for potential
+ * boundary partial workgroups).  The workgroups form a three-dimensional
  * collection of work-items.  The work-items are the threads of execution.  The
  * position of a work-item is its zero-based three-dimensional position in a
- * work-group, termed its work-item ID, plus its work-group's three-dimensional
- * position in the dispatch grid, termed its work-group ID.  These
+ * workgroup, termed its work-item ID, plus its workgroup's three-dimensional
+ * position in the dispatch grid, termed its workgroup ID.  These
  * three-dimensional IDs can also be expressed as a zero-based one-dimensional
  * ID, termed a flat ID, by simply numbering the elements in a natural manner
  * akin to linearizing a multi-dimensional array.
  *
- * Consecutive work-items, in flat work-item ID order, of a work-group are
+ * Consecutive work-items, in flat work-item ID order, of a workgroup are
  * organized into fixed size wavefronts, or waves for short.  Each work-item
  * position in the wave is termed a lane, and has a zero-base lane ID.  The
- * hardware imposes an upper limit on the number of work-items in a work-group
- * but does not limit the number of work-groups in a dispatch grid.  The
+ * hardware imposes an upper limit on the number of work-items in a workgroup
+ * but does not limit the number of workgroups in a dispatch grid.  The
  * hardware executes instructions for waves independently.  But the lanes of a
  * wave all execute the same instruction jointly.  This is termed Single
  * Instruction Multiple Thread (SIMT) execution.
@@ -217,14 +217,14 @@
  * service queue that is used to update GPU state.  If the ME does support
  * kernel function execution it uses fixed-function hardware to initiate the
  * creation of waves.  This is accomplished by sending requests to create
- * work-groups to one or more Compute Units (CUs).  Requests are sent to create
- * all the work-groups of a dispatch grid.  Each CU has resources to hold a
+ * workgroups to one or more Compute Units (CUs).  Requests are sent to create
+ * all the workgroups of a dispatch grid.  Each CU has resources to hold a
  * fixed number of waves and has fixed-function hardware to schedule execution
  * of these waves.  The scheduler may execute multiple waves concurrently and
  * will hide latency by switching between the waves that are ready to execute.
- * At any point of time, a subset of the waves belonging to work-groups in a
+ * At any point of time, a subset of the waves belonging to workgroups in a
  * dispatch may be actively executing.  As waves complete, the waves of
- * subsequent work-group requests are created.
+ * subsequent workgroup requests are created.
  *
  * Each CU has a fixed amount of memory from which it allocates vector and
  * scalar registers.  The kernel descriptor specifies how many registers to
@@ -232,40 +232,40 @@
  * created on a CU and the number of registers each can use.
  *
  * The CU also has a fixed size Local Data Store (LDS).  A dispatch packet
- * specifies how much LDS each work-group is allocated.  All waves in a
- * work-group are created on the same CU.  This allows the LDS to be used to
- * share data between the waves of the same work-group.  There is a tradeoff
- * between how much LDS a work-group can allocate, and the number of
- * work-groups that can fit on a CU.  The address of a location in a work-group
- * LDS allocation is zero-based and is a different address space than the
- * global virtual memory.  There are specific instructions that take an LDS
- * address to access it.  There are also flat address instructions that map the
- * LDS address range into an unused fixed aperture range of the global virtual
+ * specifies how much LDS each workgroup is allocated.  All waves in a
+ * workgroup are created on the same CU.  This allows the LDS to be used to
+ * share data between the waves of the same workgroup.  There is a tradeoff
+ * between how much LDS a workgroup can allocate, and the number of workgroups
+ * that can fit on a CU.  The address of a location in a workgroup LDS
+ * allocation is zero-based and is a different address space than the global
+ * virtual memory.  There are specific instructions that take an LDS address to
+ * access it.  There are also flat address instructions that map the LDS
+ * address range into an unused fixed aperture range of the global virtual
  * address range.  An LDS address can be converted to or from a flat address by
  * offsetting by the base of the aperture.  Note that a flat address in the LDS
- * aperture only accesses the LDS work-group allocation for the wave that uses
+ * aperture only accesses the LDS workgroup allocation for the wave that uses
  * it.  The same address will access different LDS allocations if used by waves
- * in different work-groups.
+ * in different workgroups.
  *
  * The dispatch packet specifies the amount of scratch memory that must be
  * allocated for a work-item.  This is used for work-item private memory.
  * Fixed-function hardware in the CU manages per wave allocation of scratch
  * memory from pre-allocated global virtual memory mapped to GPU device memory.
  * Like an LDS address, a scratch address is zero-based, but is per work-item
- * instead of per work-group.  It maps to an aperture in a flat address.  The
+ * instead of per workgroup.  It maps to an aperture in a flat address.  The
  * hardware swizzles this address so that adjacent lanes access adjacent DWORDs
  * (4 bytes) in global memory for better cache performance.
  *
- * For an AMD Radeon Instinct™ MI60 GPU the work-group size limit is 1,024
+ * For an AMD Radeon Instinct™ MI60 GPU the workgroup size limit is 1,024
  * work-items, the wave size is 64, and the CU count is 64.  A CU can hold up
  * to 40 waves (this is limited to 32 if using scratch memory).  Therefore, a
- * work-group can comprise between 1 and 16 waves inclusive, and there can be
- * up to 2,560 waves, making a maximum of 163,840 work-items.  A CU is
- * organized as 4 Execution Units (EUs) also referred to as Single Instruction
- * Multiple Data units (SIMDs) that can each hold 10 waves.  Each SIMD has 256
- * 64-wide DWORD vector registers and each CU has 800 DWORD scalar registers.
- * A single wave can access up to 256 64-wide vector registers and 112 scalar
- * registers.  A CU has 64KiB of LDS.
+ * workgroup can comprise between 1 and 16 waves inclusive, and there can be up
+ * to 2,560 waves, making a maximum of 163,840 work-items.  A CU is organized
+ * as 4 Execution Units (EUs) also referred to as Single Instruction Multiple
+ * Data units (SIMDs) that can each hold 10 waves.  Each SIMD has 256 64-wide
+ * DWORD vector registers and each CU has 800 DWORD scalar registers.  A single
+ * wave can access up to 256 64-wide vector registers and 112 scalar registers.
+ * A CU has 64KiB of LDS.
  *
  * \section supported_amd_gpu_architectures Supported AMD GPU Architectures
  *
@@ -315,10 +315,12 @@
  *    causes all wavefronts created when the library is not attached to the
  *    process by ::amd_dbgapi_process_attach to be unable to query the
  *    wavesfront's ::AMD_DBGAPI_WAVE_INFO_DISPATCH,
- *    ::AMD_DBGAPI_WAVE_INFO_WORK_GROUP_COORD, or
- *    ::AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORK_GROUP.  This does not affect
- *    wavefronts created while the library is attached to the process which are
- *    always capable of reporting this information.
+ *    ::AMD_DBGAPI_WAVE_INFO_WORKGROUP_COORD, or
+ *    ::AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORKGROUP, or workgroup's
+ *    ::AMD_DBGAPI_WORKGROUP_INFO_DISPATCH, or
+ *    ::AMD_DBGAPI_WORKGROUP_INFO_WORKGROUP_COORD.  This does not affect
+ *    wavefronts and workgroups created while the library is attached to the
+ *    process which are always capable of reporting this information.
  *
  *    If the \p HSA_ENABLE_DEBUG environment variable is set to "1" when the
  *    inferior's runtime is successfully enabled (see
@@ -518,10 +520,16 @@ extern "C" {
 #define AMD_DBGAPI_VERSION_0_58
 
 /**
- * The function was introduced in version 0.60 of the interface and has the
+ * The function was introduced in version 0.62 of the interface and has the
  * symbol version string of ``"@AMD_DBGAPI_NAME@_0.62"``.
  */
 #define AMD_DBGAPI_VERSION_0_62
+
+/**
+ * The function was introduced in version 0.64 of the interface and has the
+ * symbol version string of ``"@AMD_DBGAPI_NAME@_0.64"``.
+ */
+#define AMD_DBGAPI_VERSION_0_64
 
 /** @} */
 
@@ -947,7 +955,11 @@ typedef enum
    * The register handle is valid, but specifies a register that is not
    * allocated in the associated wave.
    */
-  AMD_DBGAPI_STATUS_ERROR_REGISTER_NOT_AVAILABLE = -44
+  AMD_DBGAPI_STATUS_ERROR_REGISTER_NOT_AVAILABLE = -44,
+  /**
+   * The workgroup handle is invalid.
+   */
+  AMD_DBGAPI_STATUS_ERROR_INVALID_WORKGROUP_ID = -45,
 } amd_dbgapi_status_t;
 
 /**
@@ -1506,7 +1518,7 @@ typedef enum
   /**
    * The instruction has no properties.
    */
-  AMD_DBGAPI_INSTRUCTION_PROPERTY_NONE = 0ULL
+  AMD_DBGAPI_INSTRUCTION_PROPERTY_NONE = 0
 } amd_dbgapi_instruction_properties_t;
 
 /**
@@ -2589,11 +2601,11 @@ typedef enum
   /**
    * If none of the bits are set, then the queue is not in the error state.
    */
-  AMD_DBGAPI_EXCEPTION_NONE = 0ULL,
+  AMD_DBGAPI_EXCEPTION_NONE = 0,
   /**
    * A wave on the queue executed a trap instruction used to abort a dispatch.
    */
-  AMD_DBGAPI_EXCEPTION_WAVE_ABORT = (1ULL << 0),
+  AMD_DBGAPI_EXCEPTION_WAVE_ABORT = (1 << 0),
   /**
    * A wave on the queue executed an instruction that caused an exception.
    * This includes executing a trap instruction (other than the trap reported
@@ -2603,7 +2615,7 @@ typedef enum
    * are handled by the library and are never passed to the inferior's runtime
    * to cause this exception).
    */
-  AMD_DBGAPI_EXCEPTION_WAVE_TRAP = (1ULL << 1),
+  AMD_DBGAPI_EXCEPTION_WAVE_TRAP = (1 << 1),
   /**
    * A wave on the queue executed an instruction that had a floating point or
    * integer enabled exception condition.  The conditions include:
@@ -2619,50 +2631,50 @@ typedef enum
    * - Floating point operation produced an inexact result.
    * - Integer operation performed a division by zero.
    */
-  AMD_DBGAPI_EXCEPTION_WAVE_MATH_ERROR = (1ULL << 2),
+  AMD_DBGAPI_EXCEPTION_WAVE_MATH_ERROR = (1 << 2),
   /**
    * A wave on the queue executed an illegal instruction.
    */
-  AMD_DBGAPI_EXCEPTION_WAVE_ILLEGAL_INSTRUCTION = (1ULL << 3),
+  AMD_DBGAPI_EXCEPTION_WAVE_ILLEGAL_INSTRUCTION = (1 << 3),
   /**
    * A wave on the queue had a memory violation.  This happens when accessing a
    * non-existent memory page or a page without the necessary permission (such
    * as writing to a readonly page or executing a non-execute page).
    */
-  AMD_DBGAPI_EXCEPTION_WAVE_MEMORY_VIOLATION = (1ULL << 4),
+  AMD_DBGAPI_EXCEPTION_WAVE_MEMORY_VIOLATION = (1 << 4),
   /**
    * A wave on the queue had an aperture violation.  This happens when
    * accessing a memory address outside the virtual memory address range.
    */
-  AMD_DBGAPI_EXCEPTION_WAVE_APERTURE_VIOLATION = (1ULL << 5),
+  AMD_DBGAPI_EXCEPTION_WAVE_APERTURE_VIOLATION = (1 << 5),
   /**
    * A dispatch packet on the queue has an invalid dimension.
    */
-  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_DIM_INVALID = (1ULL << 16),
+  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_DIM_INVALID = (1 << 16),
   /**
    * A dispatch packet on the queue has an invalid group segment size.
    */
-  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_GROUP_SEGMENT_SIZE_INVALID = (1ULL << 17),
+  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_GROUP_SEGMENT_SIZE_INVALID = (1 << 17),
   /**
    * A dispatch packet on the queue has a NULL code address.
    */
-  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_CODE_INVALID = (1ULL << 18),
+  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_CODE_INVALID = (1 << 18),
   /**
    * A packet on the queue has an unsupported code.
    */
-  AMD_DBGAPI_EXCEPTION_PACKET_UNSUPPORTED = (1ULL << 20),
+  AMD_DBGAPI_EXCEPTION_PACKET_UNSUPPORTED = (1 << 20),
   /**
-   * A dispatch packet on the queue has an invalid work-group size.
+   * A dispatch packet on the queue has an invalid workgroup size.
    */
-  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_WORK_GROUP_SIZE_INVALID = (1ULL << 21),
+  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_WORKGROUP_SIZE_INVALID = (1 << 21),
   /**
    * A dispatch packet on the queue requires too many registers.
    */
-  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_REGISTER_COUNT_TOO_LARGE = (1ULL << 22),
+  AMD_DBGAPI_EXCEPTION_PACKET_DISPATCH_REGISTER_COUNT_TOO_LARGE = (1 << 22),
   /**
    * A packet on the queue has an invalid vendor code.
    */
-  AMD_DBGAPI_EXCEPTION_PACKET_VENDOR_UNSUPPORTED = (1ULL << 23),
+  AMD_DBGAPI_EXCEPTION_PACKET_VENDOR_UNSUPPORTED = (1 << 23),
   /**
    * There was an error preempting the queue.  When the AMD GPU device driver
    * generates this error it may cause all waves associated with the queue to
@@ -2671,7 +2683,7 @@ typedef enum
    * step will report a ::AMD_DBGAPI_EVENT_KIND_WAVE_COMMAND_TERMINATED event
    * to indicate that the single step has been cancelled.
    */
-  AMD_DBGAPI_EXCEPTION_QUEUE_PREEMPTION_ERROR = (1ULL << 31)
+  AMD_DBGAPI_EXCEPTION_QUEUE_PREEMPTION_ERROR = (1 << 31)
 } amd_dbgapi_exceptions_t;
 
 /**
@@ -2887,7 +2899,7 @@ typedef enum
    * Return the dispatch workgroup size (work-items) in the X, Y, and Z
    * dimensions.  The type of this attribute is \p uint16_t[3].
    */
-  AMD_DBGAPI_DISPATCH_INFO_WORK_GROUP_SIZES = 10,
+  AMD_DBGAPI_DISPATCH_INFO_WORKGROUP_SIZES = 10,
   /**
    * Return the dispatch grid size (work-items) in the X, Y, and Z dimensions.
    * The type of this attribute is \p uint32_t[3].
@@ -3071,6 +3083,184 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_process_dispatch_list (
 
 /** @} */
 
+/** \defgroup workgroup_group Workgroup
+ *
+ * Operations related to AMD GPU workgroups.
+ *
+ * @{
+ */
+
+/**
+ * Opaque workgroup handle.
+ *
+ * AMD GPU executes code as waves organized into workgroups.
+ *
+ * Globally unique for a single library instance.
+ */
+typedef struct
+{
+  uint64_t handle;
+} amd_dbgapi_workgroup_id_t;
+
+/**
+ * The NULL workgroup handle.
+ */
+#define AMD_DBGAPI_WORKGROUP_NONE                                                  \
+    AMD_DBGAPI_HANDLE_LITERAL (amd_dbgapi_workgroup_id_t, 0)
+
+/**
+ * Workgroup queries that are supported by ::amd_dbgapi_workgroup_get_info.
+ *
+ * Each query specifies the type of data returned in the \p value argument to
+ * ::amd_dbgapi_workgroup_get_info.
+ */
+typedef enum
+{
+  /**
+   * Return the dispatch to which this workgroup belongs.  The type of this
+   * attribute is ::amd_dbgapi_dispatch_id_t.
+   *
+   * If the dispatch associated with a workgroup is not available then
+   * ::amd_dbgapi_workgroup_get_info returns the
+   * ::AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE error.  See the \ref
+   * known_limitations section.
+   */
+  AMD_DBGAPI_WORKGROUP_INFO_DISPATCH = 1,
+  /**
+   * Return the queue to which this workgroup belongs.  The type of this
+   * attribute is ::amd_dbgapi_queue_id_t.
+   */
+  AMD_DBGAPI_WORKGROUP_INFO_QUEUE = 2,
+  /**
+   * Return the agent to which this workgroup belongs.  The type of this
+   * attribute is ::amd_dbgapi_agent_id_t.
+   */
+  AMD_DBGAPI_WORKGROUP_INFO_AGENT = 3,
+  /**
+   * Return the process to which this workgroup belongs.  The type of this
+   * attribute is ::amd_dbgapi_process_id_t.
+   */
+  AMD_DBGAPI_WORKGROUP_INFO_PROCESS = 4,
+  /**
+   * Return the architecture of this workgroup.  The type of this attribute is
+   * ::amd_dbgapi_architecture_id_t.
+   */
+  AMD_DBGAPI_WORKGROUP_INFO_ARCHITECTURE = 5,
+  /**
+   * The workgroup workgroup coordinate in the dispatch grid dimensions.  The
+   * type of this attribute is \p uint32_t[3] with elements 1, 2, and 3
+   * corresponding to the X, Y, and Z coordinates respectively.
+   *
+   * If the dispatch associated with a workgroup is not available then
+   * ::amd_dbgapi_workgroup_get_info returns
+   * ::AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE.  See the \ref known_limitations
+   * section.
+   */
+  AMD_DBGAPI_WORKGROUP_INFO_WORKGROUP_COORD = 6
+} amd_dbgapi_workgroup_info_t;
+
+/**
+ * Query information about a workgroup.
+ *
+ * ::amd_dbgapi_workgroup_info_t specifies the queries supported and the type
+ * returned using the \p value argument.
+ *
+ * \param[in] workgroup_id The handle of the workgroup being queried.
+ *
+ * \param[in] query The query being requested.
+ *
+ * \param[in] value_size Size of the memory pointed to by \p value.  Must be
+ * equal to the byte size of the query result.
+ *
+ * \param[out] value Pointer to memory where the query result is stored.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_SUCCESS The function has been executed
+ * successfully and the result is stored in \p value.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_FATAL A fatal error occurred.  The library is
+ * left uninitialized and \p value is unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED The library is not
+ * initialized.  The library is left uninitialized and \p value is unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_WORKGROUP_ID \p workgroup_id is
+ * invalid. \p value is unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT \p value is NULL or \p
+ * query is invalid.  \p value is unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY \p
+ * value_size does not match the size of the \p query result.  \p value is
+ * unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE \p The requested information
+ * is not available.  See ::amd_dbgapi_workgroup_info_t for queries that can
+ * produce this error.  \p value is unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK This will be reported if
+ * the amd_dbgapi_callbacks_s::allocate_memory callback used to allocate \p
+ * value returns NULL.  \p value is unaltered.
+ */
+amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_workgroup_get_info (
+    amd_dbgapi_workgroup_id_t workgroup_id, amd_dbgapi_workgroup_info_t query,
+    size_t value_size, void *value) AMD_DBGAPI_VERSION_0_64;
+
+/**
+ * Return the list of existing workgroups.
+ *
+ * The order of the workgroup handles in the list is unspecified and can vary
+ * between calls.
+ *
+ * \param[in] process_id If ::AMD_DBGAPI_PROCESS_NONE then the workgroup list
+ * for all processes is requested.  Otherwise, the workgroup list of process \p
+ * process_id is requested.
+ *
+ * \param[out] workgroup_count The number of workgroups executing in the
+ * process.
+ *
+ * \param[out] workgroups If \p changed is not NULL and the workgroup list of
+ * all of the processes requested have not changed since the last call(s) to
+ * ::amd_dbgapi_process_workgroup_list for each of them, then return NULL.
+ * Otherwise, return a pointer to an array of ::amd_dbgapi_workgroup_id_t with
+ * \p workgroup_count elements.  It is allocated by the
+ * amd_dbgapi_callbacks_s::allocate_memory callback and is owned by the client.
+ *
+ * \param[in,out] changed If NULL then left unaltered.  If non-NULL, set to
+ * ::AMD_DBGAPI_CHANGED_NO if the list of workgroups for each requested process
+ * is the same as when ::amd_dbgapi_process_workgroup_list was last called for
+ * them.  Otherwise, set to ::AMD_DBGAPI_CHANGED_YES.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_SUCCESS The function has been executed
+ * successfully and the result is stored in \p changed, \p workgroup_count, and
+ * \p workgroups.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_FATAL A fatal error occurred.  The library is
+ * left uninitialized; and \p changed, \p workgroup_count, and \p workgroups
+ * are unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED The library is not
+ * initialized.  The library is left uninitialized; and \p workgroup_count, \p
+ * workgroups, and \p changed are unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID \p process_id is
+ * invalid.  \p workgroup_count, \p workgroups, and \p unchanged are unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT \p workgroup_count or \p
+ * workgroups are NULL, or \p changed is invalid.  \p workgroup_count, \p
+ * workgroups, and \p changed are unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK This will be reported if
+ * the amd_dbgapi_callbacks_s::allocate_memory callback used to allocate \p
+ * workgroups returns NULL.  \p workgroup_count, \p workgroups, and \p changed
+ * are unaltered.
+ */
+amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_process_workgroup_list (
+    amd_dbgapi_process_id_t process_id, size_t *workgroup_count,
+    amd_dbgapi_workgroup_id_t **workgroups,
+    amd_dbgapi_changed_t *changed) AMD_DBGAPI_VERSION_0_64;
+
+/** @} */
+
 /** \defgroup wave_group Wave
  *
  * Operations related to AMD GPU waves.
@@ -3130,6 +3320,16 @@ typedef enum
    */
   AMD_DBGAPI_WAVE_INFO_WATCHPOINTS = 3,
   /**
+   * Return the workgroup to which this wave belongs.  The type of this
+   * attribute is ::amd_dbgapi_workgroup_id_t.
+   *
+   * If the workgroup associated with a wave is not available then
+   * ::amd_dbgapi_wave_get_info returns the
+   * ::AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE error.  See the \ref
+   * known_limitations section.
+   */
+  AMD_DBGAPI_WAVE_INFO_WORKGROUP = 4,
+  /**
    * Return the dispatch to which this wave belongs.  The type of this
    * attribute is ::amd_dbgapi_dispatch_id_t.
    *
@@ -3138,33 +3338,33 @@ typedef enum
    * ::AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE error.  See the \ref
    * known_limitations section.
    */
-  AMD_DBGAPI_WAVE_INFO_DISPATCH = 4,
+  AMD_DBGAPI_WAVE_INFO_DISPATCH = 5,
   /**
    * Return the queue to which this wave belongs.  The type of this attribute
    * is ::amd_dbgapi_queue_id_t.
    */
-  AMD_DBGAPI_WAVE_INFO_QUEUE = 5,
+  AMD_DBGAPI_WAVE_INFO_QUEUE = 6,
   /**
    * Return the agent to which this wave belongs.  The type of this attribute
    * is ::amd_dbgapi_agent_id_t.
    */
-  AMD_DBGAPI_WAVE_INFO_AGENT = 6,
+  AMD_DBGAPI_WAVE_INFO_AGENT = 7,
   /**
    * Return the process to which this wave belongs.  The type of this attribute
    * is ::amd_dbgapi_process_id_t.
    */
-  AMD_DBGAPI_WAVE_INFO_PROCESS = 7,
+  AMD_DBGAPI_WAVE_INFO_PROCESS = 8,
   /**
    * Return the architecture of this wave.  The type of this attribute is
    * ::amd_dbgapi_architecture_id_t.
    */
-  AMD_DBGAPI_WAVE_INFO_ARCHITECTURE = 8,
+  AMD_DBGAPI_WAVE_INFO_ARCHITECTURE = 9,
   /**
    * Return the current program counter value of the wave.  The type of this
    * attribute is ::amd_dbgapi_global_address_t.  The wave must be stopped to
    * make this query.
    */
-  AMD_DBGAPI_WAVE_INFO_PC = 9,
+  AMD_DBGAPI_WAVE_INFO_PC = 10,
   /**
    * Return the current execution mask of the wave.  Each bit of the mask maps
    * to a lane with the least significant bit corresponding to the lane with a
@@ -3172,7 +3372,7 @@ typedef enum
    * lane is active, otherwise the lane is not active.  The type of this
    * attribute is \p uint64_t.  The wave must be stopped to make this query.
    */
-  AMD_DBGAPI_WAVE_INFO_EXEC_MASK = 10,
+  AMD_DBGAPI_WAVE_INFO_EXEC_MASK = 11,
   /**
    * The wave workgroup coordinate in the dispatch grid dimensions.  The type
    * of this attribute is \p uint32_t[3] with elements 1, 2, and 3
@@ -3183,7 +3383,7 @@ typedef enum
    * ::AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE.  See the \ref known_limitations
    * section.
    */
-  AMD_DBGAPI_WAVE_INFO_WORK_GROUP_COORD = 11,
+  AMD_DBGAPI_WAVE_INFO_WORKGROUP_COORD = 12,
   /**
    * The wave's number in the workgroup.  The type of this attribute is
    * \p uint32_t.  The work-items of a workgroup are mapped to the lanes of the
@@ -3195,12 +3395,12 @@ typedef enum
    * ::AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE.  See the \ref known_limitations
    * section.
    */
-  AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORK_GROUP = 12,
+  AMD_DBGAPI_WAVE_INFO_WAVE_NUMBER_IN_WORKGROUP = 13,
   /**
    * The number of lanes supported by the wave.  The type of this attribute is
    * \p size_t.
    */
-  AMD_DBGAPI_WAVE_INFO_LANE_COUNT = 13
+  AMD_DBGAPI_WAVE_INFO_LANE_COUNT = 14
 } amd_dbgapi_wave_info_t;
 
 /**
@@ -3251,7 +3451,7 @@ typedef enum
  */
 amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_wave_get_info (
     amd_dbgapi_wave_id_t wave_id, amd_dbgapi_wave_info_t query,
-    size_t value_size, void *value) AMD_DBGAPI_VERSION_0_58;
+    size_t value_size, void *value) AMD_DBGAPI_VERSION_0_64;
 
 /**
  * The execution state of a wave.
@@ -3294,13 +3494,13 @@ typedef enum
    * If none of the bits are set, then ::amd_dbgapi_wave_stop stopped the
    * wave.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_NONE = 0ULL,
+  AMD_DBGAPI_WAVE_STOP_REASON_NONE = 0,
   /**
    * The wave stopped due to executing a breakpoint instruction.  Use the
    * ::AMD_DBGAPI_ARCHITECTURE_INFO_BREAKPOINT_INSTRUCTION_PC_ADJUST query to
    * determine the address of the breakpoint instruction.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_BREAKPOINT = (1ULL << 0),
+  AMD_DBGAPI_WAVE_STOP_REASON_BREAKPOINT = (1 << 0),
   /**
    * The wave stopped due to triggering a data watchpoint.  The
    * ::AMD_DBGAPI_WAVE_INFO_WATCHPOINTS query can be used to determine which
@@ -3312,11 +3512,11 @@ typedef enum
    * supports it, the ::amd_dbgapi_set_memory_precision can be used to control
    * the precision, but may significantly reduce performance.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_WATCHPOINT = (1ULL << 1),
+  AMD_DBGAPI_WAVE_STOP_REASON_WATCHPOINT = (1 << 1),
   /**
    * The wave stopped due to completing an instruction single-step.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP = (1ULL << 2),
+  AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP = (1 << 2),
   /**
    * The wave stopped due to triggering an enabled floating point input
    * denormal exception.
@@ -3324,7 +3524,7 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_FP_INPUT_DENORMAL = (1ULL << 3),
+  AMD_DBGAPI_WAVE_STOP_REASON_FP_INPUT_DENORMAL = (1 << 3),
   /**
    * The wave stopped due to triggering an enabled floating point divide by
    * zero exception.
@@ -3332,7 +3532,7 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_FP_DIVIDE_BY_0 = (1ULL << 4),
+  AMD_DBGAPI_WAVE_STOP_REASON_FP_DIVIDE_BY_0 = (1 << 4),
   /**
    * The wave stopped due to triggering an enabled floating point overflow
    * exception.
@@ -3340,7 +3540,7 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_FP_OVERFLOW = (1ULL << 5),
+  AMD_DBGAPI_WAVE_STOP_REASON_FP_OVERFLOW = (1 << 5),
   /**
    * The wave stopped due to triggering an enabled floating point underflow
    * exception.
@@ -3348,7 +3548,7 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_FP_UNDERFLOW = (1ULL << 6),
+  AMD_DBGAPI_WAVE_STOP_REASON_FP_UNDERFLOW = (1 << 6),
   /**
    * The wave stopped due to triggering an enabled floating point inexact
    * exception.
@@ -3356,7 +3556,7 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_FP_INEXACT = (1ULL << 7),
+  AMD_DBGAPI_WAVE_STOP_REASON_FP_INEXACT = (1 << 7),
   /**
    * The wave stopped due to triggering an enabled floating point invalid
    * operation exception.
@@ -3364,7 +3564,7 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_FP_INVALID_OPERATION = (1ULL << 8),
+  AMD_DBGAPI_WAVE_STOP_REASON_FP_INVALID_OPERATION = (1 << 8),
   /**
    * The wave stopped due to triggering an enabled integer divide by zero
    * exception.
@@ -3372,7 +3572,7 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_INT_DIVIDE_BY_0 = (1ULL << 9),
+  AMD_DBGAPI_WAVE_STOP_REASON_INT_DIVIDE_BY_0 = (1 << 9),
   /**
    * The wave stopped due to executing a debug trap instruction.  The program
    * counter is left positioned after the trap instruction.  The wave can be
@@ -3387,7 +3587,7 @@ typedef enum
    * help debugging.  They behave as no operations if a debugger is not
    * connected and stop the wave if executed with the debugger attached.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_DEBUG_TRAP = (1ULL << 10),
+  AMD_DBGAPI_WAVE_STOP_REASON_DEBUG_TRAP = (1 << 10),
   /**
    * The wave stopped due to executing an assert trap instruction.  The program
    * counter is left positioned at the assert trap instruction.
@@ -3403,7 +3603,7 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_ASSERT_TRAP = (1ULL << 11),
+  AMD_DBGAPI_WAVE_STOP_REASON_ASSERT_TRAP = (1 << 11),
   /**
    * The wave stopped due to executing a trap instruction other than the
    * ::AMD_DBGAPI_WAVE_STOP_REASON_DEBUG_TRAP or
@@ -3413,7 +3613,7 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_TRAP = (1ULL << 12),
+  AMD_DBGAPI_WAVE_STOP_REASON_TRAP = (1 << 12),
   /**
    * The wave stopped due to a memory violation.  It indicates a non-existent
    * page was accessed or a page without the necessary permission (such as
@@ -3429,7 +3629,7 @@ typedef enum
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_MEMORY_VIOLATION queue
    * error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_MEMORY_VIOLATION = (1ULL << 13),
+  AMD_DBGAPI_WAVE_STOP_REASON_MEMORY_VIOLATION = (1 << 13),
   /**
    * The wave stopped due to an aperture violation.  It indicates the memory
    * address is outside the virtual address range.
@@ -3444,7 +3644,7 @@ typedef enum
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_APERTURE_VIOLATION
    * queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_APERTURE_VIOLATION = (1ULL << 14),
+  AMD_DBGAPI_WAVE_STOP_REASON_APERTURE_VIOLATION = (1 << 14),
   /**
    * The wave stopped due to executing an illegal instruction.  The program
    * counter is left positioned at the illegal instruction.
@@ -3453,7 +3653,7 @@ typedef enum
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_ILLEGAL_INSTRUCTION
    * queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_ILLEGAL_INSTRUCTION = (1ULL << 15),
+  AMD_DBGAPI_WAVE_STOP_REASON_ILLEGAL_INSTRUCTION = (1 << 15),
   /**
    * The wave stopped due to detecting an unrecoverable ECC error.
    *
@@ -3466,14 +3666,14 @@ typedef enum
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_ECC_ERROR = (1ULL << 16),
+  AMD_DBGAPI_WAVE_STOP_REASON_ECC_ERROR = (1 << 16),
   /**
    * The wave stopped after causing a hardware fatal halt.
    *
    * This stop reason would normally put the wave's queue into the queue error
    * state and include the ::AMD_DBGAPI_EXCEPTION_WAVE_TRAP queue error reason.
    */
-  AMD_DBGAPI_WAVE_STOP_REASON_FATAL_HALT = (1ULL << 17)
+  AMD_DBGAPI_WAVE_STOP_REASON_FATAL_HALT = (1 << 17)
 } amd_dbgapi_wave_stop_reasons_t;
 
 /**
@@ -4542,27 +4742,27 @@ typedef enum
   /**
    * There are no properties.
    */
-  AMD_DBGAPI_REGISTER_PROPERTY_NONE = 0ULL,
+  AMD_DBGAPI_REGISTER_PROPERTY_NONE = 0,
   /**
    * At least one bit of the register value is readonly.  It is advisable for
    * the client to read the register after writing it to determine the value of
    * the readonly bits.
    */
-  AMD_DBGAPI_REGISTER_PROPERTY_READONLY_BITS = (1ULL << 0),
+  AMD_DBGAPI_REGISTER_PROPERTY_READONLY_BITS = (1 << 0),
   /**
    * The register value may change as a consequence of changing a register of
    * the same wavefront with the
    * ::AMD_DBGAPI_REGISTER_PROPERTY_INVALIDATE_VOLATILE property.  It is
    * advisable for the client to not cache the value of the register.
    */
-  AMD_DBGAPI_REGISTER_PROPERTY_VOLATILE = (1ULL << 1),
+  AMD_DBGAPI_REGISTER_PROPERTY_VOLATILE = (1 << 1),
   /**
    * Changing the value of the register may change a register of the same
    * wavefront with the ::AMD_DBGAPI_REGISTER_PROPERTY_VOLATILE property.  It
    * is advisable to invalidate any cached registers with the
    * ::AMD_DBGAPI_REGISTER_PROPERTY_VOLATILE property.
    */
-  AMD_DBGAPI_REGISTER_PROPERTY_INVALIDATE_VOLATILE = (1ULL << 2)
+  AMD_DBGAPI_REGISTER_PROPERTY_INVALIDATE_VOLATILE = (1 << 2)
 } amd_dbgapi_register_properties_t;
 
 /**
@@ -5610,7 +5810,7 @@ amd_dbgapi_dwarf_address_space_to_address_space (
  * space.
  *
  * Some address spaces may access memory that is allocated independently for
- * each work-group, for each wave, or for each lane of of a wave.  Consequently
+ * each workgroup, for each wave, or for each lane of of a wave.  Consequently
  * a segment address may be specific to a wave or lane of a wave.
  *
  * See [User Guide for AMDGPU Backend - LLVM - Address Spaces]
@@ -5647,12 +5847,18 @@ typedef uint64_t amd_dbgapi_segment_address_t;
  * accessed can attempt to be converted to the various address spaces being
  * cached to see if it aliases with bytes being cached under a different
  * address space.  For example, an address in the AMD GPU \p generic address
- * space may alias with an address in the \p global, \p private_swizzled, or
- * \p local address spaces.
+ * space may alias with an address in the \p global, \p private_swizzled, or \p
+ * local address spaces.
  *
- * \param[in] wave_id The wave that is using the address.
+ * \param[in] wave_id The wave that is using the address.  If the \p
+ * address_space is ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL then \p wave_id may be
+ * ::AMD_DBGAPI_WAVE_NONE, as the address space does not depend on the active
+ * wave, in which case \p process_id is used.
  *
- * \param[in] lane_id The lane of the \p wave_id that is using the address.
+ * \param[in] lane_id The lane of the \p wave_id that is using the address.  If
+ * the \p address_space does not depend on the active lane then this may be
+ * ::AMD_DBGAPI_LANE_NONE.  For example, the ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL
+ * address space does not depend on the lane.
  *
  * \param[in] source_address_space_id The address space of the \p
  * source_segment_address.
@@ -5695,10 +5901,14 @@ typedef uint64_t amd_dbgapi_segment_address_t;
  * \p destination_segment_address and \p destination_contiguous_bytes are
  * unaltered.
  *
- * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_LANE_ID \p lane_id is invalid, or
- * \p lane_id is ::AMD_DBGAPI_LANE_NONE and \p source_address_space_id depends
- * on the active lane.  \p destination_segment_address and \p
- * destination_contiguous_bytes are unaltered.
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_LANE_ID \p wave_id is
+ * ::AMD_DBGAPI_WAVE_NONE and \p lane_id is not ::AMD_DBGAPI_LANE_NONE.  \p
+ * wave_id is not ::AMD_DBGAPI_WAVE_NONE and \p lane_id is not
+ * ::AMD_DBGAPI_LANE_NONE and is not valid for \p wave_id.  \p lane_id is
+ * ::AMD_DBGAPI_LANE_NONE and \p source_address_space_id or \p
+ * destination_address_space_id depends on the active lane.  \p
+ * destination_segment_address and \p destination_contiguous_bytes are
+ * unaltered.
  *
  * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_ID \p
  * source_address_space_id or \p destination_address_space_id are invalid.  \p
@@ -5732,6 +5942,83 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_convert_address_space (
     AMD_DBGAPI_VERSION_0_62;
 
 /**
+ * The dependency when reading or writing a specific segment address of an
+ * address space using the ::amd_dbgapi_read_memory and
+ * ::amd_dbgapi_write_memory operations.
+ */
+typedef enum
+{
+  /**
+   * No dependence is available.
+   */
+  AMD_DBGAPI_SEGMENT_ADDRESS_DEPENDENCE_NONE = 0,
+  /**
+   * Reading or writing the segment address depends on the lane.
+   */
+  AMD_DBGAPI_SEGMENT_ADDRESS_DEPENDENCE_LANE = 1,
+  /**
+   * Reading or writing the segment address depends on the wavefront.
+   */
+  AMD_DBGAPI_SEGMENT_ADDRESS_DEPENDENCE_WAVE = 2,
+  /**
+   * Reading or writing the segment address depends on the workgroup.
+   */
+  AMD_DBGAPI_SEGMENT_ADDRESS_DEPENDENCE_WORKGROUP = 3,
+  /**
+   * Reading or writing the segment address depends on the agent.
+   */
+  AMD_DBGAPI_SEGMENT_ADDRESS_DEPENDENCE_AGENT = 4,
+  /**
+   * Reading or writing the segment address depends on the process.
+   */
+  AMD_DBGAPI_SEGMENT_ADDRESS_DEPENDENCE_PROCESS = 5
+} amd_dbgapi_segment_address_dependency_t;
+
+/**
+ * Determine the dependency of a segment address value in a particular address
+ * space.
+ *
+ * This indicates which arguments ::amd_dbgapi_read_memory and
+ * ::amd_dbgapi_write_memory require when reading and writing memory when given
+ * a specific segment address in an address space.
+ *
+ * \param[in] address_space_id The address space of the \p segment_address.
+ *
+ * \param[in] segment_address The integral value of the segment address.  Only
+ * the bits corresponding to the address size for the \p address_space_id
+ * requested are used.  The address size is provided by the
+ * ::AMD_DBGAPI_ADDRESS_SPACE_INFO_ADDRESS_SIZE query.
+ *
+ * \param[out] segment_address_dependency The dependency of the \p
+ * segment_address value in \p address_space_id.  Will be a value of
+ * ::amd_dbgapi_segment_address_dependency_t other than
+ * ::AMD_DBGAPI_SEGMENT_ADDRESS_DEPENDENCE_NONE.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_SUCCESS The function has been executed
+ * successfully and the result is stored in \p segment_address_dependencies.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_FATAL A fatal error occurred.  The library is
+ * left uninitialized and \p segment_address_dependencies is unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED The library is not
+ * initialized.  The library is left uninitialized and \p
+ * destination_segment_address and \p segment_address_dependencies is
+ * unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_ID \p
+ * address_space_id is invalid.  \p segment_address_dependencies is unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT \p
+ * segment_address_dependencies is NULL. \p segment_address_dependencies is
+ * unaltered.
+ */
+amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_address_dependency (
+  amd_dbgapi_address_space_id_t address_space_id,
+  amd_dbgapi_segment_address_t segment_address,
+  amd_dbgapi_segment_address_dependency_t *segment_address_dependency)
+  AMD_DBGAPI_VERSION_0_64;
+
+/**
  * Indication of whether a segment address in an address space is a member of
  * an source language address class.
  */
@@ -5759,13 +6046,19 @@ typedef enum
  * The address space, source language address class, and wave must all belong
  * to the same architecture.
  *
- * \param[in] wave_id The wave that is using the address.
+ * \param[in] wave_id The wave that is using the address.  If the \p
+ * address_space is ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL then \p wave_id may be
+ * ::AMD_DBGAPI_WAVE_NONE, as the address space does not depend on the active
+ * wave, in which case \p process_id is used.
  *
- * \param[in] lane_id The lane of the \p wave_id that is using the address.
+ * \param[in] lane_id The lane of the \p wave_id that is using the address.  If
+ * the \p address_space does not depend on the active lane then this may be
+ * ::AMD_DBGAPI_LANE_NONE.  For example, the ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL
+ * address space does not depend on the lane.
  *
  * \param[in] address_space_id The address space of the \p segment_address.  If
  * the address space is dependent on: the active lane then the \p lane_id with
- * in the \p wave_id is used; the active work-group then the work-group of \p
+ * in the \p wave_id is used; the active workgroup then the workgroup of \p
  * wave_id is used; or the active wave then the \p wave_id is used.
  *
  * \param[in] segment_address The integral value of the segment address.  Only
@@ -5790,11 +6083,16 @@ typedef enum
  * initialized.  The library is left uninitialized and \p address_class_state
  * is unaltered.
  *
- * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID \p wave_id is invalid.  \p
- * address_class_state is unaltered.
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID \p wave_id is invalid, or
+ * \p wave_id is ::AMD_DBGAPI_WAVE_NONE and \p address_space is not
+ * ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL.  \p address_class_state is unaltered.
  *
- * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_LANE_ID \p lane_id is invalid.  \p
- * address_class_state is unaltered.
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_LANE_ID \p wave_id is
+ * ::AMD_DBGAPI_WAVE_NONE and \p lane_id is not ::AMD_DBGAPI_LANE_NONE.  \p
+ * wave_id is not ::AMD_DBGAPI_WAVE_NONE and \p lane_id is not
+ * ::AMD_DBGAPI_LANE_NONE and is not valid for \p wave_id.  \p lane_id is
+ * ::AMD_DBGAPI_LANE_NONE and \p address_space_id depends on the active lane.
+ * \p address_class_state is unaltered.
  *
  * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_ID \p
  * address_space_id is invalid.  \p address_class_state is unaltered.
@@ -5848,13 +6146,13 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_address_is_in_address_class (
  * wave, in which case \p process_id is used.
  *
  * \param[in] lane_id The lane of \p wave_id that is accessing the memory.  If
- * the \p address_space does not depend on the active lane then this is ignored
- * and may be ::AMD_DBGAPI_LANE_NONE.  For example, the
- * ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL address space does not depend on the lane.
+ * the \p address_space does not depend on the active lane then this may be
+ * ::AMD_DBGAPI_LANE_NONE.  For example, the ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL
+ * address space does not depend on the lane.
  *
  * \param[in] address_space_id The address space of the \p segment_address.  If
  * the address space is dependent on: the active lane then the \p lane_id with
- * in the \p wave_id is used; the active work-group then the work-group of \p
+ * in the \p wave_id is used; the active workgroup then the workgroup of \p
  * wave_id is used; or the active wave then the \p wave_id is used.
  *
  * \param[in] segment_address The integral value of the segment address.  Only
@@ -5890,9 +6188,12 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_address_is_in_address_class (
  * ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL.  \p value_size and \p value are
  * unaltered.
  *
- * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_LANE_ID \p lane_id is invalid, or
- * \p lane_id is ::AMD_DBGAPI_LANE_NONE and \p address_space depends on the
- * active lane.  \p value_size and \p value are unaltered.
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_LANE_ID \p wave_id is
+ * ::AMD_DBGAPI_WAVE_NONE and \p lane_id is not ::AMD_DBGAPI_LANE_NONE.  \p
+ * wave_id is not ::AMD_DBGAPI_WAVE_NONE and \p lane_id is not
+ * ::AMD_DBGAPI_LANE_NONE and is not valid for \p wave_id.  \p lane_id is
+ * ::AMD_DBGAPI_LANE_NONE and \p address_space_id depends on the active lane.
+ * \p value_size and \p value are unaltered.
  *
  * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_ID \p
  * address_space_id is invalid.  \p value is unaltered.
@@ -5910,7 +6211,7 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_address_is_in_address_class (
  *
  * \retval ::AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS The input \p value_size was
  * greater than 0 and no bytes were successfully read.  The output \p
- * value_size is set to 0.  All bytes in \p value are unaltered.
+ * value_size is set to 0.  \p value is unaltered.
  */
 amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_read_memory (
     amd_dbgapi_process_id_t process_id, amd_dbgapi_wave_id_t wave_id,
@@ -5950,13 +6251,13 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_read_memory (
  * wave, in which case \p process_id is used.
  *
  * \param[in] lane_id The lane of \p wave_id that is accessing the memory.  If
- * the \p address_space does not depend on the active lane then this is ignored
- * and may be ::AMD_DBGAPI_LANE_NONE.  For example, the
- * ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL address space does not depend on the lane.
+ * the \p address_space does not depend on the active lane then this may be
+ * ::AMD_DBGAPI_LANE_NONE.  For example, the ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL
+ * address space does not depend on the lane.
  *
  * \param[in] address_space_id The address space of the \p segment_address.  If
  * the address space is dependent on: the active lane then the \p lane_id with
- * in the \p wave_id is used; the active work-group then the work-group of \p
+ * in the \p wave_id is used; the active workgroup then the workgroup of \p
  * wave_id is used; or the active wave then the \p wave_id is used.
  *
  * \param[in] segment_address The integral value of the segment address.  Only
@@ -5975,7 +6276,7 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_read_memory (
  * written successfully.  The output \p value_size is set to the number of
  * bytes successfully written, which will be 0 if the input \p value_size was
  * 0.  The first output \p value_size bytes of memory starting at \p
- * segment_address are updated, all other memory is unaltered.
+ *     segment_address are updated, all other memory is unaltered.
  *
  * \retval ::AMD_DBGAPI_STATUS_FATAL A fatal error occurred.  The library is
  * left uninitialized; and the memory and \p value_size are unaltered.
@@ -5992,9 +6293,12 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_read_memory (
  * ::AMD_DBGAPI_ADDRESS_SPACE_GLOBAL.  The memory and \p value_size are
  * unaltered.
  *
- * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_LANE_ID \p lane_id is invalid, or
- * \p lane_id is ::AMD_DBGAPI_LANE_NONE and \p address_space depends on the
- * active lane.  The memory and \p value_size are unaltered.
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_LANE_ID \p wave_id is
+ * ::AMD_DBGAPI_WAVE_NONE and \p lane_id is not ::AMD_DBGAPI_LANE_NONE.  \p
+ * wave_id is not ::AMD_DBGAPI_WAVE_NONE and \p lane_id is not
+ * ::AMD_DBGAPI_LANE_NONE and is not valid for \p wave_id.  \p lane_id is
+ * ::AMD_DBGAPI_LANE_NONE and \p address_space_id depends on the active lane.
+ * The memory and \p value_size are unaltered.
  *
  * \retval ::AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_ID \p
  * address_space_id is invalid.  The memory and \p value_size are unaltered.
@@ -6012,7 +6316,7 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_read_memory (
  *
  * \retval ::AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS The input \p value_size was
  * greater than 0 and no bytes were successfully written.  The output \p
- * value_size is set to 0.  The memory is unaltered.
+ * value_size is set to 0.  The memory and \p value_size are unaltered.
  */
 amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_write_memory (
     amd_dbgapi_process_id_t process_id, amd_dbgapi_wave_id_t wave_id,

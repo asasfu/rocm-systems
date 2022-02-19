@@ -50,7 +50,6 @@ public:
   agent_t (amd_dbgapi_agent_id_t agent_id, process_t &process,
            const architecture_t *architecture,
            const os_agent_info_t &os_agent_info);
-  ~agent_t ();
 
   os_agent_id_t os_agent_id () const { return m_os_agent_info.os_agent_id; }
   const os_agent_info_t &os_info () const { return m_os_agent_info; }
@@ -60,6 +59,11 @@ public:
     return architecture () != nullptr && m_os_agent_info.debugging_supported
            && m_os_agent_info.firmware_supported;
   }
+
+  /* Return true if the ttmp registers are initialized when a new wave is
+     created on this agent.  If the ttmp registers are not initialized, the
+     wave's dispatch id and workgroup ids cannot be determined.  */
+  bool ttmps_initialized () const;
 
   amd_dbgapi_watchpoint_share_kind_t watchpoint_share_kind () const;
 

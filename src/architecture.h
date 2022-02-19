@@ -135,7 +135,7 @@ public:
 
 /* Architecture.  */
 
-class architecture_t
+class architecture_t : private utils::not_copyable_t
 {
   static_assert (is_handle_type_v<amd_dbgapi_architecture_id_t>,
                  "amd_dbgapi_architecture_id_t is not a handle type");
@@ -198,7 +198,11 @@ public:
     virtual ~cwsr_record_t () = default;
 
     /* Return the globally unique wave identifier.  */
-    virtual std::optional<amd_dbgapi_wave_id_t> id () const = 0;
+    virtual amd_dbgapi_wave_id_t id () const = 0;
+    /* The 3-dimensional workgroup coordinates.  */
+    virtual std::array<uint32_t, 3> group_ids () const = 0;
+    /* Return the record's postion in the workgroup.  */
+    virtual uint32_t position_in_group () const = 0;
 
     /* Number of work-items in one wave.  */
     virtual size_t lane_count () const = 0;
@@ -234,12 +238,6 @@ public:
 
   virtual ~architecture_t ();
 
-  /* Disallow copying & moving architecture instances.  */
-  architecture_t (const architecture_t &) = delete;
-  architecture_t (architecture_t &&) = delete;
-  architecture_t &operator= (const architecture_t &) = delete;
-  architecture_t &operator= (architecture_t &&) = delete;
-
   std::string name () const;
 
   /* Since architecture objects disallow copying & moving, two architecture
@@ -253,8 +251,6 @@ public:
     return this != &other;
   }
 
-  /* FIXME: add SQ prefetch instruction bytes size.  */
-
   virtual size_t control_stack_iterate (
     compute_queue_t &queue, const uint32_t *control_stack,
     size_t control_stack_words, amd_dbgapi_global_address_t wave_area_address,
@@ -262,8 +258,10 @@ public:
     const std::function<void (std::unique_ptr<cwsr_record_t>)> &wave_callback)
     const = 0;
 
-  virtual std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
+  virtual amd_dbgapi_global_address_t dispatch_packet_address (
     const architecture_t::cwsr_record_t &cwsr_record) const = 0;
+
+  virtual size_t maximum_queue_packet_count () const = 0;
 
   virtual std::unique_ptr<const kernel_descriptor_t> make_kernel_descriptor (
     process_t &process,
@@ -275,49 +273,11 @@ public:
                          uint32_t bank_count, uint32_t bank_id,
                          uint32_t slot_id) const = 0;
 
-  virtual std::pair<amd_dbgapi_segment_address_t /* to_address  */,
-                    amd_dbgapi_size_t /* to_contiguous_bytes  */>
-  convert_address_space (const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
-                         const address_space_t &from_address_space,
-                         const address_space_t &to_address_space,
-                         amd_dbgapi_segment_address_t from_address) const = 0;
-
-  virtual std::pair<const address_space_t & /* lowered_address_space  */,
-                    amd_dbgapi_segment_address_t /* lowered_address  */>
-  lower_address_space (
-    const wave_t &wave, const address_space_t &original_address_space,
-    amd_dbgapi_segment_address_t original_address) const = 0;
-
-  virtual bool
-  address_is_in_address_class (const wave_t &wave,
-                               amd_dbgapi_lane_id_t lane_id,
-                               const address_space_t &address_space,
-                               amd_dbgapi_segment_address_t segment_address,
-                               const address_class_t &address_class) const = 0;
-
   virtual bool
   is_address_space_supported (const address_space_t &address_space) const = 0;
 
   virtual bool
   is_address_class_supported (const address_class_t &address_class) const = 0;
-
-  /* Return the bitmask used to identify the apertures for local, private and
-     gpuvm addresses.  */
-  virtual amd_dbgapi_global_address_t address_aperture_mask () const = 0;
-
-  /* Return the number of bytes (N) used to interleave private swizzled memory
-     accesses.  Private swizzled memory has the following layout in global
-     memory (X is the number of lanes in a wavefront):
-
-     global     lane0 private      lane1 private           laneX private
-     addresses  addresses          addresses               addresses
-     0*X*N:     [0*N, ..., 1*N-1], [0*N, ..., 1*N-1], ..., [0*N, ..., 1*N-1]
-     1*X*N:     [1*N, ..., 2*N-1], [1*N, ..., 2*N-1], ..., [1*N, ..., 2*N-1]
-     2*X*N:     [2*N, ..., 3*N-1], [2*N, ..., 3*N-1], ..., [2*N, ..., 3*N-1]
-     ...
-
-     On most amdgcn architectures, the interleave is sizeof (uint32_t).  */
-  virtual amd_dbgapi_size_t private_swizzled_interleave_size () const = 0;
 
   /* Return the watchpoints for which an exception was generated in the given
      stopped wave.  */
@@ -365,9 +325,8 @@ public:
 
   virtual std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
   wave_get_state (wave_t &wave) const = 0;
-  virtual void wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state,
-                               amd_dbgapi_exceptions_t exceptions
-                               = AMD_DBGAPI_EXCEPTION_NONE) const = 0;
+  virtual void wave_set_state (wave_t &wave,
+                               amd_dbgapi_wave_state_t state) const = 0;
 
   virtual bool wave_get_halt (const wave_t &wave) const = 0;
   virtual void wave_set_halt (wave_t &wave, bool halt) const = 0;
@@ -437,8 +396,9 @@ public:
                                      amdgpu_regnum_t regnum, size_t offset,
                                      size_t value_size, void *value) const = 0;
 
-  virtual void write_pseudo_register (wave_t &wave, amdgpu_regnum_t regnum,
-                                      size_t offset, size_t value_size,
+  virtual void write_pseudo_register (const wave_t &wave,
+                                      amdgpu_regnum_t regnum, size_t offset,
+                                      size_t value_size,
                                       const void *value) const = 0;
 
   void get_info (amd_dbgapi_architecture_info_t query, size_t value_size,
@@ -446,8 +406,8 @@ public:
 
   template <typename Object, typename... Args> auto &create (Args &&...args)
   {
-    return std::get<handle_object_set_t<Object>> (m_handle_object_sets)
-      .create_object (std::forward<Args> (args)...);
+    return get_base_type_element<Object> (m_handle_object_sets)
+      .template create_object<Object> (std::forward<Args> (args)...);
   }
 
   /* Return an Object range. A range implements begin () and end (), and
@@ -477,7 +437,7 @@ public:
 
     if constexpr (std::is_same_v<Handle, amd_dbgapi_address_space_id_t>)
       if (id == AMD_DBGAPI_ADDRESS_SPACE_GLOBAL)
-        return &address_space_t::s_global;
+        return &address_space_t::global ();
 
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
       .find (id);
@@ -491,9 +451,8 @@ public:
     using object_type
       = object_type_from_handle_t<Handle, decltype (m_handle_object_sets)>;
 
-    if constexpr (std::is_same_v<Handle, amd_dbgapi_address_space_id_t>)
-      if (id == AMD_DBGAPI_ADDRESS_SPACE_GLOBAL)
-        return &address_space_t::s_global;
+    /* Cannot return a non-const global address space pointer.  */
+    static_assert (!std::is_same_v<Handle, amd_dbgapi_address_space_id_t>);
 
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
       .find (id);
@@ -505,8 +464,8 @@ public:
     using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
 
     if constexpr (std::is_same_v<object_type, address_space_t>)
-      if (predicate (address_space_t::s_global))
-        return &address_space_t::s_global;
+      if (predicate (address_space_t::global ()))
+        return &address_space_t::global ();
 
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
       .find_if (predicate);
@@ -516,9 +475,8 @@ public:
   {
     using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
 
-    if constexpr (std::is_same_v<object_type, address_space_t>)
-      if (predicate (address_space_t::s_global))
-        return &address_space_t::s_global;
+    /* Cannot return a non-const global address space pointer.  */
+    static_assert (!std::is_same_v<object_type, address_space_t>);
 
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
       .find_if (predicate);
@@ -529,7 +487,8 @@ namespace detail
 {
 template <typename Handle>
 using architecture_find_t
-  = decltype (std::declval<architecture_t> ().find (std::declval<Handle> ()));
+  = decltype (std::declval<const architecture_t> ().find (
+    std::declval<Handle> ()));
 } /* namespace detail */
 
 /* Find an object with the given handle.  */
@@ -537,29 +496,29 @@ template <
   typename Handle,
   std::enable_if_t<utils::is_detected_v<detail::architecture_find_t, Handle>,
                    int> = 0>
-const auto *
-find (Handle id)
+auto
+find (Handle id) -> decltype (std::declval<const architecture_t> ().find (id))
 {
   if constexpr (std::is_same_v<Handle, amd_dbgapi_address_space_id_t>)
     if (id == AMD_DBGAPI_ADDRESS_SPACE_GLOBAL)
-      return &address_space_t::s_global;
+      return &address_space_t::global ();
 
   if (detail::last_found_architecture)
-    if (auto value = detail::last_found_architecture->find (id); value)
+    if (const auto *value = detail::last_found_architecture->find (id); value)
       return value;
 
   for (auto &&architecture : architecture_t::all ())
     {
       if (architecture.second.get () == detail::last_found_architecture)
         continue;
-      if (auto value = architecture.second->find (id); value)
+      if (const auto *value = architecture.second->find (id); value)
         {
           detail::last_found_architecture = architecture.second.get ();
           return value;
         }
     }
 
-  return decltype (std::declval<const architecture_t> ().find (id)){};
+  return nullptr;
 }
 
 } /* namespace amd::dbgapi */
