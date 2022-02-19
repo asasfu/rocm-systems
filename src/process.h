@@ -241,9 +241,7 @@ public:
 
   size_t watchpoint_count () const;
   amd_dbgapi_watchpoint_share_kind_t watchpoint_shared_kind () const;
-  void insert_watchpoint (const watchpoint_t &watchpoint,
-                          amd_dbgapi_global_address_t *adjusted_address,
-                          amd_dbgapi_size_t *adjusted_size);
+  void insert_watchpoint (const watchpoint_t &watchpoint);
   void remove_watchpoint (const watchpoint_t &watchpoint);
   const watchpoint_t *find_watchpoint (os_watch_id_t os_watch_id) const;
 
@@ -342,9 +340,31 @@ public:
       .find (id, all);
   }
 
+  template <typename Handle,
+            std::enable_if_t<!std::is_void_v<object_type_from_handle_t<
+                               Handle, decltype (m_handle_object_sets)>>,
+                             int> = 0>
+  auto const *find (Handle id, bool all = false) const
+  {
+    using object_type
+      = object_type_from_handle_t<Handle, decltype (m_handle_object_sets)>;
+
+    return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
+      .find (id, all);
+  }
+
   /* Find an object for which the unary predicate f returns true.  */
   template <typename Functor>
   auto *find_if (Functor predicate, bool all = false)
+  {
+    using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
+
+    return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
+      .find_if (predicate, all);
+  }
+
+  template <typename Functor>
+  auto const *find_if (Functor predicate, bool all = false) const
   {
     using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
 
