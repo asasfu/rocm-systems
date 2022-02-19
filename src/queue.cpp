@@ -406,13 +406,17 @@ aql_queue_t::~aql_queue_t ()
 {
   process_t &process = this->process ();
 
-  /* Destruct all waves and dispatches associated with this queue.  Waves that
-     are executing a displaced stepped instruction will release the displaced
-     stepping buffer when destructed, and raise a command terminated event if
-     single-stepping (see wave_t::~wave_t).  */
+  /* Destruct all waves, workgroups, and dispatches associated with this queue.
+     Waves that are executing a displaced stepped instruction will release the
+     displaced stepping buffer when destructed, and raise a command terminated
+     event if single-stepping (see wave_t::~wave_t).  */
 
   auto &&wave_range = process.range<wave_t> ();
   for (auto it = wave_range.begin (); it != wave_range.end ();)
+    it = (it->queue () == *this) ? process.destroy (it) : ++it;
+
+  auto &&workgroup_range = process.range<workgroup_t> ();
+  for (auto it = workgroup_range.begin (); it != workgroup_range.end ();)
     it = (it->queue () == *this) ? process.destroy (it) : ++it;
 
   auto &&dispatch_range = process.range<dispatch_t> ();
@@ -673,7 +677,7 @@ aql_queue_t::update_waves ()
                 && *workgroup->group_ids () != cwsr_record->group_ids ())
               fatal_error ("not in the same workgroup as the group_leader");
           }
-        else if (agent ().ttmps_initialized ())
+        else if (agent ().spi_ttmps_setup_enabled ())
           {
             amd_dbgapi_os_queue_packet_id_t packet_id
               = get_os_queue_packet_id (*cwsr_record);
