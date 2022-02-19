@@ -167,6 +167,26 @@ public:
   /* Return the map of all instantiated architectures  */
   static const auto &all () { return s_architecture_map; }
 
+  class kernel_descriptor_t
+  {
+  private:
+    amd_dbgapi_global_address_t const m_address;
+    process_t &m_process;
+
+  public:
+    kernel_descriptor_t (process_t &process,
+                         amd_dbgapi_global_address_t address)
+      : m_address (address), m_process (process)
+    {
+    }
+    virtual ~kernel_descriptor_t () = default;
+
+    virtual amd_dbgapi_global_address_t entry_address () const = 0;
+
+    amd_dbgapi_global_address_t address () const { return m_address; }
+    process_t &process () const { return m_process; }
+  };
+
   class cwsr_record_t
   {
   private:
@@ -247,6 +267,10 @@ public:
 
   virtual amd_dbgapi_global_address_t dispatch_packet_address (
     const architecture_t::cwsr_record_t &cwsr_record) const = 0;
+
+  virtual std::unique_ptr<const kernel_descriptor_t> make_kernel_descriptor (
+    process_t &process,
+    amd_dbgapi_global_address_t kernel_descriptor_address) const = 0;
 
   virtual std::pair<amd_dbgapi_size_t /* offset  */,
                     amd_dbgapi_size_t /* size  */>
@@ -394,6 +418,11 @@ public:
     return find (amd_dbgapi_architecture_id_t{
       utils::bit_extract (register_id.handle, 32, 63) });
   }
+
+  /* Return the pointer to a statically allocated mask of read-only bits for
+     the given register, or nullptr if all bits are writable.  */
+  virtual const void *
+  register_read_only_mask (amdgpu_regnum_t regnum) const = 0;
 
   virtual std::string register_name (amdgpu_regnum_t regnum) const = 0;
   virtual std::string register_type (amdgpu_regnum_t regnum) const = 0;

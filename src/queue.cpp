@@ -82,8 +82,8 @@ private:
   uint16_t m_debugger_memory_next_chunk{ 0 };
   std::vector<uint16_t> m_debugger_memory_free_chunks{};
 
-  instruction_buffer_t m_park_instruction_buffer{};
-  instruction_buffer_t m_terminating_instruction_buffer{};
+  displaced_instruction_ptr_t m_park_instruction_ptr{};
+  displaced_instruction_ptr_t m_terminating_instruction_ptr{};
 
   /* Value used to mark waves that are found in the context save area. When
      sweeping, any wave found with a mark less than the current mark will be
@@ -93,7 +93,8 @@ private:
   dispatch_t const m_dummy_dispatch;
   hsa_queue_t m_hsa_queue{};
 
-  instruction_buffer_t allocate_instruction_buffer () override;
+  displaced_instruction_ptr_t
+  allocate_displaced_instruction (const instruction_t &instruction) override;
 
   void queue_state_changed () override;
 
@@ -110,13 +111,13 @@ public:
   /* Return the address of a park instruction.  */
   amd_dbgapi_global_address_t park_instruction_address () override
   {
-    return m_park_instruction_buffer->begin ();
+    return m_park_instruction_ptr.get ();
   }
 
   /* Return the address of a terminating instruction.  */
   amd_dbgapi_global_address_t terminating_instruction_address () override
   {
-    return m_terminating_instruction_buffer->begin ();
+    return m_terminating_instruction_ptr.get ();
   }
 
   std::pair<amd_dbgapi_global_address_t /* address */,
@@ -137,7 +138,6 @@ aql_queue_t::aql_queue_t (amd_dbgapi_queue_id_t queue_id, const agent_t &agent,
   : compute_queue_t (queue_id, agent, os_queue_info),
     m_dummy_dispatch (AMD_DBGAPI_DISPATCH_NONE, *this, 0, 0)
 {
-  const architecture_t &architecture = this->architecture ();
   process_t &process = this->process ();
 
   amd_dbgapi_global_address_t ctx_save_base
@@ -166,14 +166,10 @@ aql_queue_t::aql_queue_t (amd_dbgapi_queue_id_t queue_id, const agent_t &agent,
   m_debugger_memory_free_chunks.reserve (m_debugger_memory_chunk_count);
 
   /* Reserve 2 instruction buffers for parking, and terminating waves.  */
-  m_park_instruction_buffer = allocate_instruction_buffer ();
-  m_terminating_instruction_buffer = allocate_instruction_buffer ();
-
-  auto terminating_instruction = architecture.terminating_instruction ();
-  m_terminating_instruction_buffer->resize (terminating_instruction.size ());
-  process.write_global_memory (m_terminating_instruction_buffer->begin (),
-                               terminating_instruction.data (),
-                               terminating_instruction.size ());
+  m_park_instruction_ptr
+    = allocate_displaced_instruction (architecture ().assert_instruction ());
+  m_terminating_instruction_ptr = allocate_displaced_instruction (
+    architecture ().terminating_instruction ());
 
   /* Read the hsa_queue_t at the top of the amd_queue_t. Since the amd_queue_t
     structure could change, it can only be accessed by calculating its address
@@ -201,15 +197,13 @@ aql_queue_t::aql_queue_t (amd_dbgapi_queue_id_t queue_id, const agent_t &agent,
 
 aql_queue_t::~aql_queue_t ()
 {
-  /* TODO: we need to iterate the waves belonging to this queue and enqueue
-     events for aborted requests.  i.e. single-step or stop requests that were
-     submitted, but the queue was invalidated/destroyed before reporting the
-     event, we still need to notify the application, so that it does not wait
-     forever.  */
-
   process_t &process = this->process ();
 
-  /* FIXME: need to submit events for aborted requests.  */
+  /* Destruct all waves and dispatches associated with this queue.  Waves that
+     are executing a displaced stepped instruction will release the displaced
+     stepping buffer when destructed, and raise a command terminated event if
+     single-stepping (see wave_t::~wave_t).  */
+
   auto &&wave_range = process.range<wave_t> ();
   for (auto it = wave_range.begin (); it != wave_range.end ();)
     it = (it->queue () == *this) ? process.destroy (it) : ++it;
@@ -236,8 +230,8 @@ aql_queue_t::~aql_queue_t ()
   process.memory_cache ().discard (wave_save_address, wave_save_size);
 }
 
-instruction_buffer_t
-aql_queue_t::allocate_instruction_buffer ()
+compute_queue_t::displaced_instruction_ptr_t
+aql_queue_t::allocate_displaced_instruction (const instruction_t &instruction)
 {
   auto assert_instruction = architecture ().assert_instruction ();
   amd_dbgapi_global_address_t instruction_buffer_address;
@@ -246,6 +240,7 @@ aql_queue_t::allocate_instruction_buffer ()
     {
       auto index = m_debugger_memory_free_chunks.back ();
       m_debugger_memory_free_chunks.pop_back ();
+
       instruction_buffer_address
         = m_debugger_memory_base + index * debugger_memory_chunk_size;
     }
@@ -255,11 +250,12 @@ aql_queue_t::allocate_instruction_buffer ()
         = m_debugger_memory_base
           + m_debugger_memory_next_chunk++ * debugger_memory_chunk_size;
 
-      /* An instruction buffer is always terminated by a valid instruction
-         so that it can be used to "park" a wave by setting its pc at the
-         end of the buffer.  We use a trap instruction to prevent runaway
-         waves from executing from unmapped memory. Copy the instruction
-         now before handing the buffer to the instruction_buffer_t. */
+      /* An instruction buffer is always terminated by a 'guard' instruction
+         (assert_trap) so that the pc never points to an invalid instruction or
+         unmapped memory if the instruction is single-stepped.  We use a trap
+         instruction to prevent runaway waves from executing from unmapped
+         memory.  */
+
       process ().write_global_memory (
         instruction_buffer_address + debugger_memory_chunk_size
           - assert_instruction.size (),
@@ -276,9 +272,17 @@ aql_queue_t::allocate_instruction_buffer ()
     m_debugger_memory_free_chunks.emplace_back (index);
   };
 
-  return instruction_buffer_t (
-    instruction_buffer_address,
-    debugger_memory_chunk_size - assert_instruction.size (), deleter);
+  dbgapi_assert (instruction.size () + assert_instruction.size ()
+                 <= debugger_memory_chunk_size);
+
+  amd_dbgapi_global_address_t displaced_instruction_address
+    = instruction_buffer_address + debugger_memory_chunk_size
+      - assert_instruction.size () - instruction.size ();
+
+  process ().write_global_memory (displaced_instruction_address,
+                                  instruction.data (), instruction.size ());
+
+  return { displaced_instruction_address, deleter };
 }
 
 void
@@ -504,7 +508,8 @@ aql_queue_t::update_waves ()
        without having entered the trap handler, and its pc points to the kernel
        entry point.  */
     if (is_new_wave && wave->state () == AMD_DBGAPI_WAVE_STATE_RUN
-        && wave->pc () == wave->dispatch ().kernel_code_entry_address ()
+        && wave->pc ()
+             == wave->dispatch ().kernel_descriptor ().entry_address ()
         && wave->is_halted ())
       {
         wave->set_visibility (wave_t::visibility_t::hidden_halted_at_launch);
@@ -906,51 +911,6 @@ scoped_queue_suspend_t::~scoped_queue_suspend_t ()
   if (m_queue->process ().resume_queues ({ m_queue }, m_reason) != 1
       && m_queue->is_valid ())
     fatal_error ("process::resume_queues failed");
-}
-
-instruction_buffer_t::instruction_buffer_t (
-  amd_dbgapi_global_address_t buffer_address, uint32_t capacity,
-  deleter_type deleter)
-  : m_data{ buffer_address, 0, capacity }, m_deleter (deleter)
-{
-}
-
-instruction_buffer_t::instruction_buffer_t (instruction_buffer_t &&other)
-  : m_data (other.m_data), m_deleter (other.m_deleter)
-{
-  other.release ();
-}
-
-instruction_buffer_t &
-instruction_buffer_t::operator= (instruction_buffer_t &&other)
-{
-  reset ();
-  m_data = other.m_data;
-  m_deleter = other.m_deleter;
-
-  other.release ();
-  return *this;
-}
-
-void
-instruction_buffer_t::reset ()
-{
-  if (m_data.m_buffer_address)
-    {
-      dbgapi_assert (m_deleter);
-      m_deleter (*m_data.m_buffer_address);
-    }
-  m_data = {};
-  m_deleter = {};
-}
-
-std::optional<amd_dbgapi_global_address_t>
-instruction_buffer_t::release ()
-{
-  auto buffer_address = m_data.m_buffer_address;
-  m_data = {};
-  m_deleter = {};
-  return buffer_address;
 }
 
 } /* namespace amd::dbgapi */

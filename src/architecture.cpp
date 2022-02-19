@@ -156,6 +156,37 @@ protected:
     return utils::bit_extract (relaunch, 31, 31);
   }
 
+  class kernel_descriptor_t : public architecture_t::kernel_descriptor_t
+  {
+  private:
+    struct
+    {
+      uint32_t group_segment_fixed_size;
+      uint32_t private_segment_fixed_size;
+      uint8_t reserved0[8];
+      int64_t kernel_code_entry_byte_offset;
+      uint8_t reserved1[20];
+      uint32_t compute_pgm_rsrc3;
+      uint32_t compute_pgm_rsrc1;
+      uint32_t compute_pgm_rsrc2;
+      uint16_t kernel_code_properties;
+      uint8_t reserved2[6];
+    } m_descriptor;
+
+  public:
+    kernel_descriptor_t (process_t &process,
+                         amd_dbgapi_global_address_t address)
+      : architecture_t::kernel_descriptor_t (process, address)
+    {
+      process.read_global_memory (address, &m_descriptor);
+    }
+
+    amd_dbgapi_global_address_t entry_address () const override
+    {
+      return address () + m_descriptor.kernel_code_entry_byte_offset;
+    }
+  };
+
   class cwsr_record_t : public architecture_t::cwsr_record_t
   {
   protected:
@@ -185,6 +216,15 @@ protected:
   amd_comgr_disassembly_info_t disassembly_info () const;
 
 public:
+  std::unique_ptr<const architecture_t::kernel_descriptor_t>
+  make_kernel_descriptor (
+    process_t &process,
+    amd_dbgapi_global_address_t kernel_descriptor_address) const override
+  {
+    return std::make_unique<amdgcn_architecture_t::kernel_descriptor_t> (
+      process, kernel_descriptor_address);
+  }
+
   std::pair<amd_dbgapi_segment_address_t /* to_address  */,
             amd_dbgapi_size_t /* to_contiguous_bytes  */>
   convert_address_space (
@@ -227,6 +267,7 @@ public:
   std::string register_name (amdgpu_regnum_t regnum) const override;
   std::string register_type (amdgpu_regnum_t regnum) const override;
   amd_dbgapi_size_t register_size (amdgpu_regnum_t regnum) const override;
+  const void *register_read_only_mask (amdgpu_regnum_t regnum) const override;
   amd_dbgapi_register_properties_t
   register_properties (amdgpu_regnum_t regnum) const override;
 
@@ -2044,32 +2085,59 @@ amdgcn_architecture_t::register_size (amdgpu_regnum_t regnum) const
     }
 }
 
-amd_dbgapi_register_properties_t
-amdgcn_architecture_t::register_properties (amdgpu_regnum_t regnum) const
+const void *
+amdgcn_architecture_t::register_read_only_mask (amdgpu_regnum_t regnum) const
 {
   switch (regnum)
     {
-    case amdgpu_regnum_t::pc:
     case amdgpu_regnum_t::trapsts:
+      static uint32_t trapsts_read_only_bits
+        = utils::bit_mask (9, 9) /* 0  */ | utils::bit_mask (15, 15) /* 0  */
+          | utils::bit_mask (22, 27) /* 0  */;
+      return &trapsts_read_only_bits;
+
     case amdgpu_regnum_t::mode:
-      return AMD_DBGAPI_REGISTER_PROPERTY_READONLY_BITS;
+      static uint32_t mode_read_only_bits = utils::bit_mask (21, 22); /* 0 */
+      return &mode_read_only_bits;
 
     case amdgpu_regnum_t::pseudo_status:
-      /* Writing to the vcc register may change the status.vccz bit.  */
-      return AMD_DBGAPI_REGISTER_PROPERTY_VOLATILE
-             | AMD_DBGAPI_REGISTER_PROPERTY_READONLY_BITS;
+      static uint32_t status_read_only_bits
+        = utils::bit_mask (5, 7)      /* priv, trap_en, ttrace_en  */
+          | utils::bit_mask (9, 12)   /* execz, vccz, in_tg, in_barrier  */
+          | utils::bit_mask (14, 16)  /* trap, ttrace_cu_en, valid  */
+          | utils::bit_mask (19, 19)  /* perf_en  */
+          | utils::bit_mask (22, 26)  /* allow_replay, fatal_halt, 0  */
+          | utils::bit_mask (28, 31); /* 0  */
+      return &status_read_only_bits;
 
-    case amdgpu_regnum_t::pseudo_exec_32:
-    case amdgpu_regnum_t::pseudo_exec_64:
-    case amdgpu_regnum_t::pseudo_vcc_32:
-    case amdgpu_regnum_t::pseudo_vcc_64:
-      /* Writing to the exec or vcc register may change the status.execz
-         status.vccz bits respectively.  */
-      return AMD_DBGAPI_REGISTER_PROPERTY_INVALIDATE_VOLATILE;
+    case amdgpu_regnum_t::pc:
+      static uint64_t pc_read_only_bits = utils::bit_mask (0, 1); /* 0  */
+      return &pc_read_only_bits;
 
     default:
-      return AMD_DBGAPI_REGISTER_PROPERTY_NONE;
+      return nullptr;
     }
+}
+
+amd_dbgapi_register_properties_t
+amdgcn_architecture_t::register_properties (amdgpu_regnum_t regnum) const
+{
+  amd_dbgapi_register_properties_t properties
+    = register_read_only_mask (regnum) != nullptr
+        ? AMD_DBGAPI_REGISTER_PROPERTY_READONLY_BITS
+        : AMD_DBGAPI_REGISTER_PROPERTY_NONE;
+
+  /* Writing to the vcc register may change the status.vccz bit.  */
+  if (regnum == amdgpu_regnum_t::pseudo_status)
+    properties |= AMD_DBGAPI_REGISTER_PROPERTY_VOLATILE;
+
+  /* Writing to the exec or vcc register may change the status.execz
+     status.vccz bits respectively.  */
+  if (regnum == amdgpu_regnum_t::pseudo_exec_64
+      || regnum == amdgpu_regnum_t::pseudo_vcc_64)
+    properties |= AMD_DBGAPI_REGISTER_PROPERTY_INVALIDATE_VOLATILE;
+
+  return properties;
 }
 
 bool
@@ -2231,27 +2299,12 @@ amdgcn_architecture_t::write_pseudo_register (wave_t &wave,
       /* pseudo_status is a composite of: status[31:14], ttmp6[29] (halt),
          status [12:6], 0[0] (priv), status [4:0].  */
 
-      uint32_t prev_status_reg, status_reg, ttmp6;
-
-      /* Only some fields of the status register are writable.  */
-      constexpr uint32_t writable_fields_mask
-        = utils::bit_mask (0, 4)      /* scc, spi_prio, user_prio  */
-          | utils::bit_mask (8, 8)    /* export_rdy  */
-          | utils::bit_mask (13, 13)  /* halt  */
-          | utils::bit_mask (17, 18)  /* ecc_err, skip_export  */
-          | utils::bit_mask (20, 21)  /* cond_dbg_user, cond_dbg_sys  */
-          | utils::bit_mask (27, 27); /* must_export  */
-
-      wave.read_register (amdgpu_regnum_t::status, &prev_status_reg);
+      uint32_t status_reg, ttmp6;
+      wave.read_register (amdgpu_regnum_t::status, &status_reg);
       wave.read_register (amdgpu_regnum_t::ttmp6, &ttmp6);
 
-      status_reg = prev_status_reg;
       memcpy (reinterpret_cast<char *> (&status_reg) + offset, value,
               value_size);
-
-      /* We should only modify the writable bits.  */
-      status_reg = (status_reg & writable_fields_mask)
-                   | (prev_status_reg & ~writable_fields_mask);
 
       ttmp6 &= ~ttmp6_saved_status_halt_mask;
       if (status_reg & sq_wave_status_halt_mask)
@@ -3998,6 +4051,8 @@ public:
   std::string register_name (amdgpu_regnum_t regnum) const override;
   std::string register_type (amdgpu_regnum_t regnum) const override;
   amd_dbgapi_size_t register_size (amdgpu_regnum_t regnum) const override;
+  amd_dbgapi_register_properties_t
+  register_properties (amdgpu_regnum_t regnum) const override;
 
   bool is_pseudo_register_available (const wave_t &wave,
                                      amdgpu_regnum_t regnum) const override;
@@ -4086,8 +4141,6 @@ gfx10_architecture_t::gfx10_architecture_t (elf_amdgpu_machine_t e_machine,
                                    amdgpu_regnum_t::xnack_mask_32);
   system_registers->remove_registers (amdgpu_regnum_t::xnack_mask_64,
                                       amdgpu_regnum_t::xnack_mask_64);
-
-  /* FIXME: Remove xnack_mask_64 since gfx10 does not support it?  */
 
   /* General registers: [s103-s105, {vector}_32, exec_32, vcc_32]  */
   register_class_t *general_registers
@@ -4286,6 +4339,21 @@ gfx10_architecture_t::register_size (amdgpu_regnum_t regnum) const
     default:
       return gfx9_architecture_t::register_size (regnum);
     }
+}
+
+amd_dbgapi_register_properties_t
+gfx10_architecture_t::register_properties (amdgpu_regnum_t regnum) const
+{
+  amd_dbgapi_register_properties_t properties
+    = gfx9_architecture_t::register_properties (regnum);
+
+  /* Writing to the exec or vcc register may change the status.execz
+     status.vccz bits respectively.  */
+  if (regnum == amdgpu_regnum_t::pseudo_exec_32
+      || regnum == amdgpu_regnum_t::pseudo_vcc_32)
+    properties |= AMD_DBGAPI_REGISTER_PROPERTY_INVALIDATE_VOLATILE;
+
+  return properties;
 }
 
 bool
