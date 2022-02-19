@@ -43,12 +43,8 @@
 namespace amd::dbgapi
 {
 
-wave_t::wave_t (amd_dbgapi_wave_id_t wave_id, const dispatch_t &dispatch,
-                const callbacks_t &callbacks)
-  : handle_object (wave_id),
-    m_register_cache (dispatch.process (),
-                      memory_cache_t::policy_t::write_back),
-    m_callbacks (callbacks), m_dispatch (dispatch)
+wave_t::wave_t (amd_dbgapi_wave_id_t wave_id, const dispatch_t &dispatch)
+  : handle_object (wave_id), m_dispatch (dispatch)
 {
 }
 
@@ -150,8 +146,7 @@ wave_t::park ()
      wave will never be halted at such instructions.  */
   m_parked_pc = pc ();
 
-  amd_dbgapi_global_address_t parked_pc
-    = m_callbacks.park_instruction_address ();
+  amd_dbgapi_global_address_t parked_pc = queue ().park_instruction_address ();
   write_register (amdgpu_regnum_t::pc, &parked_pc);
 
   m_is_parked = true;
@@ -196,7 +191,7 @@ wave_t::terminate ()
      never reported to the client as existing.  */
 
   amd_dbgapi_global_address_t terminate_pc
-    = m_callbacks.terminating_instruction_address ();
+    = queue ().terminating_instruction_address ();
 
   /* Make the PC point to an immutable terminating instruction.  */
   write_register (amdgpu_regnum_t::pc, &terminate_pc);
@@ -263,7 +258,7 @@ wave_t::displaced_stepping_start (const void *saved_instruction_bytes)
 
       if (!simulate)
         {
-          instruction_buffer = m_callbacks.allocate_instruction_buffer ();
+          instruction_buffer = queue ().allocate_instruction_buffer ();
           instruction_buffer->resize (original_instruction.size ());
           amd_dbgapi_global_address_t instruction_addr
             = instruction_buffer->begin ();
@@ -332,36 +327,19 @@ wave_t::update (const wave_t &group_leader,
   m_cwsr_record = std::move (cwsr_record);
   m_group_leader = &group_leader;
 
-  constexpr auto first_cached_register = amdgpu_regnum_t::first_hwreg;
-  constexpr auto last_cached_register = amdgpu_regnum_t::last_ttmp;
-
-  auto register_cache_begin = register_address (first_cached_register);
-  dbgapi_assert (register_cache_begin);
-
   /* Update the wave's state if this is a new wave, or if the wave was running
      the last time the queue it belongs to was resumed.  */
   amd_dbgapi_wave_state_t prev_state = m_state;
   if (prev_state != AMD_DBGAPI_WAVE_STATE_STOP)
     {
-      auto last_cached_register_address
-        = register_address (last_cached_register);
-      dbgapi_assert (last_cached_register_address);
-
-      amd_dbgapi_global_address_t register_cache_end
-        = *last_cached_register_address
-          + architecture ().register_size (last_cached_register);
-      dbgapi_assert (register_cache_end > *register_cache_begin);
-
-      /* Since the wave was previously running, the content of the cached
-         registers may have changed.  */
-      m_register_cache.reset (*register_cache_begin,
-                              register_cache_end - *register_cache_begin);
-
       /* Zero-initialize the ttmp registers if they weren't set up by the
          hardware.  Some ttmp registers are used to determine if the wave was
          stopped by the trap handler because of an exception or a trap.  */
-      if (!process ().is_flag_set (process_t::flag_t::ttmps_setup_enabled)
-          && first_update)
+      bool ttmps_initialized
+        = process ().is_flag_set (process_t::flag_t::ttmps_setup_enabled)
+          || agent ().os_info ().ttmps_always_initialized;
+
+      if (first_update && !ttmps_initialized)
         {
           const uint32_t zero = 0;
           for (auto regnum = amdgpu_regnum_t::first_ttmp;
@@ -372,21 +350,14 @@ wave_t::update (const wave_t &group_leader,
       std::tie (m_state, m_stop_reason)
         = architecture ().wave_get_state (*this);
     }
-  else
-    {
-      /* The address of this cwsr_record may have changed since the last
-         context save, relocate the hwregs cache.  */
-      m_register_cache.relocate (*register_cache_begin);
-    }
 
   dbgapi_log (AMD_DBGAPI_LOG_LEVEL_VERBOSE,
               "%s %s%s (pc=%#lx, state=%s) "
-              "context_save:[%#lx..%#lx[, register_cache=cache_%ld",
+              "context_save:[%#lx..%#lx[",
               first_update ? "created" : "updated",
               visibility () != visibility_t::visible ? "invisible " : "",
               to_string (id ()).c_str (), pc (), to_string (m_state).c_str (),
-              m_cwsr_record->begin (), m_cwsr_record->end (),
-              m_register_cache.id ());
+              m_cwsr_record->begin (), m_cwsr_record->end ());
 
   /* The wave was running, and it is now stopped.  */
   if (prev_state != AMD_DBGAPI_WAVE_STATE_STOP
@@ -587,43 +558,6 @@ wave_t::set_state (amd_dbgapi_wave_state_t state,
 
       process ().send_exceptions (os_exceptions, &queue ());
     }
-
-  /* There are no more waves on this agent with a memory violation.  Clear the
-     device memory violation exception so that it isn't attributed to CP or a
-     DMA engine.  */
-  if ((agent ().exceptions () & os_exception_mask_t::device_memory_violation)
-        != os_exception_mask_t::none
-      && state != AMD_DBGAPI_WAVE_STATE_STOP)
-    {
-      [this] ()
-      {
-        for (auto &&wave : process ().range<wave_t> ())
-          if (wave.agent () == agent ()
-              && wave.state () == AMD_DBGAPI_WAVE_STATE_STOP
-              && (wave.stop_reason ()
-                  & AMD_DBGAPI_WAVE_STOP_REASON_MEMORY_VIOLATION))
-            return;
-
-        agent ().clear_exceptions (
-          os_exception_mask_t::device_memory_violation);
-      }();
-    }
-}
-
-memory_cache_t::policy_t
-wave_t::register_cache_policy (amdgpu_regnum_t regnum) const
-{
-  dbgapi_assert (!is_pseudo_register (regnum)
-                 && "pseudo registers do not have a cache policy");
-
-  auto reg_addr = register_address (regnum);
-  dbgapi_assert (reg_addr && "invalid register");
-
-  if (m_register_cache.contains (*reg_addr,
-                                 architecture ().register_size (regnum)))
-    return m_register_cache.policy ();
-
-  return memory_cache_t::policy_t::uncached;
 }
 
 bool
@@ -665,14 +599,6 @@ wave_t::read_register (amdgpu_regnum_t regnum, size_t offset,
 
   dbgapi_assert (reg_addr);
 
-  /* Reading a ttmp source when not in priviledged mode returns 0.  */
-  if (regnum >= amdgpu_regnum_t::first_ttmp
-      && regnum <= amdgpu_regnum_t::last_ttmp && !m_cwsr_record->is_priv ())
-    {
-      memset (static_cast<char *> (value) + offset, '\0', value_size);
-      return;
-    }
-
   if (m_is_parked && regnum == amdgpu_regnum_t::pc)
     {
       memcpy (static_cast<char *> (value) + offset,
@@ -681,17 +607,26 @@ wave_t::read_register (amdgpu_regnum_t regnum, size_t offset,
       return;
     }
 
-  /* hwregs are cached, so return the value from the cache.  */
-  if (m_register_cache.contains (*reg_addr + offset, value_size))
-    m_register_cache.read (*reg_addr + offset,
-                           static_cast<char *> (value) + offset, value_size);
-  else
+  std::optional<scoped_queue_suspend_t> suspend;
+  if (!queue ().is_suspended ()
+      && !process ().memory_cache ().contains_all (*reg_addr + offset,
+                                                   value_size))
     {
-      dbgapi_assert (queue ().is_suspended ());
+      suspend.emplace (queue (), "read register");
 
-      process ().read_global_memory (
-        *reg_addr + offset, static_cast<char *> (value) + offset, value_size);
+      /* Look for the wave_id again, the wave may have exited.  */
+      wave_t *wave = find (id ());
+      if (!wave)
+        throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID);
+
+      dbgapi_assert (wave == this);
+
+      /* The wave's saved state may have changed location in memory.  */
+      reg_addr == register_address (regnum);
     }
+
+  process ().read_global_memory (
+    *reg_addr + offset, static_cast<char *> (value) + offset, value_size);
 }
 
 void
@@ -719,11 +654,6 @@ wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
 
   dbgapi_assert (reg_addr);
 
-  /* Writing to a ttmp source when not in priviledged mode is a no-op.  */
-  if (regnum >= amdgpu_regnum_t::first_ttmp
-      && regnum <= amdgpu_regnum_t::last_ttmp && !m_cwsr_record->is_priv ())
-    return;
-
   if (m_is_parked && regnum == amdgpu_regnum_t::pc)
     {
       memcpy (reinterpret_cast<char *> (&m_parked_pc) + offset,
@@ -731,25 +661,25 @@ wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
       return;
     }
 
-  if (m_register_cache.contains (*reg_addr + offset, value_size))
+  std::optional<scoped_queue_suspend_t> suspend;
+  if (!queue ().is_suspended ())
     {
-      m_register_cache.write (*reg_addr + offset,
-                              static_cast<const char *> (value) + offset,
-                              value_size);
+      suspend.emplace (queue (), "write register");
 
-      /* If the cache is dirty, register it with the queue, it will be flushed
-         when the queue is resumed.  */
-      if (m_register_cache.is_dirty ())
-        m_callbacks.register_dirty_cache (m_register_cache);
-    }
-  else
-    {
-      dbgapi_assert (queue ().is_suspended ());
+      /* Look for the wave_id again, the wave may have exited.  */
+      wave_t *wave = find (id ());
+      if (!wave)
+        throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID);
 
-      process ().write_global_memory (
-        *reg_addr + offset, static_cast<const char *> (value) + offset,
-        value_size);
+      dbgapi_assert (wave == this);
+
+      /* The wave's saved state may have changed location in memory.  */
+      reg_addr == register_address (regnum);
     }
+
+  process ().write_global_memory (*reg_addr + offset,
+                                  static_cast<const char *> (value) + offset,
+                                  value_size);
 }
 
 size_t
@@ -760,7 +690,8 @@ wave_t::xfer_private_memory_swizzled (
   dbgapi_assert (lane_id != AMD_DBGAPI_LANE_NONE && lane_id < lane_count ());
 
   auto [scratch_base, scratch_size]
-    = m_callbacks.scratch_memory_region (*m_cwsr_record);
+    = queue ().scratch_memory_region (m_cwsr_record->shader_engine_id (),
+                                      m_cwsr_record->scratch_scoreboard_id ());
 
   size_t bytes = size;
   while (bytes > 0)
@@ -810,7 +741,8 @@ wave_t::xfer_private_memory_unswizzled (
   size_t size)
 {
   auto [scratch_base, scratch_size]
-    = m_callbacks.scratch_memory_region (*m_cwsr_record);
+    = queue ().scratch_memory_region (m_cwsr_record->shader_engine_id (),
+                                      m_cwsr_record->scratch_scoreboard_id ());
 
   if ((segment_address + size) > scratch_size)
     {
@@ -834,7 +766,18 @@ wave_t::xfer_local_memory (amd_dbgapi_segment_address_t segment_address,
                            void *read, const void *write, size_t size)
 {
   /* The LDS is stored in the context save area.  */
-  dbgapi_assert (queue ().is_suspended ());
+  std::optional<scoped_queue_suspend_t> suspend;
+  if (!queue ().is_suspended ())
+    {
+      suspend.emplace (queue (), "xfer local memory");
+
+      /* Look for the wave_id again, the wave may have exited.  */
+      wave_t *wave = find (id ());
+      if (!wave)
+        throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID);
+
+      dbgapi_assert (wave == this);
+    }
 
   auto local_memory_base_address
     = group_leader ().m_cwsr_record->register_address (amdgpu_regnum_t::lds_0);

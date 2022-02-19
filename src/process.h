@@ -100,6 +100,7 @@ private:
     AMD_DBGAPI_RUNTIME_STATE_UNLOADED
   };
 
+  memory_cache_t m_memory_cache;
   std::unique_ptr<os_driver_t> m_os_driver{};
   flag_t m_flags{};
 
@@ -117,21 +118,6 @@ private:
 
   std::queue<event_t *> m_pending_events{};
 
-  /* Value used to mark agents that are reported by KFD. When sweeping, any
-     agent found with a mark less than the current mark will be deleted, as
-     these agents are no longer active.  */
-  monotonic_counter_t<epoch_t, 1> m_next_agent_mark{};
-
-  /* Value used to mark queues that are reported by KFD. When sweeping, any
-     queue found with a mark less than the current mark will be deleted, as
-     these queues are no longer active.  */
-  monotonic_counter_t<epoch_t, 1> m_next_queue_mark{};
-
-  /* Value used to mark code objects that are reported by the ROCR. When
-     sweeping, any code object found with a mark less than the current mark
-     will be deleted, as these code objects are not longer loaded.  */
-  monotonic_counter_t<epoch_t, 1> m_next_code_object_mark{};
-
   std::tuple<handle_object_set_t<agent_t>, handle_object_set_t<breakpoint_t>,
              handle_object_set_t<code_object_t>,
              handle_object_set_t<dispatch_t>,
@@ -139,6 +125,8 @@ private:
              handle_object_set_t<event_t>, handle_object_set_t<queue_t>,
              handle_object_set_t<watchpoint_t>, handle_object_set_t<wave_t>>
     m_handle_object_sets{};
+
+  const agent_t m_dummy_agent;
 
   std::pair<std::variant<process_t *, agent_t *, queue_t *>,
             os_exception_mask_t>
@@ -174,6 +162,7 @@ public:
      processes left in the s_process_map. */
   static void reset_all_ids ();
 
+  memory_cache_t &memory_cache () { return m_memory_cache; }
   os_driver_t &os_driver () const { return *m_os_driver; }
 
   inline void set_flag (flag_t flags);
@@ -182,10 +171,17 @@ public:
 
   [[nodiscard]] size_t
   read_global_memory_partial (amd_dbgapi_global_address_t address,
-                              void *buffer, size_t size);
+                              void *buffer, size_t size)
+  {
+    return m_memory_cache.read_global_memory (address, buffer, size);
+  }
+
   [[nodiscard]] size_t
   write_global_memory_partial (amd_dbgapi_global_address_t address,
-                               const void *buffer, size_t size);
+                               const void *buffer, size_t size)
+  {
+    return m_memory_cache.write_global_memory (address, buffer, size);
+  }
 
   template <typename T>
   void read_global_memory (amd_dbgapi_global_address_t address, T *ptr,
@@ -277,11 +273,7 @@ public:
   amd_dbgapi_status_t
   remove_breakpoint (amd_dbgapi_breakpoint_id_t breakpoint_id);
 
-  template <typename Object, typename... Args> auto &create (Args &&...args)
-  {
-    return std::get<handle_object_set_t<Object>> (m_handle_object_sets)
-      .create_object (std::forward<Args> (args)...);
-  }
+  template <typename Object, typename... Args> auto &create (Args &&...args);
 
   /* Destroy the given object.  */
   template <typename Object> void destroy (Object *object)
@@ -395,6 +387,41 @@ process_t::write_global_memory (amd_dbgapi_global_address_t address,
     {
       fatal_error ("process_t::write_global_memory failed: %s", e.what ());
     }
+}
+
+namespace detail
+{
+template <typename Object, std::size_t N, typename... Args>
+struct get_base_type_index
+{
+  static constexpr auto value = N;
+};
+
+template <typename Object, std::size_t N, typename HandleObjectSet,
+          typename... Args>
+struct get_base_type_index<Object, N, HandleObjectSet, Args...>
+{
+  static constexpr auto value
+    = std::is_base_of_v<typename HandleObjectSet::object_type, Object>
+        ? N
+        : get_base_type_index<Object, N + 1, Args...>::value;
+};
+
+template <typename Object, typename... Args>
+auto &
+get_base_type_element (std::tuple<Args...> &tuple)
+{
+  return std::get<detail::get_base_type_index<Object, 0, Args...>::value> (
+    tuple);
+}
+} /* namespace detail */
+
+template <typename Object, typename... Args>
+auto &
+process_t::create (Args &&...args)
+{
+  return detail::get_base_type_element<Object> (m_handle_object_sets)
+    .template create_object<Object> (std::forward<Args> (args)...);
 }
 
 namespace detail

@@ -62,7 +62,24 @@ handle_object_set_t<process_t> process_t::s_process_map;
 
 process_t::process_t (amd_dbgapi_process_id_t process_id,
                       amd_dbgapi_client_process_id_t client_process_id)
-  : handle_object (process_id), m_client_process_id (client_process_id)
+  : handle_object (process_id), m_client_process_id (client_process_id),
+    m_memory_cache (
+      [this] (amd_dbgapi_global_address_t address, void *read,
+              const void *write, size_t size)
+      {
+        amd_dbgapi_status_t status = os_driver ().xfer_global_memory_partial (
+          address, read, write, &size);
+
+        if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
+          throw process_exited_exception_t (*this);
+        else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
+          throw memory_access_error_t (address);
+        else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+          fatal_error ("xfer_global_memory_partial failed (rc=%d)", status);
+
+        return size;
+      }),
+    m_dummy_agent (AMD_DBGAPI_AGENT_NONE, *this, nullptr, {})
 {
   amd_dbgapi_os_process_id_t os_process_id;
   amd_dbgapi_status_t status = get_os_pid (&os_process_id);
@@ -83,6 +100,10 @@ process_t::process_t (amd_dbgapi_process_id_t process_id,
 
 process_t::~process_t ()
 {
+  /* Drop all active cache lines.  */
+  m_memory_cache.write_back ();
+  m_memory_cache.discard ();
+
   /* Destruct the os_driver before closing the notifier pipe.  */
   m_os_driver.reset ();
   m_client_notifier_pipe.close ();
@@ -221,29 +242,11 @@ process_t::detach ()
     std::rethrow_exception (exception);
 }
 
-size_t
-process_t::read_global_memory_partial (amd_dbgapi_global_address_t address,
-                                       void *buffer, size_t size)
-{
-  amd_dbgapi_status_t status = os_driver ().xfer_global_memory_partial (
-    address, buffer, nullptr, &size);
-
-  if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    throw process_exited_exception_t (*this);
-  else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
-    throw memory_access_error_t (address);
-  else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    fatal_error ("process_t::read_global_memory_partial failed (rc=%d)",
-                 status);
-
-  return size;
-}
-
 void
 process_t::read_string (amd_dbgapi_global_address_t address,
                         std::string *string, size_t size)
 {
-  constexpr size_t chunk_size = 16;
+  constexpr size_t chunk_size = memory_cache_t::cache_line_size;
   static_assert (!(chunk_size & (chunk_size - 1)), "must be a power of 2");
 
   dbgapi_assert (string && "invalid argument");
@@ -284,24 +287,6 @@ process_t::read_string (amd_dbgapi_global_address_t address,
       address += length;
       size -= length;
     }
-}
-
-size_t
-process_t::write_global_memory_partial (amd_dbgapi_global_address_t address,
-                                        const void *buffer, size_t size)
-{
-  amd_dbgapi_status_t status = os_driver ().xfer_global_memory_partial (
-    address, nullptr, buffer, &size);
-
-  if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    throw process_exited_exception_t (*this);
-  else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
-    throw memory_access_error_t (address);
-  else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-    fatal_error ("process_t::write_global_memory_partial failed (rc=%d)",
-                 status);
-
-  return size;
 }
 
 void
@@ -481,9 +466,14 @@ process_t::find (amd_dbgapi_client_process_id_t client_process_id)
 void
 process_t::update_agents ()
 {
-  const epoch_t agent_mark = m_next_agent_mark ();
-  std::vector<os_agent_snapshot_entry_t> agent_infos;
-  size_t agent_count = count<agent_t> () + 16;
+  /* Value used to mark agents that are reported by KFD. When sweeping, any
+     agent found with a mark less than the current mark will be deleted, as
+     these agents are no longer active.  */
+  const epoch_t agent_mark = agent_t::next_mark ();
+
+  std::vector<os_agent_info_t> agent_infos;
+  size_t prev_agent_count = count<agent_t> ();
+  size_t agent_count = prev_agent_count + 16;
 
   do
     {
@@ -500,7 +490,7 @@ process_t::update_agents ()
   while (agent_infos.size () < agent_count);
   agent_infos.resize (agent_count);
 
-  m_supports_precise_memory = true;
+  std::optional<bool> precise_memory_supported;
 
   /* Add new agents to the process.  */
   for (auto &&agent_info : agent_infos)
@@ -511,14 +501,19 @@ process_t::update_agents ()
 
       if (!agent)
         {
+          auto [major, minor, stepping] = agent_info.gfxip;
+
           const architecture_t *architecture
-            = architecture_t::find (agent_info.e_machine);
+            = architecture_t::find (string_printf (
+              "gfx%d%c%c", major,
+              (minor < 10) ? (minor + '0') : (minor - 10 + 'a'),
+              (stepping < 10) ? (stepping + '0') : (stepping - 10 + 'a')));
 
           if (!architecture)
             warning ("os_agent_id %d: `%s' architecture not supported.",
                      agent_info.os_agent_id, agent_info.name.c_str ());
 
-          if (agent_mark != 1)
+          if (prev_agent_count != 0)
             fatal_error ("gpu hot pluging is not supported");
 
           agent = &create<agent_t> (*this,        /* process  */
@@ -528,7 +523,9 @@ process_t::update_agents ()
 
       agent->set_mark (agent_mark);
 
-      m_supports_precise_memory &= agent->supports_precise_memory ();
+      if (agent->supports_debugging ())
+        precise_memory_supported = precise_memory_supported.value_or (true)
+                                   & agent_info.precise_memory_supported;
     }
 
   /* Remove agents that are no longer online.  */
@@ -548,49 +545,51 @@ process_t::update_agents ()
     else
       ++it;
 
-  /* Precise memory reporting is not supported if there are no agents.  */
-  if ((count<agent_t> () == 0))
-    m_supports_precise_memory = false;
+  m_supports_precise_memory = precise_memory_supported.value_or (false);
 }
 
 size_t
 process_t::watchpoint_count () const
 {
-  if (!count<agent_t> ())
-    return 0;
-
   /* Return lowest watchpoint count amongst all the agents.  */
 
-  size_t max_watchpoint_count = std::numeric_limits<size_t>::max ();
+  std::optional<size_t> max_watchpoint_count;
 
   for (auto &&agent : range<agent_t> ())
-    max_watchpoint_count
-      = std::min (max_watchpoint_count, agent.watchpoint_count ());
+    {
+      if (!agent.supports_debugging ())
+        continue;
 
-  return max_watchpoint_count;
+      size_t watchpoint_count = agent.os_info ().address_watch_register_count;
+      max_watchpoint_count = std::min (
+        max_watchpoint_count.value_or (watchpoint_count), watchpoint_count);
+    }
+
+  return max_watchpoint_count.value_or (0);
 }
 
 amd_dbgapi_watchpoint_share_kind_t
 process_t::watchpoint_shared_kind () const
 {
-  if (!count<agent_t> ())
-    return AMD_DBGAPI_WATCHPOINT_SHARE_KIND_UNSUPPORTED;
-
   /* Return the lowest capability is this order:
      AMD_DBGAPI_WATCHPOINT_SHARE_KIND_UNSUPPORTED
      AMD_DBGAPI_WATCHPOINT_SHARE_KIND_SHARED
      AMD_DBGAPI_WATCHPOINT_SHARE_KIND_UNSHARED  */
 
   amd_dbgapi_watchpoint_share_kind_t kind
-    = AMD_DBGAPI_WATCHPOINT_SHARE_KIND_UNSHARED;
+    = AMD_DBGAPI_WATCHPOINT_SHARE_KIND_UNSUPPORTED;
 
   for (auto &&agent : range<agent_t> ())
     {
+      if (!agent.supports_debugging ())
+        continue;
+
       switch (agent.watchpoint_share_kind ())
         {
         case AMD_DBGAPI_WATCHPOINT_SHARE_KIND_UNSUPPORTED:
           return AMD_DBGAPI_WATCHPOINT_SHARE_KIND_UNSUPPORTED;
         case AMD_DBGAPI_WATCHPOINT_SHARE_KIND_UNSHARED:
+          kind = AMD_DBGAPI_WATCHPOINT_SHARE_KIND_UNSHARED;
           continue;
         case AMD_DBGAPI_WATCHPOINT_SHARE_KIND_SHARED:
           kind = AMD_DBGAPI_WATCHPOINT_SHARE_KIND_SHARED;
@@ -700,7 +699,7 @@ process_t::insert_watchpoint (const watchpoint_t &watchpoint,
     std::numeric_limits<decltype (programmable_mask_bits)>::max ()
   };
   for (auto &&agent : range<agent_t> ())
-    programmable_mask_bits &= agent.watchpoint_mask_bits ();
+    programmable_mask_bits &= agent.os_info ().address_watch_mask_bits;
 
   amd_dbgapi_global_address_t field_B = programmable_mask_bits;
   amd_dbgapi_global_address_t field_A = ~(field_B | (field_B - 1));
@@ -1038,9 +1037,13 @@ process_t::update_queues ()
 
   do
     {
-      /* Until we see all the snapshots, increase the epoch so that we can
-         sweep queues that may have been destroyed between iterations.  */
-      queue_mark = m_next_queue_mark ();
+      /* Value used to mark queues that are reported by KFD. When sweeping, any
+         queue found with a mark less than the current mark will be deleted, as
+         these queues are no longer active.
+
+         Update the epoch until we see all snapshots so that we can sweep
+         queues that may have been destroyed between iterations.  */
+      queue_mark = queue_t::next_mark ();
 
       /* We should allocate enough memory for the snapshots. Let's start with
          the current number of queues + 16.  */
@@ -1134,10 +1137,10 @@ process_t::update_queues ()
                   "queue before",
                   queue_info.queue_id);
 
-              /* If the queue mark is null, the queue was created outside of
+              /* If the queue does not have an agent, it was created outside of
                  update_queues, and it does not have all the information yet
                  filled in.  */
-              if (!queue->mark ())
+              if (queue->agent () == m_dummy_agent)
                 {
                   /* This is a partially initialized queue, re-create a fully
                      initialized instance with the same os_queue_id.  */
@@ -1168,8 +1171,8 @@ process_t::update_queues ()
              we always create a new queue_t for every queue_id reported by the
              snapshot ioctl.  */
 
-          /* create<queue_t> requests a new id if queue_id is {0}.  */
-          queue = &create<queue_t> (queue_id,    /* queue_id */
+          /* queue_t::create requests a new id if queue_id is {0}.  */
+          queue = &queue_t::create (queue_id,    /* queue_id */
                                     *agent,      /* agent */
                                     queue_info); /* queue_info */
 
@@ -1211,7 +1214,10 @@ process_t::update_code_objects ()
   if (m_runtime_state != AMD_DBGAPI_RUNTIME_STATE_LOADED_SUCCESS)
     return;
 
-  epoch_t code_object_mark = m_next_code_object_mark ();
+  /* Value used to mark code objects that are reported by the ROCR. When
+     sweeping, any code object found with a mark less than the current mark
+     will be deleted, as these code objects are not longer loaded.  */
+  epoch_t code_object_mark = code_object_t::next_mark ();
 
   try
     {
@@ -1268,7 +1274,7 @@ process_t::update_code_objects ()
   catch (const process_exited_exception_t &)
     {
       /* Prune all code objects */
-      code_object_mark = m_next_code_object_mark ();
+      code_object_mark = code_object_t::next_mark ();
     }
 
   /* Iterate all the code objects in this process, and prune those with a mark
@@ -1726,10 +1732,13 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
              the original queue_id in the process. The event will be
              dropped.  */
 
+          os_queue_snapshot_entry_t queue_info{};
+          queue_info.queue_id = os_queue_id;
+
           /* FIXME: need a dummy agent, for now, use the 1st agent in the
              process, there must be at least 1 agent if we have exceptions.  */
           amd_dbgapi_queue_id_t queue_id
-            = create<queue_t> (*range<agent_t> ().begin (), os_queue_id).id ();
+            = queue_t::create (std::nullopt, m_dummy_agent, queue_info).id ();
 
           update_queues ();
 
@@ -1769,6 +1778,10 @@ process_t::next_pending_event ()
       return event;
     }
 
+  /* Value used to mark agents that have reported a new device memory
+     violation exception.  */
+  epoch_t new_device_memory_violation_mark = agent_t::next_mark ();
+
   /* If we don't have any events left, we have to suspend the queues with
      pending events and process their context save area to add events for the
      waves that have reported events.  */
@@ -1780,6 +1793,7 @@ process_t::next_pending_event ()
      the agents for pending queue events and the time we actually suspend the
      queues.  To make sure all events associated with the suspended queues are
      consumed, we loop until no new queue events are reported.
+
      This is guaranteed to terminate as once a queue is suspended it cannot
      create any new events. A queue will require at most 2 iterations; and if
      any new events occur on additional queues those queues will be suspended
@@ -1816,8 +1830,14 @@ process_t::next_pending_event ()
               != os_exception_mask_t::none)
             {
               agent_t *agent = std::get<agent_t *> (source);
+
               agent->set_exceptions (
                 os_exception_mask_t::device_memory_violation);
+
+              /* Mark this agent so that we can later tell if the agent's
+                 device memory violation exception is a new exception or a
+                 deferred exception.  */
+              agent->set_mark (new_device_memory_violation_mark);
 
               update_queues ();
 
@@ -1922,7 +1942,7 @@ process_t::next_pending_event ()
     if ((agent.exceptions () & os_exception_mask_t::device_memory_violation)
         != os_exception_mask_t::none)
       {
-        bool send_device_memory_violation = true;
+        bool waves_with_memory_violation = false;
 
         for (auto &&wave : range<wave_t> ())
           if (wave.agent () == agent
@@ -1933,26 +1953,61 @@ process_t::next_pending_event ()
               /* Found a wave with a memory violation which has or will be
                  reported to the debugger.  Defer reporting the device memory
                  violation to the runtime until the wave is resumed.  */
-              send_device_memory_violation = false;
+              waves_with_memory_violation = true;
               break;
             }
 
-        /* There are no waves on this agent with a memory violation.  This
-           exception must have been raised either by CP or by a DMA engine.
-           Let the runtime handle the exception.
-
-           There is a possible race with the device memory violations being
-           delayed and delivered after waves are resumed from an exception,
-           which clears their memory violation exception.  To work around this,
-           a grace period could be used, if memory violation exceptions are
-           seen, to try to attribute all memory violation exceptions to their
-           originating event.  */
-        if (send_device_memory_violation)
+        if (!waves_with_memory_violation
+            && agent.mark () == new_device_memory_violation_mark)
           {
+            /* This agent has a NEW device memory violation exception, and
+               there are no waves with pending memory violations.  The hardware
+               guarantees that all waves exceptions are reported before making
+               their state visible.  Based on this guarantee, we can determine
+               that this exception must have been raised either by CP or by a
+               DMA engine. Let the runtime handle the exception.
+
+               There is a possible race with the device memory violations being
+               delayed and delivered after waves are resumed from an exception,
+               which clears their memory violation exception.  To work around
+               this, a grace period could be used, if memory violation
+               exceptions are seen, to try to attribute all memory violation
+               exceptions to their originating event.  */
+
             send_exceptions (os_exception_mask_t::device_memory_violation,
                              &agent);
 
-            /* Clear the exception since the runtime is now handling it.  */
+            agent.clear_exceptions (
+              os_exception_mask_t::device_memory_violation);
+          }
+        else if (waves_with_memory_violation)
+          {
+            /* There are waves with pending memory violation exceptions. Assume
+               that the device exception was raised by a wavefront.
+
+               The agent's device memory violation exception is recorded and
+               its reporting deferred.  It will be sent to runtime along with
+               the queue memory violation exception if/when the wave is resumed
+               (see wave_t::set_state ()).
+
+               NOTE: If a CP or DMA memory violation exception is raised while
+               there are waves with pending memory violations, these exceptions
+               will be lost as they will be attributed to a wave memory
+               violation.
+
+               FIXME: To avoid this, it is necessary for the hardware to report
+               the origin of a device memory violation exception, and for KFD
+               to separately record and report wave and CP/DMA exceptions.
+               Currently KFD only remembers the first device exception received
+               from any source.  */
+          }
+        else
+          {
+            /* The device memory violation exception reporting was deferred in
+               an earlier call to this function by the immediately preceding
+               ELSE IF.  At this point, all the wave exceptions have been
+               processed, so clear the deferred device exception.  */
+
             agent.clear_exceptions (
               os_exception_mask_t::device_memory_violation);
           }
@@ -2065,17 +2120,30 @@ amd_dbgapi_process_set_progress (amd_dbgapi_process_id_t process_id,
         THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
       }
 
+    std::vector<process_t *> processes;
     if (process_id == AMD_DBGAPI_PROCESS_NONE)
       {
         for (auto &&process : process_t::all ())
-          process.set_forward_progress_needed (forward_progress_needed);
+          processes.emplace_back (&process);
       }
     else
       {
         if (process_t *process = process_t::find (process_id); process)
-          process->set_forward_progress_needed (forward_progress_needed);
+          processes.emplace_back (process);
         else
           THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
+      }
+
+    for (auto &&process : processes)
+      {
+        try
+          {
+            process->set_forward_progress_needed (forward_progress_needed);
+          }
+        catch (const process_exited_exception_t &)
+          {
+            /* The process has exited, forward progress is irrelevant.  */
+          }
       }
 
     return AMD_DBGAPI_STATUS_SUCCESS;
@@ -2101,16 +2169,23 @@ amd_dbgapi_process_set_wave_creation (amd_dbgapi_process_id_t process_id,
     if (!process)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
-    switch (creation)
+    try
       {
-      case AMD_DBGAPI_WAVE_CREATION_NORMAL:
-        process->set_wave_launch_mode (os_wave_launch_mode_t::normal);
-        break;
-      case AMD_DBGAPI_WAVE_CREATION_STOP:
-        process->set_wave_launch_mode (os_wave_launch_mode_t::halt);
-        break;
-      default:
-        THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
+        switch (creation)
+          {
+          case AMD_DBGAPI_WAVE_CREATION_NORMAL:
+            process->set_wave_launch_mode (os_wave_launch_mode_t::normal);
+            break;
+          case AMD_DBGAPI_WAVE_CREATION_STOP:
+            process->set_wave_launch_mode (os_wave_launch_mode_t::halt);
+            break;
+          default:
+            THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
+          }
+      }
+    catch (const process_exited_exception_t &)
+      {
+        /* The process has exited, the wave launch mode is irrelevant.  */
       }
 
     return AMD_DBGAPI_STATUS_SUCCESS;
@@ -2226,7 +2301,15 @@ amd_dbgapi_process_get_info (amd_dbgapi_process_id_t process_id,
     if (!process)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
-    process->get_info (query, value_size, value);
+    try
+      {
+        process->get_info (query, value_size, value);
+      }
+    catch (const process_exited_exception_t &)
+      {
+        fatal_error (
+          "process_t::get_info should not throw process_exited exceptions");
+      }
 
     return AMD_DBGAPI_STATUS_SUCCESS;
   }
