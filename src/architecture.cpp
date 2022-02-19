@@ -362,6 +362,8 @@ protected:
   virtual bool can_halt_at_endpgm () const = 0;
   bool park_stopped_waves () const override { return !can_halt_at_endpgm (); }
 
+  bool has_architected_flat_scratch () const override { return false; };
+
   virtual bool is_branch_taken (wave_t &wave,
                                 const instruction_t &instruction) const;
 
@@ -2811,10 +2813,6 @@ std::optional<amd_dbgapi_global_address_t>
 gfx9_architecture_t::cwsr_record_t::register_address (
   amdgpu_regnum_t regnum) const
 {
-  dbgapi_assert (
-    dynamic_cast<const gfx9_architecture_t *> (&queue ().architecture ())
-    != nullptr);
-
   const auto &architecture
     = static_cast<const gfx9_architecture_t &> (queue ().architecture ());
 
@@ -3407,6 +3405,7 @@ public:
     const architecture_t::cwsr_record_t &cwsr_record) const override;
 
   bool can_halt_at_endpgm () const override { return true; }
+  bool has_architected_flat_scratch () const override { return true; };
 };
 
 amd_dbgapi_wave_id_t
