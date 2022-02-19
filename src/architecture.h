@@ -190,13 +190,6 @@ public:
     /* Size of the local data share.  */
     virtual size_t lds_size () const = 0;
 
-    /* The wave is halted (status.halt=1).  */
-    virtual bool is_halted () const = 0;
-    /* The wave is stopped at the request of the trap handler. */
-    virtual bool is_stopped () const = 0;
-    /* The wave is in privilege mode (status.priv=1).  */
-    virtual bool is_priv () const = 0;
-
     virtual std::optional<amd_dbgapi_global_address_t>
     register_address (amdgpu_regnum_t regnum) const = 0;
 
@@ -216,6 +209,10 @@ public:
     compute_queue_t &queue () const { return m_queue; }
     const agent_t &agent () const { return queue ().agent (); }
     process_t &process () const { return agent ().process (); }
+    const architecture_t &architecture () const
+    {
+      return queue ().architecture ();
+    }
   };
 
   virtual ~architecture_t ();
@@ -241,7 +238,7 @@ public:
 
   /* FIXME: add SQ prefetch instruction bytes size.  */
 
-  virtual void control_stack_iterate (
+  virtual size_t control_stack_iterate (
     compute_queue_t &queue, const uint32_t *control_stack,
     size_t control_stack_words, amd_dbgapi_global_address_t wave_area_address,
     amd_dbgapi_size_t wave_area_size,
@@ -257,19 +254,18 @@ public:
                          uint32_t bank_count, uint32_t bank_id,
                          uint32_t slot_id) const = 0;
 
-  virtual void
+  virtual std::pair<amd_dbgapi_segment_address_t /* to_address  */,
+                    amd_dbgapi_size_t /* to_contiguous_bytes  */>
   convert_address_space (const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
                          const address_space_t &from_address_space,
                          const address_space_t &to_address_space,
-                         amd_dbgapi_segment_address_t from_address,
-                         amd_dbgapi_segment_address_t *to_address) const = 0;
+                         amd_dbgapi_segment_address_t from_address) const = 0;
 
-  virtual void lower_address_space (
-    const wave_t &wave, amd_dbgapi_lane_id_t *lane_id,
-    const address_space_t &original_address_space,
-    const address_space_t **lowered_address_space,
-    amd_dbgapi_segment_address_t original_address,
-    amd_dbgapi_segment_address_t *lowered_address) const = 0;
+  virtual std::pair<const address_space_t & /* lowered_address_space  */,
+                    amd_dbgapi_segment_address_t /* lowered_address  */>
+  lower_address_space (
+    const wave_t &wave, const address_space_t &original_address_space,
+    amd_dbgapi_segment_address_t original_address) const = 0;
 
   virtual bool
   address_is_in_address_class (const wave_t &wave,
@@ -279,8 +275,28 @@ public:
                                const address_class_t &address_class) const = 0;
 
   virtual bool
-  address_spaces_may_alias (const address_space_t &address_space1,
-                            const address_space_t &address_space2) const = 0;
+  is_address_space_supported (const address_space_t &address_space) const = 0;
+
+  virtual bool
+  is_address_class_supported (const address_class_t &address_class) const = 0;
+
+  /* Return the bitmask used to identify the apertures for local, private and
+     gpuvm addresses.  */
+  virtual amd_dbgapi_global_address_t address_aperture_mask () const = 0;
+
+  /* Return the number of bytes (N) used to interleave private swizzled memory
+     accesses.  Private swizzled memory has the following layout in global
+     memory (X is the number of lanes in a wavefront):
+
+     global     lane0 private      lane1 private           laneX private
+     addresses  addresses          addresses               addresses
+     0*X*N:     [0*N, ..., 1*N-1], [0*N, ..., 1*N-1], ..., [0*N, ..., 1*N-1]
+     1*X*N:     [1*N, ..., 2*N-1], [1*N, ..., 2*N-1], ..., [1*N, ..., 2*N-1]
+     2*X*N:     [2*N, ..., 3*N-1], [2*N, ..., 3*N-1], ..., [2*N, ..., 3*N-1]
+     ...
+
+     On most amdgcn architectures, the interleave is sizeof (uint32_t).  */
+  virtual amd_dbgapi_size_t private_swizzled_interleave_size () const = 0;
 
   /* Return the watchpoints for which an exception was generated in the given
      stopped wave.  */
@@ -332,7 +348,7 @@ public:
                                amd_dbgapi_exceptions_t exceptions
                                = AMD_DBGAPI_EXCEPTION_NONE) const = 0;
 
-  virtual bool wave_get_halt (wave_t &wave) const = 0;
+  virtual bool wave_get_halt (const wave_t &wave) const = 0;
   virtual void wave_set_halt (wave_t &wave, bool halt) const = 0;
 
   virtual void wave_enable_traps (wave_t &wave,
@@ -433,6 +449,10 @@ public:
     using object_type
       = object_type_from_handle_t<Handle, decltype (m_handle_object_sets)>;
 
+    if constexpr (std::is_same_v<Handle, amd_dbgapi_address_space_id_t>)
+      if (id == AMD_DBGAPI_ADDRESS_SPACE_GLOBAL)
+        return &address_space_t::s_global;
+
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
       .find (id);
   }
@@ -445,6 +465,10 @@ public:
     using object_type
       = object_type_from_handle_t<Handle, decltype (m_handle_object_sets)>;
 
+    if constexpr (std::is_same_v<Handle, amd_dbgapi_address_space_id_t>)
+      if (id == AMD_DBGAPI_ADDRESS_SPACE_GLOBAL)
+        return &address_space_t::s_global;
+
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
       .find (id);
   }
@@ -454,6 +478,10 @@ public:
   {
     using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
 
+    if constexpr (std::is_same_v<object_type, address_space_t>)
+      if (predicate (address_space_t::s_global))
+        return &address_space_t::s_global;
+
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
       .find_if (predicate);
   }
@@ -461,6 +489,10 @@ public:
   template <typename Functor> auto *find_if (Functor predicate)
   {
     using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
+
+    if constexpr (std::is_same_v<object_type, address_space_t>)
+      if (predicate (address_space_t::s_global))
+        return &address_space_t::s_global;
 
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
       .find_if (predicate);
@@ -482,6 +514,10 @@ template <
 const auto *
 find (Handle id)
 {
+  if constexpr (std::is_same_v<Handle, amd_dbgapi_address_space_id_t>)
+    if (id == AMD_DBGAPI_ADDRESS_SPACE_GLOBAL)
+      return &address_space_t::s_global;
+
   if (detail::last_found_architecture)
     if (auto value = detail::last_found_architecture->find (id); value)
       return value;

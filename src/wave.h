@@ -137,6 +137,12 @@ public:
 
   bool is_valid () const { return visibility () == visibility_t::visible; }
 
+  bool is_halted () const { return architecture ().wave_get_halt (*this); }
+  void set_halted (bool halted)
+  {
+    architecture ().wave_set_halt (*this, halted);
+  }
+
   /* Return the last wave stop event, or nullptr if the event is already
      processed and destroyed.  */
   const event_t *last_stop_event () const;
@@ -238,6 +244,16 @@ public:
           "Could not write the `%s' register: %s",
           architecture ().register_name (regnum).c_str (), e.what ()));
       }
+  }
+
+  /* Return the wave's scratch memory region (address and size).  */
+  std::pair<amd_dbgapi_global_address_t /* address */,
+            amd_dbgapi_size_t /* size */>
+  scratch_memory_region () const
+  {
+    return queue ().scratch_memory_region (
+      m_cwsr_record->shader_engine_id (),
+      m_cwsr_record->scratch_scoreboard_id ());
   }
 
   [[nodiscard]] size_t
