@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -21,11 +21,9 @@
 #ifndef AMD_DBGAPI_DISPATCH_H
 #define AMD_DBGAPI_DISPATCH_H 1
 
-#include "agent.h"
 #include "amd-dbgapi.h"
 #include "architecture.h"
 #include "handle_object.h"
-#include "queue.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -35,8 +33,9 @@
 namespace amd::dbgapi
 {
 
-class architecture_t;
+class agent_t;
 class process_t;
+class compute_queue_t;
 
 /* AMD Debugger API Dispatch.  */
 
@@ -44,33 +43,33 @@ class dispatch_t : public detail::handle_object<amd_dbgapi_dispatch_id_t>
 {
 private:
   amd_dbgapi_os_queue_packet_id_t const m_os_queue_packet_id;
-
-  hsa_kernel_dispatch_packet_t m_packet{};
-  std::unique_ptr<const architecture_t::kernel_descriptor_t>
-    m_kernel_descriptor{};
-
   compute_queue_t &m_queue;
 
 public:
   dispatch_t (amd_dbgapi_dispatch_id_t dispatch_id, compute_queue_t &queue,
-              amd_dbgapi_os_queue_packet_id_t os_queue_packet_id,
-              amd_dbgapi_global_address_t packet_address);
+              amd_dbgapi_os_queue_packet_id_t os_queue_packet_id)
+    : handle_object (dispatch_id), m_os_queue_packet_id (os_queue_packet_id),
+      m_queue (queue)
+  {
+  }
 
-  ~dispatch_t () {}
+  virtual ~dispatch_t () = default;
 
-  uint64_t os_queue_packet_id () const { return m_os_queue_packet_id; }
-  const architecture_t::kernel_descriptor_t &kernel_descriptor () const;
+  amd_dbgapi_os_queue_packet_id_t os_queue_packet_id () const
+  {
+    return m_os_queue_packet_id;
+  }
 
-  void get_info (amd_dbgapi_dispatch_info_t query, size_t value_size,
-                 void *value) const;
+  virtual const architecture_t::kernel_descriptor_t &
+  kernel_descriptor () const = 0;
+
+  virtual void get_info (amd_dbgapi_dispatch_info_t query, size_t value_size,
+                         void *value) const = 0;
 
   compute_queue_t &queue () const { return m_queue; }
-  const agent_t &agent () const { return queue ().agent (); }
-  process_t &process () const { return agent ().process (); }
-  const architecture_t &architecture () const
-  {
-    return queue ().architecture ();
-  }
+  const agent_t &agent () const;
+  process_t &process () const;
+  const architecture_t &architecture () const;
 };
 
 } /* namespace amd::dbgapi */

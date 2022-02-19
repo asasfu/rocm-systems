@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -43,9 +43,8 @@ displaced_stepping_t::displaced_stepping_t (
 {
   dbgapi_assert (m_original_instruction.is_valid ());
 
-  dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO, "created new %s (from=%#lx%s)",
-              to_string (id ()).c_str (), m_from,
-              m_to ? string_printf (", to=%#lx", m_to->get ()).c_str () : "");
+  log_info ("created new %s (from=%#lx%s)", to_string (id ()).c_str (), m_from,
+            m_to ? string_printf (", to=%#lx", m_to->get ()).c_str () : "");
 }
 
 displaced_stepping_t::~displaced_stepping_t ()
@@ -53,8 +52,7 @@ displaced_stepping_t::~displaced_stepping_t ()
   dbgapi_assert (m_reference_count == 0
                  && "all displaced stepping operations should have completed");
 
-  dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO, "destructed %s",
-              to_string (id ()).c_str ());
+  log_info ("destructed %s", to_string (id ()).c_str ());
 }
 
 void
@@ -125,8 +123,6 @@ amd_dbgapi_displaced_stepping_start (
     wave->displaced_stepping_start (saved_instruction_bytes);
 
     *displaced_stepping_id = wave->displaced_stepping ()->id ();
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
@@ -169,8 +165,6 @@ amd_dbgapi_displaced_stepping_complete (
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY);
 
     wave->displaced_stepping_complete ();
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
@@ -198,8 +192,6 @@ amd_dbgapi_displaced_stepping_get_info (
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_DISPLACED_STEPPING_ID);
 
     displaced_stepping->get_info (query, value_size, value);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_DISPLACED_STEPPING_ID,

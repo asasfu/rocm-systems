@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,8 @@
 #include "logging.h"
 #include "process.h"
 #include "utils.h"
+
+#include <limits>
 
 namespace amd::dbgapi
 {
@@ -195,8 +197,6 @@ amd_dbgapi_set_watchpoint (amd_dbgapi_process_id_t process_id,
     process->insert_watchpoint (watchpoint);
 
     *watchpoint_id = watchpoint.id ();
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
@@ -228,8 +228,6 @@ amd_dbgapi_remove_watchpoint (amd_dbgapi_process_id_t process_id,
 
     process->remove_watchpoint (*watchpoint);
     process->destroy (watchpoint);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
@@ -255,8 +253,6 @@ amd_dbgapi_watchpoint_get_info (amd_dbgapi_watchpoint_id_t watchpoint_id,
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_WATCHPOINT_ID);
 
     watchpoint->get_info (query, value_size, value);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WATCHPOINT_ID,

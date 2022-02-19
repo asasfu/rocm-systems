@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,9 @@
         amd::dbgapi::detail::log (level, format, ##__VA_ARGS__);              \
     }                                                                         \
   while (0)
+
+#define log_info(...) dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO, __VA_ARGS__)
+#define log_verbose(...) dbgapi_log (AMD_DBGAPI_LOG_LEVEL_VERBOSE, __VA_ARGS__)
 
 namespace amd::dbgapi
 {

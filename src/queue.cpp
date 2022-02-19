@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,19 @@
 namespace amd::dbgapi
 {
 
+process_t &
+queue_t::process () const
+{
+  return agent ().process ();
+}
+
+const architecture_t &
+queue_t::architecture () const
+{
+  dbgapi_assert (agent ().architecture ());
+  return *agent ().architecture ();
+}
+
 namespace detail
 {
 
@@ -57,14 +70,38 @@ private:
 
   struct context_save_area_header_s
   {
-    uint32_t ctrl_stack_offset;
-    uint32_t ctrl_stack_size;
+    uint32_t control_stack_offset;
+    uint32_t control_stack_size;
     uint32_t wave_state_offset;
     uint32_t wave_state_size;
     uint32_t debugger_memory_offset;
     uint32_t debugger_memory_size;
   };
 
+  class aql_dispatch_t : public dispatch_t
+  {
+  private:
+    hsa_kernel_dispatch_packet_t m_packet{};
+    std::unique_ptr<const architecture_t::kernel_descriptor_t>
+      m_kernel_descriptor{};
+
+  public:
+    aql_dispatch_t (amd_dbgapi_dispatch_id_t dispatch_id,
+                    compute_queue_t &queue,
+                    amd_dbgapi_os_queue_packet_id_t os_queue_packet_id);
+
+    const architecture_t::kernel_descriptor_t &
+    kernel_descriptor () const override
+    {
+      dbgapi_assert (m_kernel_descriptor);
+      return *m_kernel_descriptor;
+    }
+    void get_info (amd_dbgapi_dispatch_info_t query, size_t value_size,
+                   void *value) const override;
+  };
+
+  std::optional<amd_dbgapi_os_queue_packet_id_t> m_read_packet_id{};
+  std::optional<amd_dbgapi_os_queue_packet_id_t> m_write_packet_id{};
   amd_dbgapi_global_address_t m_scratch_backing_memory_address{ 0 };
   uint32_t m_compute_tmpring_size{ 0 };
 
@@ -90,8 +127,10 @@ private:
      deleted, as these waves are no longer active.  */
   monotonic_counter_t<epoch_t, 1> m_next_wave_mark{};
 
-  dispatch_t const m_dummy_dispatch;
   hsa_queue_t m_hsa_queue{};
+
+  std::optional<amd_dbgapi_os_queue_packet_id_t>
+  get_os_queue_packet_id (architecture_t::cwsr_record_t &cwsr_record) const;
 
   displaced_instruction_ptr_t
   allocate_displaced_instruction (const instruction_t &instruction) override;
@@ -124,6 +163,8 @@ public:
             amd_dbgapi_size_t /* size */>
   scratch_memory_region (uint32_t engine_id, uint32_t slot_id) const override;
 
+  size_t packet_size () const override { return aql_packet_size; };
+
   void active_packets_info (amd_dbgapi_os_queue_packet_id_t *read_packet_id_p,
                             amd_dbgapi_os_queue_packet_id_t *write_packet_id_p,
                             size_t *packets_byte_size_p) const override;
@@ -133,10 +174,145 @@ public:
                              void *memory, size_t memory_size) const override;
 };
 
+aql_queue_t::aql_dispatch_t::aql_dispatch_t (
+  amd_dbgapi_dispatch_id_t dispatch_id, compute_queue_t &queue,
+  amd_dbgapi_os_queue_packet_id_t os_queue_packet_id)
+  : dispatch_t (dispatch_id, queue, os_queue_packet_id)
+{
+  amd_dbgapi_global_address_t packet_address
+    = queue.address ()
+      + (os_queue_packet_id * aql_packet_size) % queue.size ();
+
+  /* Read the dispatch packet and kernel descriptor.  */
+  process ().read_global_memory (packet_address, &m_packet);
+
+  m_kernel_descriptor = architecture ().make_kernel_descriptor (
+    process (), m_packet.kernel_object);
+}
+
+void
+aql_queue_t::aql_dispatch_t::get_info (amd_dbgapi_dispatch_info_t query,
+                                       size_t value_size, void *value) const
+{
+  switch (query)
+    {
+    case AMD_DBGAPI_DISPATCH_INFO_QUEUE:
+      utils::get_info (value_size, value, queue ().id ());
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_AGENT:
+      utils::get_info (value_size, value, agent ().id ());
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_PROCESS:
+      utils::get_info (value_size, value, process ().id ());
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_ARCHITECTURE:
+      utils::get_info (value_size, value, architecture ().id ());
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_OS_QUEUE_PACKET_ID:
+      utils::get_info (value_size, value, os_queue_packet_id ());
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_BARRIER:
+      utils::get_info (value_size, value,
+                       utils::bit_extract (m_packet.header,
+                                           HSA_PACKET_HEADER_BARRIER,
+                                           HSA_PACKET_HEADER_BARRIER)
+                         ? AMD_DBGAPI_DISPATCH_BARRIER_PRESENT
+                         : AMD_DBGAPI_DISPATCH_BARRIER_NONE);
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_ACQUIRE_FENCE:
+      static_assert ((int)AMD_DBGAPI_DISPATCH_FENCE_SCOPE_NONE
+                       == (int)HSA_FENCE_SCOPE_NONE,
+                     "amd_dbgapi_dispatch_fence_scope_t != hsa_fence_scope_t");
+      static_assert ((int)AMD_DBGAPI_DISPATCH_FENCE_SCOPE_AGENT
+                       == (int)HSA_FENCE_SCOPE_AGENT,
+                     "amd_dbgapi_dispatch_fence_scope_t != hsa_fence_scope_t");
+      static_assert ((int)AMD_DBGAPI_DISPATCH_FENCE_SCOPE_SYSTEM
+                       == (int)HSA_FENCE_SCOPE_SYSTEM,
+                     "amd_dbgapi_dispatch_fence_scope_t != hsa_fence_scope_t");
+
+      utils::get_info (
+        value_size, value,
+        static_cast<amd_dbgapi_dispatch_fence_scope_t> (utils::bit_extract (
+          m_packet.header, HSA_PACKET_HEADER_SCACQUIRE_FENCE_SCOPE,
+          HSA_PACKET_HEADER_SCACQUIRE_FENCE_SCOPE
+            + HSA_PACKET_HEADER_WIDTH_SCACQUIRE_FENCE_SCOPE - 1)));
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_RELEASE_FENCE:
+      utils::get_info (
+        value_size, value,
+        static_cast<amd_dbgapi_dispatch_fence_scope_t> (utils::bit_extract (
+          m_packet.header, HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE,
+          HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE
+            + HSA_PACKET_HEADER_WIDTH_SCRELEASE_FENCE_SCOPE - 1)));
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_GRID_DIMENSIONS:
+      utils::get_info (
+        value_size, value,
+        static_cast<uint32_t> (utils::bit_extract (
+          m_packet.setup, HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS,
+          HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS
+            + HSA_KERNEL_DISPATCH_PACKET_SETUP_WIDTH_DIMENSIONS - 1)));
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_WORK_GROUP_SIZES:
+      {
+        uint16_t workgroup_sizes[3]
+          = { m_packet.workgroup_size_x, m_packet.workgroup_size_y,
+              m_packet.workgroup_size_z };
+        utils::get_info (value_size, value, workgroup_sizes);
+        return;
+      }
+    case AMD_DBGAPI_DISPATCH_INFO_GRID_SIZES:
+      {
+        uint32_t grid_sizes[3] = { m_packet.grid_size_x, m_packet.grid_size_y,
+                                   m_packet.grid_size_z };
+        utils::get_info (value_size, value, grid_sizes);
+        return;
+      }
+    case AMD_DBGAPI_DISPATCH_INFO_PRIVATE_SEGMENT_SIZE:
+      utils::get_info (
+        value_size, value,
+        static_cast<amd_dbgapi_size_t> (m_packet.private_segment_size));
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_GROUP_SEGMENT_SIZE:
+      utils::get_info (
+        value_size, value,
+        static_cast<amd_dbgapi_size_t> (m_packet.group_segment_size));
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_KERNEL_ARGUMENT_SEGMENT_ADDRESS:
+      utils::get_info (value_size, value, m_packet.kernarg_address);
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_KERNEL_DESCRIPTOR_ADDRESS:
+      utils::get_info (value_size, value, kernel_descriptor ().address ());
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_KERNEL_CODE_ENTRY_ADDRESS:
+      utils::get_info (value_size, value,
+                       kernel_descriptor ().entry_address ());
+      return;
+
+    case AMD_DBGAPI_DISPATCH_INFO_KERNEL_COMPLETION_ADDRESS:
+      utils::get_info (value_size, value, m_packet.completion_signal);
+      return;
+    }
+
+  throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
+}
+
 aql_queue_t::aql_queue_t (amd_dbgapi_queue_id_t queue_id, const agent_t &agent,
                           const os_queue_snapshot_entry_t &os_queue_info)
-  : compute_queue_t (queue_id, agent, os_queue_info),
-    m_dummy_dispatch (AMD_DBGAPI_DISPATCH_NONE, *this, 0, 0)
+  : compute_queue_t (queue_id, agent, os_queue_info)
 {
   process_t &process = this->process ();
 
@@ -148,6 +324,13 @@ aql_queue_t::aql_queue_t (amd_dbgapi_queue_id_t queue_id, const agent_t &agent,
 
   if (!header.debugger_memory_offset || !header.debugger_memory_size)
     fatal_error ("Per-queue memory reserved for the debugger is missing");
+
+  /* Make sure the debugger memory is aligned so that it can be used to store
+     displaced instructions, and that each chunk out of that memory register is
+     also aligned.  */
+  dbgapi_assert (
+    utils::is_aligned (debugger_memory_chunk_size,
+                       architecture ().minimum_instruction_alignment ()));
 
   m_debugger_memory_base = utils::align_up (
     ctx_save_base + header.debugger_memory_offset, debugger_memory_chunk_size);
@@ -279,6 +462,12 @@ aql_queue_t::allocate_displaced_instruction (const instruction_t &instruction)
     = instruction_buffer_address + debugger_memory_chunk_size
       - assert_instruction.size () - instruction.size ();
 
+  /* Make sure the new displaced instruction is properly aligned for this
+     architecture.  */
+  dbgapi_assert (
+    utils::is_aligned (displaced_instruction_address,
+                       architecture ().minimum_instruction_alignment ()));
+
   process ().write_global_memory (displaced_instruction_address,
                                   instruction.data (), instruction.size ());
 
@@ -291,6 +480,10 @@ aql_queue_t::queue_state_changed ()
   switch (state ())
     {
     case state_t::running:
+      /* Reset member variables that are undefined while the queue is in the
+         running state.  */
+      m_read_packet_id.reset ();
+      m_write_packet_id.reset ();
       m_waves_running.reset ();
 
       /* The queue just changed state and is about to be placed back onto the
@@ -339,6 +532,14 @@ aql_queue_t::queue_state_changed ()
           - offsetof (amd_queue_t, read_dispatch_id),
         &m_compute_tmpring_size);
 
+      /* Read the queue's write_packet_id and read_packet_id.  */
+
+      process ().read_global_memory (m_os_queue_info.write_pointer_address,
+                                     &m_write_packet_id.emplace ());
+
+      process ().read_global_memory (m_os_queue_info.read_pointer_address,
+                                     &m_read_packet_id.emplace ());
+
       /* Iterate the control stack and update/create waves that were saved in
          the last context wave save.  Waves that are no longer present will be
          destroyed.  */
@@ -350,30 +551,63 @@ aql_queue_t::queue_state_changed ()
     }
 }
 
+std::optional<amd_dbgapi_os_queue_packet_id_t>
+aql_queue_t::get_os_queue_packet_id (
+  architecture_t::cwsr_record_t &cwsr_record) const
+{
+  if (!process ().is_flag_set (process_t::flag_t::ttmps_setup_enabled)
+      && !agent ().os_info ().ttmps_always_initialized)
+    return std::nullopt;
+
+  auto packet_address = architecture ().dispatch_packet_address (cwsr_record);
+  if (!packet_address)
+    return std::nullopt;
+
+  /* Calculate the monotonic dispatch id for this packet.  It is
+     between read_packet_id and write_packet_id.  */
+
+  const size_t ring_size = size () / aql_packet_size;
+
+  /* The read_packet_id and write_packet_id should have been read when the
+     queue was suspended and hold a value.  */
+  dbgapi_assert (m_read_packet_id && m_write_packet_id);
+
+  amd_dbgapi_os_queue_packet_id_t os_queue_packet_id
+    = (*packet_address - address ()) / aql_packet_size
+      + (*m_read_packet_id / ring_size) * ring_size;
+
+  if (os_queue_packet_id < *m_read_packet_id
+      && (*m_read_packet_id % ring_size) > (*m_write_packet_id % ring_size))
+    os_queue_packet_id += ring_size;
+
+  /* Check that the dispatch_id is between the command
+     processor's read_id and write_id.  */
+  if (os_queue_packet_id < *m_read_packet_id
+      || os_queue_packet_id >= *m_write_packet_id)
+    {
+      warning ("os_queue_packet_id %#lx is not within [%#lx..%#lx[ in %s",
+               os_queue_packet_id, *m_read_packet_id, *m_write_packet_id,
+               to_string (id ()).c_str ());
+      return std::nullopt;
+    }
+
+  return os_queue_packet_id;
+}
+
 void
 aql_queue_t::update_waves ()
 {
-  process_t &process = this->process ();
-
-  /* Read the queue's write_dispatch_id and read_dispatch_id.  */
-
-  uint64_t write_dispatch_id;
-  process.read_global_memory (m_os_queue_info.write_pointer_address,
-                              &write_dispatch_id);
-
-  uint64_t read_dispatch_id;
-  process.read_global_memory (m_os_queue_info.read_pointer_address,
-                              &read_dispatch_id);
-
   /* Value used to mark waves that are found in the context save area. When
      sweeping, any wave found with a mark less than the current mark will be
      deleted, as these waves are no longer active.  */
   const epoch_t wave_mark = wave_t::next_mark ();
   wave_t *group_leader = nullptr;
 
-  auto decode_one_wave = [=, &process, &group_leader] (auto cwsr_record)
+  auto process_cwsr_record
+    = [this, wave_mark, &group_leader] (auto cwsr_record)
   {
     dbgapi_assert (*this == cwsr_record->queue ());
+    process_t &process = cwsr_record->process ();
 
     auto prefetch_begin
       = cwsr_record->register_address (amdgpu_regnum_t::first_hwreg).value ();
@@ -386,118 +620,75 @@ aql_queue_t::update_waves ()
                                       prefetch_end - prefetch_begin);
 
     std::optional<amd_dbgapi_wave_id_t> wave_id;
+    wave_t *wave = nullptr;
+
     if (process.is_flag_set (process_t::flag_t::runtime_enable_during_attach))
       {
         /* Assign new ids to all waves regardless of the content of their
            wave_id register.  This is needed during attach as waves created
-           before the debugger attached to the process may have corrupted
-           wave_ids.
-
-           We will never have hidden waves when assigning new ids. All waves
-           seen in the control stack get a new wave_t instance with a new wave
-           id.
-         */
+           before the debugger attached to the process may have stale
+           wave_ids.  */
       }
-    else
-      wave_id = cwsr_record->id ();
-
-    wave_t *wave = nullptr;
-
-    if (wave_id)
+    else if (wave_id = cwsr_record->id (); wave_id)
       {
-        static constexpr bool including_invisible_waves = true;
-        /* The wave already exists, so we should find it and update its context
-           save area address.  Search all waves, visible and invisible.  */
-        wave = process.find (*wave_id, including_invisible_waves);
+        /* The wave already has a wave_id, so we should find it in this queue.
+           Search all visible and invisible waves.  */
+        wave = process.find (*wave_id, true /* include invisible waves  */);
+
         if (!wave)
-          warning ("%s not found in the process map",
-                   to_string (*wave_id).c_str ());
+          {
+            warning ("%s not found in %s", to_string (*wave_id).c_str (),
+                     to_string (id ()).c_str ());
+
+            /* The wave_id may be corrupted, create a new wave and assign it a
+               new wave_id that is part of this queue's monotonic wave_id
+               sequence.  */
+            wave_id.reset ();
+          }
       }
 
-    bool is_new_wave = !wave;
-    if (is_new_wave)
+    if (!wave)
       {
-        const dispatch_t *dispatch = &m_dummy_dispatch;
+        const dispatch_t *kernel_dispatch;
 
-        bool ttmps_initialized
-          = process.is_flag_set (process_t::flag_t::ttmps_setup_enabled)
-            || agent ().os_info ().ttmps_always_initialized;
-
-        if (ttmps_initialized)
+        if (auto packet_id = get_os_queue_packet_id (*cwsr_record); !packet_id)
           {
-            amd_dbgapi_global_address_t dispatch_ptr
-              = architecture ().dispatch_packet_address (*cwsr_record);
-
-            if ((dispatch_ptr % aql_packet_size) != 0)
-              fatal_error ("dispatch_ptr is not aligned on the packet size");
-
-            /* Calculate the monotonic dispatch id for this packet.  It is
-               between read_dispatch_id and write_dispatch_id.  */
-
-            amd_dbgapi_os_queue_packet_id_t os_queue_packet_id
-              = (dispatch_ptr - address ()) / aql_packet_size;
-
-            /* Check that 0 <= os_queue_packet_id < queue_size.  */
-            if (os_queue_packet_id >= size () / aql_packet_size)
-              /* TODO: See comment above for corrupted wavefronts. This could
-                 be attached to a CORRUPT_DISPATCH instance.  */
-              fatal_error ("invalid os_queue_packet_id (%#lx)",
-                           os_queue_packet_id);
-
-            /* size must be a power of 2.  */
-            if (!utils::is_power_of_two (size ()))
-              fatal_error ("size is not a power of 2");
-
-            /* Need to mask by the number of packets in the ring (which is a
-               power of 2 so -1 makes the correct mask).  */
-            const uint64_t id_mask = size () / aql_packet_size - 1;
-
-            os_queue_packet_id
-              |= os_queue_packet_id >= (read_dispatch_id & id_mask)
-                   ? (read_dispatch_id & ~id_mask)
-                   : (write_dispatch_id & ~id_mask);
-
-            /* Check that the dispatch_id is between the command processor's
-               read_id and write_id.  */
-            if (read_dispatch_id > os_queue_packet_id
-                || os_queue_packet_id >= write_dispatch_id)
-              /* TODO: See comment above for corrupted wavefronts. This could
-                 be attached to a CORRUPT_DISPATCH instance.  */
-              fatal_error (
-                "invalid dispatch id (%#lx), with read_dispatch_id=%#lx, "
-                "and write_dispatch_id=%#lx",
-                os_queue_packet_id, read_dispatch_id, write_dispatch_id);
-
-            /* Check if the dispatch already exists.  */
-            dispatch = process.find_if (
-              [&] (const dispatch_t &x)
+            /* If this wave does not have a packet_id (ttmps are not setup
+               or may be corrupted), then use a dummy dispatch instance.  */
+            kernel_dispatch = &m_dummy_dispatch;
+          }
+        else
+          {
+            /* Find the dispatch this wave is associated with using the
+               packet_id.  The packet_id is only unique for a given queue.  */
+            kernel_dispatch = process.find_if (
+              [this, packet_id] (const dispatch_t &dispatch)
               {
-                return x.queue () == *this
-                       && x.os_queue_packet_id () == os_queue_packet_id;
+                return dispatch.queue () == *this
+                       && dispatch.os_queue_packet_id () == *packet_id;
               });
 
-            /* If we did not find the current dispatch, create a new one.  */
-            if (!dispatch)
-              dispatch = &process.create<dispatch_t> (
-                cwsr_record->queue (), /* queue  */
-                os_queue_packet_id,    /* os_queue_packet_id  */
-                dispatch_ptr);         /* packet_address  */
+            if (!kernel_dispatch)
+              kernel_dispatch = &process.create<aql_dispatch_t> (
+                cwsr_record->queue (), *packet_id);
           }
 
-        wave = &process.create<wave_t> (wave_id, *dispatch);
+        wave = &process.create<wave_t> (wave_id, *kernel_dispatch);
       }
 
-    bool first_wave = cwsr_record->is_first_wave ();
-    bool last_wave = cwsr_record->is_last_wave ();
+    bool is_first_wave = cwsr_record->is_first_wave ();
+    bool is_last_wave = cwsr_record->is_last_wave ();
 
     /* The first wave in the group is the group leader.  The group leader owns
        the backing store for the group memory (LDS).  */
-    if (first_wave)
+    if (is_first_wave)
       group_leader = wave;
 
     if (!group_leader)
       fatal_error ("No group_leader, the control stack may be corrupted");
 
+    /* Update this wave's state using the context save area as it may have
+       changed since the queue was last suspended (or the wave is new).  */
     wave->update (*group_leader, std::move (cwsr_record));
 
     if (wave->state () == AMD_DBGAPI_WAVE_STATE_RUN)
@@ -507,7 +698,7 @@ aql_queue_t::update_waves ()
        changed to not halted.  A wave is halted at launch if it is halted
        without having entered the trap handler, and its pc points to the kernel
        entry point.  */
-    if (is_new_wave && wave->state () == AMD_DBGAPI_WAVE_STATE_RUN
+    if (!wave->mark () && wave->state () == AMD_DBGAPI_WAVE_STATE_RUN
         && wave->pc ()
              == wave->dispatch ().kernel_descriptor ().entry_address ()
         && wave->is_halted ())
@@ -519,7 +710,7 @@ aql_queue_t::update_waves ()
 
     /* This was the last wave in the group. Make sure we have a new group
        leader for the remaining waves.  */
-    if (last_wave)
+    if (is_last_wave)
       group_leader = nullptr;
 
     /* Check that the wave is in the same group as its group leader.  */
@@ -529,58 +720,51 @@ aql_queue_t::update_waves ()
     wave->set_mark (wave_mark);
   };
 
-  amd_dbgapi_global_address_t ctx_save_base
-    = m_os_queue_info.ctx_save_restore_address;
+  process_t &process = this->process ();
 
-  /* Retrieve the used control stack size and used wave area from the context
-     save area header.  */
+  auto ctx_save_address = m_os_queue_info.ctx_save_restore_address;
 
-  struct context_save_area_header_s header;
-  process.read_global_memory (ctx_save_base, &header);
+  /* Retrieve the control stack and wave save area memory locations.  */
+  process.read_global_memory (ctx_save_address, &m_last_context_save_header);
 
-  /* Make sure the bottom of the ctrl stack == the start of the wave save
-     area.  */
-  if ((header.ctrl_stack_offset + header.ctrl_stack_size)
-      != (header.wave_state_offset - header.wave_state_size))
-    fatal_error ("Corrupted control stack or wave save area");
+  const auto &header = m_last_context_save_header;
+  auto control_stack_begin = ctx_save_address + header.control_stack_offset;
+  auto control_stack_end = control_stack_begin + header.control_stack_size;
+  auto wave_area_end = ctx_save_address + header.wave_state_offset;
+  auto wave_area_begin = wave_area_end - header.wave_state_size;
+
+  /* The control stack and the wave save area should be contiguous.  */
+  if (control_stack_end != wave_area_begin)
+    fatal_error ("corrupted context save area header");
 
   /* Start with 0 running waves.  When iterating the control stack (below) each
      discovered wave in the running state will increment this count.  */
   m_waves_running.emplace (0);
 
-  if (header.ctrl_stack_size)
+  if (control_stack_begin != control_stack_end)
     {
-      dbgapi_log (
-        AMD_DBGAPI_LOG_LEVEL_INFO,
-        "decoding %s's context save area: "
-        "ctrl_stk:[0x%lx..0x%lx[, wave_area:[0x%lx..0x%lx[",
-        to_string (id ()).c_str (), ctx_save_base + header.ctrl_stack_offset,
-        ctx_save_base + header.ctrl_stack_offset + header.ctrl_stack_size,
-        ctx_save_base + header.wave_state_offset - header.wave_state_size,
-        ctx_save_base + header.wave_state_offset);
+      log_info ("decoding %s's context save area: "
+                "ctrl_stk:[0x%llx..0x%llx[, wave_area:[0x%llx..0x%llx[",
+                to_string (id ()).c_str (), control_stack_begin,
+                control_stack_end, wave_area_begin, wave_area_end);
 
-      auto ctrl_stack = std::make_unique<uint32_t[]> (header.ctrl_stack_size
-                                                      / sizeof (uint32_t));
+      /* Read the entire control stack from the inferior in one go.  */
+      amd_dbgapi_size_t size = control_stack_end - control_stack_begin;
+      if (!utils::is_aligned (size, sizeof (uint32_t)))
+        fatal_error ("corrupted control stack");
 
-      /* Read the entire ctrl stack from the inferior.  */
-      process.read_global_memory (ctx_save_base + header.ctrl_stack_offset,
-                                  &ctrl_stack[0], header.ctrl_stack_size);
+      auto memory = std::make_unique<uint32_t[]> (size / sizeof (uint32_t));
+      process.read_global_memory (control_stack_begin, &memory[0], size);
 
-      /* Decode the control stack.  For each wave entry in the control stack,
-         the provided function is called with a wave descriptor and a pointer
-         to its context save area.  */
-
-      m_last_context_save_header = header;
-
+      /* Decode the control stack.  For each entry in the control stack,
+         the provided callback function is called with a CWSR record.  */
       size_t wave_count = architecture ().control_stack_iterate (
-        *this, &ctrl_stack[0], header.ctrl_stack_size / sizeof (uint32_t),
-        ctx_save_base + header.wave_state_offset, header.wave_state_size,
-        decode_one_wave);
+        *this, &memory[0], size / sizeof (uint32_t), wave_area_end,
+        wave_area_end - wave_area_begin, process_cwsr_record);
 
-      dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
-                  "%zu out of %zu wave%s running on %s", *m_waves_running,
-                  wave_count, wave_count > 1 ? "s" : "",
-                  to_string (id ()).c_str ());
+      log_info ("%zu out of %zu wave%s running on %s", *m_waves_running,
+                wave_count, wave_count > 1 ? "s" : "",
+                to_string (id ()).c_str ());
     }
 
   /* Iterate all waves belonging to this queue, and prune those with a mark
@@ -605,7 +789,7 @@ aql_queue_t::update_waves ()
 
   auto &&dispatch_range = process.range<dispatch_t> ();
   for (auto it = dispatch_range.begin (); it != dispatch_range.end ();)
-    if (it->queue () == *this && it->os_queue_packet_id () < read_dispatch_id)
+    if (it->queue () == *this && it->os_queue_packet_id () < m_read_packet_id)
       it = process.destroy (it);
     else
       ++it;
@@ -715,6 +899,8 @@ public:
   }
 
   amd_dbgapi_os_queue_type_t type () const override;
+
+  size_t packet_size () const override { return 1; };
 
   void active_packets_info (amd_dbgapi_os_queue_packet_id_t *read_packet_id_p,
                             amd_dbgapi_os_queue_packet_id_t *write_packet_id_p,
@@ -826,8 +1012,7 @@ queue_t::set_state (state_t state)
     queue_state_changed ();
 
   if (m_state == state_t::invalid)
-    dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO, "invalidated %s",
-                to_string (id ()).c_str ());
+    log_info ("invalidated %s", to_string (id ()).c_str ());
 }
 
 amd_dbgapi_global_address_t
@@ -935,8 +1120,6 @@ amd_dbgapi_queue_get_info (amd_dbgapi_queue_id_t queue_id,
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_QUEUE_ID);
 
     queue->get_info (query, value_size, value);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_QUEUE_ID,
@@ -969,8 +1152,6 @@ amd_dbgapi_process_queue_list (amd_dbgapi_process_id_t process_id,
 
     std::tie (*queues, *queue_count)
       = utils::get_handle_list<queue_t> (processes, changed);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
@@ -1025,8 +1206,6 @@ amd_dbgapi_queue_packet_list (
     *read_packet_id_p = read_packet_id;
     *write_packet_id_p = write_packet_id;
     *packets_byte_size_p = memory_size;
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,

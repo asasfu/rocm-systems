@@ -1,4 +1,4 @@
-## Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+## Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 ##
 ## Permission is hereby granted, free of charge, to any person obtaining a copy
 ## of this software and associated documentation files (the "Software"), to
@@ -20,7 +20,7 @@
 
 cmake_minimum_required(VERSION 3.8)
 
-project(AMD_DBGAPI VERSION 0.62.3)
+project(AMD_DBGAPI VERSION 0.62.4)
 
 # The project command does not set the <PROJECT-NAME>_NAME variable so must set
 # it explicitly.

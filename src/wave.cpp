@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -65,15 +65,50 @@ wave_t::~wave_t ()
     raise_event (AMD_DBGAPI_EVENT_KIND_WAVE_COMMAND_TERMINATED);
 }
 
+compute_queue_t &
+wave_t::queue () const
+{
+  return dispatch ().queue ();
+}
+
+const agent_t &
+wave_t::agent () const
+{
+  return queue ().agent ();
+}
+
+process_t &
+wave_t::process () const
+{
+  return agent ().process ();
+}
+
+const architecture_t &
+wave_t::architecture () const
+{
+  return queue ().architecture ();
+}
+
+bool
+wave_t::is_halted () const
+{
+  return architecture ().wave_get_halt (*this);
+}
+
+void
+wave_t::set_halted (bool halted)
+{
+  architecture ().wave_set_halt (*this, halted);
+}
+
 void
 wave_t::set_visibility (visibility_t visibility)
 {
   if (m_visibility == visibility)
     return;
 
-  dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO, "changing %s's visibility to %s",
-              to_string (id ()).c_str (),
-              visibility == visibility_t::visible ? "visible" : "hidden");
+  log_info ("changing %s's visibility to %s", to_string (id ()).c_str (),
+            visibility == visibility_t::visible ? "visible" : "hidden");
 
   m_visibility = visibility;
 
@@ -112,21 +147,25 @@ wave_t::pc () const
 std::optional<instruction_t>
 wave_t::instruction_at_pc (size_t pc_adjust) const
 {
-  size_t size = architecture ().largest_instruction_size ();
-  std::vector<std::byte> instruction_bytes (size);
+  size_t instruction_size = architecture ().largest_instruction_size ();
+  std::vector<std::byte> instruction_bytes (instruction_size);
+
+  amd_dbgapi_global_address_t instruction_pc = pc () + pc_adjust;
+  dbgapi_assert (utils::is_aligned (
+    instruction_pc, architecture ().minimum_instruction_alignment ()));
 
   try
     {
-      size = process ().read_global_memory_partial (
-        pc () + pc_adjust, instruction_bytes.data (), size);
+      instruction_size = process ().read_global_memory_partial (
+        instruction_pc, instruction_bytes.data (), instruction_size);
     }
   catch (...)
     {
       return std::nullopt;
     }
 
-  /* Trim partial and unread words.  */
-  instruction_bytes.resize (size);
+  /* Trim partial and unread bytes.  */
+  instruction_bytes.resize (instruction_size);
 
   return instruction_t (architecture (), std::move (instruction_bytes));
 }
@@ -151,8 +190,7 @@ wave_t::park ()
   /* From now on, every read/write to the pc register will be from/to
      m_parked_pc.  The real pc in the context save area will be untouched.  */
 
-  dbgapi_log (AMD_DBGAPI_LOG_LEVEL_VERBOSE, "parked %s (pc=%#lx)",
-              to_string (id ()).c_str (), m_parked_pc);
+  log_verbose ("parked %s (pc=%#lx)", to_string (id ()).c_str (), m_parked_pc);
 }
 
 void
@@ -171,8 +209,7 @@ wave_t::unpark ()
 
   write_register (amdgpu_regnum_t::pc, saved_pc);
 
-  dbgapi_log (AMD_DBGAPI_LOG_LEVEL_VERBOSE, "unparked %s (pc=%#lx)",
-              to_string (id ()).c_str (), pc ());
+  log_verbose ("unparked %s (pc=%#lx)", to_string (id ()).c_str (), pc ());
 }
 
 void
@@ -264,11 +301,10 @@ wave_t::displaced_stepping_start (const void *saved_instruction_bytes)
     {
       write_register (amdgpu_regnum_t::pc, *displaced_stepping->to ());
 
-      dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
-                  "changing %s's pc from %#lx to %#lx (started %s)",
-                  to_string (id ()).c_str (), displaced_stepping->from (),
-                  *displaced_stepping->to (),
-                  to_string (displaced_stepping->id ()).c_str ());
+      log_info ("changing %s's pc from %#lx to %#lx (started %s)",
+                to_string (id ()).c_str (), displaced_stepping->from (),
+                *displaced_stepping->to (),
+                to_string (displaced_stepping->id ()).c_str ());
     }
 
   displaced_stepping_t::retain (displaced_stepping);
@@ -289,12 +325,11 @@ wave_t::displaced_stepping_complete ()
                                                 - *m_displaced_stepping->to ();
       write_register (amdgpu_regnum_t::pc, restored_pc);
 
-      dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
-                  "changing %s's pc from %#lx to %#lx (%s %s)",
-                  to_string (id ()).c_str (), displaced_pc, pc (),
-                  displaced_pc == *m_displaced_stepping->to () ? "aborted"
-                                                               : "completed",
-                  to_string (m_displaced_stepping->id ()).c_str ());
+      log_info ("changing %s's pc from %#lx to %#lx (%s %s)",
+                to_string (id ()).c_str (), displaced_pc, pc (),
+                displaced_pc == *m_displaced_stepping->to () ? "aborted"
+                                                             : "completed",
+                to_string (m_displaced_stepping->id ()).c_str ());
     }
 
   displaced_stepping_t::release (m_displaced_stepping);
@@ -311,6 +346,12 @@ wave_t::update (const wave_t &group_leader,
   dbgapi_assert (cwsr_record != nullptr);
   m_cwsr_record = std::move (cwsr_record);
   m_group_leader = &group_leader;
+
+  /* Check that the PC in the wave state save area is correctly aligned.  */
+  if (!utils::is_aligned (pc (),
+                          architecture ().minimum_instruction_alignment ()))
+    fatal_error ("corrupted state for %s: misaligned pc: %#lx",
+                 to_string (id ()).c_str (), pc ());
 
   /* Update the wave's state if this is a new wave, or if the wave was running
      the last time the queue it belongs to was resumed.  */
@@ -335,13 +376,11 @@ wave_t::update (const wave_t &group_leader,
         = architecture ().wave_get_state (*this);
     }
 
-  dbgapi_log (AMD_DBGAPI_LOG_LEVEL_VERBOSE,
-              "%s %s%s (pc=%#lx, state=%s) "
-              "context_save:[%#lx..%#lx[",
-              first_update ? "created" : "updated",
-              visibility () != visibility_t::visible ? "invisible " : "",
-              to_string (id ()).c_str (), pc (), to_string (m_state).c_str (),
-              m_cwsr_record->begin (), m_cwsr_record->end ());
+  log_verbose ("%s %s%s (pc=%#lx, state=%s) context_save:[%#lx..%#lx[",
+               first_update ? "created" : "updated",
+               visibility () != visibility_t::visible ? "invisible " : "",
+               to_string (id ()).c_str (), pc (), to_string (m_state).c_str (),
+               m_cwsr_record->begin (), m_cwsr_record->end ());
 
   /* The wave was running, and it is now stopped.  */
   if (prev_state != AMD_DBGAPI_WAVE_STATE_STOP
@@ -420,15 +459,14 @@ wave_t::set_state (amd_dbgapi_wave_state_t state,
       return;
     }
 
-  dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO,
-              "changing %s%s's state from %s to %s %s(pc=%#lx)",
-              visibility () != visibility_t::visible ? "invisible " : "",
-              to_string (id ()).c_str (), to_string (prev_state).c_str (),
-              to_string (state).c_str (),
-              exceptions != AMD_DBGAPI_EXCEPTION_NONE
-                ? ("with " + to_string (exceptions) + " ").c_str ()
-                : "",
-              pc ());
+  log_info ("changing %s%s's state from %s to %s %s(pc=%#lx)",
+            visibility () != visibility_t::visible ? "invisible " : "",
+            to_string (id ()).c_str (), to_string (prev_state).c_str (),
+            to_string (state).c_str (),
+            exceptions != AMD_DBGAPI_EXCEPTION_NONE
+              ? ("with " + to_string (exceptions) + " ").c_str ()
+              : "",
+            pc ());
 
   architecture.wave_set_state (*this, state, exceptions);
   m_state = state;
@@ -636,8 +674,24 @@ wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
 
   if (m_is_parked && regnum == amdgpu_regnum_t::pc)
     {
-      memcpy (reinterpret_cast<char *> (&m_parked_pc) + offset, value,
-              value_size);
+      if (auto *read_only
+          = architecture ().register_read_only_mask (amdgpu_regnum_t::pc);
+          read_only != nullptr)
+        {
+          amd_dbgapi_global_address_t pc = m_parked_pc;
+          memcpy (reinterpret_cast<char *> (&pc) + offset, value, value_size);
+
+          amd_dbgapi_global_address_t mask
+            = *static_cast<const amd_dbgapi_global_address_t *> (read_only);
+
+          m_parked_pc = (pc & ~mask) | (m_parked_pc & mask);
+        }
+      else
+        {
+          memcpy (reinterpret_cast<char *> (&m_parked_pc) + offset, value,
+                  value_size);
+        }
+
       return;
     }
 
@@ -655,6 +709,40 @@ wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
 
       /* The wave's saved state may have changed location in memory.  */
       reg_addr = register_address (regnum);
+    }
+
+  /* This register might not be entirely writable.  Read-only bits in the new
+     value must be replaced by the current content of the register.  */
+  if (auto *read_only = architecture ().register_read_only_mask (regnum);
+      read_only != nullptr)
+    {
+      void *masked_value = alloca (value_size);
+      process ().read_global_memory (*reg_addr + offset, masked_value,
+                                     value_size);
+
+      if (offset == 0 && value_size == 8)
+        {
+          /* Optimize the case when writing an entire 64-bit register.  */
+          uint64_t mask = *static_cast<const uint64_t *> (read_only);
+          uint64_t &x8 = *static_cast<uint64_t *> (masked_value);
+          x8 = (*static_cast<const uint64_t *> (value) & ~mask) | (x8 & mask);
+        }
+      else if (offset == 0 && value_size == 4)
+        {
+          /* Optimize the case when writing an entire 32-bit register.  */
+          uint32_t mask = *static_cast<const uint32_t *> (read_only);
+          uint32_t &x4 = *static_cast<uint32_t *> (masked_value);
+          x4 = (*static_cast<const uint32_t *> (value) & ~mask) | (x4 & mask);
+        }
+      else /* General case, mask one byte at a time.  */
+        for (size_t i = 0; i < value_size; ++i)
+          {
+            char mask = static_cast<const char *> (read_only)[offset + i];
+            char &x1 = static_cast<char *> (masked_value)[i];
+            x1 = (*static_cast<const char *> (value) & ~mask) | (x1 & mask);
+          }
+
+      value = masked_value;
     }
 
   process ().write_global_memory (*reg_addr + offset, value, value_size);
@@ -781,6 +869,16 @@ wave_t::xfer_local_memory (amd_dbgapi_segment_address_t segment_address,
            ? process ().read_global_memory_partial (global_address, read, size)
            : process ().write_global_memory_partial (global_address, write,
                                                      size);
+}
+
+/* Return the wave's scratch memory region (address and size).  */
+std::pair<amd_dbgapi_global_address_t /* address */,
+          amd_dbgapi_size_t /* size */>
+wave_t::scratch_memory_region () const
+{
+  return queue ().scratch_memory_region (
+    m_cwsr_record->shader_engine_id (),
+    m_cwsr_record->scratch_scoreboard_id ());
 }
 
 size_t
@@ -984,8 +1082,6 @@ amd_dbgapi_wave_stop (amd_dbgapi_wave_id_t wave_id)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID);
 
     wave->set_state (AMD_DBGAPI_WAVE_STATE_STOP);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
@@ -1046,8 +1142,6 @@ amd_dbgapi_wave_resume (amd_dbgapi_wave_id_t wave_id,
                        ? AMD_DBGAPI_WAVE_STATE_SINGLE_STEP
                        : AMD_DBGAPI_WAVE_STATE_RUN,
                      exceptions);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
@@ -1088,8 +1182,6 @@ amd_dbgapi_wave_get_info (amd_dbgapi_wave_id_t wave_id,
       };
 
     wave->get_info (query, value_size, value);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
@@ -1149,8 +1241,6 @@ amd_dbgapi_process_wave_list (amd_dbgapi_process_id_t process_id,
     std::tie (*waves, *wave_count) = wave_list;
     if (changed)
       *changed = wave_list_changed;
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,

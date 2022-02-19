@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -58,8 +58,7 @@ amd_dbgapi_initialize (struct amd_dbgapi_callbacks_s *callbacks)
     process_t::reset_all_ids ();
     detail::is_initialized = true;
 
-    dbgapi_log (
-      AMD_DBGAPI_LOG_LEVEL_VERBOSE,
+    log_verbose (
       "library info: file_name=\"%s\", build_info=%s",
       [] ()
       {
@@ -69,8 +68,6 @@ amd_dbgapi_initialize (struct amd_dbgapi_callbacks_s *callbacks)
         return dl_info.dli_fname;
       }(),
       AMD_DBGAPI_BUILD_INFO);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_ALREADY_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
@@ -103,8 +100,6 @@ amd_dbgapi_finalize ()
         process.detach ();
         process_t::destroy_process (&process);
       }
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);

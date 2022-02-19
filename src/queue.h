@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,10 @@
 #ifndef AMD_DBGAPI_QUEUE_H
 #define AMD_DBGAPI_QUEUE_H 1
 
-#include "agent.h"
 #include "amd-dbgapi.h"
+#include "architecture.h"
 #include "debug.h"
+#include "dispatch.h"
 #include "handle_object.h"
 #include "memory.h"
 #include "os_driver.h"
@@ -37,7 +38,7 @@
 namespace amd::dbgapi
 {
 
-class architecture_t;
+class agent_t;
 class process_t;
 class wave_t;
 
@@ -104,8 +105,12 @@ public:
 
   /* Return the address of the memory holding the queue packets.  */
   amd_dbgapi_global_address_t address () const;
+
   /* Return the size of the memory holding the queue packets.  */
   amd_dbgapi_size_t size () const;
+
+  /* Return the byte size of a packet in this queue.  */
+  virtual size_t packet_size () const = 0;
 
   /* Return true if the queue does not have any visible activity.  */
   virtual bool is_all_stopped () const { return false; }
@@ -124,12 +129,8 @@ public:
                  void *value) const;
 
   const agent_t &agent () const { return m_agent; }
-  process_t &process () const { return agent ().process (); }
-  const architecture_t &architecture () const
-  {
-    dbgapi_assert (agent ().architecture ());
-    return *agent ().architecture ();
-  }
+  process_t &process () const;
+  const architecture_t &architecture () const;
 };
 
 /* Interface implemented by all compute queues.  */
@@ -145,13 +146,45 @@ public:
     std::function<void (amd_dbgapi_global_address_t)>>;
 
 protected:
+  class dummy_dispatch_t : public dispatch_t
+  {
+  private:
+    class dummy_descriptor_t : public architecture_t::kernel_descriptor_t
+    {
+    public:
+      dummy_descriptor_t (process_t &process)
+        : architecture_t::kernel_descriptor_t (process, 0)
+      {
+      }
+      amd_dbgapi_global_address_t entry_address () const override { return 0; }
+    } m_dummy_descriptor;
+
+  public:
+    dummy_dispatch_t (compute_queue_t &queue)
+      : dispatch_t (AMD_DBGAPI_DISPATCH_NONE, queue, 0),
+        m_dummy_descriptor (queue.process ())
+    {
+    }
+    const architecture_t::kernel_descriptor_t &
+    kernel_descriptor () const override
+    {
+      return m_dummy_descriptor;
+    }
+    void get_info (amd_dbgapi_dispatch_info_t /* query  */,
+                   size_t /* value_size  */,
+                   void * /* value  */) const override
+    {
+      dbgapi_assert_not_reached ("should not call this");
+    }
+  } m_dummy_dispatch;
+
   /* Number of waves in the running state.  Only holds a value when the queue
      is suspended.  */
   std::optional<size_t> m_waves_running{};
 
   compute_queue_t (amd_dbgapi_queue_id_t queue_id, const agent_t &agent,
                    const os_queue_snapshot_entry_t &os_queue_info)
-    : queue_t (queue_id, agent, os_queue_info)
+    : queue_t (queue_id, agent, os_queue_info), m_dummy_dispatch (*this)
   {
   }
 

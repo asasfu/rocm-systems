@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -201,6 +201,14 @@ align_up (Integral x, int alignment)
 {
   dbgapi_assert (is_power_of_two (alignment));
   return (x + alignment - 1) & -alignment;
+}
+
+template <typename Integral>
+constexpr bool
+is_aligned (Integral x, int alignment)
+{
+  dbgapi_assert (is_power_of_two (alignment));
+  return x == align_down (x, alignment);
 }
 
 namespace detail

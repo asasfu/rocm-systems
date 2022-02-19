@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2021 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -278,8 +278,6 @@ amd_dbgapi_architecture_register_class_get_info (
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_CLASS_ID);
 
     register_class->get_info (query, value_size, value);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_CLASS_ID,
@@ -321,8 +319,6 @@ amd_dbgapi_architecture_register_class_list (
 
     *register_class_count = count;
     *register_classes = class_ids.release ();
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID,
@@ -398,8 +394,6 @@ amd_dbgapi_register_get_info (amd_dbgapi_register_id_t register_id,
 
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
     }();
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_ID,
@@ -441,8 +435,6 @@ amd_dbgapi_architecture_register_list (
 
     *register_count = count;
     *registers = retval.release ();
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID,
@@ -488,8 +480,6 @@ amd_dbgapi_register_is_in_register_class (
     *register_class_state = register_class->contains (*regnum)
                               ? AMD_DBGAPI_REGISTER_CLASS_STATE_MEMBER
                               : AMD_DBGAPI_REGISTER_CLASS_STATE_NOT_MEMBER;
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_REGISTER_ID,
@@ -528,8 +518,6 @@ amd_dbgapi_dwarf_register_to_register (
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY);
 
     *register_id = architecture->regnum_to_register_id (*regnum);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARCHITECTURE_ID,
@@ -578,8 +566,6 @@ amd_dbgapi_read_register (amd_dbgapi_wave_id_t wave_id,
       THROW (AMD_DBGAPI_STATUS_ERROR_REGISTER_NOT_AVAILABLE);
 
     wave->read_register (*regnum, offset, value_size, value);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
@@ -635,24 +621,7 @@ amd_dbgapi_write_register (amd_dbgapi_wave_id_t wave_id,
     if (!wave->is_register_available (*regnum))
       THROW (AMD_DBGAPI_STATUS_ERROR_REGISTER_NOT_AVAILABLE);
 
-    const void *read_only = architecture->register_read_only_mask (*regnum);
-    if (read_only)
-      {
-        char *masked_value = static_cast<char *> (alloca (value_size));
-        wave->read_register (*regnum, offset, value_size, masked_value);
-
-        for (size_t i = 0; i < value_size; ++i)
-          {
-            char mask = static_cast<const char *> (read_only)[offset + i];
-            masked_value[i] = (static_cast<const char *> (value)[i] & ~mask)
-                              | (masked_value[i] & mask);
-          }
-        value = masked_value;
-      }
-
     wave->write_register (*regnum, offset, value_size, value);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
@@ -699,8 +668,6 @@ amd_dbgapi_wave_register_exists (amd_dbgapi_wave_id_t wave_id,
     *exists = wave->is_register_available (*regnum)
                 ? AMD_DBGAPI_REGISTER_PRESENT
                 : AMD_DBGAPI_REGISTER_ABSENT;
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
@@ -741,8 +708,6 @@ amd_dbgapi_wave_register_list (amd_dbgapi_wave_id_t wave_id,
 
     *register_count = count;
     *registers = retval.release ();
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
@@ -785,8 +750,6 @@ amd_dbgapi_prefetch_register (
 
     if (!wave->is_register_available (*regnum))
       THROW (AMD_DBGAPI_STATUS_ERROR_REGISTER_NOT_AVAILABLE);
-
-    return AMD_DBGAPI_STATUS_SUCCESS;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
