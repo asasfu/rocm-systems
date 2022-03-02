@@ -67,10 +67,11 @@
  * 9.0 - Handle multiple exceptions from single trap signal
  * 10.0 - Query debug event returns both queue_id and gpu_id
  * 10.1 - Add additional debug capability information
- * 10.2 - Pass context_save_restore_area size to user-space.
+ * 10.2 - Enable trap on wave start/end launch modes
+ * 10.3 - Pass context_save_restore_area size to user-space.
  */
 #define KFD_IOCTL_DBG_MAJOR_VERSION	10
-#define KFD_IOCTL_DBG_MINOR_VERSION	2
+#define KFD_IOCTL_DBG_MINOR_VERSION	3
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
