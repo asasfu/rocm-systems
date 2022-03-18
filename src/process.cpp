@@ -1257,7 +1257,7 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
     if (r_version != ROCR_RDEBUG_VERSION)
       {
         warning ("AMD GPU runtime's r_debug::r_version %d not supported "
-                 "(r_debug::r_version >= %d required)",
+                 "(r_debug::r_version %d required)",
                  r_version, ROCR_RDEBUG_VERSION);
         return AMD_DBGAPI_RUNTIME_STATE_LOADED_ERROR_RESTRICTION;
       }
@@ -1513,9 +1513,6 @@ process_t::get_info (amd_dbgapi_process_info_t query, size_t value_size,
 void
 process_t::enqueue_event (event_t &event)
 {
-  log_info ("reporting %s, %s", to_cstring (event.id ()),
-            event.pretty_printer_string ().c_str ());
-
   m_pending_events.emplace (&event);
   event.set_state (event_t::state_t::queued);
 
