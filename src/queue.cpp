@@ -1136,7 +1136,7 @@ scoped_queue_suspend_t::scoped_queue_suspend_t (queue_t &queue,
                                                 const char *reason)
   : m_reason (reason), m_queue (!queue.is_suspended () ? &queue : nullptr)
 {
-  if (!m_queue)
+  if (m_queue == nullptr)
     return;
 
   if (m_queue->process ().suspend_queues ({ m_queue }, m_reason) != 1)
@@ -1151,7 +1151,8 @@ scoped_queue_suspend_t::scoped_queue_suspend_t (queue_t &queue,
 
 scoped_queue_suspend_t::~scoped_queue_suspend_t ()
 {
-  if (!m_queue /* scoped_queue_suspend instance did not suspend the queue. */
+  if (m_queue == nullptr /* scoped_queue_suspend instance did not suspend the
+                            queue. */
       || !m_queue->process ().forward_progress_needed ())
     return;
 
@@ -1178,7 +1179,7 @@ amd_dbgapi_queue_get_info (amd_dbgapi_queue_id_t queue_id,
 
     queue_t *queue = find (queue_id);
 
-    if (!queue)
+    if (queue == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_QUEUE_ID);
 
     queue->get_info (query, value_size, value);
@@ -1206,7 +1207,7 @@ amd_dbgapi_process_queue_list (amd_dbgapi_process_id_t process_id,
 
     std::vector<process_t *> processes = process_t::match (process_id);
 
-    if (!queues || !queue_count)
+    if (queues == nullptr || queue_count == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
     for (auto &&process : processes)
@@ -1239,12 +1240,13 @@ amd_dbgapi_queue_packet_list (
     if (!detail::is_initialized)
       THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-    if (!read_packet_id_p || !write_packet_id_p || !packets_byte_size_p)
+    if (read_packet_id_p == nullptr || write_packet_id_p == nullptr
+        || packets_byte_size_p == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
     queue_t *queue = find (queue_id);
 
-    if (!queue)
+    if (queue == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_QUEUE_ID);
 
     scoped_queue_suspend_t suspend (*queue, "refresh packet list");
@@ -1255,7 +1257,7 @@ amd_dbgapi_queue_packet_list (
     queue->active_packets_info (&read_packet_id, &write_packet_id,
                                 &memory_size);
 
-    if (packets_bytes_p)
+    if (packets_bytes_p != nullptr)
       {
         auto memory = allocate_memory (memory_size);
 

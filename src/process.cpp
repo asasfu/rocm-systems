@@ -73,7 +73,7 @@ process_t::process_t (amd_dbgapi_process_id_t process_id,
         if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
           throw process_exited_exception_t (*this);
         else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
-          throw memory_access_error_t (address);
+          throw memory_access_error_t (address_space_t::global (), address);
         else if (status != AMD_DBGAPI_STATUS_SUCCESS)
           fatal_error ("xfer_global_memory_partial failed (%s)",
                        to_cstring (status));
@@ -181,7 +181,7 @@ process_t::detach ()
         {
           /* If the wave was displaced stepping, cancel the operation now while
              the queue is suspended (it may write registers).  */
-          if (wave.displaced_stepping ())
+          if (wave.displaced_stepping () != nullptr)
             {
               wave.set_state (AMD_DBGAPI_WAVE_STATE_STOP);
               wave.displaced_stepping_complete ();
@@ -267,7 +267,7 @@ process_t::read_string (amd_dbgapi_global_address_t address,
       size_t length = std::min (size, xfer_size);
 
       if (!length)
-        throw memory_access_error_t (address);
+        throw memory_access_error_t (address_space_t::global (), address);
 
       /* Copy the staging buffer into the string, stop at the '\0'
          terminating char if seen.  */
@@ -282,7 +282,7 @@ process_t::read_string (amd_dbgapi_global_address_t address,
       /* If unable to read full request, then no point trying again as it will
          just fail again.  */
       if (request_size != xfer_size)
-        throw memory_access_error_t (address);
+        throw memory_access_error_t (address_space_t::global (), address);
 
       address += length;
       size -= length;
@@ -298,12 +298,10 @@ process_t::xfer_segment_memory (const address_space_t &address_space,
     = address_space.lower (segment_address);
 
   if (lowered_address_space.kind () == address_space_t::kind_t::global)
-    return read ? read_global_memory_partial (lowered_address, read, size)
-                : write_global_memory_partial (lowered_address, write, size);
+    return xfer_global_memory (lowered_address, read, write, size);
   else
-    throw memory_access_error_t (string_printf (
-      "xfer_segment_memory from address space `%s' not supported",
-      lowered_address_space.name ().c_str ()));
+    throw memory_access_error_t (address_space, segment_address,
+                                 "address is not supported");
 }
 
 void
@@ -444,7 +442,7 @@ process_t::match (amd_dbgapi_process_id_t process_id)
     {
       process_t *process = process_t::find (process_id);
 
-      if (!process)
+      if (process == nullptr)
         throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
       processes.emplace_back (process);
@@ -464,13 +462,13 @@ process_t::match (amd_dbgapi_process_id_t process_id)
 process_t *
 process_t::find (amd_dbgapi_process_id_t process_id)
 {
-  if (detail::last_found_process
+  if (detail::last_found_process != nullptr
       && detail::last_found_process->id () == process_id)
     return detail::last_found_process;
 
   process_t *process = s_process_map.find (process_id);
 
-  if (process)
+  if (process != nullptr)
     detail::last_found_process = process;
 
   return process;
@@ -479,14 +477,14 @@ process_t::find (amd_dbgapi_process_id_t process_id)
 process_t *
 process_t::find (amd_dbgapi_client_process_id_t client_process_id)
 {
-  if (detail::last_found_process
+  if (detail::last_found_process != nullptr
       && detail::last_found_process->client_id () == client_process_id)
     return detail::last_found_process;
 
   process_t *process = s_process_map.find_if (
     [=] (auto &v) { return v.client_id () == client_process_id; });
 
-  if (process)
+  if (process != nullptr)
     detail::last_found_process = process;
 
   return process;
@@ -529,7 +527,7 @@ process_t::update_agents ()
         = find_if ([&] (const agent_t &a)
                    { return a.os_agent_id () == agent_info.os_agent_id; });
 
-      if (!agent)
+      if (agent == nullptr)
         {
           auto [major, minor, stepping] = agent_info.gfxip;
 
@@ -539,7 +537,7 @@ process_t::update_agents ()
               (minor < 10) ? (minor + '0') : (minor - 10 + 'a'),
               (stepping < 10) ? (stepping + '0') : (stepping - 10 + 'a')));
 
-          if (!architecture)
+          if (architecture == nullptr)
             warning ("os_agent_id %d: `%s' architecture not supported.",
                      agent_info.os_agent_id, agent_info.name.c_str ());
 
@@ -555,7 +553,7 @@ process_t::update_agents ()
 
       if (agent->supports_debugging ())
         precise_memory_supported = precise_memory_supported.value_or (true)
-                                   & agent_info.precise_memory_supported;
+                                   && agent_info.precise_memory_supported;
     }
 
   /* Remove agents that are no longer online.  */
@@ -1030,7 +1028,7 @@ process_t::update_queues ()
 
           /* TODO: investigate when this could happen, e.g. the debugger
              cgroups not matching the application cgroups?  */
-          if (!agent)
+          if (agent == nullptr)
             fatal_error ("could not find an agent for gpu_id %d",
                          queue_info.gpu_id);
           else if (!agent->supports_debugging ())
@@ -1047,7 +1045,7 @@ process_t::update_queues ()
             {
               /* If there is a stale queue with the same os_queue_id,
                  destroy it.  */
-              if (queue)
+              if (queue != nullptr)
                 {
                   amd_dbgapi_queue_id_t destroyed_queue_id = queue->id ();
 
@@ -1072,7 +1070,7 @@ process_t::update_queues ()
                  that we either did not create a queue when a queue_new
                  exception was reported (we consumed the event without action),
                  or KFD did not report the new queue.  */
-              if (!queue)
+              if (queue == nullptr)
                 fatal_error (
                   "os_queue_id %d should have been reported as a new "
                   "queue before",
@@ -1201,7 +1199,7 @@ process_t::update_code_objects ()
               return x.load_address () == load_address && x.uri () == uri;
             });
 
-          if (!code_object)
+          if (code_object == nullptr)
             code_object = &create<code_object_t> (*this, uri, load_address);
 
           code_object->set_mark (code_object_mark);
@@ -1331,7 +1329,7 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
 
     /* If nothing has changed, we don't need to report an event.  */
     if (!set_changed<code_object_t> (changed<code_object_t> ()
-                                     | saved_changed))
+                                     || saved_changed))
       {
         *action = AMD_DBGAPI_BREAKPOINT_ACTION_RESUME;
         return;
@@ -1573,7 +1571,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
             = find_if ([os_agent_id] (const agent_t &q)
                        { return q.os_agent_id () == os_agent_id; });
 
-          if (!agent)
+          if (agent == nullptr)
             fatal_error ("could not find os_agent_id %d", os_agent_id);
 
           if (!agent->supports_debugging ())
@@ -1602,7 +1600,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
       /* If this is an event for a queue associated with an agent that does not
          support debugging, then discard it.  No queues are created for
          unsupported agents, so no need to check if we found a queue.  */
-      if (!queue)
+      if (queue == nullptr)
         {
           /* Find the agent by matching its os_agent_id with the one
              returned by the ioctl.  */
@@ -1610,7 +1608,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
             = find_if ([os_agent_id] (const agent_t &q)
                        { return q.os_agent_id () == os_agent_id; });
 
-          if (!agent)
+          if (agent == nullptr)
             fatal_error ("could not find os_agent_id %d", os_agent_id);
 
           if (!agent->supports_debugging ())
@@ -1637,7 +1635,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
 
           /* If there is a stale queue with the same os_queue_id, destroy it.
            */
-          if (queue)
+          if (queue != nullptr)
             {
               amd_dbgapi_queue_id_t stale_queue_id = queue->id ();
 
@@ -1675,7 +1673,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
              update_queues () may have destroyed it if it isn't a supported
              queue type.  */
           queue = find (queue_id);
-          if (!queue)
+          if (queue == nullptr)
             {
               log_info ("dropping queue event (%s) for deleted os_queue_id %d",
                         to_cstring (exceptions), os_queue_id);
@@ -1685,7 +1683,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
           return { queue, exceptions };
         }
 
-      if (queue)
+      if (queue != nullptr)
         return { queue, exceptions };
 
       fatal_error (
@@ -2089,7 +2087,7 @@ amd_dbgapi_process_set_wave_creation (amd_dbgapi_process_id_t process_id,
 
     process_t *process = process_t::find (process_id);
 
-    if (!process)
+    if (process == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
     try
@@ -2127,12 +2125,12 @@ amd_dbgapi_process_attach (amd_dbgapi_client_process_id_t client_process_id,
     if (!detail::is_initialized)
       THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
 
-    if (!client_process_id || !process_id)
+    if (client_process_id == nullptr || process_id == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
     /* Return an error if the client_process_id is already attached to another
        process instance.  */
-    if (process_t::find (client_process_id))
+    if (process_t::find (client_process_id) != nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_ALREADY_ATTACHED);
 
     process_t *process;
@@ -2192,7 +2190,7 @@ amd_dbgapi_process_detach (amd_dbgapi_process_id_t process_id)
 
     process_t *process = process_t::find (process_id);
 
-    if (!process)
+    if (process == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
     try
@@ -2223,7 +2221,7 @@ amd_dbgapi_process_get_info (amd_dbgapi_process_id_t process_id,
 
     process_t *process = process_t::find (process_id);
 
-    if (!process)
+    if (process == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
     try

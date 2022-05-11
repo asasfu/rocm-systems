@@ -183,6 +183,15 @@ public:
     return m_memory_cache.write_global_memory (address, buffer, size);
   }
 
+  [[nodiscard]] size_t
+  xfer_global_memory (amd_dbgapi_segment_address_t global_address, void *read,
+                      const void *write, size_t size)
+  {
+    return read != nullptr
+             ? read_global_memory_partial (global_address, read, size)
+             : write_global_memory_partial (global_address, write, size);
+  }
+
   template <typename T>
   void read_global_memory (amd_dbgapi_global_address_t address, T *ptr,
                            size_t size = sizeof (T));
@@ -393,7 +402,8 @@ process_t::read_global_memory (amd_dbgapi_global_address_t address, T *ptr,
     {
       if (size_t xfer_size = read_global_memory_partial (address, ptr, size);
           xfer_size != size)
-        throw memory_access_error_t (address + xfer_size);
+        throw memory_access_error_t (address_space_t::global (),
+                                     address + xfer_size);
     }
   catch (const memory_access_error_t &e)
     {
@@ -410,7 +420,8 @@ process_t::write_global_memory (amd_dbgapi_global_address_t address,
     {
       if (size_t xfer_size = write_global_memory_partial (address, ptr, size);
           xfer_size != size)
-        throw memory_access_error_t (address + xfer_size);
+        throw memory_access_error_t (address_space_t::global (),
+                                     address + xfer_size);
     }
   catch (const memory_access_error_t &e)
     {

@@ -59,7 +59,8 @@ workgroup_t::update (amd_dbgapi_global_address_t local_memory_base_address)
 }
 
 size_t
-workgroup_t::xfer_local_memory (amd_dbgapi_segment_address_t segment_address,
+workgroup_t::xfer_local_memory (const address_space_t &address_space,
+                                amd_dbgapi_segment_address_t segment_address,
                                 void *read, const void *write, size_t size)
 {
   /* The LDS is stored in the context save area.  */
@@ -76,7 +77,7 @@ workgroup_t::xfer_local_memory (amd_dbgapi_segment_address_t segment_address,
       /* Look for the workgroup_id again, all the waves may have exited, and
          this workgroup may have been destroyed by the queue suspend.  */
       workgroup_t *workgroup = find (workgroup_id);
-      if (!workgroup)
+      if (workgroup == nullptr)
         throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_WORKGROUP_ID);
 
       dbgapi_assert (workgroup == this);
@@ -91,14 +92,14 @@ workgroup_t::xfer_local_memory (amd_dbgapi_segment_address_t segment_address,
     {
       size_t max_size = offset < limit ? limit - offset : 0;
       if (max_size == 0 && size != 0)
-        throw memory_access_error_t (*m_local_memory_base_address + limit);
+        throw memory_access_error_t (address_space, limit);
       size = max_size;
     }
 
   amd_dbgapi_global_address_t global_address
     = *m_local_memory_base_address + offset;
 
-  return read
+  return read != nullptr
            ? process ().read_global_memory_partial (global_address, read, size)
            : process ().write_global_memory_partial (global_address, write,
                                                      size);
@@ -113,11 +114,11 @@ workgroup_t::xfer_segment_memory (const address_space_t &address_space,
     = address_space.lower (segment_address);
 
   if (lowered_address_space.kind () == address_space_t::kind_t::local)
-    return xfer_local_memory (lowered_address, read, write, size);
+    return xfer_local_memory (lowered_address_space, lowered_address, read,
+                              write, size);
   else
-    throw memory_access_error_t (string_printf (
-      "xfer_segment_memory from address space `%s' not supported",
-      lowered_address_space.name ().c_str ()));
+    throw memory_access_error_t (address_space, segment_address,
+                                 "address is not supported");
 }
 
 void
@@ -174,7 +175,7 @@ amd_dbgapi_workgroup_get_info (amd_dbgapi_workgroup_id_t workgroup_id,
 
     workgroup_t *workgroup = find (workgroup_id);
 
-    if (!workgroup)
+    if (workgroup == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_WORKGROUP_ID);
 
     workgroup->get_info (query, value_size, value);
@@ -203,7 +204,7 @@ amd_dbgapi_process_workgroup_list (amd_dbgapi_process_id_t process_id,
 
     std::vector<process_t *> processes = process_t::match (process_id);
 
-    if (!workgroups || !workgroup_count)
+    if (workgroups == nullptr || workgroup_count == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
     std::vector<std::pair<process_t *, std::vector<queue_t *>>>
@@ -226,7 +227,7 @@ amd_dbgapi_process_workgroup_list (amd_dbgapi_process_id_t process_id,
 
     amd_dbgapi_changed_t workgroup_list_changed;
     auto workgroup_list = utils::get_handle_list<workgroup_t> (
-      processes, changed ? &workgroup_list_changed : nullptr);
+      processes, changed != nullptr ? &workgroup_list_changed : nullptr);
 
     auto deallocate_workgroup_list = utils::make_scope_fail (
       [&] () { amd::dbgapi::deallocate_memory (workgroups); });
@@ -235,7 +236,7 @@ amd_dbgapi_process_workgroup_list (amd_dbgapi_process_id_t process_id,
       process->resume_queues (queues, "refresh workgroup list");
 
     std::tie (*workgroups, *workgroup_count) = workgroup_list;
-    if (changed)
+    if (changed != nullptr)
       *changed = workgroup_list_changed;
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
