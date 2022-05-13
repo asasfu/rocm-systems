@@ -108,6 +108,7 @@ private:
   std::optional<amd_dbgapi_os_queue_packet_id_t> m_read_packet_id{};
   std::optional<amd_dbgapi_os_queue_packet_id_t> m_write_packet_id{};
   amd_dbgapi_global_address_t m_scratch_backing_memory_address{ 0 };
+  amd_dbgapi_size_t m_per_xcc_scratch_backing_memory_size{ 0 };
   uint32_t m_compute_tmpring_size{ 0 };
 
   /* The memory reserved by the thunk library for the debugger is used to store
@@ -162,7 +163,7 @@ public:
 
   std::pair<amd_dbgapi_global_address_t /* address */,
             amd_dbgapi_size_t /* size */>
-  scratch_memory_region (uint32_t shader_engine_id,
+  scratch_memory_region (uint32_t xcc_id, uint32_t shader_engine_id,
                          uint32_t scoreboard_id) const override;
 
   size_t packet_size () const override { return aql_packet_size; };
@@ -552,6 +553,12 @@ aql_queue_t::queue_state_changed ()
 
       process ().read_global_memory (
         m_os_queue_info.read_pointer_address
+          + offsetof (amd_queue_t, scratch_backing_memory_byte_size)
+          - offsetof (amd_queue_t, read_dispatch_id),
+        &m_per_xcc_scratch_backing_memory_size);
+
+      process ().read_global_memory (
+        m_os_queue_info.read_pointer_address
           + offsetof (amd_queue_t, compute_tmpring_size)
           - offsetof (amd_queue_t, read_dispatch_id),
         &m_compute_tmpring_size);
@@ -773,7 +780,7 @@ aql_queue_t::update_waves ()
      each discovered wave in the running state will increment this count.  */
   m_waves_running.emplace (0);
 
-  for (size_t xcc_id = 0; xcc_id < agent ().os_info ().xcc_count; ++xcc_id)
+  for (uint32_t xcc_id = 0; xcc_id < agent ().os_info ().xcc_count; ++xcc_id)
     {
       auto ctx_save_address
         = m_os_queue_info.ctx_save_restore_address
@@ -795,7 +802,7 @@ aql_queue_t::update_waves ()
 
       if (control_stack_begin != control_stack_end)
         {
-          log_info ("decoding %s's context save area #%zu: "
+          log_info ("decoding %s's context save area #%u: "
                     "ctrl_stk:[0x%llx..0x%llx[, wave_area:[0x%llx..0x%llx[",
                     to_cstring (id ()), xcc_id, control_stack_begin,
                     control_stack_end, wave_area_begin, wave_area_end);
@@ -812,7 +819,7 @@ aql_queue_t::update_waves ()
           /* Decode the control stack.  For each entry in the control stack,
              the provided callback function is called with a CWSR record.  */
           wave_count += architecture ().control_stack_iterate (
-            *this, &memory[0], size / sizeof (uint32_t), wave_area_end,
+            *this, xcc_id, &memory[0], size / sizeof (uint32_t), wave_area_end,
             wave_area_end - wave_area_begin, process_cwsr_record);
         }
     }
@@ -858,13 +865,21 @@ aql_queue_t::update_waves ()
 
 std::pair<amd_dbgapi_global_address_t /* address */,
           amd_dbgapi_size_t /* size */>
-aql_queue_t::scratch_memory_region (uint32_t shader_engine_id,
+aql_queue_t::scratch_memory_region (uint32_t xcc_id, uint32_t shader_engine_id,
                                     uint32_t scoreboard_id) const
 {
+  /* The scratch memory for this queue is evenly divided between all XCCs, so
+     each XCC has its own scratch base.  */
+  amd_dbgapi_global_address_t xcc_scratch_base
+    = m_scratch_backing_memory_address
+      + m_per_xcc_scratch_backing_memory_size * xcc_id;
+
   auto [offset, size] = architecture ().scratch_memory_region (
-    m_compute_tmpring_size, agent ().os_info ().shader_engine_count,
+    m_compute_tmpring_size,
+    agent ().os_info ().shader_engine_count / agent ().os_info ().xcc_count,
     shader_engine_id, scoreboard_id);
-  return { m_scratch_backing_memory_address + offset, size };
+
+  return { xcc_scratch_base + offset, size };
 }
 
 void
