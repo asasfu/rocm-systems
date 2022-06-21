@@ -109,9 +109,6 @@ process_t::~process_t ()
   m_os_driver.reset ();
   m_client_notifier_pipe.close ();
 
-  dbgapi_assert (m_watchpoint_map.empty ()
-                 && "there should not be any active watchpoints left");
-
   if (this == detail::last_found_process)
     detail::last_found_process = nullptr;
 }
@@ -175,7 +172,7 @@ process_t::detach ()
 
       /* Remove the watchpoints that may still be inserted.  */
       for (auto &&watchpoint : range<watchpoint_t> ())
-        remove_watchpoint (watchpoint);
+        watchpoint.remove ();
 
       for (auto &&wave : range<wave_t> ())
         {
@@ -339,9 +336,9 @@ process_t::set_wave_launch_mode (os_wave_launch_mode_t wave_launch_mode)
 
   amd_dbgapi_status_t status
     = os_driver ().set_wave_launch_mode (wave_launch_mode);
-  if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    throw process_exited_exception_t (*this);
-  else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+
+  if (status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED
+      && status != AMD_DBGAPI_STATUS_SUCCESS)
     fatal_error ("os_driver_t::set_wave_launch_mode (%s) failed (%s)",
                  to_cstring (wave_launch_mode), to_cstring (status));
 
@@ -402,9 +399,8 @@ process_t::set_wave_launch_trap_override (os_wave_launch_trap_mask_t value,
   amd_dbgapi_status_t status = os_driver ().set_wave_launch_trap_override (
     os_wave_launch_trap_override_t::apply, value, mask);
 
-  if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    throw process_exited_exception_t (*this);
-  else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+  if (status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED
+      && status != AMD_DBGAPI_STATUS_SUCCESS)
     fatal_error ("os_driver::set_wave_launch_trap_override failed (%s)",
                  to_cstring (status));
 }
@@ -426,9 +422,8 @@ process_t::set_precise_memory (bool enabled)
 
   amd_dbgapi_status_t status = os_driver ().set_precise_memory (enabled);
 
-  if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    throw process_exited_exception_t (*this);
-  else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+  if (status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED
+      && status != AMD_DBGAPI_STATUS_SUCCESS)
     fatal_error ("os_driver::set_precise_memory failed (%s)",
                  to_cstring (status));
 }
@@ -625,132 +620,6 @@ process_t::watchpoint_shared_kind () const
     }
 
   return kind;
-}
-
-void
-process_t::insert_watchpoint (const watchpoint_t &watchpoint)
-{
-  /* If this is the first watchpoint we are setting on this device, we need
-   to enable the address watch exception trap for all new waves as well as
-   update the existing waves.  */
-  const bool first_watchpoint = count<watchpoint_t> () == 1;
-  if (first_watchpoint)
-    {
-      set_wave_launch_trap_override (
-        os_wave_launch_trap_mask_t::address_watch,
-        os_wave_launch_trap_mask_t::address_watch);
-
-      update_queues ();
-
-      std::vector<queue_t *> queues;
-      queues.reserve (count<queue_t> ());
-
-      for (auto &&queue : range<queue_t> ())
-        if (!queue.is_suspended ())
-          queues.emplace_back (&queue);
-
-      suspend_queues (queues, "insert watchpoint");
-
-      for (auto &&wave : range<wave_t> ())
-        wave.architecture ().wave_enable_traps (
-          wave, os_wave_launch_trap_mask_t::address_watch);
-
-      if (forward_progress_needed ())
-        resume_queues (queues, "insert watchpoint");
-    }
-
-  os_watch_mode_t watch_mode;
-  switch (watchpoint.kind ())
-    {
-    case AMD_DBGAPI_WATCHPOINT_KIND_LOAD:
-      watch_mode = os_watch_mode_t::read;
-      break;
-    case AMD_DBGAPI_WATCHPOINT_KIND_STORE_AND_RMW:
-      watch_mode = os_watch_mode_t::nonread;
-      break;
-    case AMD_DBGAPI_WATCHPOINT_KIND_RMW:
-      watch_mode = os_watch_mode_t::atomic;
-      break;
-    case AMD_DBGAPI_WATCHPOINT_KIND_ALL:
-      watch_mode = os_watch_mode_t::all;
-      break;
-    default:
-      throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NO_WATCHPOINT_AVAILABLE);
-    }
-
-  os_watch_id_t os_watch_id;
-  amd_dbgapi_status_t status = os_driver ().set_address_watch (
-    watchpoint.address (), -watchpoint.size (), watch_mode, &os_watch_id);
-
-  if (status != AMD_DBGAPI_STATUS_SUCCESS
-      && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    fatal_error ("os_driver_t::set_address_watch () failed (%s)",
-                 to_cstring (status));
-
-  log_info ("%s: set address_watch%d [%#lx-%#lx] (%s)", to_cstring (id ()),
-            os_watch_id, watchpoint.address (),
-            watchpoint.address () + watchpoint.size (),
-            to_cstring (watchpoint.kind ()));
-
-  if (!m_watchpoint_map.emplace (os_watch_id, &watchpoint).second)
-    fatal_error ("os_watch_id %d is already in use", os_watch_id);
-}
-
-void
-process_t::remove_watchpoint (const watchpoint_t &watchpoint)
-{
-  /* Find watchpoint in the os_watch_id to watchpoint_t map.  The key will be
-     the os_watch_id to clear for this agent.  */
-  auto it = std::find_if (m_watchpoint_map.begin (), m_watchpoint_map.end (),
-                          [&watchpoint] (const auto &value)
-                          { return value.second == &watchpoint; });
-
-  if (it == m_watchpoint_map.end ())
-    fatal_error ("watchpoint is not inserted");
-
-  os_watch_id_t os_watch_id = it->first;
-
-  amd_dbgapi_status_t status = os_driver ().clear_address_watch (os_watch_id);
-  if (status != AMD_DBGAPI_STATUS_SUCCESS
-      && status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    fatal_error ("failed to remove watchpoint (%s)", to_cstring (status));
-
-  m_watchpoint_map.erase (it);
-
-  log_info ("%s: clear address_watch%d", to_cstring (id ()), os_watch_id);
-
-  const bool last_watchpoint = count<watchpoint_t> () == 1;
-  if (last_watchpoint)
-    {
-      set_wave_launch_trap_override (
-        os_wave_launch_trap_mask_t::none,
-        os_wave_launch_trap_mask_t::address_watch);
-
-      update_queues ();
-
-      std::vector<queue_t *> queues;
-      queues.reserve (count<queue_t> ());
-
-      for (auto &&queue : range<queue_t> ())
-        if (!queue.is_suspended ())
-          queues.emplace_back (&queue);
-
-      suspend_queues (queues, "remove watchpoint");
-
-      for (auto &&wave : range<wave_t> ())
-        wave.architecture ().wave_disable_traps (
-          wave, os_wave_launch_trap_mask_t::address_watch);
-
-      if (forward_progress_needed ())
-        resume_queues (queues, "remove watchpoint");
-    }
-}
-
-const watchpoint_t *
-process_t::find_watchpoint (os_watch_id_t os_watch_id) const
-{
-  auto it = m_watchpoint_map.find (os_watch_id);
-  return it != m_watchpoint_map.end () ? it->second : nullptr;
 }
 
 size_t
@@ -2058,16 +1927,7 @@ amd_dbgapi_process_set_progress (amd_dbgapi_process_id_t process_id,
       }
 
     for (auto &&process : processes)
-      {
-        try
-          {
-            process->set_forward_progress_needed (forward_progress_needed);
-          }
-        catch (const process_exited_exception_t &)
-          {
-            /* The process has exited, forward progress is irrelevant.  */
-          }
-      }
+      process->set_forward_progress_needed (forward_progress_needed);
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
@@ -2090,23 +1950,16 @@ amd_dbgapi_process_set_wave_creation (amd_dbgapi_process_id_t process_id,
     if (process == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
-    try
+    switch (creation)
       {
-        switch (creation)
-          {
-          case AMD_DBGAPI_WAVE_CREATION_NORMAL:
-            process->set_wave_launch_mode (os_wave_launch_mode_t::normal);
-            break;
-          case AMD_DBGAPI_WAVE_CREATION_STOP:
-            process->set_wave_launch_mode (os_wave_launch_mode_t::halt);
-            break;
-          default:
-            THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
-          }
-      }
-    catch (const process_exited_exception_t &)
-      {
-        /* The process has exited, the wave launch mode is irrelevant.  */
+      case AMD_DBGAPI_WAVE_CREATION_NORMAL:
+        process->set_wave_launch_mode (os_wave_launch_mode_t::normal);
+        break;
+      case AMD_DBGAPI_WAVE_CREATION_STOP:
+        process->set_wave_launch_mode (os_wave_launch_mode_t::halt);
+        break;
+      default:
+        THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
       }
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
