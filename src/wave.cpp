@@ -383,11 +383,20 @@ wave_t::update (std::unique_ptr<architecture_t::cwsr_record_t> cwsr_record)
   if (prev_state != AMD_DBGAPI_WAVE_STATE_STOP)
     std::tie (m_state, m_stop_reason) = architecture.wave_get_state (*this);
 
+  auto wave_state_to_string = [] (amd_dbgapi_wave_state_t state,
+                                  amd_dbgapi_wave_stop_reasons_t stop_reason)
+  {
+    std::string string = to_string (state);
+    if (state == AMD_DBGAPI_WAVE_STATE_STOP)
+      string += string_printf (", stop_reason=%s", to_cstring (stop_reason));
+    return string;
+  };
+
   log_verbose ("%s%s in %s (pc=%#lx, state=%s) context_save:[%#lx..%#lx[",
                visibility () != visibility_t::visible ? "invisible " : "",
                to_cstring (id ()), to_cstring (workgroup ().id ()), pc (),
-               to_cstring (m_state), m_cwsr_record->begin (),
-               m_cwsr_record->end ());
+               wave_state_to_string (m_state, m_stop_reason).c_str (),
+               m_cwsr_record->begin (), m_cwsr_record->end ());
 
   /* The wave was running, and it is now stopped.  */
   if (prev_state != AMD_DBGAPI_WAVE_STATE_STOP
@@ -481,6 +490,18 @@ wave_t::set_state (amd_dbgapi_wave_state_t state,
          m_last_stopped_pc).  Save the pc here as this is the last known
          pc before the wave is unhalted.  */
       m_last_stopped_pc = pc ();
+
+      /* If there is a stop event, it must have already been reported otherwise
+         the wave could not be resumed, and we can now clear it.  */
+      [[maybe_unused]] auto has_unreported_stop_event = [this] ()
+      {
+        const event_t *event = process ().find (m_last_stop_event_id);
+        return event != nullptr
+               && event->state () < event_t::state_t::reported;
+      };
+      dbgapi_assert (!has_unreported_stop_event ()
+                     && "a stop event for this wave is still pending");
+      m_last_stop_event_id = AMD_DBGAPI_EVENT_NONE;
 
       /* Clear the stop reason.  */
       m_stop_reason = AMD_DBGAPI_WAVE_STOP_REASON_NONE;
@@ -615,7 +636,8 @@ wave_t::read_register (amdgpu_regnum_t regnum, size_t offset,
 
   if (m_is_parked && regnum == amdgpu_regnum_t::pc)
     {
-      memcpy (value, reinterpret_cast<const char *> (&m_parked_pc) + offset,
+      memcpy (value,
+              reinterpret_cast<const std::byte *> (&m_parked_pc) + offset,
               value_size);
       return;
     }
@@ -677,7 +699,8 @@ wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
           read_only != nullptr)
         {
           amd_dbgapi_global_address_t pc = m_parked_pc;
-          memcpy (reinterpret_cast<char *> (&pc) + offset, value, value_size);
+          memcpy (reinterpret_cast<std::byte *> (&pc) + offset, value,
+                  value_size);
 
           amd_dbgapi_global_address_t mask
             = *static_cast<const amd_dbgapi_global_address_t *> (read_only);
@@ -686,7 +709,7 @@ wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
         }
       else
         {
-          memcpy (reinterpret_cast<char *> (&m_parked_pc) + offset, value,
+          memcpy (reinterpret_cast<std::byte *> (&m_parked_pc) + offset, value,
                   value_size);
         }
 
@@ -739,9 +762,11 @@ wave_t::write_register (amdgpu_regnum_t regnum, size_t offset,
       else /* General case, mask one byte at a time.  */
         for (size_t i = 0; i < value_size; ++i)
           {
-            char mask = static_cast<const char *> (read_only)[offset + i];
-            char &x1 = static_cast<char *> (masked_value)[i];
-            x1 = (*static_cast<const char *> (value) & ~mask) | (x1 & mask);
+            std::byte mask
+              = static_cast<const std::byte *> (read_only)[offset + i];
+            std::byte &x1 = static_cast<std::byte *> (masked_value)[i];
+            x1 = (*static_cast<const std::byte *> (value) & ~mask)
+                 | (x1 & mask);
           }
 
       value = masked_value;
@@ -824,8 +849,8 @@ wave_t::xfer_private_memory (const address_space_t &address_space,
 
       size_t xfer_size = process ().xfer_global_memory (
         global_address,
-        read != nullptr ? static_cast<char *> (read) + xfer_bytes : read,
-        write != nullptr ? static_cast<const char *> (write) + xfer_bytes
+        read != nullptr ? static_cast<std::byte *> (read) + xfer_bytes : read,
+        write != nullptr ? static_cast<const std::byte *> (write) + xfer_bytes
                          : write,
         request_size);
 
@@ -1083,7 +1108,12 @@ amd_dbgapi_wave_resume (amd_dbgapi_wave_id_t wave_id,
     /* The wave is not resumable if the stop event is not yet processed.  */
     if (const event_t *event = wave->last_stop_event ();
         event != nullptr && event->state () < event_t::state_t::processed)
-      THROW (AMD_DBGAPI_STATUS_ERROR_WAVE_NOT_RESUMABLE);
+      {
+        log_verbose ("%s is not resumable because its last stop event (%s) "
+                     "has not been processed",
+                     to_cstring (wave->id ()), to_cstring (event->id ()));
+        THROW (AMD_DBGAPI_STATUS_ERROR_WAVE_NOT_RESUMABLE);
+      }
 
     if (wave->displaced_stepping () != nullptr
         && resume_mode != AMD_DBGAPI_RESUME_MODE_SINGLE_STEP)

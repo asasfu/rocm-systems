@@ -20,7 +20,7 @@
 
 cmake_minimum_required(VERSION 3.8)
 
-project(amd-dbgapi VERSION 0.65.3)
+project(amd-dbgapi VERSION 0.66.0)
 
 include(GNUInstallDirs)
 # Convert the project's name to uppercase and replace '-' with '_'.
@@ -117,7 +117,6 @@ find_package(amd_comgr REQUIRED CONFIG
   PATHS
     /opt/rocm/
   PATH_SUFFIXES
-    cmake/amd_comgr
     lib/cmake/amd_comgr
 )
 MESSAGE(STATUS "Code Object Manager found at ${amd_comgr_DIR}.")
@@ -156,7 +155,14 @@ target_link_libraries(amd-dbgapi PRIVATE amd_comgr Threads::Threads ${CMAKE_DL_L
 set_source_files_properties(src/versioning.cpp src/initialization.cpp PROPERTIES
   COMPILE_DEFINITIONS "AMD_DBGAPI_VERSION_PATCH=${PROJECT_VERSION_PATCH};AMD_DBGAPI_BUILD_INFO=\"${PROJECT_VERSION}-${build_info}\"")
 
+# We are using the HSA runtime headers, but not the runtime library. Get the HSA runtime
+# include directories from the hsa-runtime64::hsa-runtime64 interface.
+find_package(hsa-runtime64 REQUIRED CONFIG PATHS "/opt/rocm")
+get_property(HSA_RUNTIME_INCLUDE_DIRECTORIES TARGET hsa-runtime64::hsa-runtime64 PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+
 target_include_directories(amd-dbgapi
+  PRIVATE
+    ${HSA_RUNTIME_INCLUDE_DIRECTORIES}
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/amd-dbgapi>
     $<INSTALL_INTERFACE:include>)
