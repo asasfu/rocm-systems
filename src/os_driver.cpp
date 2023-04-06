@@ -1,4 +1,4 @@
-/* Copyright (c) 2021-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2021-2023 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -114,9 +114,9 @@ public:
   }
 
   amd_dbgapi_status_t
-    send_exceptions (os_exception_mask_t /* exceptions  */,
-                     os_agent_id_t /* agent_id  */,
-                     os_queue_id_t /* queue_id  */) const override
+  send_exceptions (os_exception_mask_t /* exceptions  */,
+                   std::optional<os_agent_id_t> /* agent_id  */,
+                   std::optional<os_queue_id_t> /* queue_id  */) const override
   {
     return AMD_DBGAPI_STATUS_ERROR;
   }
@@ -458,9 +458,10 @@ public:
   amd_dbgapi_status_t disable_debug () override;
   bool is_debug_enabled () const override { return m_is_debug_enabled; }
 
-  amd_dbgapi_status_t send_exceptions (os_exception_mask_t exceptions,
-                                       os_agent_id_t agent_id,
-                                       os_queue_id_t queue_id) const override;
+  amd_dbgapi_status_t
+  send_exceptions (os_exception_mask_t exceptions,
+                   std::optional<os_agent_id_t> agent_id,
+                   std::optional<os_queue_id_t> queue_id) const override;
 
   amd_dbgapi_status_t set_exceptions_reported (
     os_exception_mask_t exceptions_reported) const override;
@@ -827,8 +828,8 @@ kfd_driver_t::set_exceptions_reported (
 
 amd_dbgapi_status_t
 kfd_driver_t::send_exceptions (os_exception_mask_t exceptions,
-                               os_agent_id_t agent_id,
-                               os_queue_id_t queue_id) const
+                               std::optional<os_agent_id_t> agent_id,
+                               std::optional<os_queue_id_t> queue_id) const
 {
   TRACE_DRIVER_BEGIN (param_in (exceptions), param_in (agent_id),
                       param_in (queue_id));
@@ -842,8 +843,8 @@ kfd_driver_t::send_exceptions (os_exception_mask_t exceptions,
 
   kfd_ioctl_dbg_trap_args args{};
   args.exception_mask = static_cast<uint64_t> (exceptions);
-  args.data1 = agent_id;
-  args.data2 = queue_id;
+  args.data1 = agent_id.has_value () ? *agent_id : KFD_INVALID_GPUID;
+  args.data2 = queue_id.has_value () ? *queue_id : KFD_INVALID_QUEUEID;
 
   int err = kfd_dbg_trap_ioctl (KFD_IOC_DBG_TRAP_SEND_RUNTIME_EVENT, &args);
   if (err == -ESRCH)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -1052,7 +1052,10 @@ queue_t::create (std::optional<amd_dbgapi_queue_id_t> queue_id,
 os_queue_id_t
 queue_t::os_queue_id () const
 {
-  return is_valid () ? m_os_queue_info.queue_id : os_invalid_queueid;
+  if (is_valid ())
+    return m_os_queue_info.queue_id;
+  else
+    return m_os_queue_info.queue_id | os_queue_invalid_mask;
 }
 
 void

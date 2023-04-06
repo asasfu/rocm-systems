@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -282,9 +282,6 @@
  * - gfx1030 (Sienna Cichlid)
  * - gfx1031 (Navy Flounder)
  * - gfx1032 (Dimgrey Cavefish)
- * - gfx1100 (Plum Bonito)
- * - gfx1101 (Wheat Nas)
- * - gfx1102 (Hotpink Bonefish)
  *
  * For more information about the AMD ROCm ecosystem, please refer to:
  *
@@ -346,12 +343,6 @@
  *    any AMD GPU architecture that supports it.  That includes gfx1030,
  *    gfx1031, and gfx1032.
  *
- * 9. The library does not support debugging programs that use cooperative
- *    groups or CU masking for gfx1100, gfx1101, and gfx11102.  A restriction
- *    will be reported when attaching to a process that has already created
- *    cooperative group queues or CU masked queues.  Any attempt by the process
- *    to create a cooperative queue or CU masked queue when attached will fail.
- *
  * \section references References
  *
  * 1. Advanced Micro Devices: [www.amd.com] (https://www.amd.com/)
@@ -381,7 +372,7 @@
  * additional terms and conditions below apply to your use of AMD ROCm
  * technical documentation.
  *
- * ©2019-2022 Advanced Micro Devices, Inc.  All rights reserved.
+ * ©2019-2023 Advanced Micro Devices, Inc.  All rights reserved.
  *
  * The information presented in this document is for informational purposes
  * only and may contain technical inaccuracies, omissions, and typographical

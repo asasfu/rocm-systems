@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -91,7 +91,6 @@ private:
   bool m_ttmps_initialized{ false };
   bool m_stop_requested{ false };
   amd_dbgapi_wave_stop_reasons_t m_stop_reason{};
-  mutable amd_dbgapi_global_address_t m_parked_pc{ 0 };
   amd_dbgapi_global_address_t m_last_stopped_pc{ 0 };
   epoch_t m_mark{ 0 };
 

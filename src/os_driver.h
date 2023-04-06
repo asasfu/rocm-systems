@@ -1,4 +1,4 @@
-/* Copyright (c) 2021-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2021-2023 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -59,8 +60,6 @@ enum elf_amdgpu_machine_t : uint32_t
 };
 
 using os_agent_id_t = uint32_t;
-
-constexpr os_agent_id_t os_invalid_agentid = KFD_INVALID_GPUID;
 
 struct os_agent_info_t
 {
@@ -327,7 +326,6 @@ os_queue_type (os_queue_snapshot_entry_t entry)
   return static_cast<os_queue_type_t> (entry.queue_type);
 }
 
-constexpr os_queue_id_t os_invalid_queueid = KFD_INVALID_QUEUEID;
 constexpr os_queue_id_t os_queue_error_mask = KFD_DBG_QUEUE_ERROR_MASK;
 constexpr os_queue_id_t os_queue_invalid_mask = KFD_DBG_QUEUE_INVALID_MASK;
 constexpr os_queue_id_t os_queue_id_mask
@@ -382,8 +380,9 @@ public:
   set_exceptions_reported (os_exception_mask_t exceptions_reported) const = 0;
 
   virtual amd_dbgapi_status_t
-  send_exceptions (os_exception_mask_t exceptions, os_agent_id_t agent_id,
-                   os_queue_id_t queue_id) const = 0;
+  send_exceptions (os_exception_mask_t exceptions,
+                   std::optional<os_agent_id_t> agent_id,
+                   std::optional<os_queue_id_t> queue_id) const = 0;
 
   virtual amd_dbgapi_status_t
   query_debug_event (os_exception_mask_t *exceptions_present,

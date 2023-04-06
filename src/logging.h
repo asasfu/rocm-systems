@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -77,6 +77,15 @@ to_string (T v)
   std::ostringstream ss;
   ss << v;
   return ss.str ();
+}
+
+template <typename T>
+inline std::string
+to_string (std::optional<T> v)
+{
+  if (v.has_value ())
+    return std::string ("{") + to_string (*v) + "}";
+  return "{}";
 }
 
 template <>

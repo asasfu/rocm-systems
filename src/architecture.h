@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -317,6 +317,11 @@ public:
                          const instruction_t &instruction) const = 0;
 
   virtual bool park_stopped_waves () const = 0;
+
+  virtual void save_pc_for_park (const wave_t &wave,
+                                 amd_dbgapi_global_address_t pc) const = 0;
+  virtual amd_dbgapi_global_address_t
+  saved_parked_pc (const wave_t &wave) const = 0;
 
   virtual bool has_architected_flat_scratch () const = 0;
 

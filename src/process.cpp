@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -805,10 +805,9 @@ process_t::suspend_queues (const std::vector<queue_t *> &queues,
     {
       os_queue_id_t queue_id = mask & os_queue_id_mask;
 
-      /* Some queues may have failed to suspend because they are the
-         os_invalid_queueid, or no longer exist. Check the queue_ids returned
-         by KFD and invalidate those marked as invalid.  It is allowed to
-         invalidate a queue that is already invalid.  */
+      /* Some queues may have failed to suspend because they are invalid, or
+         no longer exist. Check the queue_ids returned by KFD and invalidate
+         those marked as invalid.  */
 
       if (mask & os_queue_error_mask)
         fatal_error ("failed to suspend os_queue_id %d", queue_id);
@@ -909,10 +908,9 @@ process_t::resume_queues (const std::vector<queue_t *> &queues,
     {
       os_queue_id_t queue_id = mask & os_queue_id_mask;
 
-      /* Some queues may have failed to resume because they are the
-         os_invalid_queueid, or no longer exist. Check the queue_ids returned
-         by KFD and invalidate those marked as invalid.  It is allowed to
-         invalidate a queue that is already invalid.  */
+      /* Some queues may have failed to resume because they are invalid, or
+         no longer exist. Check the queue_ids returned by KFD and invalidate
+         those marked as invalid.  */
 
       if (mask & os_queue_error_mask)
         fatal_error ("failed to resume os_queue_id %d", queue_id);
@@ -1951,8 +1949,8 @@ process_t::send_exceptions (
   os_exception_mask_t exceptions,
   std::variant<process_t *, agent_t *, queue_t *> source) const
 {
-  os_agent_id_t agent_id = os_invalid_agentid;
-  os_queue_id_t queue_id = os_invalid_queueid;
+  std::optional<os_agent_id_t> agent_id;
+  std::optional<os_queue_id_t> queue_id;
 
   if (std::holds_alternative<queue_t *> (source))
     {
