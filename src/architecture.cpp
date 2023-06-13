@@ -3450,7 +3450,12 @@ protected:
       context_save_address);
   }
 
+  gfx940_t (elf_amdgpu_machine_t e_machine, std::string target_triple)
+    : gfx90a_t (e_machine, std::move (target_triple))
+  {
+  }
 public:
+
   gfx940_t ()
     : gfx90a_t (EF_AMDGPU_MACH_AMDGCN_GFX940, "amdgcn-amd-amdhsa--gfx940")
   {
@@ -3774,6 +3779,24 @@ gfx940_t::dispatch_packet_address (
 
   return queue.address () + (dispatch_packet_index * queue.packet_size ());
 }
+
+class gfx941_t : public gfx940_t
+{
+public:
+  gfx941_t ()
+    : gfx940_t (EF_AMDGPU_MACH_AMDGCN_GFX941, "amdgcn-amd-amdhsa--gfx941")
+    {
+    }
+};
+
+class gfx942_t : public gfx940_t
+{
+public:
+  gfx942_t ()
+    : gfx940_t (EF_AMDGPU_MACH_AMDGCN_GFX942, "amdgcn-amd-amdhsa--gfx942")
+    {
+    }
+};
 
 class gfx10_architecture_t : public gfx9_architecture_t
 {
@@ -5587,6 +5610,8 @@ decltype (architecture_t::s_architecture_map)
       map.emplace (make_architecture<gfx908_t> ());
       map.emplace (make_architecture<gfx90a_t> ());
       map.emplace (make_architecture<gfx940_t> ());
+      map.emplace (make_architecture<gfx941_t> ());
+      map.emplace (make_architecture<gfx942_t> ());
       map.emplace (make_architecture<gfx1010_t> ());
       map.emplace (make_architecture<gfx1011_t> ());
       map.emplace (make_architecture<gfx1012_t> ());
