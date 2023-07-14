@@ -25,6 +25,7 @@
 #include "utils.h"
 
 #include <algorithm>
+#include <cinttypes>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -1211,8 +1212,8 @@ one_os_exception_to_string (os_exception_mask_t exception_mask)
       return "QUEUE_PACKET_DISPATCH_WORKGROUP_SIZE_INVALID";
     case os_exception_mask_t::queue_packet_dispatch_register_invalid:
       return "QUEUE_PACKET_DISPATCH_REGISTER_INVALID";
-    case os_exception_mask_t::queue_packet_dispatch_vendor_unsupported:
-      return "QUEUE_PACKET_DISPATCH_VENDOR_UNSUPPORTED";
+    case os_exception_mask_t::queue_packet_vendor_unsupported:
+      return "QUEUE_PACKET_VENDOR_UNSUPPORTED";
     case os_exception_mask_t::queue_preemption_error:
       return "QUEUE_PREEMPTION_ERROR";
     case os_exception_mask_t::queue_new:
@@ -1277,14 +1278,15 @@ to_string (os_agent_info_t os_agent_info)
 {
   return string_printf (
     "{ .os_agent_id=%d, .name=%s, .domain=%#x, .location_id=%#x, "
-    ".gfxip=[%d,%d,%d], .simd_count=%ld, .max_waves_per_simd=%ld, "
-    ".shader_engine_count=%ld, .vendor_id=%#x, .device_id=%#x, "
+    ".gfxip=[%d,%d,%d], .simd_count=%zd, .max_waves_per_simd=%zd, "
+    ".shader_engine_count=%zd, .vendor_id=%#x, .device_id=%#x, "
     ".revision_id=%#x, .subsystem_vendor_id=%#x, .subsystem_device_id=%#x, "
-    ".fw_version=%d, .local_address_aperture_base=%#lx, "
-    ".local_address_aperture_limit=%#lx, .private_address_aperture_base=%#lx, "
-    ".private_address_aperture_limit=%#lx, .debugging_supported=%d, "
-    ".address_watch_supported=%d, .address_watch_register_count=%ld, "
-    ".address_watch_mask_bits=%#lx, .watchpoint_exclusive=%d, "
+    ".fw_version=%d, .local_address_aperture_base=%#" PRIx64 ", "
+    ".local_address_aperture_limit=%#" PRIx64 ", "
+    ".private_address_aperture_base=%#" PRIx64 ", "
+    ".private_address_aperture_limit=%#" PRIx64 ", .debugging_supported=%d, "
+    ".address_watch_supported=%d, .address_watch_register_count=%zd, "
+    ".address_watch_mask_bits=%#" PRIx64 ", .watchpoint_exclusive=%d, "
     ".precise_memory_supported=%d, .firmware_supported=%d, "
     "ttmps_always_initialized=%d }",
     os_agent_info.os_agent_id, os_agent_info.name.c_str (),

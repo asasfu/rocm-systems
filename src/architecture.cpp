@@ -31,6 +31,7 @@
 #include "wave.h"
 
 #include <algorithm>
+#include <cinttypes>
 #include <cstdint>
 #include <cstring>
 #include <optional>
@@ -751,7 +752,7 @@ amdgcn_architecture_t::branch_target (wave_t &wave,
     {
       target
         = pc + instruction.size ()
-          + (static_cast<std::ptrdiff_t> (simm16_operand (instruction)) << 2);
+          + (static_cast<int64_t> (simm16_operand (instruction)) << 2);
     }
   else if (is_cbranch_g_fork (instruction))
     {
@@ -897,7 +898,7 @@ amdgcn_architecture_t::classify_instruction (
     {
       information.emplace_back (
         address + instruction.size ()
-        + (static_cast<std::ptrdiff_t> (simm16_operand (instruction)) << 2));
+        + (static_cast<int64_t> (simm16_operand (instruction)) << 2));
 
       if (sdst_regnum.has_value ())
         {
@@ -1000,7 +1001,7 @@ amdgcn_architecture_t::simulate (wave_t &wave, amd_dbgapi_global_address_t pc,
        handler with no trap_id.  */
     simulate_trap_handler (wave, *new_pc);
 
-  log_info ("%s simulated \"%s\" (pc=%#lx)", to_cstring (wave.id ()),
+  log_info ("%s simulated \"%s\" (pc=%#" PRIx64 ")", to_cstring (wave.id ()),
             std::get<std::string> (
               wave.architecture ().disassemble_instruction (pc, instruction))
               .c_str (),
@@ -1577,18 +1578,19 @@ amdgcn_architecture_t::register_name (amdgpu_regnum_t regnum) const
   if (regnum >= amdgpu_regnum_t::first_shadow_sgpr
       && regnum <= amdgpu_regnum_t::last_shadow_sgpr)
     {
-      return string_printf ("s%ld",
+      return string_printf ("s%" PRId64,
                             regnum - amdgpu_regnum_t::first_shadow_sgpr);
     }
   if (regnum >= amdgpu_regnum_t::first_sgpr
       && regnum <= amdgpu_regnum_t::last_sgpr)
     {
-      return string_printf ("s%ld", regnum - amdgpu_regnum_t::first_sgpr);
+      return string_printf ("s%" PRId64, regnum - amdgpu_regnum_t::first_sgpr);
     }
   if (regnum >= amdgpu_regnum_t::first_vgpr_64
       && regnum <= amdgpu_regnum_t::last_vgpr_64)
     {
-      return string_printf ("v%ld", regnum - amdgpu_regnum_t::first_vgpr_64);
+      return string_printf ("v%" PRId64,
+                            regnum - amdgpu_regnum_t::first_vgpr_64);
     }
   if (regnum >= amdgpu_regnum_t::first_ttmp
       && regnum <= amdgpu_regnum_t::last_ttmp)
@@ -1604,7 +1606,7 @@ amdgcn_architecture_t::register_name (amdgpu_regnum_t regnum) const
         case amdgpu_regnum_t::ttmp10:
         case amdgpu_regnum_t::ttmp11:
         case amdgpu_regnum_t::ttmp13:
-          return string_printf ("ttmp%ld",
+          return string_printf ("ttmp%" PRId64,
                                 regnum - amdgpu_regnum_t::first_ttmp);
         default:
           break;
@@ -1613,7 +1615,8 @@ amdgcn_architecture_t::register_name (amdgpu_regnum_t regnum) const
   if (regnum >= amdgpu_regnum_t::first_hwreg
       && regnum <= amdgpu_regnum_t::last_hwreg)
     {
-      return string_printf ("hwreg%ld", regnum - amdgpu_regnum_t::first_hwreg);
+      return string_printf ("hwreg%" PRId64,
+                            regnum - amdgpu_regnum_t::first_hwreg);
     }
 
   if (regnum == amdgpu_regnum_t::exec_64
@@ -1808,28 +1811,36 @@ amdgcn_architecture_t::register_read_only_mask (amdgpu_regnum_t regnum) const
   switch (regnum)
     {
     case amdgpu_regnum_t::trapsts:
-      static uint32_t trapsts_read_only_bits
-        = utils::bit_mask (9, 9) /* 0  */ | utils::bit_mask (15, 15) /* 0  */
-          | utils::bit_mask (22, 27) /* 0  */;
-      return &trapsts_read_only_bits;
+      {
+        static uint32_t trapsts_read_only_bits
+          = utils::bit_mask (9, 9) /* 0  */ | utils::bit_mask (15, 15) /* 0  */
+            | utils::bit_mask (22, 27) /* 0  */;
+        return &trapsts_read_only_bits;
+      }
 
     case amdgpu_regnum_t::mode:
-      static uint32_t mode_read_only_bits = utils::bit_mask (21, 22); /* 0 */
-      return &mode_read_only_bits;
+      {
+        static uint32_t mode_read_only_bits = utils::bit_mask (21, 22); /* 0 */
+        return &mode_read_only_bits;
+      }
 
     case amdgpu_regnum_t::pseudo_status:
-      static uint32_t status_read_only_bits
-        = utils::bit_mask (5, 7)      /* priv, trap_en, ttrace_en  */
-          | utils::bit_mask (9, 12)   /* execz, vccz, in_tg, in_barrier  */
-          | utils::bit_mask (14, 16)  /* trap, ttrace_cu_en, valid  */
-          | utils::bit_mask (19, 19)  /* perf_en  */
-          | utils::bit_mask (22, 26)  /* allow_replay, fatal_halt, 0  */
-          | utils::bit_mask (28, 31); /* 0  */
-      return &status_read_only_bits;
+      {
+        static uint32_t status_read_only_bits
+          = utils::bit_mask (5, 7)      /* priv, trap_en, ttrace_en  */
+            | utils::bit_mask (9, 12)   /* execz, vccz, in_tg, in_barrier  */
+            | utils::bit_mask (14, 16)  /* trap, ttrace_cu_en, valid  */
+            | utils::bit_mask (19, 19)  /* perf_en  */
+            | utils::bit_mask (22, 26)  /* allow_replay, fatal_halt, 0  */
+            | utils::bit_mask (28, 31); /* 0  */
+        return &status_read_only_bits;
+      }
 
     case amdgpu_regnum_t::pc:
-      static uint64_t pc_read_only_bits = utils::bit_mask (0, 1); /* 0  */
-      return &pc_read_only_bits;
+      {
+        static uint64_t pc_read_only_bits = utils::bit_mask (0, 1); /* 0  */
+        return &pc_read_only_bits;
+      }
 
     default:
       return nullptr;
@@ -2411,7 +2422,7 @@ gfx9_architecture_t::wave_get_state (wave_t &wave) const
           /* Resume the wave in single-step mode.  */
           wave_set_state (wave, AMD_DBGAPI_WAVE_STATE_SINGLE_STEP);
 
-          log_info ("%s (pc=%#lx) ignore spurious single-step",
+          log_info ("%s (pc=%#" PRIx64 ") ignore spurious single-step",
                     to_cstring (wave.id ()), wave.pc ());
 
           return { AMD_DBGAPI_WAVE_STATE_SINGLE_STEP,
@@ -3054,7 +3065,7 @@ gfx9_architecture_t::dispatch_packet_address (
   const compute_queue_t &queue = cwsr_record.queue ();
 
   if ((dispatch_packet_index * queue.packet_size ()) >= queue.size ())
-    fatal_error ("dispatch_packet_index %#lx is out of bounds in %s",
+    fatal_error ("dispatch_packet_index %#" PRIx64 " is out of bounds in %s",
                  dispatch_packet_index, to_cstring (queue.id ()));
 
   return queue.address () + (dispatch_packet_index * queue.packet_size ());
@@ -3084,8 +3095,8 @@ gfx9_architecture_t::scratch_memory_region (
      inaccessible by returning a 0 size.  */
   if ((waves % shader_engine_count) != 0)
     {
-      warning ("compute_tmpring_size.waves (%ld) is not divisible by %d, "
-               "private memory access is disabled",
+      warning ("compute_tmpring_size.waves (%" PRId64 ") is not divisible by "
+               "%d, private memory access is disabled",
                waves, shader_engine_count);
       wavesize = 0;
     }
@@ -3184,7 +3195,7 @@ mi_architecture_t::register_name (amdgpu_regnum_t regnum) const
   if (regnum >= amdgpu_regnum_t::first_accvgpr_64
       && regnum <= amdgpu_regnum_t::last_accvgpr_64)
     {
-      return string_printf ("a%ld",
+      return string_printf ("a%" PRId64,
                             regnum - amdgpu_regnum_t::first_accvgpr_64);
     }
 
@@ -4031,7 +4042,8 @@ gfx10_architecture_t::register_name (amdgpu_regnum_t regnum) const
   if (regnum >= amdgpu_regnum_t::first_vgpr_32
       && regnum <= amdgpu_regnum_t::last_vgpr_32)
     {
-      return string_printf ("v%ld", regnum - amdgpu_regnum_t::first_vgpr_32);
+      return string_printf ("v%" PRId64,
+                            regnum - amdgpu_regnum_t::first_vgpr_32);
     }
   if (regnum == amdgpu_regnum_t::exec_32
       || regnum == amdgpu_regnum_t::pseudo_exec_32)
@@ -4363,7 +4375,7 @@ gfx10_architecture_t::branch_target (wave_t &wave,
       || is_subvector_loop_end (instruction))
     {
       return pc + instruction.size ()
-             + (static_cast<ssize_t> (simm16_operand (instruction)) << 2);
+             + (static_cast<int64_t> (simm16_operand (instruction)) << 2);
     }
 
   return gfx9_architecture_t::branch_target (wave, pc, instruction);
@@ -4752,7 +4764,7 @@ gfx10_architecture_t::classify_instruction (
         AMD_DBGAPI_INSTRUCTION_PROPERTY_NONE, instruction.size (),
         std::vector<uint64_t> (
           { address + instruction.size ()
-            + (static_cast<ssize_t> (simm16_operand (instruction)) << 2) })
+            + (static_cast<int64_t> (simm16_operand (instruction)) << 2) })
       };
     }
 
@@ -5193,20 +5205,27 @@ gfx11_architecture_t::register_read_only_mask (amdgpu_regnum_t regnum) const
   switch (regnum)
     {
     case amdgpu_regnum_t::trapsts:
-      static uint32_t trapsts_read_only_bits
-        = utils::bit_mask (9, 9) /* 0  */ | utils::bit_mask (21, 27) /* 0  */
-          | utils::bit_mask (29, 31) /* 0  */;
-      return &trapsts_read_only_bits;
+      {
+        static uint32_t trapsts_read_only_bits
+          = utils::bit_mask (9, 9) /* 0  */ | utils::bit_mask (21, 27) /* 0  */
+            | utils::bit_mask (29, 31) /* 0  */;
+        return &trapsts_read_only_bits;
+      }
 
     case amdgpu_regnum_t::mode:
-      static uint32_t mode_read_only_bits = utils::bit_mask (22, 22)   /* 0 */
-                                            | utils::bit_mask (24, 26) /* 0 */
-                                            | utils::bit_mask (28, 31) /* 0 */;
-      return &mode_read_only_bits;
+      {
+        static uint32_t mode_read_only_bits
+          = utils::bit_mask (22, 22)   /* 0 */
+            | utils::bit_mask (24, 26) /* 0 */
+            | utils::bit_mask (28, 31) /* 0 */;
+        return &mode_read_only_bits;
+      }
 
     case amdgpu_regnum_t::pseudo_status:
-      static uint32_t status_read_only_bits = utils::bit_mask (0, 31);
-      return &status_read_only_bits;
+      {
+        static uint32_t status_read_only_bits = utils::bit_mask (0, 31);
+        return &status_read_only_bits;
+      }
 
     default:
       return gfx10_architecture_t::register_read_only_mask (regnum);
@@ -5784,7 +5803,7 @@ amd_dbgapi_disassemble_instruction (
                   THROW (AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
               }
 
-            address_operands_str += string_printf ("%#lx", operand);
+            address_operands_str += string_printf ("%#" PRIx64, operand);
           }
 
         instruction_str += address_operands_str;

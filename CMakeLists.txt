@@ -22,6 +22,7 @@ cmake_minimum_required(VERSION 3.8)
 
 project(amd-dbgapi VERSION 0.70.1)
 
+include(CheckIncludeFile)
 include(GNUInstallDirs)
 # Convert the project's name to uppercase and replace '-' with '_'.
 string(TOUPPER "${PROJECT_NAME}" AMD_DBGAPI_NAME)
@@ -58,9 +59,6 @@ else()
   endif()
 endif()
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/include/amd-dbgapi.h.in
   ${CMAKE_CURRENT_BINARY_DIR}/include/amd-dbgapi/amd-dbgapi.h @ONLY)
@@ -95,7 +93,7 @@ target_compile_options(amd-dbgapi PRIVATE
   -fno-rtti -Werror -Wall -Wextra -Wshadow -Wno-attributes) #-pedantic)
 
 target_compile_definitions(amd-dbgapi
-  PRIVATE __STDC_LIMIT_MACROS __STDC_CONSTANT_MACROS)
+  PRIVATE __STDC_LIMIT_MACROS __STDC_CONSTANT_MACROS __STDC_FORMAT_MACROS)
 
 check_include_file(backtrace.h BACKTRACE_H)
 if(BACKTRACE_H)
@@ -171,7 +169,7 @@ else()
   endif()
 endif()
 
-target_link_libraries(amd-dbgapi PRIVATE amd_comgr Threads::Threads ${CMAKE_DL_LIBS})
+target_link_libraries(amd-dbgapi PRIVATE amd_comgr ${CMAKE_DL_LIBS})
 
 set_source_files_properties(src/versioning.cpp src/initialization.cpp PROPERTIES
   COMPILE_DEFINITIONS "AMD_DBGAPI_VERSION_PATCH=${PROJECT_VERSION_PATCH};AMD_DBGAPI_BUILD_INFO=\"${PROJECT_VERSION}-${build_info}\"")
