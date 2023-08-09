@@ -3801,7 +3801,7 @@ gfx940_t::dispatch_packet_address (
   return queue.address () + (dispatch_packet_index * queue.packet_size ());
 }
 
-class gfx941_t : public gfx940_t
+class gfx941_t final : public gfx940_t
 {
 public:
   gfx941_t ()
@@ -3810,7 +3810,7 @@ public:
     }
 };
 
-class gfx942_t : public gfx940_t
+class gfx942_t final : public gfx940_t
 {
 public:
   gfx942_t ()

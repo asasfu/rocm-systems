@@ -1,7 +1,11 @@
 # Changelog for AMD Debugger API (ROCdbgapi)
 
 Full documentatino for AMD Debugger API is available at
-[docs.amd.com](https://docs.amd.com/category/ROCDebugger%20API%20Guides).
+[rocm.docs.amd.com](https://rocm.docs.amd.com/projects/ROCdbgapi/en/latest/index.html).
+
+## (Unreleased) rocm-dbgapi-0.71.0
+### Added
+- Add support for gfx940, gfx941 and gfx942 architectures.
 
 ## (Unreleased) rocm-dbgapi-0.70.1
 ### Added
