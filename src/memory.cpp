@@ -30,6 +30,7 @@
 #include "wave.h"
 
 #include <cstring>
+#include <exception>
 #include <optional>
 
 namespace amd::dbgapi
@@ -543,6 +544,7 @@ void
 memory_cache_t::write_back (amd_dbgapi_global_address_t address,
                             amd_dbgapi_size_t size)
 {
+  std::exception_ptr exception;
   if (policy != policy_t::write_back || size == 0)
     return;
 
@@ -606,7 +608,18 @@ memory_cache_t::write_back (amd_dbgapi_global_address_t address,
         {
           /* The process has exited, simply discard the dirty cached bytes.  */
         }
+      catch (const memory_access_error_t &e)
+        {
+          /* If we see memory errors, continue to try to write back all dirty
+             lines.  The first exception seen will be rethrown at the end of
+             the procedure.  */
+          if (!exception)
+            exception = std::current_exception ();
+        }
     }
+
+  if (exception)
+    std::rethrow_exception (exception);
 }
 
 void
@@ -1134,6 +1147,9 @@ xfer_memory (amd_dbgapi_process_id_t process_id, amd_dbgapi_wave_id_t wave_id,
   if ((read == nullptr) == (write == nullptr) || value_size == nullptr)
     THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
 
+  if (process->is_frozen () && write != nullptr)
+    THROW (AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
+
   const address_space_t *address_space = find (address_space_id);
 
   if (address_space == nullptr)
@@ -1260,7 +1276,8 @@ amd_dbgapi_write_memory (amd_dbgapi_process_id_t process_id,
          AMD_DBGAPI_STATUS_ERROR_WAVE_NOT_STOPPED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY,
-         AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS);
+         AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS,
+         AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
   TRACE_END (make_ref (param_out (value_size)));
 }
 

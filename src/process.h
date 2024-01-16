@@ -109,6 +109,8 @@ private:
   os_wave_launch_mode_t m_wave_launch_mode{ os_wave_launch_mode_t::normal };
   os_wave_launch_trap_mask_t m_wave_trap_mask{};
 
+  bool m_frozen{ false };
+
   bool m_supports_precise_memory{ false };
   bool m_precise_memory{ false };
 
@@ -162,6 +164,8 @@ public:
   {
     return m_rocr_debug_version;
   }
+
+  bool from_core () const { return !m_os_process_id.has_value (); }
 
   /* Reset all the handle_object_sets IDs.  There should not be any attached
      processes left in the s_process_map. */
@@ -224,6 +228,8 @@ public:
   void set_wave_launch_trap_override (os_wave_launch_trap_mask_t value,
                                       os_wave_launch_trap_mask_t mask);
 
+  bool is_frozen () const { return m_frozen; }
+
   void set_precise_memory (bool enabled);
 
   /* Suspend/resume a list of queues.  Queues may become invalid as a result of
@@ -255,6 +261,9 @@ public:
   void attach ();
   void detach ();
 
+  void freeze ();
+  void unfreeze ();
+
   void enqueue_event (event_t &event);
   event_t *next_pending_event ();
 
@@ -282,7 +291,9 @@ public:
   void get_info (amd_dbgapi_process_info_t query, size_t value_size,
                  void *value) const;
 
-  amd_dbgapi_status_t get_os_pid (amd_dbgapi_os_process_id_t *pid) const;
+  amd_dbgapi_status_t
+  client_process_get_info (amd_dbgapi_client_process_info_t query,
+                           size_t value_size, void *value) const;
   amd_dbgapi_status_t
   insert_breakpoint (amd_dbgapi_global_address_t address,
                      amd_dbgapi_breakpoint_id_t breakpoint_id);

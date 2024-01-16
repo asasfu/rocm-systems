@@ -111,11 +111,16 @@ protected:
   static constexpr uint32_t sq_wave_status_execz_mask = 1 << 9;
   static constexpr uint32_t sq_wave_status_vccz_mask = 1 << 10;
   static constexpr uint32_t sq_wave_status_halt_mask = 1 << 13;
+  /* The skip_export bit is meaningless for compute and is always cleared.
+     The trap handler sets it so the debugger can know that the trap handler
+     was entered.  */
+  static constexpr uint32_t sq_wave_status_skip_export_mask = 1 << 18;
   static constexpr uint32_t sq_wave_status_cond_dbg_user_mask = 1 << 20;
   static constexpr uint32_t sq_wave_status_cond_dbg_sys_mask = 1 << 21;
 
   static constexpr uint32_t ttmp11_wave_in_group_mask = utils::bit_mask (0, 5);
   static constexpr int ttmp11_wave_in_group_shift = 0;
+  static constexpr uint32_t ttmp6_spi_ttmps_setup_disabled_mask = 1 << 31;
   static constexpr uint32_t ttmp6_wave_stopped_mask = 1 << 30;
   static constexpr uint32_t ttmp6_saved_status_halt_mask = 1 << 29;
   static constexpr uint32_t ttmp6_saved_trap_id_mask
@@ -217,6 +222,25 @@ protected:
 
   class cwsr_record_t : public architecture_t::cwsr_record_t
   {
+  public:
+    bool spi_ttmps_setup_enabled () const override
+    {
+      dbgapi_assert (agent ().spi_ttmps_setup_enabled ());
+      /* Before ROCr ABI version 10, the is no way to record that a single
+         wave has no meaningful data in SPI initialized registers.  If SPI
+         TTMP registers are reported as initialized on a per agent/process
+         basis (which is a pre-condition for this method to be called), assume
+         that TTMP registers are enabled for every waves.  */
+      if (process ().rocr_rdebug_version () < 10)
+        return true;
+
+      uint32_t ttmp6;
+      const amd_dbgapi_global_address_t ttmp6_address
+        = register_address (amdgpu_regnum_t::ttmp6).value ();
+      process ().read_global_memory (ttmp6_address, &ttmp6);
+      return !(ttmp6 & ttmp6_spi_ttmps_setup_disabled_mask);
+    }
+
   protected:
     cwsr_record_t (compute_queue_t &queue, uint32_t xcc_id)
       : architecture_t::cwsr_record_t (queue, xcc_id)
@@ -280,8 +304,36 @@ public:
                               size_t offset, size_t value_size,
                               const void *value) const override;
 
-  bool are_trap_handler_ttmps_initialized (const wave_t &wave) const override;
+  enum class exception_mask_t : uint32_t
+  {
+    invalid = 1 << 0,
+    input_denorm = 1 << 1,
+    float_div0 = 1 << 2,
+    overflow = 1 << 3,
+    underflow = 1 << 4,
+    inexact = 1 << 5,
+    int_div0 = 1 << 6,
+    mem_viol = 1 << 7,
+    illegal_inst = 1 << 8,
+    addr_watch0 = 1 << 9,
+    addr_watch1 = 1 << 10,
+    addr_watch2 = 1 << 11,
+    addr_watch3 = 1 << 12,
+    xnack_error = 1 << 13,
+    wave_begin = 1 << 14,
+    wave_end = 1 << 15,
+    trap_after_inst = 1 << 16,
+    host_trap = 1 << 17
+  };
+
+  virtual exception_mask_t signaled_exceptions (const wave_t &) const;
+  virtual void set_exceptions (wave_t &, exception_mask_t,
+                               exception_mask_t) const;
+
+  void record_spi_ttmps_setup (const wave_t &wave,
+                               bool enabled) const override;
   void initialize_spi_ttmps (const wave_t &wave) const override;
+  bool are_trap_handler_ttmps_initialized (const wave_t &wave) const override;
   void initialize_trap_handler_ttmps (const wave_t &wave) const override;
 
   std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
@@ -417,6 +469,11 @@ protected:
 
   virtual bool simulate (wave_t &wave, amd_dbgapi_global_address_t pc,
                          const instruction_t &instruction) const override;
+};
+
+template <>
+struct is_flag<amdgcn_architecture_t::exception_mask_t> : std::true_type
+{
 };
 
 namespace detail
@@ -1169,6 +1226,103 @@ amdgcn_architecture_t::simulate_trap_handler (
   wave.write_register (amdgpu_regnum_t::status, status_reg);
 };
 
+amdgcn_architecture_t::exception_mask_t
+amdgcn_architecture_t::signaled_exceptions (const wave_t &wave) const
+{
+  uint32_t trapsts, mode_reg;
+  exception_mask_t exceptions{};
+  wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+  wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
+
+  /* Check for exceptions.  Maskable exceptions may be mis-reported if
+     trapsts.excp[x] is not cleared when mode.excp_en[x] is set.  */
+  if (trapsts & sq_wave_trapsts_excp_invalid_mask
+      && mode_reg & sq_wave_mode_excp_en_invalid_mask)
+    exceptions |= exception_mask_t::invalid;
+  if (trapsts & sq_wave_trapsts_excp_input_denorm_mask
+      && mode_reg & sq_wave_mode_excp_en_input_denorm_mask)
+    exceptions |= exception_mask_t::input_denorm;
+  if (trapsts & sq_wave_trapsts_excp_div0_mask
+      && mode_reg & sq_wave_mode_excp_en_div0_mask)
+    exceptions |= exception_mask_t::float_div0;
+  if (trapsts & sq_wave_trapsts_excp_overflow_mask
+      && mode_reg & sq_wave_mode_excp_en_overflow_mask)
+    exceptions |= exception_mask_t::overflow;
+  if (trapsts & sq_wave_trapsts_excp_underflow_mask
+      && mode_reg & sq_wave_mode_excp_en_underflow_mask)
+    exceptions |= exception_mask_t::underflow;
+  if (trapsts & sq_wave_trapsts_excp_inexact_mask
+      && mode_reg & sq_wave_mode_excp_en_inexact_mask)
+    exceptions |= exception_mask_t::inexact;
+  if (trapsts & sq_wave_trapsts_excp_int_div0_mask
+      && mode_reg & sq_wave_mode_excp_en_int_div0_mask)
+    exceptions |= exception_mask_t::int_div0;
+  if (trapsts & sq_wave_trapsts_xnack_error_mask)
+    exceptions |= exception_mask_t::xnack_error;
+  if (trapsts & sq_wave_trapsts_excp_mem_viol_mask)
+    exceptions |= exception_mask_t::mem_viol;
+  if (trapsts & sq_wave_trapsts_illegal_inst_mask)
+    exceptions |= exception_mask_t::illegal_inst;
+  if (trapsts & sq_wave_trapsts_excp_addr_watch0_mask
+      && mode_reg & sq_wave_mode_excp_en_addr_watch_mask)
+    exceptions |= exception_mask_t::addr_watch0;
+  if (trapsts & sq_wave_trapsts_excp_hi_addr_watch1_mask
+      && mode_reg & sq_wave_mode_excp_en_addr_watch_mask)
+    exceptions |= exception_mask_t::addr_watch1;
+  if (trapsts & sq_wave_trapsts_excp_hi_addr_watch2_mask
+      && mode_reg & sq_wave_mode_excp_en_addr_watch_mask)
+    exceptions |= exception_mask_t::addr_watch2;
+  if (trapsts & sq_wave_trapsts_excp_hi_addr_watch3_mask
+      && mode_reg & sq_wave_mode_excp_en_addr_watch_mask)
+    exceptions |= exception_mask_t::addr_watch3;
+
+  return exceptions;
+}
+
+void
+amdgcn_architecture_t::set_exceptions (wave_t &wave, exception_mask_t mask,
+                                       exception_mask_t exceptions) const
+{
+  uint32_t trapsts;
+
+  auto convert_mask = [] (exception_mask_t m) -> uint32_t
+  {
+    uint32_t trapsts_mask = 0;
+    if ((m & exception_mask_t::invalid) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_invalid_mask;
+    if ((m & exception_mask_t::input_denorm) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_input_denorm_mask;
+    if ((m & exception_mask_t::float_div0) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_div0_mask;
+    if ((m & exception_mask_t::overflow) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_overflow_mask;
+    if ((m & exception_mask_t::underflow) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_underflow_mask;
+    if ((m & exception_mask_t::int_div0) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_int_div0_mask;
+    if ((m & exception_mask_t::mem_viol) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_mem_viol_mask;
+    if ((m & exception_mask_t::illegal_inst) != 0)
+      trapsts_mask |= sq_wave_trapsts_illegal_inst_mask;
+    if ((m & exception_mask_t::addr_watch0) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_addr_watch0_mask;
+    if ((m & exception_mask_t::addr_watch1) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_hi_addr_watch1_mask;
+    if ((m & exception_mask_t::addr_watch2) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_hi_addr_watch2_mask;
+    if ((m & exception_mask_t::addr_watch3) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_hi_addr_watch3_mask;
+
+    return trapsts_mask;
+  };
+  const uint32_t trapsts_mask = convert_mask (mask);
+  const uint32_t trapsts_set = convert_mask (exceptions);
+
+  wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+  trapsts = (trapsts & ~trapsts_mask) | (trapsts_set & trapsts_mask);
+  wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
+}
+
 bool
 amdgcn_architecture_t::are_trap_handler_ttmps_initialized (
   const wave_t & /* wave  */) const
@@ -1178,11 +1332,55 @@ amdgcn_architecture_t::are_trap_handler_ttmps_initialized (
 }
 
 void
+amdgcn_architecture_t::record_spi_ttmps_setup (const wave_t &wave,
+                                               bool enabled) const
+{
+  /* The bit to store that SPI TTMPS do not contain meaningful data on a
+     per-wave basis have only been introduced in ROCr ABI version 10.  */
+  if (wave.process ().rocr_rdebug_version () < 10)
+    return;
+
+  uint32_t ttmp6;
+  wave.read_register (amdgpu_regnum_t::ttmp6, &ttmp6);
+  ttmp6 &= ~ttmp6_spi_ttmps_setup_disabled_mask;
+  if (!enabled)
+    ttmp6 |= ttmp6_spi_ttmps_setup_disabled_mask;
+  wave.write_register (amdgpu_regnum_t::ttmp6, ttmp6);
+}
+
+void
 amdgcn_architecture_t::initialize_spi_ttmps (const wave_t &wave) const
 {
-  for (amdgpu_regnum_t regnum = amdgpu_regnum_t::ttmp6;
-       regnum <= amdgpu_regnum_t::ttmp11; ++regnum)
+  uint32_t ttmp6, ttmp11, status;
+  wave.read_register (amdgpu_regnum_t::ttmp6, &ttmp6);
+  wave.read_register (amdgpu_regnum_t::ttmp11, &ttmp11);
+  wave.read_register (amdgpu_regnum_t::status, &status);
+
+  ttmp11 &= ~ttmp11_wave_in_group_mask;
+
+  /* TTMP6 is initialized by SPI, but the trap handler uses it to store
+     valuable information when executed.
+
+     Before rdebug version 10, we cannot know if the trap handler was entered
+     or not, so we need to to clear TTMP6 completely.
+
+     Starting rdebug version 10, the trap handler always sets mode.skip_export
+     when halting the wave, so we can be sure that it was executed.  If this
+     bit is set on a halted wave, make sure to not clear information saved by
+     the trap handler.  */
+  if (wave.process ().rocr_rdebug_version () >= 10
+      && (status & sq_wave_status_skip_export_mask) != 0)
+    ttmp6 &= (ttmp6_wave_stopped_mask | ttmp6_saved_status_halt_mask
+              | ttmp6_saved_trap_id_mask);
+  else
+    ttmp6 = 0;
+
+  for (amdgpu_regnum_t regnum = amdgpu_regnum_t::ttmp8;
+       regnum <= amdgpu_regnum_t::ttmp10; ++regnum)
     wave.write_register (regnum, uint32_t{ 0 });
+
+  wave.write_register (amdgpu_regnum_t::ttmp6, ttmp6);
+  wave.write_register (amdgpu_regnum_t::ttmp11, ttmp11);
 }
 
 void
@@ -1217,46 +1415,38 @@ amdgcn_architecture_t::wave_get_state (wave_t &wave) const
   amd_dbgapi_wave_stop_reasons_t stop_reason
     = AMD_DBGAPI_WAVE_STOP_REASON_NONE;
 
-  uint32_t trapsts, mode_reg;
-  wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
-  wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
-
-  /* Check for exceptions.  Maskable exceptions may be mis-reported if
-     trapsts.excp[x] is not cleared when mode.excp_en[x] is set.  */
-  if (trapsts & sq_wave_trapsts_excp_invalid_mask
-      && mode_reg & sq_wave_mode_excp_en_invalid_mask)
+  exception_mask_t exceptions = signaled_exceptions (wave);
+  if ((exceptions & exception_mask_t::invalid) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_FP_INVALID_OPERATION;
-  if (trapsts & sq_wave_trapsts_excp_input_denorm_mask
-      && mode_reg & sq_wave_mode_excp_en_input_denorm_mask)
+  if ((exceptions & exception_mask_t::input_denorm) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_FP_INPUT_DENORMAL;
-  if (trapsts & sq_wave_trapsts_excp_div0_mask
-      && mode_reg & sq_wave_mode_excp_en_div0_mask)
+  if ((exceptions & exception_mask_t::float_div0) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_FP_DIVIDE_BY_0;
-  if (trapsts & sq_wave_trapsts_excp_overflow_mask
-      && mode_reg & sq_wave_mode_excp_en_overflow_mask)
+  if ((exceptions & exception_mask_t::overflow) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_FP_OVERFLOW;
-  if (trapsts & sq_wave_trapsts_excp_underflow_mask
-      && mode_reg & sq_wave_mode_excp_en_underflow_mask)
+  if ((exceptions & exception_mask_t::underflow) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_FP_UNDERFLOW;
-  if (trapsts & sq_wave_trapsts_excp_inexact_mask
-      && mode_reg & sq_wave_mode_excp_en_inexact_mask)
+  if ((exceptions & exception_mask_t::inexact) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_FP_INEXACT;
-  if (trapsts & sq_wave_trapsts_excp_int_div0_mask
-      && mode_reg & sq_wave_mode_excp_en_int_div0_mask)
+  if ((exceptions & exception_mask_t::int_div0) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_INT_DIVIDE_BY_0;
-  if (trapsts & sq_wave_trapsts_xnack_error_mask)
+  if ((exceptions & exception_mask_t::xnack_error) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_MEMORY_VIOLATION;
-  else if (trapsts & sq_wave_trapsts_excp_mem_viol_mask)
+  else if ((exceptions & exception_mask_t::mem_viol) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_APERTURE_VIOLATION;
-  if (trapsts & sq_wave_trapsts_illegal_inst_mask)
+  if ((exceptions & exception_mask_t::illegal_inst) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_ILLEGAL_INSTRUCTION;
-  if (trapsts
-        & (sq_wave_trapsts_excp_addr_watch0_mask
-           | sq_wave_trapsts_excp_hi_addr_watch1_mask
-           | sq_wave_trapsts_excp_hi_addr_watch2_mask
-           | sq_wave_trapsts_excp_hi_addr_watch3_mask)
-      && mode_reg & sq_wave_mode_excp_en_addr_watch_mask)
+  if ((exceptions
+       & (exception_mask_t::addr_watch0 | exception_mask_t::addr_watch1
+          | exception_mask_t::addr_watch2 | exception_mask_t::addr_watch3))
+      != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_WATCHPOINT;
+  if ((exceptions & exception_mask_t::trap_after_inst) != 0)
+    stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP;
+  if ((exceptions
+       & (exception_mask_t::wave_begin | exception_mask_t::wave_end))
+      != 0)
+    stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_TRAP;
 
   /* Check for traps caused by an s_trap instruction.  */
   if (auto trap_id = ttmp6_saved_trap_id (ttmp6); trap_id)
@@ -1308,12 +1498,18 @@ amdgcn_architecture_t::wave_set_state (wave_t &wave,
       ttmp6 |= ttmp6_wave_stopped_mask;
 
       status_reg |= sq_wave_status_halt_mask;
+
+      /* For architectures which can guarantee that SPI initializes TTMPs,
+         we do not need the skip_export workaround.  */
+      if (!wave.agent ().os_info ().ttmps_always_initialized)
+        status_reg |= sq_wave_status_skip_export_mask;
       break;
 
     case AMD_DBGAPI_WAVE_STATE_RUN:
       /* Restore status.halt from ttmp6.saved_status_halt, put the wave in the
          run state (ttmp6.wave_stopped=0), and set mode.debug_en=0.  */
-      status_reg &= ~sq_wave_status_halt_mask;
+      status_reg
+        &= ~(sq_wave_status_halt_mask | sq_wave_status_skip_export_mask);
       if (ttmp6 & ttmp6_saved_status_halt_mask)
         status_reg |= sq_wave_status_halt_mask;
 
@@ -1325,7 +1521,8 @@ amdgcn_architecture_t::wave_set_state (wave_t &wave,
     case AMD_DBGAPI_WAVE_STATE_SINGLE_STEP:
       /* Restore status.halt from ttmp6.saved_status_halt, put the wave in the
          run state (ttmp6.wave_stopped=0), and set mode.debug_en=1.  */
-      status_reg &= ~sq_wave_status_halt_mask;
+      status_reg
+        &= ~(sq_wave_status_halt_mask | sq_wave_status_skip_export_mask);
       if (ttmp6 & ttmp6_saved_status_halt_mask)
         status_reg |= sq_wave_status_halt_mask;
 
@@ -1349,42 +1546,35 @@ amdgcn_architecture_t::wave_set_state (wave_t &wave,
       && wave.stop_reason () != AMD_DBGAPI_WAVE_STOP_REASON_NONE)
     {
       amd_dbgapi_wave_stop_reasons_t stop_reason = wave.stop_reason ();
-      uint32_t clear_exceptions = 0;
+      exception_mask_t exceptions{};
 
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_MEMORY_VIOLATION)
-        clear_exceptions |= sq_wave_trapsts_excp_mem_viol_mask
-                            | sq_wave_trapsts_xnack_error_mask;
+        exceptions
+          |= exception_mask_t::mem_viol | exception_mask_t::xnack_error;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_APERTURE_VIOLATION)
-        clear_exceptions |= sq_wave_trapsts_excp_mem_viol_mask;
+        exceptions |= exception_mask_t::mem_viol;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_ILLEGAL_INSTRUCTION)
-        clear_exceptions |= sq_wave_trapsts_illegal_inst_mask;
+        exceptions |= exception_mask_t::illegal_inst;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_FP_INVALID_OPERATION)
-        clear_exceptions |= sq_wave_trapsts_excp_invalid_mask;
+        exceptions |= exception_mask_t::invalid;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_FP_INPUT_DENORMAL)
-        clear_exceptions |= sq_wave_trapsts_excp_input_denorm_mask;
+        exceptions |= exception_mask_t::input_denorm;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_FP_DIVIDE_BY_0)
-        clear_exceptions |= sq_wave_trapsts_excp_div0_mask;
+        exceptions |= exception_mask_t::float_div0;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_FP_OVERFLOW)
-        clear_exceptions |= sq_wave_trapsts_excp_overflow_mask;
+        exceptions |= exception_mask_t::overflow;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_FP_UNDERFLOW)
-        clear_exceptions |= sq_wave_trapsts_excp_underflow_mask;
+        exceptions |= exception_mask_t::underflow;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_FP_INEXACT)
-        clear_exceptions |= sq_wave_trapsts_excp_inexact_mask;
+        exceptions |= exception_mask_t::inexact;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_INT_DIVIDE_BY_0)
-        clear_exceptions |= sq_wave_trapsts_excp_int_div0_mask;
+        exceptions |= exception_mask_t::int_div0;
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_WATCHPOINT)
-        clear_exceptions |= sq_wave_trapsts_excp_addr_watch0_mask
-                            | sq_wave_trapsts_excp_hi_addr_watch1_mask
-                            | sq_wave_trapsts_excp_hi_addr_watch2_mask
-                            | sq_wave_trapsts_excp_hi_addr_watch3_mask;
+        exceptions
+          |= exception_mask_t::addr_watch0 | exception_mask_t::addr_watch1
+             | exception_mask_t::addr_watch2 | exception_mask_t::addr_watch3;
 
-      if (clear_exceptions)
-        {
-          uint32_t trapsts;
-          wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
-          trapsts &= ~clear_exceptions;
-          wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
-        }
+      set_exceptions (wave, exceptions, {});
     }
 }
 
@@ -1840,7 +2030,7 @@ amdgcn_architecture_t::register_read_only_mask (amdgpu_regnum_t regnum) const
           = utils::bit_mask (5, 7)      /* priv, trap_en, ttrace_en  */
             | utils::bit_mask (9, 12)   /* execz, vccz, in_tg, in_barrier  */
             | utils::bit_mask (14, 16)  /* trap, ttrace_cu_en, valid  */
-            | utils::bit_mask (19, 19)  /* perf_en  */
+            | utils::bit_mask (18, 19)  /* skip_export, perf_en  */
             | utils::bit_mask (22, 26)  /* allow_replay, fatal_halt, 0  */
             | utils::bit_mask (28, 31); /* 0  */
         return &status_read_only_bits;
@@ -1939,15 +2129,18 @@ amdgcn_architecture_t::read_pseudo_register (const wave_t &wave,
 
   if (regnum == amdgpu_regnum_t::pseudo_status)
     {
-      /* pseudo_status is a composite of: sq_wave_status[31:14], ttmp6[29]
-         (halt), sq_wave_status [12:6], 0[0] (priv), sq_wave_status [4:0].  */
+      /* pseudo_status is a composite of: sq_wave_status[31:19], 0[0]
+         (skip_export), sq_wave_status[17:14], ttmp6[29] (halt), sq_wave_status
+         [12:6], 0[0] (priv), sq_wave_status [4:0].  */
 
       uint32_t ttmp6, status_reg;
 
       wave.read_register (amdgpu_regnum_t::status, &status_reg);
       wave.read_register (amdgpu_regnum_t::ttmp6, &ttmp6);
 
-      status_reg &= ~(sq_wave_status_priv_mask | sq_wave_status_halt_mask);
+      status_reg &= ~(sq_wave_status_priv_mask | sq_wave_status_halt_mask
+                      | sq_wave_status_skip_export_mask);
+
       if (ttmp6 & ttmp6_saved_status_halt_mask)
         status_reg |= sq_wave_status_halt_mask;
 
@@ -2032,8 +2225,9 @@ amdgcn_architecture_t::write_pseudo_register (const wave_t &wave,
 
   if (regnum == amdgpu_regnum_t::pseudo_status)
     {
-      /* pseudo_status is a composite of: status[31:14], ttmp6[29] (halt),
-         status [12:6], 0[0] (priv), status [4:0].  */
+      /* pseudo_status is a composite of: status[31:19], 0[0] (skip_export),
+         status[17:14], ttmp6[29] (halt), status [12:6], 0[0] (priv),
+         status[4:0].  */
 
       uint32_t status_reg, ttmp6;
       wave.read_register (amdgpu_regnum_t::status, &status_reg);
@@ -2193,8 +2387,8 @@ protected:
     }
 
     amd_dbgapi_wave_id_t id () const override;
-    std::array<uint32_t, 3> group_ids () const override;
-    uint32_t position_in_group () const override;
+    std::optional<std::array<uint32_t, 3>> group_ids () const override;
+    std::optional<uint32_t> position_in_group () const override;
 
     /* Number for vector registers.  */
     size_t vgpr_count () const override;
@@ -2287,7 +2481,7 @@ public:
       std::unique_ptr<const architecture_t::cwsr_record_t>)> &wave_callback)
     const override;
 
-  amd_dbgapi_global_address_t dispatch_packet_address (
+  std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
     const architecture_t::cwsr_record_t &cwsr_record) const override;
 
   size_t maximum_queue_packet_count () const override
@@ -2461,9 +2655,12 @@ gfx9_architecture_t::cwsr_record_t::id () const
   return wave_id;
 }
 
-std::array<uint32_t, 3>
+std::optional<std::array<uint32_t, 3>>
 gfx9_architecture_t::cwsr_record_t::group_ids () const
 {
+  if (!agent ().spi_ttmps_setup_enabled () || !spi_ttmps_setup_enabled ())
+    return std::nullopt;
+
   const amd_dbgapi_global_address_t group_ids_address
     = register_address (amdgpu_regnum_t::ttmp8).value ();
 
@@ -2473,9 +2670,12 @@ gfx9_architecture_t::cwsr_record_t::group_ids () const
   return coordinates;
 }
 
-uint32_t
+std::optional<uint32_t>
 gfx9_architecture_t::cwsr_record_t::position_in_group () const
 {
+  if (!agent ().spi_ttmps_setup_enabled () || !spi_ttmps_setup_enabled ())
+    return std::nullopt;
+
   const amd_dbgapi_global_address_t ttmp11_address
     = register_address (amdgpu_regnum_t::ttmp11).value ();
 
@@ -3059,10 +3259,14 @@ gfx9_architecture_t::control_stack_iterate (
   return wave_count;
 }
 
-amd_dbgapi_global_address_t
+std::optional<amd_dbgapi_global_address_t>
 gfx9_architecture_t::dispatch_packet_address (
   const architecture_t::cwsr_record_t &cwsr_record) const
 {
+  if (!cwsr_record.agent ().spi_ttmps_setup_enabled ()
+      || !cwsr_record.spi_ttmps_setup_enabled ())
+    return std::nullopt;
+
   const amd_dbgapi_global_address_t ttmp6_address
     = cwsr_record.register_address (amdgpu_regnum_t::ttmp6).value ();
 
@@ -3165,7 +3369,8 @@ protected:
   std::unique_ptr<architecture_t::cwsr_record_t> make_gfx9_cwsr_record (
     compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
     uint32_t compute_relaunch_state,
-    amd_dbgapi_global_address_t context_save_address) const override = 0;
+    amd_dbgapi_global_address_t context_save_address) const override
+    = 0;
 
   mi_architecture_t (elf_amdgpu_machine_t e_machine,
                      std::string target_triple);
@@ -3459,6 +3664,33 @@ protected:
     {
       return compute_relaunch_wave_payload_se_id (m_compute_relaunch_wave);
     }
+
+    bool spi_ttmps_setup_enabled () const override
+    {
+      dbgapi_assert (agent ().spi_ttmps_setup_enabled ());
+      /* Before ROCr ABI version 10, the is no way to record that a single
+         wave has no meaningful data in SPI initialized registers.  If SPI
+         TTMP registers are reported as initialized on a per agent/process
+         basis (which is a pre-condition for this method to be called), assume
+         that TTMP registers are enabled for every waves.  */
+      if (process ().rocr_rdebug_version () < 10)
+        return true;
+
+      uint32_t ttmp6, ttmp11;
+      const amd_dbgapi_global_address_t ttmp6_address
+        = register_address (amdgpu_regnum_t::ttmp6).value ();
+      const amd_dbgapi_global_address_t ttmp11_address
+        = register_address (amdgpu_regnum_t::ttmp11).value ();
+      process ().read_global_memory (ttmp6_address, &ttmp6);
+      process ().read_global_memory (ttmp11_address, &ttmp11);
+      /* SPI initialized TTMP registers can only be invalidated by dbgapi
+         by setting ttmp6[31].  This can only be done after trap handler
+         initialized TTMP registers have been initialized (marked by ttmp11[31]
+         being set).  This means that SPI TTMP registers are disabled for a
+         given wave iff ttmp11[31] == 1 and ttmp6[11] == 1.  */
+      return !((ttmp11 & ttmp11_trap_hander_ttmps_setup_mask)
+               && (ttmp6 & ttmp6_spi_ttmps_setup_disabled_mask));
+    }
   };
 
   std::unique_ptr<architecture_t::cwsr_record_t> make_gfx9_cwsr_record (
@@ -3475,12 +3707,16 @@ protected:
     : gfx90a_t (e_machine, std::move (target_triple))
   {
   }
-public:
 
+public:
   gfx940_t ()
     : gfx90a_t (EF_AMDGPU_MACH_AMDGCN_GFX940, "amdgcn-amd-amdhsa--gfx940")
   {
   }
+
+  exception_mask_t signaled_exceptions (const wave_t &) const override;
+  void set_exceptions (wave_t &, exception_mask_t,
+                       exception_mask_t) const override;
 
   bool are_trap_handler_ttmps_initialized (const wave_t &wave) const override;
   void initialize_spi_ttmps (const wave_t &wave) const override;
@@ -3498,12 +3734,61 @@ public:
   std::string register_type (amdgpu_regnum_t regnum) const override;
   const void *register_read_only_mask (amdgpu_regnum_t regnum) const override;
 
-  amd_dbgapi_global_address_t dispatch_packet_address (
+  std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
     const architecture_t::cwsr_record_t &cwsr_record) const override;
 
   bool can_halt_at_endpgm () const override { return true; }
   bool has_architected_flat_scratch () const override { return true; };
 };
+
+amdgcn_architecture_t::exception_mask_t
+gfx940_t::signaled_exceptions (const wave_t &wave) const
+{
+  uint32_t trapsts;
+
+  exception_mask_t exceptions{};
+  wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+
+  if (trapsts & sq_wave_trapsts_wave_begin_mask)
+    exceptions |= exception_mask_t::wave_begin;
+  if (trapsts & sq_wave_trapsts_wave_end_mask)
+    exceptions |= exception_mask_t::wave_end;
+  if (trapsts & sq_wave_trapsts_host_trap_mask)
+    exceptions |= exception_mask_t::host_trap;
+  if (trapsts & sq_wave_trapsts_trap_after_inst_mask)
+    exceptions |= exception_mask_t::trap_after_inst;
+
+  return exceptions | gfx90a_t::signaled_exceptions (wave);
+}
+
+void
+gfx940_t::set_exceptions (wave_t &wave, exception_mask_t mask,
+                          exception_mask_t exceptions) const
+{
+  gfx90a_t::set_exceptions (wave, mask, exceptions);
+
+  auto convert_mask = [] (exception_mask_t m) -> uint32_t
+  {
+    uint32_t trapsts_mask = 0;
+    if ((m & exception_mask_t::wave_begin) != 0)
+      trapsts_mask |= sq_wave_trapsts_wave_begin_mask;
+    if ((m & exception_mask_t::wave_end) != 0)
+      trapsts_mask |= sq_wave_trapsts_wave_end_mask;
+    if ((m & exception_mask_t::host_trap) != 0)
+      trapsts_mask |= sq_wave_trapsts_host_trap_mask;
+    if ((m & exception_mask_t::trap_after_inst) != 0)
+      trapsts_mask |= sq_wave_trapsts_trap_after_inst_mask;
+    return trapsts_mask;
+  };
+
+  uint32_t trapsts;
+  const uint32_t trapsts_mask = convert_mask (mask);
+  const uint32_t trapsts_set = convert_mask (exceptions);
+
+  wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+  trapsts = (trapsts & ~trapsts_mask) | (trapsts_set & trapsts_mask);
+  wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
+}
 
 amd_dbgapi_wave_id_t
 gfx940_t::cwsr_record_t::id () const
@@ -3540,8 +3825,9 @@ gfx940_t::are_trap_handler_ttmps_initialized (const wave_t &wave) const
 void
 gfx940_t::initialize_spi_ttmps (const wave_t &wave) const
 {
+  /* Those bits should have been initialized by SPI.  */
   for (amdgpu_regnum_t regnum = amdgpu_regnum_t::ttmp8;
-       regnum <= amdgpu_regnum_t::ttmp10; ++regnum)
+       regnum <= amdgpu_regnum_t::ttmp11; ++regnum)
     wave.write_register (regnum, uint32_t{ 0 });
 }
 
@@ -3554,33 +3840,27 @@ gfx940_t::initialize_trap_handler_ttmps (const wave_t &wave) const
   dbgapi_assert (!(ttmp11 & ttmp11_trap_hander_ttmps_setup_mask)
                  && "ttmps are already initialized");
 
+  uint32_t ttmp6, status;
+  wave.read_register (amdgpu_regnum_t::ttmp6, &ttmp6);
+  wave.read_register (amdgpu_regnum_t::status, &status);
+
+  /* See amdgcn_architecture_t::initialize_spi_ttmps.  */
+  if (wave.process ().rocr_rdebug_version () >= 10
+      && (status & sq_wave_status_skip_export_mask) != 0)
+    ttmp6 &= (ttmp6_wave_stopped_mask | ttmp6_saved_status_halt_mask
+              | ttmp6_saved_trap_id_mask);
+  else
+    ttmp6 = 0;
+
+  wave.write_register (amdgpu_regnum_t::ttmp6, ttmp6);
   ttmp11 |= ttmp11_trap_hander_ttmps_setup_mask;
-  wave.write_register (amdgpu_regnum_t::ttmp6, 0);
   wave.write_register (amdgpu_regnum_t::ttmp11, ttmp11);
 }
 
 std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
 gfx940_t::wave_get_state (wave_t &wave) const
 {
-  auto [state, stop_reason] = amdgcn_architecture_t::wave_get_state (wave);
-
-  /* gfx940 precisely reports single-step exception by setting a bit in the
-    trapsts register.  */
-
-  if (wave.state () != AMD_DBGAPI_WAVE_STATE_STOP
-      && state == AMD_DBGAPI_WAVE_STATE_STOP)
-    {
-      uint32_t trapsts;
-      wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
-
-      if (trapsts & sq_wave_trapsts_trap_after_inst_mask)
-        stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP;
-      if (trapsts
-          & (sq_wave_trapsts_wave_begin_mask | sq_wave_trapsts_wave_end_mask))
-        stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_TRAP;
-    }
-
-  return { state, stop_reason };
+  return amdgcn_architecture_t::wave_get_state (wave);
 }
 
 void
@@ -3595,19 +3875,13 @@ gfx940_t::wave_set_state (wave_t &wave, amd_dbgapi_wave_state_t state) const
       && wave.stop_reason () != AMD_DBGAPI_WAVE_STOP_REASON_NONE)
     {
       amd_dbgapi_wave_stop_reasons_t stop_reason = wave.stop_reason ();
-      uint32_t clear_exceptions
-        = sq_wave_trapsts_wave_begin_mask | sq_wave_trapsts_wave_end_mask;
+      exception_mask_t exceptions
+        = exception_mask_t::wave_begin | exception_mask_t::wave_end;
 
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP)
-        clear_exceptions |= sq_wave_trapsts_trap_after_inst_mask;
+        exceptions |= exception_mask_t::trap_after_inst;
 
-      if (clear_exceptions)
-        {
-          uint32_t trapsts;
-          wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
-          trapsts &= ~clear_exceptions;
-          wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
-        }
+      set_exceptions (wave, exceptions, {});
     }
 }
 
@@ -3768,7 +4042,7 @@ gfx940_t::register_read_only_mask (amdgpu_regnum_t regnum) const
         = utils::bit_mask (5, 7)      /* priv, trap_en, ttrace_en  */
           | utils::bit_mask (9, 12)   /* execz, vccz, in_tg, in_barrier  */
           | utils::bit_mask (14, 16)  /* trap, ttrace_cu_en, valid  */
-          | utils::bit_mask (19, 19)  /* perf_en  */
+          | utils::bit_mask (18, 19)  /* skip_export, perf_en  */
           | utils::bit_mask (22, 26)  /* allow_replay, fatal_halt, 0  */
           | utils::bit_mask (29, 30); /* 0  */
       return &status_read_only_bits;
@@ -3778,10 +4052,14 @@ gfx940_t::register_read_only_mask (amdgpu_regnum_t regnum) const
     }
 }
 
-amd_dbgapi_global_address_t
+std::optional<amd_dbgapi_global_address_t>
 gfx940_t::dispatch_packet_address (
   const architecture_t::cwsr_record_t &cwsr_record) const
 {
+  if (!cwsr_record.agent ().spi_ttmps_setup_enabled ()
+      || !cwsr_record.spi_ttmps_setup_enabled ())
+    return std::nullopt;
+
   const compute_queue_t &queue = cwsr_record.queue ();
 
   const amd_dbgapi_global_address_t ttmp11_address
@@ -3806,8 +4084,8 @@ class gfx941_t final : public gfx940_t
 public:
   gfx941_t ()
     : gfx940_t (EF_AMDGPU_MACH_AMDGCN_GFX941, "amdgcn-amd-amdhsa--gfx941")
-    {
-    }
+  {
+  }
 };
 
 class gfx942_t final : public gfx940_t
@@ -3815,8 +4093,8 @@ class gfx942_t final : public gfx940_t
 public:
   gfx942_t ()
     : gfx940_t (EF_AMDGPU_MACH_AMDGCN_GFX942, "amdgcn-amd-amdhsa--gfx942")
-    {
-    }
+  {
+  }
 };
 
 class gfx10_architecture_t : public gfx9_architecture_t
@@ -4959,8 +5237,7 @@ protected:
     uint32_t shader_engine_id () const override;
   };
 
-  std::unique_ptr<architecture_t::cwsr_record_t>
-  make_gfx1x_cwsr_record (
+  std::unique_ptr<architecture_t::cwsr_record_t> make_gfx1x_cwsr_record (
     compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
     uint32_t compute_relaunch_state, uint32_t compute_relaunch2_state,
     amd_dbgapi_global_address_t context_save_address) const override
@@ -4969,6 +5246,9 @@ protected:
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
       compute_relaunch2_state, context_save_address);
   }
+
+  std::optional<amdgpu_regnum_t>
+  scalar_operand_to_regnum (int operand, bool priv = false) const override;
 
   gfx11_architecture_t (elf_amdgpu_machine_t e_machine,
                         std::string target_triple)
@@ -4980,6 +5260,10 @@ protected:
   constexpr static sendmsg_message_type_t MSG_DEALLOC_VGPRS = 0x3;
 
 public:
+  exception_mask_t signaled_exceptions (const wave_t &) const override;
+  void set_exceptions (wave_t &, exception_mask_t,
+                       exception_mask_t) const override;
+
   std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
   wave_get_state (wave_t &wave) const override;
   void wave_set_state (wave_t &wave,
@@ -5063,6 +5347,53 @@ public:
   bool has_architected_flat_scratch () const override { return true; };
 };
 
+amdgcn_architecture_t::exception_mask_t
+gfx11_architecture_t::signaled_exceptions (const wave_t &wave) const
+{
+  uint32_t trapsts;
+  exception_mask_t exceptions{};
+
+  wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+
+  if (trapsts & sq_wave_trapsts_wave_begin_mask)
+    exceptions |= exception_mask_t::wave_begin;
+  if (trapsts & sq_wave_trapsts_wave_end_mask)
+    exceptions |= exception_mask_t::wave_end;
+  if (trapsts & sq_wave_trapsts_host_trap_mask)
+    exceptions |= exception_mask_t::host_trap;
+  if (trapsts & sq_wave_trapsts_trap_after_inst_mask)
+    exceptions |= exception_mask_t::trap_after_inst;
+
+  return exceptions | gfx10_architecture_t::signaled_exceptions (wave);
+}
+
+void
+gfx11_architecture_t::set_exceptions (wave_t &wave, exception_mask_t mask,
+                                      exception_mask_t exceptions) const
+{
+  gfx10_architecture_t::set_exceptions (wave, mask, exceptions);
+  auto convert_mask = [] (exception_mask_t m) -> uint32_t
+  {
+    uint32_t trapsts_mask = 0;
+    if ((m & exception_mask_t::wave_begin) != 0)
+      trapsts_mask |= sq_wave_trapsts_wave_begin_mask;
+    if ((m & exception_mask_t::wave_end) != 0)
+      trapsts_mask |= sq_wave_trapsts_wave_end_mask;
+    if ((m & exception_mask_t::host_trap) != 0)
+      trapsts_mask |= sq_wave_trapsts_host_trap_mask;
+    if ((m & exception_mask_t::trap_after_inst) != 0)
+      trapsts_mask |= sq_wave_trapsts_trap_after_inst_mask;
+    return trapsts_mask;
+  };
+
+  uint32_t trapsts;
+  const uint32_t trapsts_mask = convert_mask (mask);
+  const uint32_t trapsts_set = convert_mask (exceptions);
+  wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+  trapsts = (trapsts & ~trapsts_mask) | (trapsts_set & trapsts_mask);
+  wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
+}
+
 uint32_t
 gfx11_architecture_t::cwsr_record_t::shader_engine_id () const
 {
@@ -5097,25 +5428,7 @@ gfx11_architecture_t::wave_get_state (wave_t &wave) const
      single-stepping from the absence of any other reason for the exception.
      Instead, call amdgcn_architecture_t::wave_get_state as it is the base for
      all GCN/RDNA/CDNA architectures.  */
-  auto [state, stop_reason] = amdgcn_architecture_t::wave_get_state (wave);
-
-  /* gfx11 precisely reports single-step exception by setting a bit in the
-     trapsts register.  */
-
-  if (wave.state () != AMD_DBGAPI_WAVE_STATE_STOP
-      && state == AMD_DBGAPI_WAVE_STATE_STOP)
-    {
-      uint32_t trapsts;
-      wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
-
-      if (trapsts & sq_wave_trapsts_trap_after_inst_mask)
-        stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP;
-      if (trapsts
-          & (sq_wave_trapsts_wave_begin_mask | sq_wave_trapsts_wave_end_mask))
-        stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_TRAP;
-    }
-
-  return { state, stop_reason };
+  return amdgcn_architecture_t::wave_get_state (wave);
 }
 
 void
@@ -5131,19 +5444,13 @@ gfx11_architecture_t::wave_set_state (wave_t &wave,
       && wave.stop_reason () != AMD_DBGAPI_WAVE_STOP_REASON_NONE)
     {
       amd_dbgapi_wave_stop_reasons_t stop_reason = wave.stop_reason ();
-      uint32_t clear_exceptions
-        = sq_wave_trapsts_wave_begin_mask | sq_wave_trapsts_wave_end_mask;
+      exception_mask_t exceptions
+        = exception_mask_t::wave_begin | exception_mask_t::wave_end;
 
       if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_SINGLE_STEP)
-        clear_exceptions |= sq_wave_trapsts_trap_after_inst_mask;
+        exceptions |= exception_mask_t::trap_after_inst;
 
-      if (clear_exceptions)
-        {
-          uint32_t trapsts;
-          wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
-          trapsts &= ~clear_exceptions;
-          wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
-        }
+      set_exceptions (wave, exceptions, {});
     }
 }
 
@@ -5282,6 +5589,21 @@ gfx11_architecture_t::register_type (amdgpu_regnum_t regnum) const
 
     default:
       return gfx10_architecture_t::register_type (regnum);
+    }
+}
+
+std::optional<amdgpu_regnum_t>
+gfx11_architecture_t::scalar_operand_to_regnum (int operand, bool priv) const
+{
+  /* For gfx11, m0 & null enums are reversed (null is now 124, m0 is 125).  */
+  switch (operand)
+    {
+    case 124:
+      return amdgpu_regnum_t::null;
+    case 125:
+      return amdgpu_regnum_t::m0;
+    default:
+      return gfx10_architecture_t::scalar_operand_to_regnum (operand, priv);
     }
 }
 

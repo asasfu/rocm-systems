@@ -377,6 +377,9 @@ wave_t::update (
       if (!architecture.are_trap_handler_ttmps_initialized (*this))
         architecture.initialize_trap_handler_ttmps (*this);
 
+      architecture.record_spi_ttmps_setup (
+        *this, agent ().spi_ttmps_setup_enabled ());
+
       write_register (amdgpu_regnum_t::wave_id, id ());
       m_ttmps_initialized = true;
     }
@@ -408,7 +411,9 @@ wave_t::update (
       && m_state == AMD_DBGAPI_WAVE_STATE_STOP)
     {
       /* Park the wave if the architecture does not support halting at certain
-         instructions.  */
+         instructions.  If the wave is loaded from a core dump, we do not park
+         the wave as there is no trap instruction to park the wave to, and
+         there is no need to park the wave in the first place either.  */
       if (architecture.park_stopped_waves (process ().rocr_rdebug_version ()))
         park ();
 
@@ -1070,12 +1075,16 @@ amd_dbgapi_wave_stop (amd_dbgapi_wave_id_t wave_id)
     if ((wave = find (wave_id)) == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID);
 
+    if (wave->process ().is_frozen ())
+      THROW (AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
+
     wave->set_state (AMD_DBGAPI_WAVE_STATE_STOP);
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID,
          AMD_DBGAPI_STATUS_ERROR_WAVE_STOPPED,
-         AMD_DBGAPI_STATUS_ERROR_WAVE_OUTSTANDING_STOP);
+         AMD_DBGAPI_STATUS_ERROR_WAVE_OUTSTANDING_STOP,
+         AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
   TRACE_END ();
 }
 
@@ -1095,6 +1104,9 @@ amd_dbgapi_wave_resume (amd_dbgapi_wave_id_t wave_id,
 
     if (wave == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_WAVE_ID);
+
+    if (wave->process ().is_frozen ())
+      THROW (AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
 
     if (resume_mode != AMD_DBGAPI_RESUME_MODE_NORMAL
         && resume_mode != AMD_DBGAPI_RESUME_MODE_SINGLE_STEP)
@@ -1142,7 +1154,8 @@ amd_dbgapi_wave_resume (amd_dbgapi_wave_id_t wave_id,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
          AMD_DBGAPI_STATUS_ERROR_WAVE_NOT_STOPPED,
          AMD_DBGAPI_STATUS_ERROR_WAVE_NOT_RESUMABLE,
-         AMD_DBGAPI_STATUS_ERROR_RESUME_DISPLACED_STEPPING);
+         AMD_DBGAPI_STATUS_ERROR_RESUME_DISPLACED_STEPPING,
+         AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
   TRACE_END ();
 }
 

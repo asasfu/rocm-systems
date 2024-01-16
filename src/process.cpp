@@ -70,6 +70,10 @@ process_t::process_t (amd_dbgapi_process_id_t process_id,
         amd_dbgapi_status_t status = os_driver ().xfer_global_memory_partial (
           address, read, write, &size);
 
+        if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
+          status = detail::process_callbacks.xfer_global_memory (
+            m_client_process_id, address, &size, read, write);
+
         if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
           throw process_exited_exception_t (*this);
         else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
@@ -82,19 +86,43 @@ process_t::process_t (amd_dbgapi_process_id_t process_id,
       }),
     m_dummy_agent (AMD_DBGAPI_AGENT_NONE, *this, nullptr, {})
 {
-  amd_dbgapi_os_process_id_t os_process_id;
-  amd_dbgapi_status_t status = get_os_pid (&os_process_id);
-  if (status == AMD_DBGAPI_STATUS_SUCCESS)
-    m_os_process_id.emplace (os_process_id);
-  else if (status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-    fatal_error ("get_os_pid () failed (%s)", to_cstring (status));
-
   /* Create the notifier pipe.  */
   m_client_notifier_pipe.open ();
   if (!m_client_notifier_pipe.is_valid ())
     fatal_error ("Could not create the client notifier pipe");
 
-  m_os_driver = os_driver_t::create_driver (m_os_process_id);
+  amd_dbgapi_os_process_id_t os_process_id;
+  amd_dbgapi_status_t status
+    = client_process_get_info (AMD_DBGAPI_CLIENT_PROCESS_INFO_OS_PID,
+                               sizeof (os_process_id), &os_process_id);
+  if (status == AMD_DBGAPI_STATUS_SUCCESS)
+    {
+      m_os_process_id.emplace (os_process_id);
+      m_os_driver = os_driver_t::create_driver (m_os_process_id);
+    }
+  else if (status == AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE)
+    {
+      /* Query the client for agents and queues snapshots.  Those are
+         provided if and only if we are debugging from a corefile.  */
+      amd_dbgapi_core_state_data_t core_state{};
+
+      auto agents_snapshot_cleaner = amd::dbgapi::utils::make_scope_exit (
+        [&core_state] ()
+        {
+          if (core_state.data != nullptr)
+            deallocate_memory (const_cast<void *> (core_state.data));
+        });
+      status
+        = client_process_get_info (AMD_DBGAPI_CLIENT_PROCESS_INFO_CORE_STATE,
+                                   sizeof (core_state), &core_state);
+      if (status == AMD_DBGAPI_STATUS_SUCCESS)
+        m_os_driver = os_driver_t::create_driver (core_state);
+      else
+        m_os_driver = os_driver_t::create_driver (std::nullopt);
+    }
+  else if (status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
+    fatal_error ("get_os_pid () failed (%s)", to_cstring (status));
+
   if (!m_os_driver->is_valid ())
     fatal_error ("Could not create the OS driver");
 }
@@ -147,62 +175,77 @@ process_t::detach ()
 
   try
     {
-      std::vector<queue_t *> queues;
-
-      /* Keep the queues suspended, the OS driver will resume all queues after
-         disabling the debug mode.  */
-      set_forward_progress_needed (false);
-
-      /* Return precise memory reporting to its default off state.  */
-      set_precise_memory (false);
-
-      /* Resume all the waves halted at launch.  */
-      set_wave_launch_mode (os_wave_launch_mode_t::normal);
-
-      /* Refresh the queues.  New queues may have been created, and waves may
-         have hit breakpoints.  */
-      update_queues ();
-
-      /* Suspend the queues that weren't already suspended.  */
-      for (auto &&queue : range<queue_t> ())
-        if (!queue.is_suspended ())
-          queues.emplace_back (&queue);
-
-      suspend_queues (queues, "detach from process");
-
-      /* Remove the watchpoints that may still be inserted.  */
-      for (auto &&watchpoint : range<watchpoint_t> ())
-        remove_watchpoint (watchpoint);
-
-      for (auto &&wave : range<wave_t> ())
+      if (!from_core ())
         {
-          /* If the wave was displaced stepping, cancel the operation now while
-             the queue is suspended (it may write registers).  */
-          if (wave.displaced_stepping () != nullptr)
-            {
-              wave.set_state (AMD_DBGAPI_WAVE_STATE_STOP);
-              wave.displaced_stepping_complete ();
-            }
+          std::vector<queue_t *> queues;
 
-          /* Invalidate the wave_id.  */
-          wave.write_register (amdgpu_regnum_t::wave_id, wave_t::undefined);
+          /* Keep the queues suspended, the OS driver will resume all queues
+             after disabling the debug mode.  */
+          set_forward_progress_needed (false);
 
-          /* Resume the wave if it is single-stepping, or if it is stopped
-             because of a debug event (completed single-step, breakpoint,
-             watchpoint).  The wave is not resumed if it is halted because of
-             pending exceptions.  */
-          if ((wave.state () == AMD_DBGAPI_WAVE_STATE_SINGLE_STEP)
-              || (wave.state () == AMD_DBGAPI_WAVE_STATE_STOP
-                  && !(wave.stop_reason ()
-                       & ~wave_t::resumable_stop_reason_mask)))
+          /* Return precise memory reporting to its default off state.  */
+          set_precise_memory (false);
+
+          /* Resume all the waves halted at launch.  */
+          set_wave_launch_mode (os_wave_launch_mode_t::normal);
+
+          /* Refresh the queues.  New queues may have been created, and waves
+             may have hit breakpoints.  */
+          update_queues ();
+
+          /* Suspend the queues that weren't already suspended.  */
+          for (auto &&queue : range<queue_t> ())
+            if (!queue.is_suspended ())
+              queues.emplace_back (&queue);
+
+          suspend_queues (queues, "detach from process");
+
+          /* Remove the watchpoints that may still be inserted.  */
+          for (auto &&watchpoint : range<watchpoint_t> ())
+            remove_watchpoint (watchpoint);
+
+          for (auto &&wave : range<wave_t> ())
             {
-              wave.set_state (AMD_DBGAPI_WAVE_STATE_RUN);
+              /* If the wave was displaced stepping, cancel the operation now
+                 while the queue is suspended (it may write registers).  */
+              if (wave.displaced_stepping () != nullptr)
+                {
+                  wave.set_state (AMD_DBGAPI_WAVE_STATE_STOP);
+                  wave.displaced_stepping_complete ();
+                }
+
+              /* Invalidate the wave_id.  */
+              wave.write_register (amdgpu_regnum_t::wave_id,
+                                   wave_t::undefined);
+
+              /* Resume the wave if it is single-stepping, or if it is stopped
+                 because of a debug event (completed single-step, breakpoint,
+                 watchpoint).  The wave is not resumed if it is halted because
+                 of pending exceptions.  */
+              if ((wave.state () == AMD_DBGAPI_WAVE_STATE_SINGLE_STEP)
+                  || (wave.state () == AMD_DBGAPI_WAVE_STATE_STOP
+                      && !(wave.stop_reason ()
+                           & ~wave_t::resumable_stop_reason_mask)))
+                {
+                  wave.set_state (AMD_DBGAPI_WAVE_STATE_RUN);
+                }
             }
         }
 
-      /* Write back the entire memory cache to commit our changes to the waves'
-         context save area memory.  */
-      memory_cache ().write_back (0, -1);
+      /* Write back the entire memory cache to commit our changes to the
+         waves' context save area memory.  */
+      try
+        {
+          memory_cache ().write_back (0, -1);
+        }
+      catch (const memory_access_error_t &)
+        {
+          /* If there is no real underlying process, writes can fail.  This
+             can happen when trying to write back to a read-only core dump
+             file.  */
+          if (m_os_process_id.has_value ())
+            throw;
+        }
     }
   catch (...)
     {
@@ -842,6 +885,7 @@ size_t
 process_t::resume_queues (const std::vector<queue_t *> &queues,
                           const char *reason) const
 {
+  dbgapi_assert (!is_frozen ());
   if (queues.empty ())
     return 0;
 
@@ -1052,6 +1096,18 @@ process_t::update_queues ()
                             to_cstring (destroyed_queue_id),
                             os_queue_id_unmask (queue_info.queue_id));
                 }
+
+              if (is_frozen ())
+                {
+                  /* When the process is frozen, all host threads should be
+                     stopped by the client.  If we see a new queue, it means
+                     that at least one host thread is not stopped and has
+                     created the queue.  This is an error from the client, so
+                     we only issue a warning.  */
+                  warning ("new queue {os_queue_id=%d} detected while the "
+                           "process is frozen.  host threads not stopped?",
+                           queue_info.queue_id);
+                }
             }
           else if (is_flag_set (flag_t::runtime_enable_during_attach))
             {
@@ -1112,7 +1168,8 @@ process_t::update_queues ()
                                     *agent,      /* agent */
                                     queue_info); /* queue_info */
 
-          queue->set_state (queue_t::state_t::running);
+          queue->set_state (from_core () ? queue_t::state_t::suspended
+                                         : queue_t::state_t::running);
           queue->set_mark (queue_mark);
 
           log_info ("created new %s (os_queue_id=%d)",
@@ -1312,6 +1369,28 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
   if (m_runtime_state != AMD_DBGAPI_RUNTIME_STATE_LOADED_SUCCESS)
     return;
 
+  /* If we have opened a corefile, we just need to update queues.  */
+  if (from_core ())
+    {
+      update_queues ();
+      update_code_objects ();
+
+      /* Some waves can still be reported as running (i.e without the STOP
+         bit set).  This happens with core dumps generated by the runtime:
+         all queues are evicted, but the individual waves are not touched.
+         Make sure to mark each wave as stopped so its state can be accessed
+         by the debugger.  */
+      for (auto &&wave : range<wave_t> ())
+        {
+          if (wave.state () != AMD_DBGAPI_WAVE_STATE_STOP)
+            wave.set_state (AMD_DBGAPI_WAVE_STATE_STOP);
+        }
+
+      clear_flag (flag_t::runtime_enable_during_attach);
+
+      return;
+    }
+
   /* Early exits (exceptions and returns) result in restriction errors.  */
   auto restriction_error = utils::make_scope_exit (
     [this] ()
@@ -1493,6 +1572,35 @@ process_t::attach ()
 }
 
 void
+process_t::freeze ()
+{
+  dbgapi_assert (!forward_progress_needed ());
+  dbgapi_assert (m_wave_launch_mode == os_wave_launch_mode_t::halt);
+
+  /* Suspend the queues that weren't already suspended.  */
+  update_queues ();
+  std::vector<queue_t *> queues;
+  queues.reserve (count<queue_t> ());
+  for (auto &&queue : range<queue_t> ())
+    if (!queue.is_suspended ())
+      queues.emplace_back (&queue);
+  suspend_queues (queues, "process freeze");
+
+  /* The freeze operation is used before creating a core dump of the current
+     process.  Ensure that any modification done to memory so far is flushed
+     to the inferior's memory so it can be captured in the core dump.  */
+  memory_cache ().write_back ();
+
+  m_frozen = true;
+}
+
+void
+process_t::unfreeze ()
+{
+  m_frozen = false;
+}
+
+void
 process_t::get_info (amd_dbgapi_process_info_t query, size_t value_size,
                      void *value) const
 {
@@ -1522,6 +1630,35 @@ process_t::get_info (amd_dbgapi_process_info_t query, size_t value_size,
         throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE);
       utils::get_info (value_size, value, *m_os_process_id);
       return;
+
+    case AMD_DBGAPI_PROCESS_INFO_CORE_STATE:
+      {
+        if (!m_os_process_id)
+          throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE);
+
+        if (!is_frozen ())
+          throw api_error_t (AMD_DBGAPI_STATUS_ERROR_PROCESS_NOT_FROZEN);
+
+        os_runtime_info_t runtime_info = m_runtime_info;
+        if (is_flag_set (process_t::flag_t::spi_ttmps_setup_enabled))
+          {
+            /* At this point, all TTMP registers have been initialized, either
+               by SPI or by DBGAPI.  Mark ttmp_setup as true in core state so
+               when dbgapi loads it back, it does not override TTMPs.
+               ttmp6[31:31] is set to indicate if TTMP initialization has been
+               done by DBGAPI or SPI.  */
+            runtime_info.ttmp_setup = true;
+          }
+
+        if (amd_dbgapi_status_t status = os_driver ().create_core_state_note (
+              runtime_info,
+              static_cast<amd_dbgapi_core_state_data_t *> (value));
+            status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
+          throw api_error_t (AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED);
+        else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+          throw api_error_t (AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE);
+        return;
+      }
     }
 
   throw api_error_t (AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
@@ -2008,11 +2145,14 @@ process_t::send_exceptions (
 }
 
 amd_dbgapi_status_t
-process_t::get_os_pid (amd_dbgapi_os_process_id_t *pid) const
+process_t::client_process_get_info (amd_dbgapi_client_process_info_t query,
+                                    size_t value_size, void *value) const
 {
-  TRACE_CALLBACK_BEGIN (param_in (pid));
-  return detail::process_callbacks.get_os_pid (m_client_process_id, pid);
-  TRACE_CALLBACK_END (make_ref (param_out (pid)));
+  TRACE_CALLBACK_BEGIN (param_in (query), param_in (value_size),
+                        param_in (value));
+  return detail::process_callbacks.client_process_get_info (
+    m_client_process_id, query, value_size, value);
+  TRACE_CALLBACK_END (make_query_ref (query, param_out (value)));
 }
 
 amd_dbgapi_status_t
@@ -2076,12 +2216,19 @@ amd_dbgapi_process_set_progress (amd_dbgapi_process_id_t process_id,
           THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
       }
 
+    for (const auto &process : processes)
+      {
+        if (process->is_frozen ())
+          THROW (AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
+      }
+
     for (auto &&process : processes)
       process->set_forward_progress_needed (forward_progress_needed);
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
-         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
   TRACE_END ();
 }
 
@@ -2100,6 +2247,9 @@ amd_dbgapi_process_set_wave_creation (amd_dbgapi_process_id_t process_id,
     if (process == nullptr)
       THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
 
+    if (process->is_frozen ())
+      THROW (AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
+
     switch (creation)
       {
       case AMD_DBGAPI_WAVE_CREATION_NORMAL:
@@ -2114,7 +2264,65 @@ amd_dbgapi_process_set_wave_creation (amd_dbgapi_process_id_t process_id,
   }
   CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
          AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
-         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT);
+         AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
+         AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
+  TRACE_END ();
+}
+
+amd_dbgapi_status_t AMD_DBGAPI
+amd_dbgapi_process_freeze (amd_dbgapi_process_id_t process_id)
+{
+  TRACE_BEGIN (param_in (process_id));
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
+
+    process_t *process = process_t::find (process_id);
+
+    if (process == nullptr)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
+
+    if (process->forward_progress_needed ()
+        || process->wave_launch_mode () != os_wave_launch_mode_t::halt)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INCOMPATIBLE_PROCESS_STATE);
+
+    if (process->is_frozen ())
+      THROW (AMD_DBGAPI_STATUS_ERROR_PROCESS_ALREADY_FROZEN);
+
+    process->freeze ();
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
+         AMD_DBGAPI_STATUS_ERROR_NOT_IMPLEMENTED,
+         AMD_DBGAPI_STATUS_ERROR_INCOMPATIBLE_PROCESS_STATE,
+         AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN);
+  TRACE_END ();
+}
+
+amd_dbgapi_status_t AMD_DBGAPI
+amd_dbgapi_process_unfreeze (amd_dbgapi_process_id_t process_id)
+{
+  TRACE_BEGIN (param_in (process_id));
+  TRY
+  {
+    if (!detail::is_initialized)
+      THROW (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED);
+
+    process_t *process = process_t::find (process_id);
+
+    if (process == nullptr)
+      THROW (AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID);
+
+    if (!process->is_frozen ())
+      THROW (AMD_DBGAPI_STATUS_ERROR_PROCESS_NOT_FROZEN);
+
+    process->unfreeze ();
+  }
+  CATCH (AMD_DBGAPI_STATUS_ERROR_NOT_INITIALIZED,
+         AMD_DBGAPI_STATUS_ERROR_INVALID_PROCESS_ID,
+         AMD_DBGAPI_STATUS_ERROR_PROCESS_NOT_FROZEN,
+         AMD_DBGAPI_STATUS_ERROR_NOT_IMPLEMENTED);
   TRACE_END ();
 }
 
@@ -2198,6 +2406,9 @@ amd_dbgapi_process_detach (amd_dbgapi_process_id_t process_id)
 
     try
       {
+        if (process->is_frozen ())
+          process->unfreeze ();
+
         process->detach ();
       }
     catch (const process_exited_exception_t &)

@@ -130,7 +130,7 @@ private:
      deleted, as these waves are no longer active.  */
   monotonic_counter_t<epoch_t, 1> m_next_wave_mark{};
 
-  amd_dbgapi_os_queue_packet_id_t get_os_queue_packet_id (
+  std::optional<amd_dbgapi_os_queue_packet_id_t> get_os_queue_packet_id (
     const architecture_t::cwsr_record_t &cwsr_record) const;
 
   displaced_instruction_ptr_t
@@ -154,6 +154,12 @@ public:
   /* Return the address of a park instruction.  */
   amd_dbgapi_global_address_t park_instruction_address () override
   {
+    /* When the queue is loaded from a core dump, there is no running wave, and
+       we cannot allocate nor initialize displaced instruction buffers. Setting
+       the PC to 0 is harmless for a stopped wave.  */
+    if (process ().from_core ())
+      return 0x0;
+
     if (!m_park_instruction_ptr)
       m_park_instruction_ptr.emplace (allocate_displaced_instruction (
         architecture ().assert_instruction ()));
@@ -164,6 +170,10 @@ public:
   /* Return the address of a terminating instruction.  */
   amd_dbgapi_global_address_t terminating_instruction_address () override
   {
+    /* See park_instruction_address.  */
+    if (process ().from_core ())
+      return 0x0;
+
     if (!m_terminating_instruction_ptr)
       m_terminating_instruction_ptr.emplace (allocate_displaced_instruction (
         architecture ().terminating_instruction ()));
@@ -398,6 +408,8 @@ aql_queue_t::~aql_queue_t ()
 compute_queue_t::displaced_instruction_ptr_t
 aql_queue_t::allocate_displaced_instruction (const instruction_t &instruction)
 {
+  dbgapi_assert (!process ().from_core ());
+
   if (!m_debugger_memory_base)
     {
       amd_dbgapi_global_address_t ctx_save_base
@@ -576,12 +588,14 @@ aql_queue_t::queue_state_changed ()
     }
 }
 
-amd_dbgapi_os_queue_packet_id_t
+std::optional<amd_dbgapi_os_queue_packet_id_t>
 aql_queue_t::get_os_queue_packet_id (
   const architecture_t::cwsr_record_t &cwsr_record) const
 {
-  amd_dbgapi_global_address_t packet_address
-    = architecture ().dispatch_packet_address (cwsr_record);
+  auto packet_address = architecture ().dispatch_packet_address (cwsr_record);
+
+  if (!packet_address)
+    return std::nullopt;
 
   /* Calculate the monotonic dispatch id for this packet.  It is
      between read_packet_id and write_packet_id.  */
@@ -593,7 +607,7 @@ aql_queue_t::get_os_queue_packet_id (
   dbgapi_assert (m_read_packet_id && m_write_packet_id);
 
   amd_dbgapi_os_queue_packet_id_t os_queue_packet_id
-    = (packet_address - address ()) / aql_packet_size
+    = (*packet_address - address ()) / aql_packet_size
       + (*m_read_packet_id / ring_size) * ring_size;
 
   if (os_queue_packet_id < *m_read_packet_id
@@ -663,7 +677,7 @@ aql_queue_t::update_waves ()
 
     if (!wave)
       {
-        workgroup_t *workgroup;
+        workgroup_t *workgroup = nullptr;
 
         if (group_leader)
           {
@@ -671,53 +685,51 @@ aql_queue_t::update_waves ()
                it is the same workgroup_t as the thread group leader's.  */
             workgroup = &group_leader->workgroup ();
 
-            if (workgroup->group_ids ()
-                && *workgroup->group_ids () != cwsr_record->group_ids ())
+            if (workgroup->group_ids () != cwsr_record->group_ids ())
               fatal_error ("not in the same workgroup as the group_leader");
           }
-        else if (agent ().spi_ttmps_setup_enabled ())
+        else
           {
-            amd_dbgapi_os_queue_packet_id_t packet_id
-              = get_os_queue_packet_id (*cwsr_record);
-
-            /* Find the dispatch this wave is associated with using the
-               packet_id.  The packet_id is only unique for a given queue.  */
-            aql_dispatch_t *dispatch
-              = static_cast<aql_dispatch_t *> (process.find_if (
-                [this, packet_id] (const dispatch_t &d) {
-                  return d.queue () == *this
-                         && d.os_queue_packet_id () == packet_id;
-                }));
-
-            if (!dispatch)
-              dispatch = &process.create<aql_dispatch_t> (*this, packet_id);
-
-            /* Find the workgroup this wave belongs to.  */
+            const auto packet_id = get_os_queue_packet_id (*cwsr_record);
             const auto group_ids = cwsr_record->group_ids ();
-            workgroup = process.find_if (
-              [dispatch, &group_ids] (const workgroup_t &wg) {
-                return wg.dispatch () == *dispatch
-                       && wg.group_ids () == group_ids;
+
+            /* Find the dispatch this wave belongs to using the packet_id.  The
+               packet_id is only unique for a given queue.  */
+            dispatch_t *dispatch = process.find_if (
+              [this, packet_id] (const dispatch_t &d) {
+                return d.queue () == *this
+                       && d.os_queue_packet_id () == packet_id;
               });
+
+            if (dispatch)
+              {
+                workgroup = process.find_if (
+                  [dispatch, group_ids] (const workgroup_t &w) {
+                    return w.dispatch () == *dispatch
+                           && w.group_ids () == group_ids;
+                  });
+              }
+            else if (packet_id)
+              {
+                dispatch = &process.create<aql_dispatch_t> (*this, *packet_id);
+              }
+            else
+              {
+                /* If this wave does not have a packet_id (ttmps are not setup
+                   or may be corrupted), then create a new workgroup associated
+                   with the dummy_dispatch.  All waves belonging to this
+                   workgroup will be associated with this instance.  */
+                dispatch = &m_dummy_dispatch;
+              }
 
             if (!workgroup)
               workgroup = &process.create<workgroup_t> (
                 *dispatch, group_ids, cwsr_record->lds_size ());
           }
-        else
-          {
-            /* If this wave does not have a packet_id (ttmps are not setup
-               or may be corrupted), then create a new workgroup associated
-               with the dummy_dispatch.  All waves belonging to this workgroup
-               will be associated with this instance.  */
-            workgroup = &process.create<workgroup_t> (m_dummy_dispatch);
-          }
 
-        std::optional<uint32_t> position_in_group;
-        if (agent ().spi_ttmps_setup_enabled ())
-          position_in_group = cwsr_record->position_in_group ();
-
-        wave = &process.create<wave_t> (*workgroup, position_in_group);
+        dbgapi_assert (workgroup != nullptr);
+        wave = &process.create<wave_t> (*workgroup,
+                                        cwsr_record->position_in_group ());
       }
 
     bool is_first_wave = cwsr_record->is_first_wave ();

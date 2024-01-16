@@ -375,9 +375,16 @@ public:
   static std::unique_ptr<os_driver_t>
   create_driver (std::optional<amd_dbgapi_os_process_id_t> os_pid);
 
+  static std::unique_ptr<os_driver_t>
+  create_driver (const amd_dbgapi_core_state_data_t &core_state);
+
   virtual bool is_valid () const = 0;
 
   virtual amd_dbgapi_status_t check_version () const = 0;
+
+  virtual amd_dbgapi_status_t
+  create_core_state_note (const os_runtime_info_t &runtime_info,
+                          amd_dbgapi_core_state_data_t *data) const = 0;
 
   virtual amd_dbgapi_status_t
   agent_snapshot (os_agent_info_t *snapshots, size_t snapshot_count,
@@ -450,6 +457,7 @@ public:
 };
 
 template <> std::string to_string (os_agent_info_t os_agent_info);
+template <> std::string to_string (kfd_dbg_device_info_entry);
 template <> std::string to_string (os_exception_code_t exception_code);
 template <> std::string to_string (os_exception_mask_t exception_mask);
 template <> std::string to_string (os_queue_snapshot_entry_t snapshot);

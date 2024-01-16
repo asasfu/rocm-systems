@@ -196,12 +196,15 @@ public:
     /* cwsr_record_t is a polymorphic base class.  */
     virtual ~cwsr_record_t () = default;
 
+    /* Indicates if content of TTMP registers which should be initialized by
+       SPI are meaningful or cleared by dbgapi and should be ignored.  */
+    virtual bool spi_ttmps_setup_enabled () const = 0;
     /* Return the globally unique wave identifier.  */
     virtual amd_dbgapi_wave_id_t id () const = 0;
     /* The 3-dimensional workgroup coordinates.  */
-    virtual std::array<uint32_t, 3> group_ids () const = 0;
+    virtual std::optional<std::array<uint32_t, 3>> group_ids () const = 0;
     /* Return the record's postion in the workgroup.  */
-    virtual uint32_t position_in_group () const = 0;
+    virtual std::optional<uint32_t> position_in_group () const = 0;
 
     /* Number of work-items in one wave.  */
     virtual size_t lane_count () const = 0;
@@ -259,16 +262,19 @@ public:
     const std::function<void (std::unique_ptr<const cwsr_record_t>)>
       &wave_callback) const = 0;
 
-  virtual amd_dbgapi_global_address_t dispatch_packet_address (
+  virtual std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
     const architecture_t::cwsr_record_t &cwsr_record) const = 0;
+
+  /* Default initialize the trap temporary registers normally set up by SPI.
+   */
+  virtual void initialize_spi_ttmps (const wave_t &wave) const = 0;
+
+  virtual void record_spi_ttmps_setup (const wave_t &wave, bool enabled) const = 0;
 
   /* Return true if the trap temporary registers used by the trap handler to
      communicate with the debugger API have been initialized.  */
   virtual bool
   are_trap_handler_ttmps_initialized (const wave_t &wave) const = 0;
-  /* Default initialize the trap temporary registers normally set up by SPI.
-   */
-  virtual void initialize_spi_ttmps (const wave_t &wave) const = 0;
   /* Default initialize the trap temporary registers normally set up by the
      trap handler.  */
   virtual void initialize_trap_handler_ttmps (const wave_t &wave) const = 0;

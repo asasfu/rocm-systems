@@ -7,10 +7,6 @@ Full documentatino for AMD Debugger API is available at
 ### Added
 - Add support for gfx940, gfx941 and gfx942 architectures.
 
-## (Unreleased) rocm-dbgapi-0.70.1
-### Added
-- Add support for gfx940, gfx941 and gfx942 architectures.
-
 ## (Unreleased) rocm-dbgapi-0.70.0
 ### Changed
 - The name reported for each agent is now based on the information stored
