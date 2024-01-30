@@ -5240,9 +5240,6 @@ public:
   void set_exceptions (wave_t &, exception_mask_t,
                        exception_mask_t) const override;
 
-  std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
-  wave_get_state (wave_t &wave) const override;
-
   std::optional<amd_dbgapi_global_address_t>
   simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
                         const instruction_t &instruction) const override;
@@ -5393,16 +5390,6 @@ gfx11_architecture_t::cwsr_record_t::register_address (
     }
 
   return gfx10_architecture_t::cwsr_record_t::register_address (regnum);
-}
-
-std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
-gfx11_architecture_t::wave_get_state (wave_t &wave) const
-{
-  /* Don't call gfx10_architecture_t::wave_get_state as it tries to deduce
-     single-stepping from the absence of any other reason for the exception.
-     Instead, call amdgcn_architecture_t::wave_get_state as it is the base for
-     all GCN/RDNA/CDNA architectures.  */
-  return amdgcn_architecture_t::wave_get_state (wave);
 }
 
 std::optional<amd_dbgapi_global_address_t>
