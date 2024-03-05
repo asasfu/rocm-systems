@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2024 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -123,9 +123,11 @@ protected:
   static constexpr uint32_t ttmp6_spi_ttmps_setup_disabled_mask = 1 << 31;
   static constexpr uint32_t ttmp6_wave_stopped_mask = 1 << 30;
   static constexpr uint32_t ttmp6_saved_status_halt_mask = 1 << 29;
-  static constexpr uint32_t ttmp6_saved_trap_id_mask
-    = utils::bit_mask (25, 28);
   static constexpr int ttmp6_saved_trap_id_shift = 25;
+  static constexpr int ttmp6_saved_trap_id_size = 4;
+  static constexpr uint32_t ttmp6_saved_trap_id_mask = utils::bit_mask (
+    ttmp6_saved_trap_id_shift,
+    ttmp6_saved_trap_id_shift + ttmp6_saved_trap_id_size - 1);
   static constexpr uint32_t ttmp6_queue_packet_id_mask
     = utils::bit_mask (0, 24);
   static constexpr int ttmp6_queue_packet_id_shift = 0;
@@ -145,7 +147,10 @@ protected:
      library only handles trap IDs between 1 and 14.  */
   static constexpr std::optional<trap_id_t> ttmp6_saved_trap_id (uint32_t x)
   {
-    if (uint8_t trap_id = utils::bit_extract (x, 25, 28); trap_id != 0)
+    if (uint8_t trap_id = utils::bit_extract (
+          x, ttmp6_saved_trap_id_shift,
+          ttmp6_saved_trap_id_shift + ttmp6_saved_trap_id_size - 1);
+        trap_id != 0)
       return trap_id_t{ trap_id };
     return std::nullopt;
   }
@@ -1325,7 +1330,7 @@ amdgcn_architecture_t::clear_stop_reasons (wave_t &wave) const
 
   if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_MEMORY_VIOLATION)
     exceptions |= exception_mask_t::mem_viol | exception_mask_t::xnack_error;
-  if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_APERTURE_VIOLATION)
+  if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_ADDRESS_ERROR)
     exceptions |= exception_mask_t::mem_viol;
   if (stop_reason & AMD_DBGAPI_WAVE_STOP_REASON_ILLEGAL_INSTRUCTION)
     exceptions |= exception_mask_t::illegal_inst;
@@ -1463,7 +1468,7 @@ amdgcn_architecture_t::wave_get_state (wave_t &wave) const
   if ((exceptions & exception_mask_t::xnack_error) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_MEMORY_VIOLATION;
   else if ((exceptions & exception_mask_t::mem_viol) != 0)
-    stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_APERTURE_VIOLATION;
+    stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_ADDRESS_ERROR;
   if ((exceptions & exception_mask_t::illegal_inst) != 0)
     stop_reason |= AMD_DBGAPI_WAVE_STOP_REASON_ILLEGAL_INSTRUCTION;
   if ((exceptions

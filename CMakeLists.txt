@@ -1,4 +1,4 @@
-## Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
+## Copyright (c) 2019-2024 Advanced Micro Devices, Inc.
 ##
 ## Permission is hereby granted, free of charge, to any person obtaining a copy
 ## of this software and associated documentation files (the "Software"), to
@@ -20,7 +20,7 @@
 
 cmake_minimum_required(VERSION 3.8)
 
-project(amd-dbgapi VERSION 0.74.0)
+project(amd-dbgapi VERSION 0.76.0)
 
 include(CheckIncludeFile)
 include(GNUInstallDirs)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021-2023 Advanced Micro Devices, Inc.
+/* Copyright (c) 2021-2024 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -1197,7 +1197,10 @@ kfd_driver_t::disable_debug ()
 
   int err = kfd_dbg_trap_ioctl (KFD_IOC_DBG_TRAP_DISABLE, &args);
   if (err == -ESRCH)
-    return AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED;
+    {
+      m_is_debug_enabled = false;
+      return AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED;
+    }
   else if (err < 0)
     return AMD_DBGAPI_STATUS_ERROR;
 
@@ -1690,8 +1693,8 @@ one_os_exception_to_string (os_exception_mask_t exception_mask)
       return "QUEUE_WAVE_ILLEGAL_INSTRUCTION";
     case os_exception_mask_t::queue_wave_memory_violation:
       return "QUEUE_WAVE_MEMORY_VIOLATION";
-    case os_exception_mask_t::queue_wave_aperture_violation:
-      return "QUEUE_WAVE_APERTURE_VIOLATION";
+    case os_exception_mask_t::queue_wave_address_error:
+      return "QUEUE_WAVE_ADDRESS_ERROR";
     case os_exception_mask_t::queue_packet_dispatch_dim_invalid:
       return "QUEUE_PACKET_DISPATCH_DIM_INVALID";
     case os_exception_mask_t::queue_packet_dispatch_group_segment_size_invalid:

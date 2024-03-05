@@ -1,4 +1,4 @@
-/* Copyright (c) 2019-2023 Advanced Micro Devices, Inc.
+/* Copyright (c) 2019-2024 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -832,7 +832,7 @@ process_t::suspend_queues (const std::vector<queue_t *> &queues,
       | os_exception_mask_t::queue_wave_math_error
       | os_exception_mask_t::queue_wave_illegal_instruction
       | os_exception_mask_t::queue_wave_memory_violation
-      | os_exception_mask_t::queue_wave_aperture_violation,
+      | os_exception_mask_t::queue_wave_address_error,
     &num_suspended_queues);
   if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
     {
@@ -1408,7 +1408,7 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
     | os_exception_mask_t::queue_wave_math_error
     | os_exception_mask_t::queue_wave_illegal_instruction
     | os_exception_mask_t::queue_wave_memory_violation
-    | os_exception_mask_t::queue_wave_aperture_violation
+    | os_exception_mask_t::queue_wave_address_error
     | os_exception_mask_t::device_memory_violation
     | os_exception_mask_t::process_runtime);
   if (status != AMD_DBGAPI_STATUS_SUCCESS)
@@ -1642,6 +1642,37 @@ process_t::get_info (amd_dbgapi_process_info_t query, size_t value_size,
         os_runtime_info_t runtime_info = m_runtime_info;
         if (is_flag_set (process_t::flag_t::spi_ttmps_setup_enabled))
           {
+            if (m_rocr_debug_version < 10 && m_runtime_info.ttmp_setup == false
+                &&
+                [this] ()
+                {
+                  for (auto &&device : range<agent_t> ())
+                    if (device.os_info ().ttmps_always_initialized == false)
+                      return true;
+                  return false;
+                }())
+              {
+                /* Before ROCr ABI version 10, we cannot differentiate waves
+                   with TTMP registers initialized by dbgapi from waves with
+                   TTMP registers initialized by hardware.  Trying to reload
+                   a wave with TTMP registers initialized by dbgapi would cause
+                   dbgapi to try to access the dispatch packet at index 0. Then
+                   2 things can happen:
+                   - either a valid dispatch packet exist at index 0 and we
+                     [probably] associate the wave to the wrong dispatch, or
+                   - there is no valid dispatch packet at index 0, causing an
+                     error.
+
+                   In both cases, it would be invalid to try to load the core
+                   dump, so instead we refuse to create it to avoid future
+                   problems.  */
+                warning ("Cannot create an AMDGPU core dump for ROCr ABI "
+                         "version < 10 without debugger support enabled at "
+                         "process startup.  Use HSA_ENABLE_DEBUG=1 before "
+                         "starting the process.");
+                throw api_error_t (AMD_DBGAPI_STATUS_ERROR_RESTRICTION);
+              }
+
             /* At this point, all TTMP registers have been initialized, either
                by SPI or by DBGAPI.  Mark ttmp_setup as true in core state so
                when dbgapi loads it back, it does not override TTMPs.
@@ -1892,7 +1923,7 @@ process_t::next_pending_event ()
             | os_exception_mask_t::queue_wave_math_error
             | os_exception_mask_t::queue_wave_illegal_instruction
             | os_exception_mask_t::queue_wave_memory_violation
-            | os_exception_mask_t::queue_wave_aperture_violation
+            | os_exception_mask_t::queue_wave_address_error
             | os_exception_mask_t::device_memory_violation);
           dbgapi_assert (
             std::visit ([] (auto &&x) -> bool { return x; }, source)
@@ -1933,7 +1964,7 @@ process_t::next_pending_event ()
                & (os_exception_mask_t::queue_wave_trap
                   | os_exception_mask_t::queue_wave_illegal_instruction
                   | os_exception_mask_t::queue_wave_memory_violation
-                  | os_exception_mask_t::queue_wave_aperture_violation
+                  | os_exception_mask_t::queue_wave_address_error
                   | os_exception_mask_t::queue_wave_math_error
                   | os_exception_mask_t::queue_wave_abort))
               != os_exception_mask_t::none)
@@ -2453,6 +2484,7 @@ amd_dbgapi_process_get_info (amd_dbgapi_process_id_t process_id,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT,
          AMD_DBGAPI_STATUS_ERROR_INVALID_ARGUMENT_COMPATIBILITY,
          AMD_DBGAPI_STATUS_ERROR_NOT_AVAILABLE,
-         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK);
+         AMD_DBGAPI_STATUS_ERROR_CLIENT_CALLBACK,
+         AMD_DBGAPI_STATUS_ERROR_RESTRICTION);
   TRACE_END (make_query_ref (query, param_out (value)));
 }
