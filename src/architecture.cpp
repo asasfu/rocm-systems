@@ -6139,7 +6139,7 @@ gfx12_architecture_t::signaled_exceptions (const wave_t &wave) const
     exceptions |= exception_mask_t::addr_watch3;
   if (excp_flag_priv_reg & sq_wave_excp_priv_wave_start_mask)
     exceptions |= exception_mask_t::wave_begin;
-  if (excp_flag_priv_reg & sq_wave_excp_priv_wave_start_mask)
+  if (excp_flag_priv_reg & sq_wave_excp_priv_wave_end_mask)
     exceptions |= exception_mask_t::wave_end;
   if (excp_flag_priv_reg & sq_wave_excp_priv_trap_after_inst_mask)
     exceptions |= exception_mask_t::trap_after_inst;
