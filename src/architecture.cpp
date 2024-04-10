@@ -5862,6 +5862,10 @@ public:
 
 class gfx12_architecture_t : public gfx11_architecture_t
 {
+private:
+  static const std::unordered_map<uint16_t, cbranch_cond_t>
+    cbranch_opcodes_map;
+
 protected:
   static constexpr uint32_t sq_wave_state_priv_wg_rr_en_mask = 1 << 0;
   static constexpr uint32_t sq_wave_state_priv_sleep_wakeup_mask = 1 << 1;
@@ -6017,6 +6021,15 @@ protected:
   simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
                         const instruction_t &instruction) const override;
 
+  bool is_barrier (const instruction_t &instruction) const override;
+  bool is_sequential (const instruction_t &instruction) const override;
+  bool is_cbranch (const instruction_t &instruction) const override;
+  bool
+  is_subvector_loop_begin (const instruction_t &instruction) const override;
+  bool is_subvector_loop_end (const instruction_t &instruction) const override;
+
+  amdgcn_architecture_t::cbranch_cond_t
+  cbranch_condition_code (const instruction_t &instruction) const override;
   bool is_branch_taken (wave_t &wave,
                         const instruction_t &instruction) const override;
 
@@ -7016,10 +7029,67 @@ gfx12_architecture_t::cwsr_record_t::position_in_group () const
 }
 
 bool
+gfx12_architecture_t::is_barrier (const instruction_t &instruction) const
+{
+  /* Only consider the s_barrier_wait instruction to be a "barrier" instruction
+     as this is the only instruction causing the wave to wait.  All other
+     s_barrier* instructions only modify the barrier's state and do not perform
+     any synchronization.  */
+
+  /* s_barrier_wait: SOPP Opcode 20.  */
+  return is_sopp_encoding<20> (instruction);
+}
+
+decltype (gfx12_architecture_t::cbranch_opcodes_map)
+  gfx12_architecture_t::cbranch_opcodes_map{
+    { 33, cbranch_cond_t::scc0 },  { 34, cbranch_cond_t::scc1 },
+    { 35, cbranch_cond_t::vccz },  { 36, cbranch_cond_t::vccnz },
+    { 37, cbranch_cond_t::execz }, { 38, cbranch_cond_t::execnz },
+  };
+
+bool
+gfx12_architecture_t::is_cbranch (const instruction_t &instruction) const
+{
+  if (instruction.capacity () < sizeof (instruction.word<0> ()))
+    return false;
+
+  /* s_cbranch_scc0:             SOPP Opcode 33 [10111111 10100001 SIMM16]
+     s_cbranch_scc1:             SOPP Opcode 34 [10111111 10100010 SIMM16]
+     s_cbranch_vccz:             SOPP Opcode 35 [10111111 10100011 SIMM16]
+     s_cbranch_vccnz:            SOPP Opcode 36 [10111111 10100100 SIMM16]
+     s_cbranch_execz:            SOPP Opcode 37 [10111111 10100101 SIMM16]
+     s_cbranch_execnz:           SOPP Opcode 38 [10111111 10100110 SIMM16] */
+  if ((instruction.word<0> () & 0xFF800000) != 0xBF800000)
+    return false;
+
+  return gfx12_architecture_t::cbranch_opcodes_map.find (
+           encoding_op7 (instruction))
+         != gfx12_architecture_t::cbranch_opcodes_map.end ();
+}
+
+amdgcn_architecture_t::cbranch_cond_t
+gfx12_architecture_t::cbranch_condition_code (
+  const instruction_t &instruction) const
+{
+  dbgapi_assert (is_cbranch (instruction));
+
+  auto it = gfx12_architecture_t::cbranch_opcodes_map.find (
+    encoding_op7 (instruction));
+
+  dbgapi_assert (it != gfx12_architecture_t::cbranch_opcodes_map.end ());
+  return it->second;
+}
+
+bool
 gfx12_architecture_t::is_branch_taken (wave_t &wave,
                                        const instruction_t &instruction) const
 {
-  if (is_cbranch (instruction))
+  if (is_branch (instruction) || is_call (instruction)
+      || is_setpc (instruction) || is_swappc (instruction))
+    {
+      return true;
+    }
+  else if (is_cbranch (instruction))
     {
       uint32_t status_reg, state_priv_reg;
 
@@ -7041,28 +7111,39 @@ gfx12_architecture_t::is_branch_taken (wave_t &wave,
           return (status_reg & sq_wave_status_vccz_mask) != 0;
         case cbranch_cond_t::vccnz:
           return (status_reg & sq_wave_status_vccz_mask) == 0;
-        case cbranch_cond_t::cdbgsys:
-          return (state_priv_reg & sq_wave_state_priv_cond_dbg_sys_mask) != 0;
-        case cbranch_cond_t::cdbguser:
-          return (state_priv_reg & sq_wave_state_priv_cond_dbg_user_mask) != 0;
-        case cbranch_cond_t::cdbgsys_or_user:
-          {
-            uint32_t mask = sq_wave_state_priv_cond_dbg_sys_mask
-                            | sq_wave_state_priv_cond_dbg_user_mask;
-            return (state_priv_reg & mask) != 0;
-          }
-        case cbranch_cond_t::cdbgsys_and_user:
-          {
-            uint32_t mask = sq_wave_state_priv_cond_dbg_sys_mask
-                            | sq_wave_state_priv_cond_dbg_user_mask;
-            return (state_priv_reg & mask) == mask;
-          }
+        default:
+          dbgapi_assert_not_reached (
+            "illegal instruction: invalid cbranch_cond_t for gfx12");
         }
-      dbgapi_assert_not_reached (
-        "illegal instruction: invalid cbranch_cond_t");
     }
 
-  return gfx11_architecture_t::is_branch_taken (wave, instruction);
+  dbgapi_assert_not_reached ("not a branch instruction");
+}
+
+bool
+gfx12_architecture_t::is_subvector_loop_begin (const instruction_t &) const
+{
+  return false;
+}
+
+bool
+gfx12_architecture_t::is_subvector_loop_end (const instruction_t &) const
+{
+  return false;
+}
+
+bool
+gfx12_architecture_t::is_sequential (const instruction_t &instruction) const
+{
+  if (!instruction.is_valid ())
+    return false;
+
+  return /* s_endpgm/s_branch/s_cbranch  */
+    !is_sopp_encoding<48, 32, 33, 34, 35, 36, 37, 38> (instruction)
+    /* s_setpc_b64/s_swappc_b64  */
+    && !is_sop1_encoding<72, 73> (instruction)
+    /* s_call_b64  */
+    && !is_sopk_encoding<20> (instruction);
 }
 
 class gfx1200_t final : public gfx12_architecture_t
