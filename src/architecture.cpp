@@ -5952,6 +5952,13 @@ protected:
     amd_dbgapi_wave_id_t id () const override;
     std::optional<std::array<uint32_t, 3>> group_ids () const override;
     std::optional<uint32_t> position_in_group () const override;
+
+    bool spi_ttmps_setup_enabled () const override
+    {
+      /* For gfx12, spi-maintained TTMP registers (ttmp7-ttmp9) are always
+         initialized.  */
+      return true;
+    }
   };
 
   std::unique_ptr<architecture_t::cwsr_record_t> make_gfx1x_cwsr_record (
@@ -5973,6 +5980,8 @@ protected:
   bool are_trap_handler_ttmps_initialized (const wave_t &wave) const override;
   void initialize_spi_ttmps (const wave_t &wave) const override;
   void initialize_trap_handler_ttmps (const wave_t &wave) const override;
+  void record_spi_ttmps_setup (const wave_t &wave,
+                               bool enabled) const override final;
 
   void save_pc_for_park (const wave_t &wave,
                          amd_dbgapi_global_address_t pc) const override;
@@ -6838,6 +6847,12 @@ gfx12_architecture_t::initialize_trap_handler_ttmps (const wave_t &wave) const
   wave.write_register (amdgpu_regnum_t::ttmp5, 0);
   wave.write_register (amdgpu_regnum_t::ttmp6, 0);
   wave.write_register (amdgpu_regnum_t::ttmp8, ttmp8);
+}
+
+void
+gfx12_architecture_t::record_spi_ttmps_setup (const wave_t &, bool) const
+{
+  /* Nothing to mark, SPI ttmps are always guaranteed to be initialized.  */
 }
 
 void
