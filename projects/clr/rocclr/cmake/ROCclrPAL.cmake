@@ -53,6 +53,7 @@ set(PAL_BUILD_KRACKAN1      ON)
 set(PAL_BUILD_AT1           ON)
 set(PAL_BUILD_AT2           ON)
 set(PAL_BUILD_AT3           ON)
+set(PAL_BUILD_GFX13         ON)
 
 set(PAL_BRANCHDEFS          ON)
 if (AMD_COMPUTE_WIN)
