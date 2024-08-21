@@ -302,6 +302,9 @@ class Flag {
 #ifdef AMD_NPI_ONLY
     var = os::GetEnvVar("HSA_NPI_RAW_TIMESTAMPS");
     raw_timestamps_ = (var == "1") ? true : false;
+
+    var = os::GetEnvVar("HSA_DISABLE_COREDUMP");
+    disable_coredump_ = (var == "1") ? true : false;
 #endif
   }
 
@@ -432,6 +435,7 @@ class Flag {
   bool enable_3d_swizzle() const { return enable_3d_swizzle_; }
 #ifdef AMD_NPI_ONLY
   bool raw_timestamps() const  { return raw_timestamps_; }
+  bool disable_coredump() const { return disable_coredump_; }
 #endif
 
   bool enable_dtif() const { return enable_dtif_; }
@@ -535,6 +539,7 @@ class Flag {
 
 #ifdef AMD_NPI_ONLY
   bool raw_timestamps_;
+  bool disable_coredump_;
 #endif
 
   void parse_masks(std::string& args, uint32_t maxGpu, uint32_t maxCU);
