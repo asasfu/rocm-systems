@@ -298,6 +298,11 @@ class Flag {
 
     var = os::GetEnvVar("HSA_CO_DMACOPY_SIZE");
     co_dmacopy_size_ = var.empty() ? 1024*1024 : atoi(var.c_str());
+    // NPI ONLY - DO NOT UPSTREAM
+#ifdef AMD_NPI_ONLY
+    var = os::GetEnvVar("HSA_NPI_RAW_TIMESTAMPS");
+    raw_timestamps_ = (var == "1") ? true : false;
+#endif
   }
 
   void parse_masks(uint32_t maxGpu, uint32_t maxCU) {
@@ -425,6 +430,9 @@ class Flag {
   int async_events_thread_priority() const { return async_events_thread_priority_; }
 
   bool enable_3d_swizzle() const { return enable_3d_swizzle_; }
+#ifdef AMD_NPI_ONLY
+  bool raw_timestamps() const  { return raw_timestamps_; }
+#endif
 
   bool enable_dtif() const { return enable_dtif_; }
 
@@ -524,6 +532,10 @@ class Flag {
 
   // Map GPU index post RVD to its default cu mask.
   std::map<uint32_t, std::vector<uint32_t>> cu_mask_;
+
+#ifdef AMD_NPI_ONLY
+  bool raw_timestamps_;
+#endif
 
   void parse_masks(std::string& args, uint32_t maxGpu, uint32_t maxCU);
 
