@@ -1296,6 +1296,8 @@ amdgcn_architecture_t::set_exceptions (wave_t &wave, exception_mask_t mask,
       trapsts_mask |= sq_wave_trapsts_excp_overflow_mask;
     if ((m & exception_mask_t::underflow) != 0)
       trapsts_mask |= sq_wave_trapsts_excp_underflow_mask;
+    if ((m & exception_mask_t::inexact) != 0)
+      trapsts_mask |= sq_wave_trapsts_excp_inexact_mask;
     if ((m & exception_mask_t::int_div0) != 0)
       trapsts_mask |= sq_wave_trapsts_excp_int_div0_mask;
     if ((m & exception_mask_t::mem_viol) != 0)
@@ -5976,6 +5978,13 @@ protected:
 
   class cwsr_record_t : public gfx11_architecture_t::cwsr_record_t
   {
+  protected:
+    static constexpr uint32_t
+    compute_relaunch_state_payload_wgp_takeover (uint32_t relaunch_state)
+    {
+      return utils::bit_extract (relaunch_state, 6, 6);
+    }
+
   public:
     cwsr_record_t (compute_queue_t &queue, uint32_t xcc_id,
                    uint32_t compute_relaunch_wave,
@@ -6001,6 +6010,8 @@ protected:
          initialized.  */
       return true;
     }
+
+    size_t lds_size () const override;
   };
 
   std::unique_ptr<architecture_t::cwsr_record_t> make_gfx1x_cwsr_record (
@@ -7083,6 +7094,14 @@ gfx12_architecture_t::cwsr_record_t::position_in_group () const
   process ().read_global_memory (ttmp8_address, &ttmp8);
 
   return (ttmp8 & utils::bit_mask (25, 29)) >> 25;
+}
+
+size_t
+gfx12_architecture_t::cwsr_record_t::lds_size () const
+{
+  if (compute_relaunch_state_payload_wgp_takeover (m_compute_relaunch_state))
+    return 128 << 10;
+  return gfx11_architecture_t::cwsr_record_t::lds_size ();
 }
 
 bool
