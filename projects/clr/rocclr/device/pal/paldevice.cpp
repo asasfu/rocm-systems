@@ -104,14 +104,14 @@ static constexpr PalDevice supportedPalDevices[] = {
     {11, 5, 1, Pal::GfxIpLevel::GfxIp11_5, "gfx1151", Pal::AsicRevision::StrixHalo},
     {12, 0, 0, Pal::GfxIpLevel::GfxIp12, "gfx1200", Pal::AsicRevision::Navi44},
     {12, 0, 1, Pal::GfxIpLevel::GfxIp12, "gfx1201", Pal::AsicRevision::Navi48},
-    #if PAL_BUILD_AT2
-    {13, 0, 0, Pal::GfxIpLevel::GfxIp13, "gfx1300", Pal::AsicRevision::AT2},
+#if PAL_BUILD_AT2 || PAL_BUILD_GFX13
+    {13, 0,  0,  Pal::GfxIpLevel::GfxIp13,   "gfx1300",       Pal::AsicRevision::AlphaTrion1},
+  #endif
+#if PAL_BUILD_AT1 || PAL_BUILD_GFX13
+    {13, 0,  1,  Pal::GfxIpLevel::GfxIp13,   "gfx1301",       Pal::AsicRevision::AlphaTrion1},
 #endif
-#if PAL_BUILD_AT1
-    {13, 0, 1, Pal::GfxIpLevel::GfxIp13, "gfx1301", Pal::AsicRevision::AT1},
-#endif
-#if PAL_BUILD_AT3
-    {13, 0, 2, Pal::GfxIpLevel::GfxIp13, "gfx1302", Pal::AsicRevision::AT3},
+#if PAL_BUILD_AT3 || PAL_BUILD_GFX13
+    {13, 0,  2,  Pal::GfxIpLevel::GfxIp13,   "gfx1302",       Pal::AsicRevision::AlphaTrion1},
 #endif
 };
 
