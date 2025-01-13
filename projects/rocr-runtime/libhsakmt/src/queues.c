@@ -35,6 +35,9 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <assert.h>
+
+static uint32_t get_hwreg_size_per_cu(uint32_t gfxv);
 
 /* 1024 doorbells, 4 or 8 bytes each doorbell depending on ASIC generation */
 #define DOORBELL_SIZE(gfxv)	(((gfxv) >= 0x90000) ? 8 : 4)
@@ -42,12 +45,11 @@
 
 #define WG_CONTEXT_DATA_SIZE_PER_CU(gfxv, node) 		\
 	(hsakmt_get_vgpr_size_per_cu(gfxv) + SGPR_SIZE_PER_CU +	\
-	 (node.LDSSizeInKB << 10) + HWREG_SIZE_PER_CU)
+	 (node.LDSSizeInKB << 10) + get_hwreg_size_per_cu(gfxv))
 
 #define CNTL_STACK_BYTES_PER_WAVE(gfxv)	\
 	((gfxv) >= GFX_VERSION_NAVI10 ? 12 : 8)
 
-#define HWREG_SIZE_PER_CU	0x1000
 #define DEBUGGER_BYTES_ALIGN	64
 #define DEBUGGER_BYTES_PER_WAVE	32
 
@@ -83,21 +85,40 @@ struct process_doorbells {
 static unsigned int num_doorbells;
 static struct process_doorbells *doorbells;
 
+static uint32_t get_hwreg_size_per_cu(uint32_t gfxv)
+{
+	uint32_t hwreg_size = 0;
+
+	if (gfxv < GFX_VERSION_GFX1250)
+		hwreg_size = 0x1000; /* 128 bytes per wave, 32 waves per CU */
+	else if (gfxv <= GFX_VERSION_GFX1251)
+		hwreg_size = 0x4000;
+
+	assert(hwreg_size);
+
+	return hwreg_size;
+}
+
 uint32_t hsakmt_get_vgpr_size_per_cu(uint32_t gfxv)
 {
-	uint32_t vgpr_size = 0x40000;
+	uint32_t vgpr_size = 0;
 
-	if (gfxv == GFX_VERSION_GFX950 ||
-		(gfxv & ~(0xff)) == GFX_VERSION_AQUA_VANJARAM ||
-		 gfxv == GFX_VERSION_ALDEBARAN ||
-		 gfxv == GFX_VERSION_ARCTURUS)
+	if (gfxv < GFX_VERSION_ARCTURUS)
+		vgpr_size = 0x40000;
+	else if (gfxv <= GFX_VERSION_ALDEBARAN)
 		vgpr_size = 0x80000;
-
-	else if (gfxv == GFX_VERSION_PLUM_BONITO ||
-		 gfxv == GFX_VERSION_WHEAT_NAS ||
-		 gfxv == GFX_VERSION_GFX1200 ||
-		 gfxv == GFX_VERSION_GFX1201)
+	else if (gfxv <= GFX_VERSION_RENOIR)
+		vgpr_size = 0x40000;
+	else if (gfxv <= GFX_VERSION_GFX950)
+		vgpr_size = 0x80000;
+	else if (gfxv < GFX_VERSION_PLUM_BONITO)
+		vgpr_size = 0x40000;
+	else if (gfxv <= GFX_VERSION_GFX1201)
 		vgpr_size = 0x60000;
+	else if (gfxv <= GFX_VERSION_GFX1251)
+		vgpr_size = 0x40000;
+
+	assert(vgpr_size);
 
 	return vgpr_size;
 }
