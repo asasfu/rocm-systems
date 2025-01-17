@@ -1300,6 +1300,8 @@ amdgcn_architecture_t::set_exceptions (wave_t &wave, exception_mask_t mask,
       trapsts_mask |= sq_wave_trapsts_excp_inexact_mask;
     if ((m & exception_mask_t::int_div0) != 0)
       trapsts_mask |= sq_wave_trapsts_excp_int_div0_mask;
+    if ((m & exception_mask_t::xnack_error) != 0)
+      trapsts_mask |= sq_wave_trapsts_xnack_error_mask;
     if ((m & exception_mask_t::mem_viol) != 0)
       trapsts_mask |= sq_wave_trapsts_excp_mem_viol_mask;
     if ((m & exception_mask_t::illegal_inst) != 0)
@@ -3325,6 +3327,19 @@ gfx9_architecture_t::scratch_memory_region (
   return { offset, wavesize };
 }
 
+/* Generic gfx9 architecture.  */
+
+class gfx9_generic_t final : public gfx9_architecture_t
+{
+public:
+  gfx9_generic_t ()
+    : gfx9_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX9_GENERIC,
+                           "amdgcn-amd-amdhsa--gfx9-generic")
+  {
+  }
+};
+
+
 /* Vega10 Architecture.  */
 
 class gfx900_t final : public gfx9_architecture_t
@@ -4061,6 +4076,18 @@ gfx940_t::dispatch_packet_address (
 
   return queue.address () + (dispatch_packet_index * queue.packet_size ());
 }
+
+/* Generic gfx9.4 architecture.  */
+
+class gfx9_4_generic_t final : public gfx940_t
+{
+public:
+  gfx9_4_generic_t ()
+    : gfx940_t (EF_AMDGPU_MACH_AMDGCN_GFX9_4_GENERIC,
+                "amdgcn-amd-amdhsa--gfx9-4-generic")
+  {
+  }
+};
 
 class gfx941_t final : public gfx940_t
 {
@@ -5156,6 +5183,18 @@ protected:
   }
 };
 
+/* Generic gfx10.1 architectue.  */
+
+class gfx10_1_generic_t final : public gfx10_1_t
+{
+public:
+  gfx10_1_generic_t ()
+    : gfx10_1_t (EF_AMDGPU_MACH_AMDGCN_GFX10_1_GENERIC,
+                 "amdgcn-amd-amdhsa--gfx10-1-generic")
+  {
+  }
+};
+
 class gfx1010_t final : public gfx10_1_t
 {
 public:
@@ -5193,6 +5232,18 @@ protected:
 
 public:
   bool can_halt_at_endpgm () const override { return true; }
+};
+
+/* Generic gfx10.3 architecture.  */
+
+class gfx10_3_generic_t final : public gfx10_3_t
+{
+public:
+  gfx10_3_generic_t ()
+    : gfx10_3_t (EF_AMDGPU_MACH_AMDGCN_GFX10_3_GENERIC,
+                 "amdgcn-amd-amdhsa--gfx10-3-generic")
+  {
+  }
 };
 
 class gfx1030_t final : public gfx10_3_t
@@ -5878,6 +5929,18 @@ gfx11_architecture_t::scratch_memory_region (
 
   return { offset, wavesize };
 }
+
+/* Generic gfx11 architecture.  */
+
+class gfx11_generic_t final : public gfx11_architecture_t
+{
+public:
+  gfx11_generic_t ()
+    : gfx11_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX11_GENERIC,
+                            "amdgcn-amd-amdhsa--gfx11-generic")
+  {
+  }
+};
 
 class gfx1100_t final : public gfx11_architecture_t
 {
@@ -7227,6 +7290,18 @@ gfx12_architecture_t::is_sequential (const instruction_t &instruction) const
     && !is_sopk_encoding<20> (instruction);
 }
 
+/* Generic gfx12 architecture.  */
+
+class gfx12_generic_t final : public gfx12_architecture_t
+{
+public:
+  gfx12_generic_t ()
+    : gfx12_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX12_GENERIC,
+                            "amdgcn-amd-amdhsa--gfx12-generic")
+  {
+  }
+};
+
 class gfx1200_t final : public gfx12_architecture_t
 {
 public:
@@ -7408,23 +7483,29 @@ decltype (architecture_t::s_architecture_map)
     [] ()
     {
       decltype (s_architecture_map) map;
+      map.emplace (make_architecture<gfx9_generic_t> ());
       map.emplace (make_architecture<gfx900_t> ());
       map.emplace (make_architecture<gfx906_t> ());
       map.emplace (make_architecture<gfx908_t> ());
       map.emplace (make_architecture<gfx90a_t> ());
+      map.emplace (make_architecture<gfx9_4_generic_t> ());
       map.emplace (make_architecture<gfx940_t> ());
       map.emplace (make_architecture<gfx941_t> ());
       map.emplace (make_architecture<gfx942_t> ());
       map.emplace (make_architecture<gfx950_t> ());
+      map.emplace (make_architecture<gfx10_1_generic_t> ());
       map.emplace (make_architecture<gfx1010_t> ());
       map.emplace (make_architecture<gfx1011_t> ());
       map.emplace (make_architecture<gfx1012_t> ());
+      map.emplace (make_architecture<gfx10_3_generic_t> ());
       map.emplace (make_architecture<gfx1030_t> ());
       map.emplace (make_architecture<gfx1031_t> ());
       map.emplace (make_architecture<gfx1032_t> ());
+      map.emplace (make_architecture<gfx11_generic_t> ());
       map.emplace (make_architecture<gfx1100_t> ());
       map.emplace (make_architecture<gfx1101_t> ());
       map.emplace (make_architecture<gfx1102_t> ());
+      map.emplace (make_architecture<gfx12_generic_t> ());
       map.emplace (make_architecture<gfx1200_t> ());
       map.emplace (make_architecture<gfx1201_t> ());
       return map;
