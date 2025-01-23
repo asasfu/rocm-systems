@@ -727,12 +727,11 @@ const char *LoopIsa =
         s_cbranch_scc1  END_OF_PGM
         v_add_f32     v0, 2.0, v0
         v_cvt_f32_i32 v17, s1
-        .if (.amdgcn.gfx_generation_number >= 12)
-            s_wait_dscnt     0
-            s_wait_kmcnt     0
-        .else
-            s_waitcnt lgkmcnt(0)
-        .endif
+	.if (.amdgcn.gfx_generation_number >= 12)
+	    s_wait_idle
+	.else
+        s_waitcnt     lgkmcnt(0)
+	.endif
         v_add_f32     v18, s8, v17
         v_add_f32     v19, s9, v17
         v_add_f32     v20, s10, v17
