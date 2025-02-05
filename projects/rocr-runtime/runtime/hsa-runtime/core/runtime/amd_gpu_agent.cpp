@@ -117,7 +117,8 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
       pcs_hosttrap_data_(),
       pcs_stochastic_data_(),
       xgmi_cpu_gpu_(false),
-      large_bar_enabled_(false){
+      large_bar_enabled_(false),
+      extended_aql_dispatch_supported_(false) {
   const bool is_apu_node = (properties_.NumCPUCores > 0);
   profile_ = (is_apu_node) ? HSA_PROFILE_FULL : HSA_PROFILE_BASE;
 
@@ -1358,6 +1359,21 @@ void GpuAgent::GetInfoMemoryProperties(uint8_t value[8]) const {
       setFlag(HSA_AMD_MEMORY_PROPERTY_AGENT_IS_APU);
 }
 
+void GpuAgent::GetAqlInfoProperties(uint8_t value[8]) const {
+  auto setFlag = [&](uint32_t bit) {
+    assert(bit < 8 * 8 && "Flag value exceeds input parameter size");
+
+    uint index = bit / 8;
+    uint subBit = bit % 8;
+    ((uint8_t*)value)[index] |= 1 << subBit;
+  };
+
+  // Fill the HSA_AMD_AQL_PROPERTY_EXT_DISPATCH
+  if (extended_aql_dispatch_supported_)
+      setFlag(HSA_AMD_AQL_PROPERTY_EXT_DISPATCH);
+}
+
+
 hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
   // agent, and vendor name size limit
   const size_t attribute_u = static_cast<size_t>(attribute);
@@ -1696,7 +1712,7 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       break;
     case HSA_AMD_AGENT_INFO_AQL_EXTENSIONS:
       memset(value, 0, sizeof(uint8_t) * 8);
-      /* Not yet implemented */
+      GetAqlInfoProperties((uint8_t*)value);
       break;
     case HSA_AMD_AGENT_INFO_SCRATCH_LIMIT_MAX:
       *((uint64_t*)value) = MaxScratchDevice();
