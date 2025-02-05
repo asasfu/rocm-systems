@@ -843,6 +843,11 @@ class GpuAgent : public GpuAgentInt {
 
   bool extended_aql_dispatch_supported_;
 
+  /* Workgroup Cluster Parameters */
+  bool workgroup_clusters_supported_;
+  hsa_amd_dim3_t kern_cluster_max_dim_;
+  hsa_amd_dim3_t cluster_max_dim_;
+
 };
 
 }  // namespace amd
