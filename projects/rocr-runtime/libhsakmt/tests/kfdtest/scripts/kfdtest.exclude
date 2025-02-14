@@ -129,7 +129,14 @@ BLACKLIST_GFX12=\
 "KFDQMTest.CreateAqlCpQueue:"\
 "KFDPerfCountersTest.*:"\
 "KFDMemoryTest.FlatScratchAccess:"\
-"KFDGWSTest.*"
+"KFDGWSTest.*:"\
+"KFDMemoryTest.Acquire*"
+
+BLACKLIST_MGPU=\
+"KFDLocalMemoryTest.MapVramToGPUNodesTest:"\
+"KFDMemoryTest.MapUnmapToNodes:"\
+"KFDPerformanceTest.P2P*:"\
+"KFDQMTest.P2P*"
 
 # KFDQMTest.CpuWriteCoherence fails. 0 dwordsAvailable (KFD-338)
 # KFDMemoryTest.MemoryRegister fails on SDMA queue creation (KFD-337)
@@ -369,3 +376,32 @@ FILTER[RHEL9]=\
 
 FILTER[upstream]=\
 "KFDIPCTest.*"
+
+FILTER[gfx125x_lsc_n-1]=\
+"$BLACKLIST_ALL_ASICS:"\
+"$SDMA_BLACKLIST:"\
+"$BLACKLIST_GFX12:"\
+"$BLACKLIST_MGPU:"\
+"KFDTopologyTest.BasicTest:"\
+"KFDMemoryTest.AccessPPRMem:"\
+"KFDMemoryTest.*Coherence*:"\
+"KFDMemoryTest.*CacheInvalidate*:"\
+"KFDQMTest.OverSubscribeCpQueues:"\
+"KFDSVMRangeTest.*:"\
+"KFDMemoryTest.FlatScratchAccess:"\
+"KFDQMTest.Atomics:"\
+"KFDQMTest.QueueLatency:"\
+"KFDDBGTest.*:"\
+"KFDCWSRTest.*:"\
+"KFDGraphicsInterop.*:"\
+"KFDSVMEvictTest.*:"\
+"KFDPerformanceTest.*:"\
+"KFDPerfCountersTest.*:"\
+"KFDPMTest.*:"\
+"KFDPCSamplingTest.*:"\
+"KFDRASTest.*:"\
+"KFDIPCTest.*:"\
+"KFDHWSTest.*:"\
+"KFDExceptionTest.*:"\
+"KFDASMTest.*:"\
+"KFDEvictTest.*:"
