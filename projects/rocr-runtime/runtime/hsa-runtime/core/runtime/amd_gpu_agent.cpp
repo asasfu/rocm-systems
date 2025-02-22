@@ -85,6 +85,8 @@
 // Size of scratch (private) segment pre-allocated per thread, in bytes.
 #define DEFAULT_SCRATCH_BYTES_PER_THREAD 2048
 #define MAX_WAVE_SCRATCH 8387584  // See COMPUTE_TMPRING_SIZE.WAVESIZE
+#define MAX_WAVE_SCRATCH_GFX12 33554432
+
 #define MAX_NUM_DOORBELLS 0x400
 
 namespace rocr {
@@ -191,6 +193,8 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
   if (!isa_->GetIsaGeneric().empty()) {
     supported_isas_.push_back(core::IsaRegistry::GetIsa(isa_->GetIsaGeneric()));
   }
+
+  max_wave_scratch_ = (isa_->GetMajorVersion() >= 12) ? MAX_WAVE_SCRATCH_GFX12 : MAX_WAVE_SCRATCH;
 
   current_coherency_type((profile_ == HSA_PROFILE_FULL)
                              ? HSA_AMD_COHERENCY_TYPE_COHERENT
@@ -1892,7 +1896,7 @@ void GpuAgent::AcquireQueueMainScratch(ScratchInfo& scratch) {
 
   // Fail scratch allocation if per wave limits are exceeded.
   uint64_t size_per_wave = AlignUp(scratch.main_size_per_thread * properties_.WaveFrontSize, 1024);
-  if (size_per_wave > MAX_WAVE_SCRATCH) return;
+  if (size_per_wave > max_wave_scratch_) return;
 
   /*
   Determine size class needed.
@@ -2077,7 +2081,7 @@ void GpuAgent::AcquireQueueAltScratch(ScratchInfo& scratch) {
 
   // Fail scratch allocation if per wave limits are exceeded.
   uint64_t size_per_wave = AlignUp(scratch.alt_size_per_thread * properties_.WaveFrontSize, 1024);
-  if (size_per_wave > MAX_WAVE_SCRATCH) return;
+  if (size_per_wave > max_wave_scratch_) return;
 
   ScopedAcquire<KernelMutex> lock(&scratch_lock_);
 
