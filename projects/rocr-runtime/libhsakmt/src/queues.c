@@ -73,6 +73,7 @@ struct queue {
 	 */
 	uint32_t cu_mask_count; /* in bits */
 	uint32_t cu_mask[0];
+	uint32_t queue_type;
 };
 
 struct process_doorbells {
@@ -84,6 +85,16 @@ struct process_doorbells {
 
 static unsigned int num_doorbells;
 static struct process_doorbells *doorbells;
+static unsigned int num_xcc;
+
+static void updateQueuePercentage(uint32_t *QueuePercentage,
+				  int hsakmt_pm4_target_xcc, int num_xcc, struct queue *q) {
+	if (q->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE && num_xcc > 1 &&
+		hsakmt_pm4_target_xcc > 0 && hsakmt_pm4_target_xcc < num_xcc) {
+		// Set bits 8-15 of QueuePercentage
+		*QueuePercentage |= (hsakmt_pm4_target_xcc << 8);
+	}
+}
 
 static uint32_t get_hwreg_size_per_cu(uint32_t gfxv)
 {
@@ -722,6 +733,10 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExt(HSAuint32 NodeId,
 		return err;
 	}
 
+	num_xcc=props.NumXcc;
+	q->queue_type = args.queue_type;
+	updateQueuePercentage(&QueuePercentage, hsakmt_pm4_target_xcc, num_xcc, &q);
+
 	args.read_pointer_address = QueueResource->QueueRptrValue;
 	args.write_pointer_address = QueueResource->QueueWptrValue;
 	args.ring_base_address = (uintptr_t)QueueAddress;
@@ -780,6 +795,8 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtUpdateQueue(HSA_QUEUEID QueueId,
 {
 	struct kfd_ioctl_update_queue_args arg = {0};
 	struct queue *q = PORT_UINT64_TO_VPTR(QueueId);
+
+	updateQueuePercentage(&QueuePercentage, hsakmt_pm4_target_xcc, num_xcc, &q);
 
 	CHECK_KFD_OPEN();
 

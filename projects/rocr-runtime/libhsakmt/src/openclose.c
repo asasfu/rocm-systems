@@ -147,6 +147,9 @@ static HSAKMT_STATUS init_vars_from_env(void)
 	if (envvar)
 		hsakmt_zfb_support = atoi(envvar);
 
+	envvar = getenv("PM4_TARGET_XCC");
+	if (envvar)
+		hsakmt_pm4_target_xcc = atoi(envvar);
 	return HSAKMT_STATUS_SUCCESS;
 }
 

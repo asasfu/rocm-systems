@@ -40,6 +40,7 @@ extern pthread_mutex_t hsakmt_mutex;
 extern bool hsakmt_is_dgpu;
 extern bool hsakmt_is_svm_api_supported;
 extern int hsakmt_zfb_support;
+extern int hsakmt_pm4_target_xcc;
 
 extern HsaVersionInfo hsakmt_kfd_version_info;
 
