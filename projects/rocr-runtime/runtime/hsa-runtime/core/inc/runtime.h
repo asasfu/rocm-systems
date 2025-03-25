@@ -617,14 +617,7 @@ class Runtime {
     prefetch_map_t::iterator next;
   };
 
-  // Will be created before any user could call hsa_init but also could be
-  // destroyed before incorrectly written programs call hsa_shutdown.
-  static __forceinline KernelMutex& bootstrap_lock() {
-    // This allocation is meant to last until the last thread has exited.
-    // It is intentionally not freed.
-    static KernelMutex* bootstrap_lock_ = new KernelMutex;
-    return *bootstrap_lock_;
-  }
+  static KernelMutex bootstrap_lock_;
   Runtime();
 
   Runtime(const Runtime&);
