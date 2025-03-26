@@ -34,6 +34,10 @@
 #include "platform/sampler.hpp"
 #include "utils/debug.hpp"
 #include "os/os.hpp"
+#include "hsa/amd_hsa_kernel_code.h"
+#include "hsa/amd_hsa_queue.h"
+#include "hsa/amd_hsa_signal.h"
+#include "hsa/hsa_ext_amd.h"
 
 #include <fstream>
 #include <limits>
@@ -1002,7 +1006,7 @@ void VirtualGPU::AnalyzeAqlQueue() const {
 // ================================================================================================
 template <typename AqlPacket>
 bool VirtualGPU::dispatchGenericAqlPacket(AqlPacket* packet, uint16_t header, uint16_t rest,
-                                          bool blocking, bool attach_signal) {
+                                          bool blocking, bool attach_signal, bool cluster_launch) {
   const uint32_t queueSize = gpu_queue_->size;
   const uint32_t queueMask = queueSize - 1;
   const uint32_t sw_queue_size = queueMask;
@@ -1076,32 +1080,67 @@ bool VirtualGPU::dispatchGenericAqlPacket(AqlPacket* packet, uint16_t header, ui
   if (header != 0) {
     packet_store_release(reinterpret_cast<uint32_t*>(aql_loc), header, rest);
   }
-  ClPrint(amd::LOG_DEBUG, amd::LOG_AQL,
-          "SWq=0x%zx, HWq=0x%zx, id=%d, Dispatch Header = "
-          "0x%x (type=%d, barrier=%d, acquire=%d, release=%d), "
-          "setup=%d, grid=[%u, %u, %u], workgroup=[%u, %u, %u], private_seg_size=%u, "
-          "group_seg_size=%u, kernel_obj=0x%zx, kernarg_address=0x%zx, completion_signal=0x%zx, "
-          "correlation_id=%zu, rptr=%u, wptr=%u",
-          gpu_queue_, gpu_queue_->base_address, gpu_queue_->id, header,
-          extractAqlBits(header, HSA_PACKET_HEADER_TYPE, HSA_PACKET_HEADER_WIDTH_TYPE),
-          extractAqlBits(header, HSA_PACKET_HEADER_BARRIER, HSA_PACKET_HEADER_WIDTH_BARRIER),
-          extractAqlBits(header, HSA_PACKET_HEADER_SCACQUIRE_FENCE_SCOPE,
-                         HSA_PACKET_HEADER_WIDTH_SCACQUIRE_FENCE_SCOPE),
-          extractAqlBits(header, HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE,
-                         HSA_PACKET_HEADER_WIDTH_SCRELEASE_FENCE_SCOPE),
-          rest, reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->grid_size_x,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->grid_size_y,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->grid_size_z,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->workgroup_size_x,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->workgroup_size_y,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->workgroup_size_z,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->private_segment_size,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->group_segment_size,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->kernel_object,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->kernarg_address,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->completion_signal,
-          reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->reserved2,
-          Hsa::queue_load_read_index_scacquire(gpu_queue_), index);
+
+  if (cluster_launch) {
+    ClPrint(amd::LOG_DEBUG, amd::LOG_AQL,
+      "SWq=0x%zx, HWq=0x%zx, id=%d, Dispatch Header = "
+      "0x%x (type=%d, barrier=%d, acquire=%d, release=%d), "
+      "setup=%d, cluster_count=[%u, %u, %u], cluster_size=[%u, %u, %u], "
+      "workgroup=[%u, %u, %u], private_seg_size=%u, "
+      "group_seg_size=%u, kernel_obj=0x%zx, kernarg_address=0x%zx, dep_signal=0x%zx, "
+      "completion_signal=0x%zx, "
+      "rptr=%u, wptr=%u",
+      gpu_queue_, gpu_queue_->base_address, gpu_queue_->id, header,
+      extractAqlBits(header, HSA_PACKET_HEADER_TYPE, HSA_PACKET_HEADER_WIDTH_TYPE),
+      extractAqlBits(header, HSA_PACKET_HEADER_BARRIER, HSA_PACKET_HEADER_WIDTH_BARRIER),
+      extractAqlBits(header, HSA_PACKET_HEADER_SCACQUIRE_FENCE_SCOPE,
+                     HSA_PACKET_HEADER_WIDTH_SCACQUIRE_FENCE_SCOPE),
+      extractAqlBits(header, HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE,
+                     HSA_PACKET_HEADER_WIDTH_SCRELEASE_FENCE_SCOPE),
+      rest, reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->cluster_count_x,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->cluster_count_y,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->cluster_count_z,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->cluster_size_x,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->cluster_size_y,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->cluster_size_z,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->workgroup_size_x,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->workgroup_size_y,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->workgroup_size_z,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->private_segment_size,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->group_segment_size,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->kernel_object,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->kernarg_address,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->dep_signal,
+      reinterpret_cast<hsa_amd_ext_kernel_dispatch_packet_t*>(packet)->completion_signal,
+      read, index);
+  } else {
+    ClPrint(amd::LOG_DEBUG, amd::LOG_AQL,
+            "SWq=0x%zx, HWq=0x%zx, id=%d, Dispatch Header = "
+            "0x%x (type=%d, barrier=%d, acquire=%d, release=%d), "
+            "setup=%d, grid=[%u, %u, %u], workgroup=[%u, %u, %u], private_seg_size=%u, "
+            "group_seg_size=%u, kernel_obj=0x%zx, kernarg_address=0x%zx, completion_signal=0x%zx, "
+            "correlation_id=%u, rptr=%u, wptr=%u",
+            gpu_queue_, gpu_queue_->base_address, gpu_queue_->id, header,
+            extractAqlBits(header, HSA_PACKET_HEADER_TYPE, HSA_PACKET_HEADER_WIDTH_TYPE),
+            extractAqlBits(header, HSA_PACKET_HEADER_BARRIER, HSA_PACKET_HEADER_WIDTH_BARRIER),
+            extractAqlBits(header, HSA_PACKET_HEADER_SCACQUIRE_FENCE_SCOPE,
+                            HSA_PACKET_HEADER_WIDTH_SCACQUIRE_FENCE_SCOPE),
+            extractAqlBits(header, HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE,
+                            HSA_PACKET_HEADER_WIDTH_SCRELEASE_FENCE_SCOPE),
+            rest, reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->grid_size_x,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->grid_size_y,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->grid_size_z,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->workgroup_size_x,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->workgroup_size_y,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->workgroup_size_z,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->private_segment_size,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->group_segment_size,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->kernel_object,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->kernarg_address,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->completion_signal,
+            reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->reserved2, read,
+            index);
+  }
 
   Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, index);
 
@@ -1136,10 +1175,12 @@ void VirtualGPU::dispatchBlockingWait() {
     }
   }
 }
+
 // ================================================================================================
 bool VirtualGPU::dispatchAqlPacket(hsa_kernel_dispatch_packet_t* packet, uint16_t header,
                                    uint16_t rest, bool blocking, bool capturing,
-                                   const uint8_t* aqlPacket, bool attach_signal) {
+                                   const uint8_t* aqlPacket, bool attach_signal,
+                                   bool cluster_launch) {
   if (capturing == true) {
     packet->header = header;
     packet->setup = rest;
@@ -1147,13 +1188,13 @@ bool VirtualGPU::dispatchAqlPacket(hsa_kernel_dispatch_packet_t* packet, uint16_
     return true;
   } else {
     dispatchBlockingWait();
-    return dispatchGenericAqlPacket(packet, header, rest, blocking, attach_signal);
+    return dispatchGenericAqlPacket(packet, header, rest, blocking, attach_signal, cluster_launch);
   }
 }
 // ================================================================================================
 bool VirtualGPU::dispatchAqlPacket(hsa_barrier_and_packet_t* packet, uint16_t header, uint16_t rest,
-                                   bool blocking, bool attach_signal) {
-  return dispatchGenericAqlPacket(packet, header, rest, blocking, attach_signal);
+                                   bool blocking, bool attach_signal, bool cluster_launch) {
+  return dispatchGenericAqlPacket(packet, header, rest, blocking, attach_signal, cluster_launch);
 }
 
 // ================================================================================================
@@ -3504,6 +3545,7 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
   address hidden_arguments = const_cast<address>(parameters);
   // Calculate local size if it wasn't provided
   devKernel->FindLocalWorkSize(sizes.dimensions(), sizes.global(), local_size);
+  bool clusterLaunch = sizes.cluster()[0] != 0;
 
   uint16_t local[3] = {1, 1, 1};
   uint32_t global[3] = {1, 1, 1};
@@ -3757,10 +3799,61 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
     }
   }
 
-  // Pass the header accordingly
-  auto aqlHeaderWithOrder = aqlHeader_;
-  if (vcmd != nullptr) {
-    if (vcmd->getAnyOrderLaunchFlag()) {
+    // Initialize the dispatch Packet
+    static_assert(sizeof(hsa_kernel_dispatch_packet_t)
+                  == sizeof(hsa_amd_ext_kernel_dispatch_packet_t));
+
+    union {
+      hsa_kernel_dispatch_packet_t kernelDispatch;
+      hsa_amd_ext_kernel_dispatch_packet_t extKernelDispatch;
+    } dispatchPacketUnion;
+
+    auto& dispatchPacket = dispatchPacketUnion.kernelDispatch;
+    memset(&dispatchPacket, 0, sizeof(dispatchPacket));
+
+    dispatchPacket.header = kInvalidAql;
+    dispatchPacket.kernel_object = gpuKernel.KernelCodeHandle();
+
+    // dispatchPacket.header = aqlHeader_;
+    // dispatchPacket.setup |= sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS;
+
+    if (clusterLaunch) {
+      auto& dispatchPacketExt = dispatchPacketUnion.extKernelDispatch;
+
+      dispatchPacketExt.cluster_count_x = sizes.dimensions() > 0 ? newGlobalSize[0] : 1;
+      dispatchPacketExt.cluster_count_y = sizes.dimensions() > 1 ? newGlobalSize[1] : 1;
+      dispatchPacketExt.cluster_count_z = sizes.dimensions() > 2 ? newGlobalSize[2] : 1;
+
+      dispatchPacketExt.cluster_size_x = sizes.dimensions() > 0 ? sizes.cluster()[0] : 1;
+      dispatchPacketExt.cluster_size_y = sizes.dimensions() > 1 ? sizes.cluster()[1] : 1;
+      dispatchPacketExt.cluster_size_z = sizes.dimensions() > 2 ? sizes.cluster()[2] : 1;
+
+      dispatchPacketExt.amd_format = HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH;
+    } else {
+      dispatchPacket.grid_size_x = sizes.dimensions() > 0 ? newGlobalSize[0] : 1;
+      dispatchPacket.grid_size_y = sizes.dimensions() > 1 ? newGlobalSize[1] : 1;
+      dispatchPacket.grid_size_z = sizes.dimensions() > 2 ? newGlobalSize[2] : 1;
+    }
+
+    dispatchPacket.workgroup_size_x = sizes.dimensions() > 0 ? local[0] : 1;
+    dispatchPacket.workgroup_size_y = sizes.dimensions() > 1 ? local[1] : 1;
+    dispatchPacket.workgroup_size_z = sizes.dimensions() > 2 ? local[2] : 1;
+
+    dispatchPacket.kernarg_address = argBuffer;
+    dispatchPacket.group_segment_size = ldsUsage + sharedMemBytes;
+    dispatchPacket.private_segment_size = devKernel->workGroupInfo()->privateMemSize_;
+
+    if ((devKernel->workGroupInfo()->usedStackSize_ & 0x1) == 0x1) {
+      dispatchPacket.private_segment_size =
+              std::max<uint64_t>(dev().StackSize(), dispatchPacket.private_segment_size);
+      if (dispatchPacket.private_segment_size > 16 * Ki) {
+        dispatchPacket.private_segment_size = 16 * Ki;
+      }
+    }
+
+    // Pass the header accordingly
+    auto aqlHeaderWithOrder = aqlHeader_;
+    if (vcmd != nullptr && vcmd->getAnyOrderLaunchFlag()) {
       constexpr uint32_t kAqlHeaderMask = ~(1 << HSA_PACKET_HEADER_BARRIER);
       aqlHeaderWithOrder &= kAqlHeaderMask;
     }
@@ -3769,29 +3862,41 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
     }
   }
 
-  // Copy scheduler's AQL packet for possible relaunch from the scheduler itself
-  if (aql_packet != nullptr) {
-    *aql_packet = dispatchPacket;
-    aql_packet->header = (HSA_PACKET_TYPE_KERNEL_DISPATCH << HSA_PACKET_HEADER_TYPE) |
-                         (1 << HSA_PACKET_HEADER_BARRIER) |
-                         (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_ACQUIRE_FENCE_SCOPE) |
-                         (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_RELEASE_FENCE_SCOPE);
-    aql_packet->setup = sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS;
-  }
-
-  if (isGraphCapture) {
-    // Dispatch the packet
-    if (!dispatchAqlPacket(&dispatchPacket, aqlHeaderWithOrder,
-                           (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS),
-                           GPU_FLUSH_ON_EXECUTION, command_->getPktCapturingState(),
-                           command_->getAqlPacket())) {
-      return false;
+    // Copy scheduler's AQL packet for possible relaunch from the scheduler itself
+    if (aql_packet != nullptr) {
+      *aql_packet = dispatchPacket;
+      if (clusterLaunch) {
+        aql_packet->header = (HSA_PACKET_TYPE_VENDOR_SPECIFIC << HSA_PACKET_HEADER_TYPE) |
+                              (1 << HSA_PACKET_HEADER_BARRIER) |
+                              (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_ACQUIRE_FENCE_SCOPE) |
+                              (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_RELEASE_FENCE_SCOPE);
+        aql_packet->setup = static_cast<uint8_t>(sizes.dimensions()
+                              << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS);
+      } else {
+        aql_packet->header = (HSA_PACKET_TYPE_KERNEL_DISPATCH << HSA_PACKET_HEADER_TYPE) |
+                              (1 << HSA_PACKET_HEADER_BARRIER) |
+                              (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_ACQUIRE_FENCE_SCOPE) |
+                              (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_RELEASE_FENCE_SCOPE);
+        aql_packet->setup = static_cast<uint16_t>(sizes.dimensions()
+                              << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS);
+      }
     }
-  } else {
-    if (!dispatchAqlPacket(&dispatchPacket, aqlHeaderWithOrder,
-                           (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS),
-                           GPU_FLUSH_ON_EXECUTION, false, nullptr, attach_signal)) {
-      return false;
+
+    if (isGraphCapture) {
+      // Dispatch the packet
+      if (!dispatchAqlPacket(&dispatchPacket, aqlHeaderWithOrder,
+                             (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS),
+                             GPU_FLUSH_ON_EXECUTION, currCmd_->getPktCapturingState(),
+                             currCmd_->getAqlPacket(), clusterLaunch)) {
+        return false;
+      }
+    } else {
+      if (!dispatchAqlPacket(&dispatchPacket, aqlHeaderWithOrder,
+                             (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS),
+                             GPU_FLUSH_ON_EXECUTION, false, nullptr, attach_signal,
+                             clusterLaunch)) {
+        return false;
+      }
     }
   }
 
