@@ -735,7 +735,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExt(HSAuint32 NodeId,
 
 	num_xcc=props.NumXcc;
 	q->queue_type = args.queue_type;
-	updateQueuePercentage(&QueuePercentage, hsakmt_pm4_target_xcc, num_xcc, &q);
+	updateQueuePercentage(&QueuePercentage, hsakmt_pm4_target_xcc, num_xcc, q);
 
 	args.read_pointer_address = QueueResource->QueueRptrValue;
 	args.write_pointer_address = QueueResource->QueueWptrValue;
@@ -796,7 +796,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtUpdateQueue(HSA_QUEUEID QueueId,
 	struct kfd_ioctl_update_queue_args arg = {0};
 	struct queue *q = PORT_UINT64_TO_VPTR(QueueId);
 
-	updateQueuePercentage(&QueuePercentage, hsakmt_pm4_target_xcc, num_xcc, &q);
+	updateQueuePercentage(&QueuePercentage, hsakmt_pm4_target_xcc, num_xcc, q);
 
 	CHECK_KFD_OPEN();
 
