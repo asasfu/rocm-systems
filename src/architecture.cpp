@@ -5454,7 +5454,7 @@ public:
                          uint32_t scoreboard_id) const override;
 
   bool can_halt_at_endpgm () const override { return true; }
-  bool can_halt_at_sendmsg_dealloc_vgprs () const
+  virtual bool can_halt_at_sendmsg_dealloc_vgprs () const
   {
     /* If a wave is halted and is PC points to a `s_sendmsg
        sendmsg(MSG_DEALLOC_VGPRS)` instruction, the device recognises that the
