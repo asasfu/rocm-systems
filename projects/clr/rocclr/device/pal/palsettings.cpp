@@ -47,7 +47,6 @@ Settings::Settings() {
   disablePersistent_ = false;
 
   imageSupport_ = false;
-  hwLDSSize_ = 0;
 
   // Set this to true when we drop the flag
   doublePrecision_ = ::CL_KHR_FP64;

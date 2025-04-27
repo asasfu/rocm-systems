@@ -3741,7 +3741,7 @@ bool VirtualGPU::processMemObjectsHSA(const amd::Kernel& kernel, const_address p
     }
   }
 
-  if (ldsAddress > dev().info().localMemSize_) {
+  if (ldsAddress > hsaKernel.workGroupInfo()->availableLDSSize_) {
     LogError("No local memory available\n");
     return false;
   }

@@ -82,7 +82,6 @@ class Settings : public device::Settings {
 
   uint oclVersion_;              //!< Reported OpenCL version support
   uint debugFlags_;              //!< Debug GPU flags
-  uint hwLDSSize_;               //!< HW local data store size
   uint maxWorkGroupSize_;        //!< Requested workgroup size for this device
   uint preferredWorkGroupSize_;  //!< Requested preferred workgroup size for this device
   uint blitEngine_;              //!< Blit engine type

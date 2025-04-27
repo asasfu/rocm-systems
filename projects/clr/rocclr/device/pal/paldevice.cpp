@@ -258,6 +258,7 @@ bool NullDevice::create(const char* palName, const amd::Isa& isa, Pal::GfxIpLeve
   properties.gfxTriple.major = isa.versionMajor();
   properties.gfxTriple.major = isa.versionMinor();
   properties.gfxTriple.stepping = isa.versionStepping();
+  properties.gfxipProperties.shaderCore.ldsSizePerCu = 64 * Ki;
   uint subtarget = 0;
 
   pal::Settings* palSettings = new pal::Settings();
@@ -573,7 +574,7 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
   info_.preferredWorkGroupSize_ = settings().preferredWorkGroupSize_;
 
   info_.localMemType_ = CL_LOCAL;
-  info_.localMemSize_ = settings().hwLDSSize_;
+  info_.localMemSize_ = palProp.gfxipProperties.shaderCore.ldsSizePerCu;
   info_.extensions_ = getExtensionString();
 
   // OpenCL1.2 device info fields
@@ -689,6 +690,7 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
     info_.largeBar_ = false;
 #endif  // _WIN64
   }
+  info_.shareLocalMemInWGP_ = isa().versionMajor() >= 13;
   info_.virtualMemoryManagement_ = true;
   info_.virtualMemAllocGranularity_ =
       static_cast<size_t>(palProp.gpuMemoryProperties.virtualMemAllocGranularity);

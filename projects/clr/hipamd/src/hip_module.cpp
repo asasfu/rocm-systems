@@ -313,6 +313,11 @@ hipError_t ihipLaunchKernel_validate(hipFunction_t f, const amd::LaunchParams& l
   if (!kernel->getDeviceKernel(*device)) {
     return hipErrorInvalidDevice;
   }
+
+  // sharedMemPerBlock
+  if (sharedMemBytes > kernel->getDeviceKernel(*device)->workGroupInfo()->availableLDSSize_) {
+    return hipErrorInvalidValue;
+  }
   // Make sure the launch params are not larger than if specified launch_bounds
   // If it exceeds, then return a failure
   if (launch_params.local_.product() > kernel->getDeviceKernel(*device)->workGroupInfo()->size_) {

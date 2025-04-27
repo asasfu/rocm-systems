@@ -1104,12 +1104,6 @@ bool Kernel::GetAttrCodePropMetadata() {
     DevLogPrintfError("Cannot get program kernel metadata for %s \n", name().c_str());
     return false;
   }
-
-  // Set the workgroup information for the kernel
-  workGroupInfo_.availableLDSSize_ = device().info().localMemSizePerCU_;
-  workGroupInfo_.availableSGPRs_ = 104;
-  workGroupInfo_.availableVGPRs_ = 256;
-
   // extract the attribute metadata if there is any
   amd_comgr_status_t status = AMD_COMGR_STATUS_SUCCESS;
 
@@ -1156,6 +1150,14 @@ bool Kernel::GetAttrCodePropMetadata() {
     return false;
   }
 
+  // Set the workgroup information for the kernel
+  workGroupInfo_.availableSGPRs_ = 104;
+  workGroupInfo_.availableVGPRs_ = 256;
+  if (device().info().shareLocalMemInWGP_ && workGroupInfo_.isWGPMode_) {
+    workGroupInfo_.availableLDSSize_ = device().info().localMemSizePerCU_ * 2;
+  } else {
+    workGroupInfo_.availableLDSSize_ = device().info().localMemSizePerCU_;
+  }
   InitParameters(kernelMetaNode);
 
   return true;
