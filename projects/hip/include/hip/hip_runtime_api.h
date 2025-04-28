@@ -1250,19 +1250,14 @@ typedef struct hipMemPoolPtrExportData {
  * @warning On AMD devices and some Nvidia devices, these hints and controls are ignored.
  */
 typedef enum hipFuncAttribute {
-  hipFuncAttributeMaxDynamicSharedMemorySize =
-      8,  ///< The maximum number of bytes requested for dynamically allocated shared memory
-  hipFuncAttributePreferredSharedMemoryCarveout =
-      9,  ///< Sets the percentage of total shared memory allocated as the shared memory carveout
-  hipFuncAttributeClusterDimMustBeSet =
-      10,  ///< the kernel must launch with a valid cluster size specified.
-  hipFuncAttributeRequiredClusterWidth = 11,   ///< The required cluster width in blocks
-  hipFuncAttributeRequiredClusterHeight = 12,  ///< The required cluster height in blocks
-  hipFuncAttributeRequiredClusterDepth = 13,   ///< ///< The required cluster depth in blocks
-  hipFuncAttributeNonPortableClusterSizeAllowed =
-      14,  ///< Is the function allowed to launch with non-portable cluster size.
-  hipFuncAttributeClusterSchedulingPolicyPreference =
-      15,  ///< The block scheduling policy of a function.
+  hipFuncAttributeMaxDynamicSharedMemorySize = 8,          ///< The maximum number of bytes requested for dynamically allocated shared memory
+  hipFuncAttributePreferredSharedMemoryCarveout = 9,       ///< Sets the percentage of total shared memory allocated as the shared memory carveout
+  hipFuncAttributeClusterDimMustBeSet = 10,                ///< The kernel must launch with a valid cluster size specified.
+  hipFuncAttributeRequiredClusterWidth = 11,               ///< The required cluster width in blocks
+  hipFuncAttributeRequiredClusterHeight = 12,              ///< The required cluster height in blocks
+  hipFuncAttributeRequiredClusterDepth = 13,               ///< The required cluster depth in blocks
+  hipFuncAttributeNonPortableClusterSizeAllowed = 14,      ///< Is the function allowed to launch with non-portable cluster size.
+  hipFuncAttributeClusterSchedulingPolicyPreference = 15,  ///< The block scheduling policy of a function.
   hipFuncAttributeMax
 } hipFuncAttribute;
 /**
@@ -1570,7 +1565,7 @@ typedef enum hipSynchronizationPolicy {
   hipSyncPolicyYield = 3,       /**< Host spins but yields to other threads, reducing CPU usage */
   hipSyncPolicyBlockingSync = 4 /**< Host thread blocks (sleeps) until the stream completes */
 } hipSynchronizationPolicy;
- * Cluster scheduling policies passed to hipFuncSetAttribute
+/* Cluster scheduling policies passed to hipFuncSetAttribute
  */
 typedef enum hipClusterSchedulingPolicy {
   hipClusterSchedulingPolicyDefault = 0,  ///< the default scheduling policy
@@ -1583,11 +1578,10 @@ typedef enum hipClusterSchedulingPolicy {
  *  Launch Attribute ID
  */
 typedef enum hipLaunchAttributeID {
-  hipLaunchAttributeIgnore = 0,                ///< Ignored entry
-  hipLaunchAttributeAccessPolicyWindow = 1,    ///< Valid for Streams, graph nodes, launches
-  hipLaunchAttributeCooperative = 2,           ///< Valid for graph nodes, launches
-  hipLaunchAttributeSynchronizationPolicy = 3, ///< Valid for streams
-  hipLaunchAttributeClusterDimension = 4,      ///< Valid for graph nodes, launches
+  hipLaunchAttributeIgnore = 0,                            ///< Ignored entry
+  hipLaunchAttributeAccessPolicyWindow = 1,                ///< Valid for Streams, graph nodes, launches
+  hipLaunchAttributeCooperative = 2,                       ///< Valid for graph nodes, launches
+  hipLaunchAttributeClusterDimension = 4,                  ///< Valid for graph nodes, launches
   hipLaunchAttributeClusterSchedulingPolicyPreference = 5, ///< Valid for graph nodes, launches
   hipLaunchAttributePriority = 8, ///< Valid for graph node, streams, launches
   hipLaunchAttributeMemSyncDomainMap = 9,       ///< Valid for streams, graph nodes, launches
@@ -1632,10 +1626,8 @@ typedef union hipLaunchAttributeValue {
     unsigned int z;
   } clusterDim;
 
-  hipClusterSchedulingPolicy
-      clusterSchedulingPolicyPreference;  ///< Value of launch attribute ::
-                                          ///< hipLaunchAttributeClusterSchedulingPolicyPreference
-  ///< determines the preferred strategy for distributing blocks within a compute cluster
+  hipClusterSchedulingPolicy clusterSchedulingPolicyPreference;  ///< Value of launch attribute :: hipLaunchAttributeClusterSchedulingPolicyPreference
+                                                                 ///< determines the preferred strategy for distributing blocks within a compute cluster
 } hipLaunchAttributeValue;
 
 /**
@@ -2040,22 +2032,6 @@ typedef struct HIP_LAUNCH_CONFIG_st {
   hipLaunchAttribute* attrs;    ///< Attribute list
   unsigned int numAttrs;        ///< Number of attributes
 } HIP_LAUNCH_CONFIG;
-
-/**
- * Requested handle type for address range.
- */
-typedef enum hipMemRangeHandleType {
-  hipMemRangeHandleTypeDmaBufFd = 0x1,
-  hipMemRangeHandleTypeMax = 0x7fffffff
-} hipMemRangeHandleType;
-
-/**
- * Mem Range Flags used in hipMemGetHandleForAddressRange.
- */
-typedef enum hipMemRangeFlags {
-  hipMemRangeFlagDmaBufMappingTypePcie = 0x1,
-  hipMemRangeFlagsMax = 0x7fffffff
-} hipMemRangeFlags;
 
 // Doxygen end group GlobalDefs
 /**
@@ -9626,6 +9602,23 @@ hipError_t hipDestroySurfaceObject(hipSurfaceObject_t surfaceObject);
  * @returns #hipSuccess if the kernel is launched successfully, otherwise an appropriate error code.
  */
 hipError_t hipLaunchKernelExC(const hipLaunchConfig_t* config, const void* fPtr, void** args);
+/**
+ * @brief Launches a HIP kernel using the driver API with the specified configuration.
+ * @ingroup Execution
+ *
+ * This function dispatches the device kernel represented by a HIP function object.
+ * It passes both the kernel parameters and any extra configuration arguments to the kernel launch.
+ *
+ * @param [in] config  Pointer to the kernel launch configuration structure.
+ * @param [in] f       HIP function object representing the device kernel to be launched.
+ * @param [in] params  Array of pointers to the kernel parameters.
+ * @param [in] extra   Array of pointers for additional launch parameters or extra configuration
+ * data.
+ *
+ * @returns #hipSuccess if the kernel is launched successfully, otherwise an appropriate error code.
+ */
+hipError_t hipDrvLaunchKernelEx(const HIP_LAUNCH_CONFIG* config, hipFunction_t f, void** params,
+                                void** extra);
 /**
 * @}
 */
