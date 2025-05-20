@@ -455,6 +455,8 @@ protected:
   simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
                         const instruction_t &instruction) const;
 
+  virtual void simulate_instruction_fixup (wave_t & wave) const = 0;
+
   virtual void
   simulate_trap_handler (wave_t &wave, amd_dbgapi_global_address_t pc,
                          std::optional<trap_id_t> trap_id = {}) const;
@@ -2546,6 +2548,12 @@ public:
                          uint32_t compute_tmpring_size_register,
                          uint32_t xcc_id, uint32_t shader_engine_id,
                          uint32_t scoreboard_id) const override;
+
+protected:
+  void simulate_instruction_fixup (wave_t & /* wave  */) const override
+  {
+    /* No fixup is necessary.  */
+  }
 };
 
 gfx9_architecture_t::gfx9_architecture_t (elf_amdgpu_machine_t e_machine,
@@ -3802,6 +3810,8 @@ protected:
   simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
                         const instruction_t &instruction) const override;
 
+  void simulate_instruction_fixup (wave_t &wave) const override;
+
   std::string register_type (amdgpu_regnum_t regnum) const override;
   const void *register_read_only_mask (amdgpu_regnum_t regnum) const override;
 
@@ -3967,22 +3977,28 @@ gfx9_4_architecture_t::simulate_instruction (
   auto next_pc = gfx90a_t::simulate_instruction (wave, pc, instruction);
 
   if (next_pc)
-    {
-      uint32_t mode_reg;
-      wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
-
-      /* If single-stepping, raise the trap_after_inst exception.  */
-      if (mode_reg & sq_wave_mode_debug_en_mask)
-        {
-          uint32_t trapsts;
-          wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
-          trapsts |= sq_wave_trapsts_trap_after_inst_mask;
-          wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
-        }
-    }
+    simulate_instruction_fixup (wave);
 
   return next_pc;
 }
+
+void
+gfx9_4_architecture_t::simulate_instruction_fixup (
+  wave_t &wave) const
+{
+  uint32_t mode_reg;
+  wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
+
+  /* If single-stepping, raise the trap_after_inst exception.  */
+  if (mode_reg & sq_wave_mode_debug_en_mask)
+    {
+      uint32_t trapsts;
+      wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+      trapsts |= sq_wave_trapsts_trap_after_inst_mask;
+      wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
+    }
+}
+
 
 std::string
 gfx9_4_architecture_t::register_type (amdgpu_regnum_t regnum) const
@@ -5419,6 +5435,8 @@ public:
   simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
                         const instruction_t &instruction) const override;
 
+  void simulate_instruction_fixup (wave_t &wave) const override;
+
   std::string register_type (amdgpu_regnum_t regnum) const override;
 
   cbranch_cond_t
@@ -5614,21 +5632,26 @@ gfx11_architecture_t::simulate_instruction (
       = gfx10_architecture_t::simulate_instruction (wave, pc, instruction);
 
   if (next_pc)
-    {
-      uint32_t mode_reg;
-      wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
-
-      /* If single-stepping, raise the trap_after_inst exception.  */
-      if (mode_reg & sq_wave_mode_trap_after_inst_en_mask)
-        {
-          uint32_t trapsts;
-          wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
-          trapsts |= sq_wave_trapsts_trap_after_inst_mask;
-          wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
-        }
-    }
+    simulate_instruction_fixup (wave);
 
   return next_pc;
+}
+
+void
+gfx11_architecture_t::simulate_instruction_fixup (
+  wave_t &wave) const
+{
+  uint32_t mode_reg;
+  wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
+
+  /* If single-stepping, raise the trap_after_inst exception.  */
+  if (mode_reg & sq_wave_mode_trap_after_inst_en_mask)
+    {
+      uint32_t trapsts;
+      wave.read_register (amdgpu_regnum_t::trapsts, &trapsts);
+      trapsts |= sq_wave_trapsts_trap_after_inst_mask;
+      wave.write_register (amdgpu_regnum_t::trapsts, trapsts);
+    }
 }
 
 std::string
@@ -6271,9 +6294,7 @@ protected:
   void simulate_trap_handler (wave_t &wave, amd_dbgapi_global_address_t pc,
                               std::optional<trap_id_t> trap_id) const override;
 
-  std::optional<amd_dbgapi_global_address_t>
-  simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
-                        const instruction_t &instruction) const override;
+  void simulate_instruction_fixup (wave_t &wave) const override;
 
   bool is_barrier (const instruction_t &instruction) const override;
   bool is_sequential (const instruction_t &instruction) const override;
@@ -7209,46 +7230,23 @@ gfx12_architecture_t::simulate_trap_handler (
   wave.write_register (amdgpu_regnum_t::state_priv, state_priv_reg);
 }
 
-std::optional<amd_dbgapi_global_address_t>
-gfx12_architecture_t::simulate_instruction (
-  wave_t &wave, amd_dbgapi_global_address_t pc,
-  const instruction_t &instruction) const
+void
+gfx12_architecture_t::simulate_instruction_fixup (
+  wave_t &wave) const
 {
-  std::optional<amd_dbgapi_global_address_t> next_pc;
-  sendmsg_message_type_t msg;
-  if (is_sendmsg (instruction, &msg) && msg == MSG_DEALLOC_VGPRS)
+  uint32_t trap_ctrl_reg;
+  wave.read_register (amdgpu_regnum_t::trap_ctrl, &trap_ctrl_reg);
+
+  /* If single-stepping, raise the trap_after_inst exception.  */
+  if (trap_ctrl_reg & sq_wave_trap_ctrl_trap_after_inst_mask)
     {
-      uint32_t status_reg;
-      wave.read_register (amdgpu_regnum_t::status, &status_reg);
-      status_reg |= sq_wave_status_no_vgprs_mask;
-      wave.write_register (amdgpu_regnum_t::status, status_reg);
-
-      next_pc = pc + instruction.size ();
+      uint32_t excp_flag_priv_reg;
+      wave.read_register (amdgpu_regnum_t::excp_flag_priv,
+                          &excp_flag_priv_reg);
+      excp_flag_priv_reg |= sq_wave_excp_priv_trap_after_inst_mask;
+      wave.write_register (amdgpu_regnum_t::excp_flag_priv,
+                           excp_flag_priv_reg);
     }
-  else
-    next_pc
-      = gfx10_architecture_t::simulate_instruction (wave, pc, instruction);
-
-  if (next_pc)
-    {
-      /* TODO this block could be a virtual method so simulate_insn can be
-         shared with gfx11.  */
-      uint32_t trap_ctrl_reg;
-      wave.read_register (amdgpu_regnum_t::trap_ctrl, &trap_ctrl_reg);
-
-      /* If single-stepping, raise the trap_after_inst exception.  */
-      if (trap_ctrl_reg & sq_wave_trap_ctrl_trap_after_inst_mask)
-        {
-          uint32_t excp_flag_priv_reg;
-          wave.read_register (amdgpu_regnum_t::excp_flag_priv,
-                              &excp_flag_priv_reg);
-          excp_flag_priv_reg |= sq_wave_excp_priv_trap_after_inst_mask;
-          wave.write_register (amdgpu_regnum_t::excp_flag_priv,
-                               excp_flag_priv_reg);
-        }
-    }
-
-  return next_pc;
 }
 
 amd_dbgapi_wave_id_t
