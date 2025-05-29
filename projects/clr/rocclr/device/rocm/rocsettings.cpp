@@ -189,6 +189,11 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
     gwsInitSupported_ = false;
   }
 
+
+  if (gfxipMajor == 12 && gfxipMinor == 5) {
+    useNewDispatchPacket_ = true;
+  }
+
   // Override current device settings
   override();
 
