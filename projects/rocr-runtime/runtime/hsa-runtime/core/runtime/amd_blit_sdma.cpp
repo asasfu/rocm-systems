@@ -165,6 +165,12 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::Initialize(const core::Agent& agent,
     hdp_flush_support_ = link.info.link_type != HSA_AMD_LINK_INFO_TYPE_XGMI;
   }
 
+  // NO-MERGE: gfx1250 is a A+A system but emulator only supports PCIe. On silicon, we expect the GPU->CPU linktype to
+  // be XGMI.
+  if (agent_->supported_isas()[0]->GetMajorVersion() >= 12 &&
+      agent_->supported_isas()[0]->GetMinorVersion() == 5)
+    hdp_flush_support_ = false;
+
   // Allocate queue buffer.
   queue_start_addr_ =
       (char*)agent_->system_allocator()(kQueueSize, 0x1000, core::MemoryRegion::AllocateExecutable);
