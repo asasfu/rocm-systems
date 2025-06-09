@@ -198,12 +198,10 @@ class MemoryAsyncCopy : public TestBase {
  protected:
   void PrintTransactionType(Transaction *t);
 #if ROCRTST_EMULATOR_BUILD
-  static const int kNumGranularity = 1;
-  static constexpr const char* Str[kNumGranularity] = {"1k"};
-
-  static constexpr const size_t Size[kNumGranularity] = {1024};
+  static const int kNumGranularity = 5;
+  static constexpr const char* Str[kNumGranularity] = {"1k", "4K", "8K", "128K", "1M"};
+  static constexpr const size_t Size[kNumGranularity] = {1024, 4*1024, 8*1024, 128*1024, 1024*1024};
 #else
-
   static const int kNumGranularity = 20;
   static constexpr const char* Str[kNumGranularity] = {
       "1k", "2K", "4K", "8K", "16K", "32K", "64K", "128K", "256K", "512K",
