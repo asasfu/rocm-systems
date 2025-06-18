@@ -34,17 +34,32 @@
 
 namespace gfxip {
 namespace gfx12 {
+#if GFX12_VARIANT == GFX12_VARIANT_1250
+namespace gfx1250 {
+#else
+namespace gfx1201 {
+#endif
 
 class gfx12_cntx_prim {
  public:
   static const uint32_t GFXIP_LEVEL = 12;
   static const uint32_t NUMBER_OF_BLOCKS = LastCounterBlockId + 1;
   static constexpr Register GRBM_GFX_INDEX_ADDR = REG_32B_ADDR(GC, 0, regGRBM_GFX_INDEX);
+#if GFX12_VARIANT == GFX12_VARIANT_1250
+  static constexpr Register GRBMA_GFX_INDEX_ADDR = REG_32B_ADDR(GC, 8, regGRBMA_GFX_INDEX);
+#else
+  static constexpr Register GRBMA_GFX_INDEX_ADDR = REG_32B_NULL;
+#endif
   static constexpr Register COMPUTE_PERFCOUNT_ENABLE_ADDR =
       REG_32B_ADDR(GC, 0, regCOMPUTE_PERFCOUNT_ENABLE);
   static constexpr Register RLC_PERFMON_CLK_CNTL_ADDR =
       REG_32B_ADDR(GC, 0, regRLC_PERFMON_CNTL);  // REG_32B_ADDR(GC, 0, regRLC_PERFMON_CLK_CNTL);
   static constexpr Register CP_PERFMON_CNTL_ADDR = REG_32B_ADDR(GC, 0, regCP_PERFMON_CNTL);
+#if GFX12_VARIANT == GFX12_VARIANT_1250
+  static constexpr Register AID_PERFMON_CNTL_ADDR = REG_32B_ADDR(GC, 8, regAID_PERFMON_CNTL);
+#else
+  static constexpr Register AID_PERFMON_CNTL_ADDR = REG_32B_NULL;
+#endif
 
   static constexpr Register COMPUTE_THREAD_TRACE_ENABLE_ADDR =
       REG_32B_ADDR(GC, 0, regCOMPUTE_THREAD_TRACE_ENABLE);
@@ -617,6 +632,7 @@ class gfx12_cntx_prim {
   }
 };
 
+}  // namespace gfx12xx
 }  // namespace gfx12
 }  // namespace gfxip
 
