@@ -863,7 +863,11 @@ process_t::suspend_queues (const std::vector<queue_t *> &queues,
           ++num_all_stopped_queues;
         }
       else
-        queue_ids.emplace_back (queue->os_queue_id ());
+        {
+          std::optional<os_queue_id_t> os_id = queue->os_queue_id ();
+          dbgapi_assert (os_id.has_value ());
+          queue_ids.emplace_back (os_id.value ());
+        }
     }
 
   auto os_queue_id_to_id = [this] (os_queue_id_t os_queue_id)
@@ -879,6 +883,7 @@ process_t::suspend_queues (const std::vector<queue_t *> &queues,
               reason);
 
   size_t num_suspended_queues;
+  std::vector<os_queue_state_t> queue_states (queue_ids.size ());
   amd_dbgapi_status_t status = os_driver ().suspend_queues (
     queue_ids.data (), queue_ids.size (),
     os_exception_mask_t::queue_wave_abort
@@ -887,7 +892,7 @@ process_t::suspend_queues (const std::vector<queue_t *> &queues,
       | os_exception_mask_t::queue_wave_illegal_instruction
       | os_exception_mask_t::queue_wave_memory_violation
       | os_exception_mask_t::queue_wave_address_error,
-    &num_suspended_queues);
+    &num_suspended_queues, queue_states.data ());
   if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
     {
       for (auto &&queue : queues)
@@ -898,18 +903,18 @@ process_t::suspend_queues (const std::vector<queue_t *> &queues,
     fatal_error ("os_driver::suspend_queues failed (%s)", to_cstring (status));
 
   [[maybe_unused]] size_t num_invalid_queues = 0;
-  for (os_queue_id_t mask : queue_ids)
+  for (size_t i = 0; i < queue_ids.size (); ++i)
     {
-      os_queue_id_t queue_id = mask & os_queue_id_mask;
+      os_queue_id_t queue_id = queue_ids[i];
 
       /* Some queues may have failed to suspend because they are invalid, or
          no longer exist. Check the queue_ids returned by KFD and invalidate
          those marked as invalid.  */
 
-      if (mask & os_queue_error_mask)
+      if (!!(queue_states[i] & os_queue_state_t::error))
         fatal_error ("failed to suspend os_queue_id %d", queue_id);
 
-      if (mask & os_queue_invalid_mask)
+      if (!!(queue_states[i] & os_queue_state_t::invalid))
         {
           auto it = std::find_if (queues.begin (), queues.end (),
                                   [=] (const queue_t *q)
@@ -972,7 +977,11 @@ process_t::resume_queues (const std::vector<queue_t *> &queues,
           ++num_all_stopped_queues;
         }
       else
-        queue_ids.emplace_back (queue->os_queue_id ());
+        {
+          std::optional<os_queue_id_t> os_id = queue->os_queue_id ();
+          dbgapi_assert (os_id.has_value ());
+          queue_ids.emplace_back (os_id.value ());
+        }
 
       queue->set_state (queue_t::state_t::running);
     }
@@ -990,8 +999,10 @@ process_t::resume_queues (const std::vector<queue_t *> &queues,
               reason);
 
   size_t num_resumed_queues;
+  std::vector<os_queue_state_t> queue_states (queue_ids.size ());
   amd_dbgapi_status_t status = os_driver ().resume_queues (
-    queue_ids.data (), queue_ids.size (), &num_resumed_queues);
+    queue_ids.data (), queue_ids.size (), &num_resumed_queues,
+    queue_states.data ());
   if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
     {
       for (auto &&queue : queues)
@@ -1002,18 +1013,18 @@ process_t::resume_queues (const std::vector<queue_t *> &queues,
     fatal_error ("os_driver::resume_queues failed (%s)", to_cstring (status));
 
   [[maybe_unused]] size_t num_invalid_queues = 0;
-  for (os_queue_id_t mask : queue_ids)
+  for (size_t i = 0; i < queue_ids.size (); ++i)
     {
-      os_queue_id_t queue_id = os_queue_id_unmask (mask);
+      os_queue_id_t queue_id = queue_ids[i];
 
       /* Some queues may have failed to resume because they are invalid, or
          no longer exist. Check the queue_ids returned by KFD and invalidate
          those marked as invalid.  */
 
-      if (mask & os_queue_error_mask)
+      if (!!(queue_states[i] & os_queue_state_t::error))
         fatal_error ("failed to resume os_queue_id %d", queue_id);
 
-      if (mask & os_queue_invalid_mask)
+      if (!!(queue_states[i] & os_queue_state_t::invalid))
         {
           auto it = std::find_if (queues.begin (), queues.end (),
                                   [=] (const queue_t *q)
@@ -1134,7 +1145,7 @@ process_t::update_queues ()
                         queue_info.gpu_id);
               continue;
             }
-          else if ((os_queue_exception_status (queue_info)
+          else if ((queue_info.exception_status
                     & os_exception_mask_t::queue_new)
                    != os_exception_mask_t::none)
             {
@@ -1148,7 +1159,7 @@ process_t::update_queues ()
 
                   log_info ("destroyed stale %s (os_queue_id=%d)",
                             to_cstring (destroyed_queue_id),
-                            os_queue_id_unmask (queue_info.queue_id));
+                            queue_info.queue_id);
                 }
 
               if (is_frozen ())
@@ -1239,9 +1250,10 @@ process_t::update_queues ()
                                          : queue_t::state_t::running);
           queue->set_mark (queue_mark);
 
+          std::optional<os_queue_id_t> os_id = queue->os_queue_id ();
+          dbgapi_assert (os_id.has_value ());
           log_info ("created new %s (os_queue_id=%d)",
-                    to_cstring (queue->id ()),
-                    os_queue_id_unmask (queue->os_queue_id ()));
+                    to_cstring (queue->id ()), os_id.value ());
         }
     }
   while (queue_count > snapshot_count);
@@ -1254,12 +1266,10 @@ process_t::update_queues ()
     if (it->mark () < queue_mark)
       {
         amd_dbgapi_queue_id_t queue_id = it->id ();
-        os_queue_id_t os_queue_id = os_queue_id_unmask (it->os_queue_id ());
 
         it = destroy (it);
 
-        log_info ("destroyed deleted %s (os_queue_id=%d)",
-                  to_cstring (queue_id), os_queue_id);
+        log_info ("destroyed deleted %s", to_cstring (queue_id));
       }
     else
       ++it;
@@ -1905,8 +1915,7 @@ process_t::query_debug_event (os_exception_mask_t cleared_exceptions)
               queue = nullptr;
 
               log_info ("destroyed stale %s (os_queue_id=%d)",
-                        to_cstring (stale_queue_id),
-                        os_queue_id_unmask (os_queue_id));
+                        to_cstring (stale_queue_id), os_queue_id);
             }
 
           /* ABA handling: create a temporary, partially initialized, queue
@@ -2068,13 +2077,16 @@ process_t::next_pending_event ()
                 });
 
               /* Retrieve the runtime enable exception info.  */
-              os_runtime_info_t runtime_info;
+              os_exception_info_t os_exception_info;
               amd_dbgapi_status_t status = os_driver ().query_exception_info (
-                os_exception_code_t::process_runtime, {}, &runtime_info,
-                sizeof (runtime_info), true);
+                os_exception_code_t::process_runtime, {}, &os_exception_info,
+                true);
 
               if (status == AMD_DBGAPI_STATUS_SUCCESS)
                 {
+                  const os_runtime_info_t &runtime_info
+                    = os_exception_info.runtime_info;
+
                   /* Check that we have a valid runtime state in the exception
                      info.  There are only two valid state changes:
                      disabled -> !disabled, and !disabled -> disabled.  */
@@ -2083,9 +2095,9 @@ process_t::next_pending_event ()
                       == (m_runtime_info.runtime_state
                           != os_runtime_state_t::disabled))
                     fatal_error (
-                      "spurious runtime exception (runtime_state %d->%d)",
-                      m_runtime_info.runtime_state,
-                      runtime_info.runtime_state);
+                      "spurious runtime exception (runtime_state %s->%s)",
+                      to_string (m_runtime_info.runtime_state).c_str (),
+                      to_string (runtime_info.runtime_state).c_str ());
 
                   runtime_enable (runtime_info);
                 }

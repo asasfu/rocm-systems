@@ -22,7 +22,6 @@
 #define AMD_DBGAPI_OS_DRIVER_H 1
 
 #include "amd-dbgapi.h"
-#include "linux/kfd_ioctl.h"
 #include "logging.h"
 #include "utils.h"
 
@@ -133,12 +132,22 @@ struct os_agent_info_t
 using os_queue_id_t = uint32_t;
 using os_watch_id_t = uint32_t;
 
+enum class os_queue_state_t : uint8_t
+{
+  error = 1 << 0,
+  invalid = 1 << 1
+};
+template <> struct is_flag<os_queue_state_t> : std::true_type
+{
+};
+
 enum class os_queue_type_t : uint32_t
 {
-  compute = KFD_IOC_QUEUE_TYPE_COMPUTE,
-  sdma = KFD_IOC_QUEUE_TYPE_SDMA,
-  compute_aql = KFD_IOC_QUEUE_TYPE_COMPUTE_AQL,
-  sdma_xgmi = KFD_IOC_QUEUE_TYPE_SDMA_XGMI
+  unknown,
+  compute,
+  sdma,
+  compute_aql,
+  sdma_xgmi,
 };
 
 union os_source_id_t
@@ -151,50 +160,50 @@ static_assert (sizeof (os_source_id_t) == sizeof (uint32_t));
 
 enum class os_exception_code_t : uint32_t
 {
-  none = EC_NONE,
+  none = 0,
 
   /* per queue exceptions  */
-  queue_wave_abort = EC_QUEUE_WAVE_ABORT,
-  queue_wave_trap = EC_QUEUE_WAVE_TRAP,
-  queue_wave_math_error = EC_QUEUE_WAVE_MATH_ERROR,
-  queue_wave_illegal_instruction = EC_QUEUE_WAVE_ILLEGAL_INSTRUCTION,
-  queue_wave_memory_violation = EC_QUEUE_WAVE_MEMORY_VIOLATION,
-  queue_wave_address_error = /* FIXME: a future change to the ioctl will rename
-                                APERTURE_VIOLATION -> ADDRESS_ERROR.  */
-  EC_QUEUE_WAVE_APERTURE_VIOLATION,
-  queue_packet_dispatch_dim_invalid = EC_QUEUE_PACKET_DISPATCH_DIM_INVALID,
-  queue_packet_dispatch_group_segment_size_invalid
-  = EC_QUEUE_PACKET_DISPATCH_GROUP_SEGMENT_SIZE_INVALID,
-  queue_packet_dispatch_code_invalid = EC_QUEUE_PACKET_DISPATCH_CODE_INVALID,
-  queue_packet_unsupported = EC_QUEUE_PACKET_UNSUPPORTED,
-  queue_packet_dispatch_work_group_size_invalid
-  = EC_QUEUE_PACKET_DISPATCH_WORK_GROUP_SIZE_INVALID,
-  queue_packet_dispatch_register_invalid
-  = EC_QUEUE_PACKET_DISPATCH_REGISTER_INVALID,
-  queue_packet_vendor_unsupported = EC_QUEUE_PACKET_VENDOR_UNSUPPORTED,
-  queue_preemption_error = EC_QUEUE_PREEMPTION_ERROR,
-  queue_new = EC_QUEUE_NEW,
+  queue_wave_abort = 1,
+  queue_wave_trap = 2,
+  queue_wave_math_error = 3,
+  queue_wave_illegal_instruction = 4,
+  queue_wave_memory_violation = 5,
+  queue_wave_address_error = 6,
+  queue_packet_dispatch_dim_invalid = 16,
+  queue_packet_dispatch_group_segment_size_invalid = 17,
+  queue_packet_dispatch_code_invalid = 18,
+  queue_packet_unsupported = 20,
+  queue_packet_dispatch_work_group_size_invalid = 21,
+  queue_packet_dispatch_register_invalid = 22,
+  queue_packet_vendor_unsupported = 23,
+  queue_preemption_error = 30,
+  queue_new = 31,
 
   /* per device exceptions  */
-  device_queue_delete = EC_DEVICE_QUEUE_DELETE,
-  device_memory_violation = EC_DEVICE_MEMORY_VIOLATION,
-  device_ras_error = EC_DEVICE_RAS_ERROR,
-  device_fatal_halt = EC_DEVICE_FATAL_HALT,
-  device_new = EC_DEVICE_NEW,
+  device_queue_delete = 32,
+  device_memory_violation = 33,
+  device_ras_error = 34,
+  device_fatal_halt = 35,
+  device_new = 36,
 
   /* per process exceptions  */
-  process_runtime = EC_PROCESS_RUNTIME,
-  process_device_remove = EC_PROCESS_DEVICE_REMOVE,
+  process_runtime = 48,
+  process_device_remove = 49,
 };
-
-using os_runtime_info_t = kfd_runtime_info;
 
 enum class os_runtime_state_t : uint32_t
 {
-  disabled = DEBUG_RUNTIME_STATE_DISABLED,
-  enabled = DEBUG_RUNTIME_STATE_ENABLED,
-  enabled_busy = DEBUG_RUNTIME_STATE_ENABLED_BUSY,
-  enabled_error = DEBUG_RUNTIME_STATE_ENABLED_ERROR,
+  disabled = 0,
+  enabled = 1,
+  enabled_busy = 2,
+  enabled_error = 3,
+};
+
+struct os_runtime_info_t
+{
+  amd_dbgapi_global_address_t r_debug;
+  os_runtime_state_t runtime_state;
+  bool ttmp_setup;
 };
 
 constexpr bool
@@ -223,60 +232,109 @@ operator!= (os_runtime_state_t lhs,
   return rhs != lhs;
 }
 
+constexpr auto
+ec_mask (os_exception_code_t c)
+{
+  using underlying_t = typename std::underlying_type_t<os_exception_code_t>;
+  return 1ull << (static_cast<underlying_t> (c) - 1);
+}
+
 enum class os_exception_mask_t : uint64_t
 {
   none = 0,
 
   /* per queue exceptions  */
-  queue_wave_abort = KFD_EC_MASK (EC_QUEUE_WAVE_ABORT),
-  queue_wave_trap = KFD_EC_MASK (EC_QUEUE_WAVE_TRAP),
-  queue_wave_math_error = KFD_EC_MASK (EC_QUEUE_WAVE_MATH_ERROR),
+  queue_wave_abort = ec_mask (os_exception_code_t::queue_wave_abort),
+  queue_wave_trap = ec_mask (os_exception_code_t::queue_wave_trap),
+  queue_wave_math_error = ec_mask (os_exception_code_t::queue_wave_math_error),
   queue_wave_illegal_instruction
-  = KFD_EC_MASK (EC_QUEUE_WAVE_ILLEGAL_INSTRUCTION),
-  queue_wave_memory_violation = KFD_EC_MASK (EC_QUEUE_WAVE_MEMORY_VIOLATION),
+  = ec_mask (os_exception_code_t::queue_wave_illegal_instruction),
+  queue_wave_memory_violation
+  = ec_mask (os_exception_code_t::queue_wave_memory_violation),
   queue_wave_address_error
-  = KFD_EC_MASK (/* FIXME: a future change to the ioctl will rename
-       APERTURE_VIOLATION -> ADDRESS_ERROR.  */
-                 EC_QUEUE_WAVE_APERTURE_VIOLATION),
+  = ec_mask (os_exception_code_t::queue_wave_address_error),
   queue_packet_dispatch_dim_invalid
-  = KFD_EC_MASK (EC_QUEUE_PACKET_DISPATCH_DIM_INVALID),
-  queue_packet_dispatch_group_segment_size_invalid
-  = KFD_EC_MASK (EC_QUEUE_PACKET_DISPATCH_GROUP_SEGMENT_SIZE_INVALID),
+  = ec_mask (os_exception_code_t::queue_packet_dispatch_dim_invalid),
+  queue_packet_dispatch_group_segment_size_invalid = ec_mask (
+    os_exception_code_t::queue_packet_dispatch_group_segment_size_invalid),
   queue_packet_dispatch_code_invalid
-  = KFD_EC_MASK (EC_QUEUE_PACKET_DISPATCH_CODE_INVALID),
-  queue_packet_unsupported = KFD_EC_MASK (EC_QUEUE_PACKET_UNSUPPORTED),
-  queue_packet_dispatch_work_group_size_invalid
-  = KFD_EC_MASK (EC_QUEUE_PACKET_DISPATCH_WORK_GROUP_SIZE_INVALID),
+  = ec_mask (os_exception_code_t::queue_packet_dispatch_code_invalid),
+  queue_packet_unsupported
+  = ec_mask (os_exception_code_t::queue_packet_unsupported),
+  queue_packet_dispatch_work_group_size_invalid = ec_mask (
+    os_exception_code_t::queue_packet_dispatch_work_group_size_invalid),
   queue_packet_dispatch_register_invalid
-  = KFD_EC_MASK (EC_QUEUE_PACKET_DISPATCH_REGISTER_INVALID),
+  = ec_mask (os_exception_code_t::queue_packet_dispatch_register_invalid),
   queue_packet_vendor_unsupported
-  = KFD_EC_MASK (EC_QUEUE_PACKET_VENDOR_UNSUPPORTED),
-  queue_preemption_error = KFD_EC_MASK (EC_QUEUE_PREEMPTION_ERROR),
-  queue_new = KFD_EC_MASK (EC_QUEUE_NEW),
+  = ec_mask (os_exception_code_t::queue_packet_vendor_unsupported),
+  queue_preemption_error
+  = ec_mask (os_exception_code_t::queue_preemption_error),
+  queue_new = ec_mask (os_exception_code_t::queue_new),
 
   /* per device exceptions  */
-  device_queue_delete = KFD_EC_MASK (EC_DEVICE_QUEUE_DELETE),
-  device_memory_violation = KFD_EC_MASK (EC_DEVICE_MEMORY_VIOLATION),
-  device_ras_error = KFD_EC_MASK (EC_DEVICE_RAS_ERROR),
-  device_fatal_halt = KFD_EC_MASK (EC_DEVICE_FATAL_HALT),
-  device_new = KFD_EC_MASK (EC_DEVICE_NEW),
+  device_queue_delete = ec_mask (os_exception_code_t::device_queue_delete),
+  device_memory_violation
+  = ec_mask (os_exception_code_t::device_memory_violation),
+  device_ras_error = ec_mask (os_exception_code_t::device_ras_error),
+  device_fatal_halt = ec_mask (os_exception_code_t::device_fatal_halt),
+  device_new = ec_mask (os_exception_code_t::device_new),
 
   /* per process exceptions  */
-  process_runtime = KFD_EC_MASK (EC_PROCESS_RUNTIME),
-  process_device_remove = KFD_EC_MASK (EC_PROCESS_DEVICE_REMOVE),
+  process_runtime = ec_mask (os_exception_code_t::process_runtime),
+  process_device_remove = ec_mask (os_exception_code_t::process_device_remove),
 };
+
+
+/* Helper function to convert an exception mask with only 1 bit set to an
+   exception code.  This is written as templated code as driver backends
+   might use this helper as well.  */
+
+template <typename Code, typename Mask>
+static inline constexpr Code
+excp_mask_to_excp_code (Mask m)
+{
+  using scalar_mask_t
+    = typename std::conditional_t<std::is_enum_v<Mask>,
+                                  std::underlying_type<Mask>,
+                                  utils::type_identity<Mask>>::type;
+
+  const auto imask{ static_cast<scalar_mask_t> (m) };
+  dbgapi_assert (utils::is_power_of_two (imask));
+
+  return static_cast<Code> (utils::trailing_zeroes_count (imask) + 1);
+}
+
 template <> struct is_flag<os_exception_mask_t> : std::true_type
 {
 };
 
 static constexpr os_exception_mask_t os_queue_exception_mask
-  = os_exception_mask_t{ KFD_EC_MASK_QUEUE };
+  = os_exception_mask_t::queue_wave_abort
+    | os_exception_mask_t::queue_wave_trap
+    | os_exception_mask_t::queue_wave_math_error
+    | os_exception_mask_t::queue_wave_illegal_instruction
+    | os_exception_mask_t::queue_wave_memory_violation
+    | os_exception_mask_t::queue_wave_address_error
+    | os_exception_mask_t::queue_packet_dispatch_dim_invalid
+    | os_exception_mask_t::queue_packet_dispatch_group_segment_size_invalid
+    | os_exception_mask_t::queue_packet_dispatch_code_invalid
+    | os_exception_mask_t::queue_packet_unsupported
+    | os_exception_mask_t::queue_packet_dispatch_work_group_size_invalid
+    | os_exception_mask_t::queue_packet_dispatch_register_invalid
+    | os_exception_mask_t::queue_packet_vendor_unsupported
+    | os_exception_mask_t::queue_preemption_error
+    | os_exception_mask_t::queue_new;
 
 static constexpr os_exception_mask_t os_agent_exception_mask
-  = os_exception_mask_t{ KFD_EC_MASK_DEVICE };
+  = os_exception_mask_t::device_queue_delete
+    | os_exception_mask_t::device_ras_error
+    | os_exception_mask_t::device_fatal_halt
+    | os_exception_mask_t::device_memory_violation
+    | os_exception_mask_t::device_new;
 
 static constexpr os_exception_mask_t os_process_exception_mask
-  = os_exception_mask_t{ KFD_EC_MASK_PROCESS };
+  = os_exception_mask_t::process_runtime
+    | os_exception_mask_t::process_device_remove;
 
 constexpr os_exception_mask_t
 os_exception_mask (os_exception_code_t os_exception_code)
@@ -284,8 +342,7 @@ os_exception_mask (os_exception_code_t os_exception_code)
   if (os_exception_code == os_exception_code_t::none)
     return os_exception_mask_t::none;
 
-  return os_exception_mask_t{ KFD_EC_MASK (
-    static_cast<int> (os_exception_code)) };
+  return os_exception_mask_t{ ec_mask (os_exception_code) };
 }
 
 /* Helper function to build an os_exception_mask_t from a list of
@@ -302,23 +359,23 @@ os_exception_mask (ExceptionCodes... exception_codes)
 
 enum class os_wave_launch_trap_override_t : uint32_t
 {
-  apply = KFD_DBG_TRAP_OVERRIDE_OR, /* OR mask with HSA_DBG_TRAP_MASK.  */
-  replace = KFD_DBG_TRAP_OVERRIDE_REPLACE, /* Replace mask.  */
+  apply = 0,   /* OR mask with HSA_DBG_TRAP_MASK.  */
+  replace = 1, /* Replace mask.  */
 };
 
 enum class os_wave_launch_trap_mask_t : uint32_t
 {
   none = 0,
-  fp_invalid = KFD_DBG_TRAP_MASK_FP_INVALID,
-  fp_input_denormal = KFD_DBG_TRAP_MASK_FP_INPUT_DENORMAL,
-  fp_divide_by_zero = KFD_DBG_TRAP_MASK_FP_DIVIDE_BY_ZERO,
-  fp_overflow = KFD_DBG_TRAP_MASK_FP_OVERFLOW,
-  fp_underflow = KFD_DBG_TRAP_MASK_FP_UNDERFLOW,
-  fp_inexact = KFD_DBG_TRAP_MASK_FP_INEXACT,
-  int_divide_by_zero = KFD_DBG_TRAP_MASK_INT_DIVIDE_BY_ZERO,
-  address_watch = KFD_DBG_TRAP_MASK_DBG_ADDRESS_WATCH,
-  wave_start = KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_START,
-  wave_end = static_cast<uint32_t> (KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_END)
+  fp_invalid = 1 << 0,
+  fp_input_denormal = 1 << 1,
+  fp_divide_by_zero = 1 << 2,
+  fp_overflow = 1 << 3,
+  fp_underflow = 1 << 4,
+  fp_inexact = 1 << 5,
+  int_divide_by_zero = 1 << 6,
+  address_watch = 1 << 7,
+  wave_start = 1 << 30,
+  wave_end = 1u << 31
 };
 template <> struct is_flag<os_wave_launch_trap_mask_t> : std::true_type
 {
@@ -334,32 +391,20 @@ enum class os_watch_mode_t : uint32_t
   all = 3,     /* Read, write or atomic operations.  */
 };
 
-using os_queue_snapshot_entry_t = kfd_queue_snapshot_entry;
-
-inline os_exception_mask_t
-os_queue_exception_status (os_queue_snapshot_entry_t entry)
+struct os_queue_snapshot_entry_t
 {
-  return static_cast<os_exception_mask_t> (entry.exception_status);
-}
-
-inline os_queue_type_t
-os_queue_type (os_queue_snapshot_entry_t entry)
-{
-  return static_cast<os_queue_type_t> (entry.queue_type);
-}
-
-constexpr os_queue_id_t os_queue_error_mask = KFD_DBG_QUEUE_ERROR_MASK;
-constexpr os_queue_id_t os_queue_invalid_mask = KFD_DBG_QUEUE_INVALID_MASK;
-constexpr os_queue_id_t os_queue_id_mask
-  = ~(os_queue_error_mask | os_queue_invalid_mask);
-
-/* Remove the error and invalid bits from OS_QUEUE_ID.  */
-
-inline constexpr os_queue_id_t
-os_queue_id_unmask (os_queue_id_t os_queue_id)
-{
-  return os_queue_id & os_queue_id_mask;
-}
+  os_queue_id_t queue_id;
+  os_queue_state_t state{};
+  os_agent_id_t gpu_id;
+  os_queue_type_t queue_type{ os_queue_type_t::unknown };
+  os_exception_mask_t exception_status;
+  amd_dbgapi_global_address_t ring_base_address;
+  amd_dbgapi_size_t ring_size;
+  amd_dbgapi_global_address_t write_pointer_address;
+  amd_dbgapi_global_address_t read_pointer_address;
+  amd_dbgapi_global_address_t ctx_save_restore_address;
+  amd_dbgapi_size_t ctx_save_restore_area_size;
+};
 
 enum class os_wave_launch_mode_t : uint32_t
 {
@@ -377,6 +422,11 @@ enum class os_process_flags_t : uint32_t
 };
 template <> struct is_flag<os_process_flags_t> : std::true_type
 {
+};
+
+union os_exception_info_t
+{
+  os_runtime_info_t runtime_info;
 };
 
 class os_driver_t
@@ -416,7 +466,8 @@ public:
                   os_exception_mask_t exceptions_cleared) const = 0;
 
   virtual amd_dbgapi_status_t
-  enable_debug (os_exception_mask_t exceptions_reported, file_desc_t notifier,
+  enable_debug (os_exception_mask_t exceptions_reported,
+                amd_dbgapi_notifier_t notifier,
                 os_runtime_info_t *runtime_info)
     = 0;
   virtual amd_dbgapi_status_t disable_debug () = 0;
@@ -436,19 +487,20 @@ public:
                      os_exception_mask_t exceptions_cleared)
     = 0;
 
-  virtual amd_dbgapi_status_t
-  query_exception_info (os_exception_code_t exception,
-                        os_source_id_t os_source_id, void *exception_info,
-                        size_t exception_info_size,
-                        bool clear_exception) const = 0;
+  virtual amd_dbgapi_status_t query_exception_info (
+    os_exception_code_t exception, os_source_id_t os_source_id,
+    os_exception_info_t *os_exception_info, bool clear_exception) const = 0;
 
   virtual amd_dbgapi_status_t
-  suspend_queues (os_queue_id_t *queues, size_t queue_count,
+  suspend_queues (const os_queue_id_t *queues, size_t queue_count,
                   os_exception_mask_t exceptions_cleared,
-                  size_t *suspended_count) const = 0;
-  virtual amd_dbgapi_status_t resume_queues (os_queue_id_t *queues,
-                                             size_t queue_count,
-                                             size_t *resumed_count) const = 0;
+                  size_t *suspended_count,
+                  os_queue_state_t *queue_states) const
+    = 0;
+  virtual amd_dbgapi_status_t
+  resume_queues (const os_queue_id_t *queues, size_t queue_count,
+                 size_t *resumed_count, os_queue_state_t *queue_states) const
+    = 0;
 
   virtual amd_dbgapi_status_t
   queue_snapshot (os_queue_snapshot_entry_t *snapshots, size_t snapshot_count,
@@ -481,15 +533,197 @@ public:
                               const void *write, size_t *size) const = 0;
 };
 
+/* OS driver class that implements no access that can be used if there is no
+   process.  */
+
+class null_driver_t : public os_driver_t
+{
+public:
+  null_driver_t (std::optional<amd_dbgapi_os_process_id_t> os_pid = {})
+    : os_driver_t (os_pid)
+  {
+  }
+  ~null_driver_t () override = default;
+
+  /* Disable copies.  */
+  null_driver_t (const null_driver_t &) = delete;
+  null_driver_t &operator= (const null_driver_t &) = delete;
+
+  bool is_valid () const override { return true; }
+
+  amd_dbgapi_status_t check_version () const override
+  {
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+
+  amd_dbgapi_status_t
+  create_core_state_note (const os_runtime_info_t & /* runtime_info  */,
+                          amd_dbgapi_core_state_data_t *data) const override
+  {
+    memset (data, 0, sizeof (amd_dbgapi_core_state_data_t));
+    return AMD_DBGAPI_STATUS_ERROR_NOT_SUPPORTED;
+  }
+
+  amd_dbgapi_status_t
+  agent_snapshot (os_agent_info_t * /* snapshots  */,
+                  size_t /* snapshot_count  */, size_t *agent_count,
+                  os_exception_mask_t /* exceptions_cleared  */) const override
+  {
+    *agent_count = 0;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+
+  amd_dbgapi_status_t
+  enable_debug (os_exception_mask_t /* exceptions_reported  */,
+                amd_dbgapi_notifier_t /* notifier  */,
+                os_runtime_info_t * /* runtime_info  */) override
+  {
+    return AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED;
+  }
+
+  amd_dbgapi_status_t disable_debug () override
+  {
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+
+  bool is_debug_enabled () const override { return false; }
+
+  amd_dbgapi_status_t set_exceptions_reported (
+    os_exception_mask_t /* exceptions_reported  */) const override
+  {
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+
+  amd_dbgapi_status_t
+  send_exceptions (os_exception_mask_t /* exceptions  */,
+                   std::optional<os_agent_id_t> /* agent_id  */,
+                   std::optional<os_queue_id_t> /* queue_id  */) const override
+  {
+    return AMD_DBGAPI_STATUS_ERROR;
+  }
+
+  amd_dbgapi_status_t
+  query_debug_event (os_exception_mask_t *exceptions_present,
+                     os_queue_id_t *os_queue_id, os_agent_id_t *os_agent_id,
+                     os_exception_mask_t /* exceptions_cleared  */) override
+  {
+    *exceptions_present = os_exception_mask_t::none;
+    *os_queue_id = *os_agent_id = 0;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+
+  amd_dbgapi_status_t
+  query_exception_info (os_exception_code_t /* exception */,
+                        os_source_id_t /* os_source_id  */,
+                        os_exception_info_t * /* os_exception_info */,
+                        bool /* clear_exception  */) const override
+  {
+    return AMD_DBGAPI_STATUS_ERROR;
+  }
+
+  amd_dbgapi_status_t
+  suspend_queues (const os_queue_id_t * /* queues  */, size_t queue_count,
+                  os_exception_mask_t /* exceptions_cleared  */,
+                  size_t *suspended_count,
+                  os_queue_state_t * /* queue_states  */) const override
+  {
+    dbgapi_assert (suspended_count != nullptr);
+
+    if (queue_count > 0)
+      fatal_error (
+        "should not call this, null_driver does not have any queues");
+
+    *suspended_count = 0;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+
+  amd_dbgapi_status_t
+  resume_queues (const os_queue_id_t * /* queues  */, size_t queue_count,
+                 size_t *resumed_count,
+                 os_queue_state_t * /* queue_states  */) const override
+  {
+    dbgapi_assert (resumed_count != nullptr);
+
+    if (queue_count > 0)
+      fatal_error (
+        "should not call this, null_driver does not have any queues");
+
+    *resumed_count = 0;
+
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+
+  amd_dbgapi_status_t
+  queue_snapshot (os_queue_snapshot_entry_t * /* snapshots  */,
+                  size_t /* snapshot_count  */, size_t *queue_count,
+                  os_exception_mask_t /* exceptions_cleared  */) const override
+  {
+    *queue_count = 0;
+    return AMD_DBGAPI_STATUS_SUCCESS;
+  }
+
+  amd_dbgapi_status_t
+  set_address_watch (os_agent_id_t /* os_agent_id  */,
+                     amd_dbgapi_global_address_t /* address  */,
+                     amd_dbgapi_global_address_t /* mask  */,
+                     os_watch_mode_t /* os_watch_mode  */,
+                     os_watch_id_t * /* os_watch_id  */) const override
+  {
+    return AMD_DBGAPI_STATUS_ERROR_NOT_SUPPORTED;
+  }
+
+  amd_dbgapi_status_t
+  clear_address_watch (os_agent_id_t /* os_agent_id  */,
+                       os_watch_id_t /* os_watch_id  */) const override
+  {
+    fatal_error (
+      "should not call this, null_driver does not support watchpoints");
+  }
+
+  amd_dbgapi_status_t
+  set_wave_launch_mode (os_wave_launch_mode_t /* mode  */) const override
+  {
+    return AMD_DBGAPI_STATUS_ERROR;
+  }
+
+  amd_dbgapi_status_t set_wave_launch_trap_override (
+    os_wave_launch_trap_override_t /* override  */,
+    os_wave_launch_trap_mask_t /* trap_mask  */,
+    os_wave_launch_trap_mask_t /* requested_bits  */,
+    os_wave_launch_trap_mask_t * /* previous_mask  */,
+    os_wave_launch_trap_mask_t * /* supported_mask  */) const override
+  {
+    return AMD_DBGAPI_STATUS_ERROR;
+  }
+
+  amd_dbgapi_status_t
+  set_process_flags (os_process_flags_t /* flags  */) const override
+  {
+    return AMD_DBGAPI_STATUS_ERROR_NOT_SUPPORTED;
+  }
+
+  amd_dbgapi_status_t
+  xfer_global_memory_partial (amd_dbgapi_global_address_t /* address  */,
+                              void *read, const void *write,
+                              size_t * /* size  */) const override
+  {
+    dbgapi_assert (!read != !write && "either read or write buffer");
+    /* Suppress warnings in release builds.  */
+    [] (auto &&...) {}(read, write);
+    return AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS;
+  }
+};
+
 template <> std::string to_string (os_agent_info_t os_agent_info);
-template <> std::string to_string (kfd_dbg_device_info_entry);
 template <> std::string to_string (os_exception_code_t exception_code);
 template <> std::string to_string (os_exception_mask_t exception_mask);
 template <> std::string to_string (os_process_flags_t flags);
 template <> std::string to_string (os_queue_snapshot_entry_t snapshot);
+template <> std::string to_string (os_queue_type_t queue_type);
 template <> std::string to_string (os_runtime_info_t runtime_info);
 template <> std::string to_string (os_runtime_state_t runtime_state);
 template <> std::string to_string (os_source_id_t source_id);
+template <> std::string to_string (os_queue_state_t queue_state);
 template <> std::string to_string (os_watch_mode_t watch_mode);
 template <> std::string to_string (os_wave_launch_mode_t mode);
 template <> std::string to_string (os_wave_launch_trap_override_t override);
