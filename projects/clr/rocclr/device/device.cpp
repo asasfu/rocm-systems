@@ -1219,6 +1219,7 @@ Settings::Settings() : value_(0) {
   }
 
   gwsInitSupported_ = true;
+  groupMemCarveout_ = false;
 }
 
 void Memory::saveMapInfo(const void* mapAddress, const amd::Coord3D origin,

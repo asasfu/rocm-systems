@@ -124,6 +124,13 @@ enum MemRangeAttribute : uint32_t {
   CoherencyMode = 100,       ///< Current coherency mode for the specified range
 };
 
+enum FuncCache : uint32_t  {
+  kPreferNone = 0,   ///< Default function cache configuration, no preference
+  kPreferLDS = 1,    ///< Prefer larger shared memory and smaller L1 cache
+  kPreferCache = 2,  ///< Prefer larger L1 cache and smaller shared memory
+  kPreferEqual = 3   ///< Prefer equal size L1 cache and shared memory
+};
+
 constexpr int CpuDeviceId = static_cast<int>(-1);
 constexpr int InvalidDeviceId = static_cast<int>(-2);
 
@@ -688,27 +695,30 @@ class Settings : public amd::HeapObject {
   uint64_t extensions_;  //!< Supported OCL extensions
   union {
     struct {
-      uint apuSystem_ : 1;                    //!< Device is APU system with shared memory
-      uint supportRA_ : 1;                    //!< Support RA channel order format
-      uint waitCommand_ : 1;                  //!< Enables a wait for every submitted command
-      uint customHostAllocator_ : 1;          //!< True if device has custom host allocator
-                                              //  that replaces generic OS allocation routines
-      uint supportDepthsRGB_ : 1;             //!< Support DEPTH and sRGB channel order format
-      uint singleFpDenorm_ : 1;               //!< Support Single FP Denorm
-      uint hsailExplicitXnack_ : 1;           //!< Xnack in hsail path for this device
-      uint useLightning_ : 1;                 //!< Enable LC path for this device
-      uint enableWgpMode_ : 1;                //!< Enable WGP mode for this device
-      uint enableWave32Mode_ : 1;             //!< Enable Wave32 mode for this device
-      uint lcWavefrontSize64_ : 1;            //!< Enable Wave64 mode for this device
-      uint enableXNACK_ : 1;                  //!< Enable XNACK feature
-      uint enableCoopGroups_ : 1;             //!< Enable cooperative groups feature
-      uint enableCoopMultiDeviceGroups_ : 1;  //!< Enable cooperative groups multi device
-      uint fenceScopeAgent_ : 1;              //!< Enable fence scope agent in AQL dispatch packet
-      uint rocr_backend_ : 1;                 //!< Device uses ROCr backend for submissions
-      uint gwsInitSupported_ : 1;             //!< Check if GWS is supported on this machine.
-      uint kernel_arg_opt_ : 1;               //!< Enables kernel arg optimization for blit kernels
-      uint kernel_arg_impl_ : 2;              //!< Kernel argument implementation
-      uint reserved_ : 12;
+      uint apuSystem_ : 1;            //!< Device is APU system with shared memory
+      uint supportRA_ : 1;            //!< Support RA channel order format
+      uint waitCommand_ : 1;          //!< Enables a wait for every submitted command
+      uint customHostAllocator_ : 1;  //!< True if device has custom host allocator
+                                      //  that replaces generic OS allocation routines
+      uint supportDepthsRGB_ : 1;     //!< Support DEPTH and sRGB channel order format
+      uint reportFMAF_ : 1;           //!< Report FP_FAST_FMAF define in CL program
+      uint reportFMA_ : 1;            //!< Report FP_FAST_FMA define in CL program
+      uint singleFpDenorm_ : 1;       //!< Support Single FP Denorm
+      uint hsailExplicitXnack_ : 1;   //!< Xnack in hsail path for this device
+      uint useLightning_ : 1;         //!< Enable LC path for this device
+      uint enableWgpMode_ : 1;        //!< Enable WGP mode for this device
+      uint enableWave32Mode_ : 1;     //!< Enable Wave32 mode for this device
+      uint lcWavefrontSize64_ : 1;    //!< Enable Wave64 mode for this device
+      uint enableXNACK_ : 1;          //!< Enable XNACK feature
+      uint enableCoopGroups_ : 1;     //!< Enable cooperative groups feature
+      uint enableCoopMultiDeviceGroups_ : 1; //!< Enable cooperative groups multi device
+      uint fenceScopeAgent_ : 1;      //!< Enable fence scope agent in AQL dispatch packet
+      uint rocr_backend_ : 1;         //!< Device uses ROCr backend for submissions
+      uint gwsInitSupported_:1;       //!< Check if GWS is supported on this machine.
+      uint kernel_arg_opt_: 1;        //!< Enables kernel arg optimization for blit kernels
+      uint kernel_arg_impl_ : 2;      //!< Kernel argument implementation
+      uint groupMemCarveout_ : 1;       //!< Group memory carveout functionality
+      uint reserved_ : 7;
     };
     uint value_;
   };
@@ -728,7 +738,14 @@ class Settings : public amd::HeapObject {
   //! Enable the specified extension
   void enableExtension(uint name) { extensions_ |= static_cast<uint64_t>(1) << name; }
 
-  size_t stagedXferSize_ = 0;  //!< Staged buffer size
+  size_t stagedXferSize_ = 0;     //!< Staged buffer size
+  typedef struct CarveoutPref {
+    uint8_t totalSharedBanks;
+    uint8_t preferLDSBanks;
+    uint8_t preferCacheLDSBanks;
+    uint8_t preferEqualLDSBanks;
+  } CarveoutPref;
+  CarveoutPref groupMemPref_;
 
  private:
   //! Disable copy constructor
@@ -2173,6 +2190,39 @@ class Device : public RuntimeObject {
 
   //! Returns stack size set for the device
   size_t MaxStackSize() const { return maxStackSize_; }
+  //! Return group memory carveout
+  uint8_t GetGroupMemCarveout() const { return group_mem_carveout_hint_; }
+
+  //! Sets the group memory carveout percentage hint for the device
+  void UpdateGroupMemCarveout(uint8_t percent) { group_mem_carveout_hint_ = percent; }
+
+  uint8_t GetGroupMemCarveout(amd::FuncCache cacheConfig) const {
+    uint8_t totalSharedBanks = 0;
+    uint8_t LDSBanks = 0;
+    if (settings().groupMemCarveout_) {
+      totalSharedBanks = settings_->groupMemPref_.totalSharedBanks;
+      switch (cacheConfig) {
+        case kPreferLDS:
+          LDSBanks = settings_->groupMemPref_.preferLDSBanks;
+          break;
+        case kPreferCache:
+          LDSBanks = settings_->groupMemPref_.preferCacheLDSBanks;
+          break;
+        case kPreferEqual:
+          LDSBanks = settings_->groupMemPref_.preferEqualLDSBanks;
+          break;
+        case kPreferNone:
+        default:
+          break;
+      }
+    }
+    return (totalSharedBanks != 0) ? (static_cast<double>(LDSBanks) / totalSharedBanks) * 100 : 0;
+  }
+
+  //! Sets group memory carveout percentage hint for the device for respective cacheConfig
+  void UpdateGroupMemCarveout(amd::FuncCache cacheConfig) {
+    group_mem_carveout_hint_ = GetGroupMemCarveout(cacheConfig);
+  }
 
 #if defined(__clang__)
 #if __has_feature(address_sanitizer)
@@ -2225,6 +2275,13 @@ class Device : public RuntimeObject {
   amd::Monitor activeQueuesLock_{};                     //!< Guards access to the activeQueues set
   std::unordered_set<amd::CommandQueue*> activeQueues;  //!< The set of active queues
 
+  amd::Memory* arena_mem_obj_;      //!< Arena memory object
+  uint64_t stack_size_{1024};       //!< Device stack size
+  device::Memory* initial_heap_buffer_;   //!< Initial heap buffer
+  uint64_t initial_heap_size_{HIP_INITIAL_DM_SIZE};  //!< Initial device heap size
+  amd::Monitor activeQueuesLock_ {}; //!< Guards access to the activeQueues set
+  std::unordered_set<amd::CommandQueue*> activeQueues; //!< The set of active queues
+  uint8_t group_mem_carveout_hint_; //!< LDS carveout
  private:
   const Isa* isa_;  //!< Device isa
   bool IsTypeMatching(cl_device_type type, bool offlineDevices);
