@@ -606,6 +606,9 @@ static amd_comgr_status_t populateKernelMetaV3(const amd_comgr_metadata_node_t k
     case KernelField::UniformWrokGroupSize:
       kernel->setUniformWorkGroupSize(buf.compare("1") == 0);
       break;
+    case KernelField::LanesharedSegmentFixedSize:
+      kernel->SetWorkitemLanesharedSegmentByteSize(atoi(buf.c_str()));
+      break;
     default:
       return AMD_COMGR_STATUS_ERROR;
   }

@@ -153,26 +153,27 @@ enum class CodePropField : uint8_t {
 
 //  for Code Object V3
 enum class KernelField : uint8_t {
-  SymbolName = 0,
-  ReqdWorkGroupSize = 1,
-  WorkGroupSizeHint = 2,
-  VecTypeHint = 3,
-  DeviceEnqueueSymbol = 4,
-  KernargSegmentSize = 5,
-  GroupSegmentFixedSize = 6,
-  PrivateSegmentFixedSize = 7,
-  KernargSegmentAlign = 8,
-  WavefrontSize = 9,
-  NumSGPRs = 10,
-  NumVGPRs = 11,
-  MaxFlatWorkGroupSize = 12,
-  NumSpilledSGPRs = 13,
-  NumSpilledVGPRs = 14,
-  Kind = 15,
-  WgpMode = 16,
-  UniformWrokGroupSize = 17,
-  ClusterDims = 18,
-  MaxSize = 19
+  SymbolName                 = 0,
+  ReqdWorkGroupSize          = 1,
+  WorkGroupSizeHint          = 2,
+  VecTypeHint                = 3,
+  DeviceEnqueueSymbol        = 4,
+  KernargSegmentSize         = 5,
+  GroupSegmentFixedSize      = 6,
+  PrivateSegmentFixedSize    = 7,
+  KernargSegmentAlign        = 8,
+  WavefrontSize              = 9,
+  NumSGPRs                   = 10,
+  NumVGPRs                   = 11,
+  MaxFlatWorkGroupSize       = 12,
+  NumSpilledSGPRs            = 13,
+  NumSpilledVGPRs            = 14,
+  Kind                       = 15,
+  WgpMode                    = 16,
+  UniformWrokGroupSize       = 17,
+  ClusterDims                = 18,
+  LanesharedSegmentFixedSize = 19,
+  MaxSize                    = 20
 };
 
 #endif  // defined(USE_COMGR_LIBRARY)
@@ -345,6 +346,14 @@ class Kernel : public amd::HeapObject {
   const uint32_t WorkitemPrivateSegmentByteSize() const { return workitemPrivateSegmentByteSize_; }
   void SetWorkitemPrivateSegmentByteSize(uint32_t size) { workitemPrivateSegmentByteSize_ = size; }
 
+  const uint32_t WorkitemLanesharedSegmentByteSize() const { return workitemLanesharedSegmentByteSize_; }
+  void SetWorkitemLanesharedSegmentByteSize(uint32_t size) { workitemLanesharedSegmentByteSize_ = size;  }
+  const uint32_t NumWaveInWaveGroup() {
+    // num of wave group in a workgroup is fixed to 4 in gfx13.
+    assert(workGroupInfo_.size_ % (workGroupInfo_.wavefrontSize_ * 4) == 0);
+    return workGroupInfo_.size_ / workGroupInfo_.wavefrontSize_ / 4;
+  }
+
   const bool KernalHasDynamicCallStack() const { return kernelHasDynamicCallStack_; }
 
   const uint32_t KernargSegmentByteSize() const { return kernargSegmentByteSize_; }
@@ -406,7 +415,8 @@ class Kernel : public amd::HeapObject {
   uint64_t kernelCodeHandle_ = 0;  //!< Kernel code handle (aka amd_kernel_code_t)
   uint32_t workgroupGroupSegmentByteSize_ = 0;
   uint32_t workitemPrivateSegmentByteSize_ = 0;
-  uint32_t kernargSegmentByteSize_ = 0;  //!< Size of kernel argument buffer
+  uint32_t workitemLanesharedSegmentByteSize_ = 0;
+  uint32_t kernargSegmentByteSize_ = 0;   //!< Size of kernel argument buffer
   uint32_t kernargSegmentAlignment_ = 0;
   bool kernelHasDynamicCallStack_ = 0;
 
