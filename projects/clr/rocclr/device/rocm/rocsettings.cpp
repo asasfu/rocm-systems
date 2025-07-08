@@ -172,7 +172,7 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
   if (gfxipMajor >= 10) {
      enableWave32Mode_ = true;
      // Disable wgp mode for MI450
-     if (gfxIpMajor == 12 && gfxIpMinor >= 5) {
+     if (gfxipMajor == 12 && gfxipMinor >= 5) {
         enableWgpMode_ = false;
      } else {
         enableWgpMode_ = GPU_ENABLE_WGP_MODE;
