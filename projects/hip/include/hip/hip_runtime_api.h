@@ -415,6 +415,9 @@ typedef enum __HIP_NODISCARD hipError_t {
                                  ///< in production systems.
   hipErrorRuntimeOther = 1053,   ///< HSA runtime call other than memory returned error.  Typically
                                  ///< not seen in production systems.
+  hipErrorInvalidClusterSize = 1054,    ///< The specified cluster size is invalid, for instance
+                                       ///< when passing launch configurations to occupancy
+                                      ///< calculations
   hipErrorTbd                    ///< Marker that more error codes are needed.
 } hipError_t;
 
@@ -6825,7 +6828,7 @@ hipError_t hipMemGetHandleForAddressRange(void* handle, hipDeviceptr_t dptr, siz
  *
  * @param [out] gridSize           minimum grid size for maximum potential occupancy
  * @param [out] blockSize          block size for maximum potential occupancy
- * @param [in]  f                  kernel function for which occupancy is calulated
+ * @param [in]  f                  kernel function for which occupancy is calculated
  * @param [in]  dynSharedMemPerBlk dynamic shared memory usage (in bytes) intended for each block
  * @param [in]  blockSizeLimit     the maximum block size for the kernel, use 0 for no limit
  *
@@ -6842,7 +6845,7 @@ hipError_t hipModuleOccupancyMaxPotentialBlockSize(int* gridSize, int* blockSize
  *
  * @param [out] gridSize           minimum grid size for maximum potential occupancy
  * @param [out] blockSize          block size for maximum potential occupancy
- * @param [in]  f                  kernel function for which occupancy is calulated
+ * @param [in]  f                  kernel function for which occupancy is calculated
  * @param [in]  dynSharedMemPerBlk dynamic shared memory usage (in bytes) intended for each block
  * @param [in]  blockSizeLimit     the maximum block size for the kernel, use 0 for no limit
  * @param [in]  flags            Extra flags for occupancy calculation (only default supported)
@@ -6861,7 +6864,7 @@ hipError_t hipModuleOccupancyMaxPotentialBlockSizeWithFlags(int* gridSize, int* 
  * @brief Returns occupancy for a device function.
  *
  * @param [out] numBlocks        Returned occupancy
- * @param [in]  f                Kernel function (hipFunction) for which occupancy is calulated
+ * @param [in]  f                Kernel function (hipFunction) for which occupancy is calculated
  * @param [in]  blockSize        Block size the kernel is intended to be launched with
  * @param [in]  dynSharedMemPerBlk Dynamic shared memory usage (in bytes) intended for each block
  * @returns  #hipSuccess, #hipErrorInvalidValue
@@ -6873,7 +6876,7 @@ hipError_t hipModuleOccupancyMaxActiveBlocksPerMultiprocessor(int* numBlocks, hi
  * @brief Returns occupancy for a device function.
  *
  * @param [out] numBlocks        Returned occupancy
- * @param [in]  f                Kernel function(hipFunction_t) for which occupancy is calulated
+ * @param [in]  f                Kernel function(hipFunction_t) for which occupancy is calculated
  * @param [in]  blockSize        Block size the kernel is intended to be launched with
  * @param [in]  dynSharedMemPerBlk Dynamic shared memory usage (in bytes) intended for each block
  * @param [in]  flags            Extra flags for occupancy calculation (only default supported)
@@ -6885,7 +6888,7 @@ hipError_t hipModuleOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(
  * @brief Returns occupancy for a device function.
  *
  * @param [out] numBlocks        Returned occupancy
- * @param [in]  f                Kernel function for which occupancy is calulated
+ * @param [in]  f                Kernel function for which occupancy is calculated
  * @param [in]  blockSize        Block size the kernel is intended to be launched with
  * @param [in]  dynSharedMemPerBlk Dynamic shared memory usage (in bytes) intended for each block
  * @returns  #hipSuccess, #hipErrorInvalidDeviceFunction, #hipErrorInvalidValue
@@ -6896,7 +6899,7 @@ hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessor(int* numBlocks, const vo
  * @brief Returns occupancy for a device function.
  *
  * @param [out] numBlocks        Returned occupancy
- * @param [in]  f                Kernel function for which occupancy is calulated
+ * @param [in]  f                Kernel function for which occupancy is calculated
  * @param [in]  blockSize        Block size the kernel is intended to be launched with
  * @param [in]  dynSharedMemPerBlk Dynamic shared memory usage (in bytes) intended for each block
  * @param [in]  flags            Extra flags for occupancy calculation (currently ignored)
@@ -6910,7 +6913,7 @@ hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(
  *
  * @param [out] gridSize           minimum grid size for maximum potential occupancy
  * @param [out] blockSize          block size for maximum potential occupancy
- * @param [in]  f                  kernel function for which occupancy is calulated
+ * @param [in]  f                  kernel function for which occupancy is calculated
  * @param [in]  dynSharedMemPerBlk dynamic shared memory usage (in bytes) intended for each block
  * @param [in]  blockSizeLimit     the maximum block size for the kernel, use 0 for no limit
  *
@@ -6919,8 +6922,34 @@ hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(
  *
  * @returns #hipSuccess, #hipErrorInvalidValue
  */
-hipError_t hipOccupancyMaxPotentialBlockSize(int* gridSize, int* blockSize, const void* f,
-                                             size_t dynSharedMemPerBlk, int blockSizeLimit);
+hipError_t hipOccupancyMaxPotentialBlockSize(int* gridSize, int* blockSize,
+                                             const void* f, size_t dynSharedMemPerBlk,
+                                             int blockSizeLimit);
+/**
+ * @brief determines the amount of active kernel clusters can co-exist at the same time in a device
+ *
+ * @param [out] numClusters the amount of clusters
+ * @param [in]  f           kernel function for which occupancy is calculated
+ * @param [in]  config      pointer to the kernel launch configuration structure
+ *
+ * @returns #hipSuccess, #hipErrorInvalidDeviceFunction, hipErrorInvalidClusterSize,
+ *          #hipErrorInvalidValue
+ */
+hipError_t hipOccupancyMaxActiveClusters(int* numClusters, const void* f,
+                                         const hipLaunchConfig_t* config);
+/**
+ * @brief returns the maximum cluster size (in number of blocks) that can run on the device
+ *
+ * @param [out] clusterSize the maximum cluster size
+ * @param [in]  f           kernel function for which occupancy is calculated
+ * @param [in]  config      pointer to the kernel launch configuration structure
+ *
+ * @returns #hipSuccess, #hipErrorInvalidDeviceFunction, hipErrorInvalidClusterSize,
+ *          #hipErrorInvalidValue
+ */
+hipError_t hipOccupancyMaxPotentialClusterSize(int* clusterSize, const void* f,
+                                               const hipLaunchConfig_t* config);
+
 // doxygen end Occupancy
 /**
  * @}
