@@ -172,6 +172,7 @@ bool Settings::create(const Pal::DeviceProperties& palProp,
 #ifdef PAL_BUILD_NAVI44
     case Pal::AsicRevision::Navi44:
     case Pal::AsicRevision::Navi48:
+#endif
     // Fall through for Navi3x ...
     case Pal::AsicRevision::Navi33:
     case Pal::AsicRevision::Navi32:
