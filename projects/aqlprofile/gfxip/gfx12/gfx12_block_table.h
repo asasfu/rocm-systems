@@ -99,7 +99,11 @@ static const CounterRegInfo GcL2tlbCounterRegAddr[] = {REG_INFO_WITH_CFG_4(GC_L2
 static const CounterRegInfo Gcutcl2NhttlbCounterRegAddr[] = {REG_INFO_WITH_CFG_16(GCUTCL2_NHTTLB)};
 #endif
 static const CounterRegInfo GcEaCpwdCounterRegAddr[] = {REG_INFO_2(GC_EA_CPWD)};
+#if GFX12_VARIANT == GFX12_VARIANT_1250
+static const CounterRegInfo GcEaSeCounterRegAddr[] = {REG_INFO_WITH_INST_2(GC_EA_SE, 8)};
+#else
 static const CounterRegInfo GcEaSeCounterRegAddr[] = {REG_INFO_2(GC_EA_SE)};
+#endif
 static const CounterRegInfo Gl1aCounterRegAddr[] = {REG_INFO_4(GL1A)};
 static const CounterRegInfo Gl1cCounterRegAddr[] = {REG_INFO_4(GL1C)};
 #if GFX12_VARIANT == GFX12_VARIANT_1250
