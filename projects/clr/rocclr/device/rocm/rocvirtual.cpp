@@ -3781,9 +3781,6 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
     // group memory)
     dispatchPacketExt.perf_hint.group_mem_carveout = (percent + 1) * 1.26F;
   }
-  dispatchPacket.grid_size_x = global[0];
-  dispatchPacket.grid_size_y = global[1];
-  dispatchPacket.grid_size_z = global[2];
 
   dispatchPacket.workgroup_size_x = local[0];
   dispatchPacket.workgroup_size_y = local[1];
