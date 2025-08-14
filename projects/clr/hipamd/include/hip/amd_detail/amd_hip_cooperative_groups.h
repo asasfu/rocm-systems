@@ -207,7 +207,20 @@ class grid_group : public thread_group {
   __CG_QUALIFIER__ bool is_valid() const { return internal::grid::is_valid(); }
   //! @copydoc thread_group::sync
   __CG_QUALIFIER__ void sync() const { internal::grid::sync(); }
-  __CG_QUALIFIER__ dim3 group_dim() const { return internal::grid::grid_dim(); }
+  __CG_QUALIFIER__ dim3 group_dim() const { return internal::workgroup::block_dim(); }
+  struct arrival_token {
+    unsigned int value;
+  };
+  //! Arrive at a barrier
+  __CG_QUALIFIER__ arrival_token barrier_arrive() const {
+    arrival_token t;
+    t.value = internal::grid::barrier_arrive();
+    return t;
+  }
+  //! Arrive at a barrier
+  __CG_QUALIFIER__ void barrier_wait(arrival_token&& t) const {
+    internal::grid::barrier_wait(t.value);
+  }
 };
 
 /** \ingroup CooperativeGConstruct
@@ -287,6 +300,16 @@ class thread_block : public thread_group {
   __CG_STATIC_QUALIFIER__ void sync() { internal::workgroup::sync(); }
   //! Returns the group dimensions.
   __CG_QUALIFIER__ dim3 group_dim() { return internal::workgroup::block_dim(); }
+  struct arrival_token {};
+  //! Arrive at a barrier
+  __CG_QUALIFIER__ arrival_token barrier_arrive() const {
+    internal::workgroup::barrier_arrive();
+    return arrival_token{};
+  }
+    //! Arrive at a barrier
+  __CG_QUALIFIER__ void barrier_wait(arrival_token&&) const {
+    internal::workgroup::barrier_wait();
+  }
 };
 
 /** \ingroup CooperativeGConstruct
@@ -1275,7 +1298,7 @@ class cluster_group {
   // Arrive on a cluster barrier, returns token that needs to be passed to barrier_wait
   __CG_STATIC_QUALIFIER__ arrival_token barrier_arrive() {
     // signal user cluster barrier
-    internal::cluster::barrier_signal();
+    internal::cluster::barrier_arrive();
     return arrival_token();
   }
 
