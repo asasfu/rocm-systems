@@ -286,6 +286,8 @@
  * - gfx1100 (Plum Bonito)
  * - gfx1101 (Wheat Nas)
  * - gfx1102 (Hotpink Bonefish)
+ * - gfx1150
+ * - gfx1151
  * - gfx1200
  * - gfx1201
  *
@@ -369,6 +371,10 @@
  *     past a "s_sendmsg sendmsg(MSG_DEALLOC_VGPRS)" instruction.  If an
  *     exception is delivered to a wave in an attached process after the
  *     wave has executed this instruction, the wave is killed.
+ *
+ * 11. On Linux, all operations used to interact with a live process must be
+ *     made from a thread which is the tracer of the target process (i.e. the
+ *     calling thread must be PTRACE-attached to the process).
  *
  * \section references References
  *
