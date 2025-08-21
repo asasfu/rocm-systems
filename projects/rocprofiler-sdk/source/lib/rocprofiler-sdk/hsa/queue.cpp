@@ -281,7 +281,7 @@ WriteInterceptor(const void* packets,
         {
             // Check if it's an extended kernel dispatch packet
             const auto& ext_packet = packets_arr[i].ext_kernel_dispatch;
-            if(ext_packet.amd_format == rocprofiler::hsa::HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH)
+            if(ext_packet.amd_format == HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH)
             {
                 is_ext_kernel_dispatch = true;
             }

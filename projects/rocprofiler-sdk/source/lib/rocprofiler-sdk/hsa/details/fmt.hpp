@@ -79,7 +79,7 @@ struct formatter<hsa_kernel_dispatch_packet_t>
 };
 
 template <>
-struct formatter<rocprofiler::hsa::hsa_amd_ext_kernel_dispatch_packet_t>
+struct formatter<hsa_amd_ext_perf_hint_t>
 {
     template <typename ParseContext>
     constexpr auto parse(ParseContext& ctx)
@@ -88,7 +88,27 @@ struct formatter<rocprofiler::hsa::hsa_amd_ext_kernel_dispatch_packet_t>
     }
 
     template <typename Ctx>
-    auto format(rocprofiler::hsa::hsa_amd_ext_kernel_dispatch_packet_t const& pkt, Ctx& ctx) const
+    auto format(hsa_amd_ext_perf_hint_t const& hint, Ctx& ctx) const
+    {
+        return fmt::format_to(ctx.out(), "[EXT_PERF_HINT, group_mem_carveout={}, reverse_dispatch_order={}, "
+                                         "hint_val={}]",
+                                         hint.group_mem_carveout,
+                                         hint.reverse_dispatch_order,
+                                         hint.hint_val);
+    }
+};
+
+template <>
+struct formatter<hsa_amd_ext_kernel_dispatch_packet_t>
+{
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename Ctx>
+    auto format(hsa_amd_ext_kernel_dispatch_packet_t const& pkt, Ctx& ctx) const
     {
         return fmt::format_to(ctx.out(),
                               "[EXT_KERNEL_DISPATCH, header={}, amd_format={}, setup={}, "
@@ -194,7 +214,7 @@ struct formatter<rocprofiler::hsa::rocprofiler_packet>
             case 0:
                 // Vendor specific packet - check AMD format
                 if(pkt.ext_kernel_dispatch.amd_format ==
-                   rocprofiler::hsa::HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH)
+                   HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH)
                     return fmt::format_to(ctx.out(), "{}", pkt.ext_kernel_dispatch);
                 else
                     return fmt::format_to(ctx.out(), "{}", pkt.ext_amd_aql_pm4);
