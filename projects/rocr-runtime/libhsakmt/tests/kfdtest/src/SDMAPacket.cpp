@@ -147,12 +147,14 @@ SDMAFillDataPacket::SDMAFillDataPacket(unsigned int familyId, void *dst, unsigne
             pSDMA->HEADER_UNION.scope = SDMA_SCOPE_SYS;
 
         /* If both size and address are DW aligned, then use DW fill */
-        if (!(copy_size & 0x3) && !((HSAuint64)dst & 0x3))
+        if (!(copy_size & 0x3) && !((HSAuint64)dst & 0x3)) {
             pSDMA->HEADER_UNION.fillsize = 2; /* DW Fill */
-        else
+            pSDMA->COUNT_UNION.count = (m_FamilyId == FAMILY_GFX125X) ?
+                                        (copy_size - 4) : SDMA_COUNT(copy_size);
+        } else {
             pSDMA->HEADER_UNION.fillsize = 0; /* Byte Fill */
-
-        pSDMA->COUNT_UNION.count = SDMA_COUNT(copy_size);
+            pSDMA->COUNT_UNION.count = SDMA_COUNT(copy_size);
+        }
 
         SplitU64(reinterpret_cast<HSAuint64>(dst),
             pSDMA->DST_ADDR_LO_UNION.DW_1_DATA, /*dst_addr_31_0*/
