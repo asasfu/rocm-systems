@@ -1569,6 +1569,11 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       *((uint32_t*)value) = properties_.DeviceId;
       break;
     case HSA_AMD_AGENT_INFO_CACHELINE_SIZE:
+      if (core::Runtime::runtime_singleton_->flag().cacheline_size_override() >= 0) {
+        *((uint32_t*)value) =
+            core::Runtime::runtime_singleton_->flag().cacheline_size_override();
+        return HSA_STATUS_SUCCESS;
+      }
       for (auto& cache : cache_props_) {
         if ((cache.CacheLevel == 2) && (cache.CacheLineSize != 0)) {
           *((uint32_t*)value) = cache.CacheLineSize;
