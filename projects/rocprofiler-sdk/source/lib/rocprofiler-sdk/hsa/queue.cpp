@@ -531,7 +531,7 @@ WriteInterceptor(const void* packets,
             get_core_table()->hsa_signal_store_screlease_fn(completion_signal, 0);
         }
 
-        ROCP_FATAL_IF(packet_type != HSA_PACKET_TYPE_KERNEL_DISPATCH)
+        ROCP_FATAL_IF(!(is_kernel_dispatch || is_ext_kernel_dispatch))
             << "get_kernel_id below might need to be updated";
 
         // Enqueue the signal into the handler. Will call completed_cb when
