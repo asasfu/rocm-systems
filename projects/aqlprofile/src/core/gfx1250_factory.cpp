@@ -86,6 +86,7 @@ void Mi450Factory::ConstructTable(const AgentInfo* agent_info) {
   block_table_[__BLOCK_ID(GRBMA)]     = &GrbmaCounterBlockInfo;
   block_table_[__BLOCK_ID_HSA(ATCL2)] = &Atcl2CounterBlockInfo;
   block_table_[__BLOCK_ID(GC_UTCL2)]  = &GcUtcl2CounterBlockInfo;
+  block_table_[__BLOCK_ID(GC_VML2)]   = &GcVml2CounterBlockInfo;
   block_table_[__BLOCK_ID(GC_FFBM)]   = &Gcutcl2FfbmCounterBlockInfo;
   block_table_[__BLOCK_ID(GC_NHTTLB)] = &Gcutcl2NhttlbCounterBlockInfo;
   block_table_[__BLOCK_ID(GC_L2TLB)]  = &GcL2tlbCounterBlockInfo;
