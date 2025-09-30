@@ -85,8 +85,11 @@
 #define vm_object_tree(app, is_userptr)				\
 		((is_userptr) ? &(app)->user_tree : &(app)->tree)
 
-#define START_NON_CANONICAL_ADDR (1ULL << 47)
-#define END_NON_CANONICAL_ADDR (~0UL - (1UL << 47))
+/*
+ * support up to 57bit VA and 48bit VA
+ */
+#define START_NON_CANONICAL_ADDR (1ULL << 56)
+#define END_NON_CANONICAL_ADDR (~0ULL - (1ULL << 56))
 
 struct vm_object {
 	void *start;
@@ -272,10 +275,10 @@ static svm_t svm = {
 static manageable_aperture_t cpuvm_aperture = INIT_MANAGEABLE_APERTURE(0, 0);
 
 /* mem_handle_aperture is used to generate memory handles
- * for allocations that don't have a valid virtual address
- * its size is 47bits.
+ * for allocations that don't have a valid user space virtual address
+ * its size is up to 56bits for 57bits VA
 */
-static manageable_aperture_t mem_handle_aperture = INIT_MANAGEABLE_APERTURE(START_NON_CANONICAL_ADDR, (START_NON_CANONICAL_ADDR + (1ULL << 47)));
+static manageable_aperture_t mem_handle_aperture = INIT_MANAGEABLE_APERTURE(START_NON_CANONICAL_ADDR, (START_NON_CANONICAL_ADDR + (1ULL << 56)));
 
 /* GPU node array for default mappings */
 static uint32_t all_gpu_id_array_size;
@@ -2424,7 +2427,12 @@ static void *reserve_address(void *addr, unsigned long long int len)
  */
 #define SVM_RESERVATION_LIMIT ((1ULL << 40) - 1)
 #define SVM_MIN_VM_SIZE (4ULL << 30)
-#define IS_CANONICAL_ADDR(a) ((a) < (1ULL << 47))
+
+/*
+ * Support up to 57bit VA, 56bit user space and 48bit VA, 47bit user space
+ */
+#define CANONICAL_ADDRESS_LIMIT	((1ULL << 56) - 1)
+#define IS_CANONICAL_ADDR(a)	((a) <= CANONICAL_ADDRESS_LIMIT)
 
 static HSAKMT_STATUS init_svm_apertures(HSAuint64 base, HSAuint64 limit,
 					HSAuint32 align, HSAuint32 guard_pages)
@@ -2725,9 +2733,9 @@ static bool init_mem_handle_aperture(HSAuint32 align, HSAuint32 guard_pages)
 					mem_handle_aperture.base, mem_handle_aperture.limit);
 			return true;
 		} else {
-			/* increase base by 1UL<<47 to check next hole */
-			mem_handle_aperture.base =  VOID_PTR_ADD(mem_handle_aperture.base, (1UL << 47));
-			mem_handle_aperture.limit = VOID_PTR_ADD(mem_handle_aperture.base, (1ULL << 47));
+			/* increase base by 1ULL<<56 to check next hole */
+			mem_handle_aperture.base =  VOID_PTR_ADD(mem_handle_aperture.base, (1ULL << 56));
+			mem_handle_aperture.limit = VOID_PTR_ADD(mem_handle_aperture.base, (1ULL << 56));
 		}
 	}
 
@@ -3049,7 +3057,7 @@ HSAKMT_STATUS hsakmt_fmm_init_process_apertures(unsigned int NumNodes)
 	}
 
 	cpuvm_aperture.align = PAGE_SIZE;
-	cpuvm_aperture.limit = (void *)0x7FFFFFFFFFFF; /* 2^47 - 1 */
+	cpuvm_aperture.limit = (void *)CANONICAL_ADDRESS_LIMIT;
 
 	fmm_init_rbtree();
 
