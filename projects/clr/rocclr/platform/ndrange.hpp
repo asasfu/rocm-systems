@@ -212,14 +212,16 @@ class NDRangeContainer : public HeapObject {
   NDRange offset_;           //!< Global work-item offset.
   NDRange global_;           //!< Total number of work-items in N-dims
   NDRange local_;            //!< Number of work-items in N-dims in a workgroup.
+  NDRange cluster_;          //!< Number of Cluster in N-dims across work group.
 
  public:
   /*! \brief Construct a new nd-range container with the given local
    *  and global worksizes in \a nDimensions dimensions.
    */
   NDRangeContainer(size_t dimensions, const size_t* globalWorkOffset, const size_t* globalWorkSize,
-                   const size_t* localWorkSize)
-      : dimensions_(dimensions), offset_(dimensions), global_(dimensions), local_(dimensions) {
+                   const size_t* localWorkSize, const size_t* clusterWorkSize = nullptr)
+                   : dimensions_(dimensions), offset_(dimensions), global_(dimensions),
+                     local_(dimensions), cluster_(dimensions) {
     for (size_t i = 0; i < dimensions; ++i) {
       offset_[i] = globalWorkOffset != NULL ? globalWorkOffset[i] : 0;
       global_[i] = globalWorkSize[i];
@@ -250,6 +252,9 @@ class NDRangeContainer : public HeapObject {
   //! Return the local worksize.
   const NDRange& local() const { return local_; }
   NDRange& local() { return local_; }
+  //! Return the cluster worksize.
+  const NDRange& cluster() const { return cluster_; }
+  NDRange& cluster() { return cluster_; }
 };
 
 

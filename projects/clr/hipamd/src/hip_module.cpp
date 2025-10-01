@@ -1267,8 +1267,7 @@ hipError_t hipDrvLaunchKernelEx(const HIP_LAUNCH_CONFIG* config, hipFunction_t f
 
   amd::HIPLaunchParams launch_params(config->gridDimX, config->gridDimY, config->gridDimZ,
                                      config->blockDimX, config->blockDimY, config->blockDimZ,
-                                     config->sharedMemBytes,  config->clusterX, config->clusterY,
-                                     config->clusterZ);
+                                     config->sharedMemBytes);
 
   if (!launch_params.IsValidConfig()) {
     HIP_RETURN(hipErrorInvalidConfiguration);
@@ -1279,6 +1278,7 @@ hipError_t hipDrvLaunchKernelEx(const HIP_LAUNCH_CONFIG* config, hipFunction_t f
                                       nullptr, nullptr, 0));
   }
 
+  dim3 clusterDim = {1, 1, 1};
   for (size_t attr_idx = 0; attr_idx < config->numAttrs; ++attr_idx) {
     hipLaunchAttribute& attr = config->attrs[attr_idx];
     switch (attr.id) {
@@ -1290,11 +1290,29 @@ hipError_t hipDrvLaunchKernelEx(const HIP_LAUNCH_CONFIG* config, hipFunction_t f
         }
         break;
       }
+      case hipLaunchAttributeClusterDimension: {
+        clusterDim.x = attr.value.clusterDim.x;
+        clusterDim.y = attr.value.clusterDim.y;
+        clusterDim.z = attr.value.clusterDim.z;
+        break;
+      }
       default:
         LogPrintfError("Attribute %u not supported", attr.id);
         break;
     }
   }
-  HIP_RETURN(hipErrorInvalidConfiguration)
+
+   // All dimensions have to be atleast 1.
+  if (clusterDim.x == 0 || clusterDim.y == 0 || clusterDim.z == 0) {
+    HIP_RETURN(hipErrorInvalidConfiguration);
+  }
+
+  amd::HIPLaunchParams launch_params_cluster(config->gridDimX, config->gridDimY, config->gridDimZ,
+                                          config->blockDimX, config->blockDimY, config->blockDimZ,
+                                          config->sharedMemBytes, clusterDim.x, clusterDim.y,
+                                          clusterDim.z);
+
+  HIP_RETURN(ihipModuleLaunchKernel(f, launch_params_cluster, config->hStream, kernelParams, extra, nullptr,
+                                    nullptr));
 }
 }  // namespace hip

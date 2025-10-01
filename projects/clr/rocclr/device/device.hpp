@@ -2274,13 +2274,6 @@ class Device : public RuntimeObject {
   uint64_t initial_heap_size_{HIP_INITIAL_DM_SIZE};     //!< Initial device heap size
   amd::Monitor activeQueuesLock_{};                     //!< Guards access to the activeQueues set
   std::unordered_set<amd::CommandQueue*> activeQueues;  //!< The set of active queues
-
-  amd::Memory* arena_mem_obj_;      //!< Arena memory object
-  uint64_t stack_size_{1024};       //!< Device stack size
-  device::Memory* initial_heap_buffer_;   //!< Initial heap buffer
-  uint64_t initial_heap_size_{HIP_INITIAL_DM_SIZE};  //!< Initial device heap size
-  amd::Monitor activeQueuesLock_ {}; //!< Guards access to the activeQueues set
-  std::unordered_set<amd::CommandQueue*> activeQueues; //!< The set of active queues
   uint8_t group_mem_carveout_hint_; //!< LDS carveout
  private:
   const Isa* isa_;  //!< Device isa
