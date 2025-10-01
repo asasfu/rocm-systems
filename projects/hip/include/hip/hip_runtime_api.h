@@ -1581,6 +1581,7 @@ typedef enum hipLaunchAttributeID {
   hipLaunchAttributeIgnore = 0,                            ///< Ignored entry
   hipLaunchAttributeAccessPolicyWindow = 1,                ///< Valid for Streams, graph nodes, launches
   hipLaunchAttributeCooperative = 2,                       ///< Valid for graph nodes, launches
+  hipLaunchAttributeSynchronizationPolicy = 3,             ///< Valid for streams
   hipLaunchAttributeClusterDimension = 4,                  ///< Valid for graph nodes, launches
   hipLaunchAttributeClusterSchedulingPolicyPreference = 5, ///< Valid for graph nodes, launches
   hipLaunchAttributePriority = 8, ///< Valid for graph node, streams, launches
@@ -2032,6 +2033,22 @@ typedef struct HIP_LAUNCH_CONFIG_st {
   hipLaunchAttribute* attrs;    ///< Attribute list
   unsigned int numAttrs;        ///< Number of attributes
 } HIP_LAUNCH_CONFIG;
+
+/**
+ * Requested handle type for address range.
+ */
+ typedef enum hipMemRangeHandleType {
+  hipMemRangeHandleTypeDmaBufFd = 0x1,
+  hipMemRangeHandleTypeMax = 0x7fffffff
+} hipMemRangeHandleType;
+
+/**
+ * Mem Range Flags used in hipMemGetHandleForAddressRange.
+ */
+typedef enum hipMemRangeFlags {
+  hipMemRangeFlagDmaBufMappingTypePcie = 0x1,
+  hipMemRangeFlagsMax = 0x7fffffff
+} hipMemRangeFlags;
 
 // Doxygen end group GlobalDefs
 /**
@@ -10224,28 +10241,6 @@ template <class T> static inline hipError_t hipMallocFromPoolAsync(T** dev_ptr, 
                                                                    hipMemPool_t mem_pool,
                                                                    hipStream_t stream) {
   return hipMallocFromPoolAsync(reinterpret_cast<void**>(dev_ptr), size, mem_pool, stream);
-}
-/**
- * @brief Launches a HIP kernel using the specified configuration.
- * @ingroup Execution
- *
- * This function dispatches the provided kernel with the given launch configuration and forwards the
- * kernel arguments.
- *
- * @param [in] config                 Pointer to the kernel launch configuration structure.
- * @param [in] kernel                 Pointer to the device kernel function to be launched.
- * @param [in] args                   Variadic list of arguments to be passed to the kernel.
- *
- * @returns #hipSuccess if the kernel is launched successfully, otherwise an appropriate error code.
- */
-template <typename... KernelArgs, typename... Params>
-static inline __host__ hipError_t hipLaunchKernelEx(const hipLaunchConfig_t* config,
-                                                    void (*kernel)(KernelArgs...),
-                                                    Params&&... args) {
-  return [&](KernelArgs... convertedArgs) {
-    void* pArgs[] = {&convertedArgs...};
-    return ::hipLaunchKernelExC(config, reinterpret_cast<void*>(kernel), pArgs);
-  }(std::forward<Params>(args)...);
 }
 /**
  * @brief Launches a HIP kernel using the specified configuration.
