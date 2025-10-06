@@ -153,25 +153,27 @@ enum class CodePropField : uint8_t {
 
 //  for Code Object V3
 enum class KernelField : uint8_t {
-  SymbolName = 0,
-  ReqdWorkGroupSize = 1,
-  WorkGroupSizeHint = 2,
-  VecTypeHint = 3,
-  DeviceEnqueueSymbol = 4,
-  KernargSegmentSize = 5,
-  GroupSegmentFixedSize = 6,
-  PrivateSegmentFixedSize = 7,
-  KernargSegmentAlign = 8,
-  WavefrontSize = 9,
-  NumSGPRs = 10,
-  NumVGPRs = 11,
-  MaxFlatWorkGroupSize = 12,
-  NumSpilledSGPRs = 13,
-  NumSpilledVGPRs = 14,
-  Kind = 15,
-  WgpMode = 16,
-  UniformWrokGroupSize = 17,
-  MaxSize = 18
+  SymbolName                 = 0,
+  ReqdWorkGroupSize          = 1,
+  WorkGroupSizeHint          = 2,
+  VecTypeHint                = 3,
+  DeviceEnqueueSymbol        = 4,
+  KernargSegmentSize         = 5,
+  GroupSegmentFixedSize      = 6,
+  PrivateSegmentFixedSize    = 7,
+  KernargSegmentAlign        = 8,
+  WavefrontSize              = 9,
+  NumSGPRs                   = 10,
+  NumVGPRs                   = 11,
+  MaxFlatWorkGroupSize       = 12,
+  NumSpilledSGPRs            = 13,
+  NumSpilledVGPRs            = 14,
+  Kind                       = 15,
+  WgpMode                    = 16,
+  UniformWrokGroupSize       = 17,
+  ClusterDims                = 18,
+  LanesharedSegmentFixedSize = 19,
+  MaxSize                    = 20
 };
 
 #endif  // defined(USE_COMGR_LIBRARY)
@@ -208,6 +210,7 @@ class Kernel : public amd::HeapObject {
   struct WorkGroupInfo : public amd::EmbeddedObject {
     size_t size_;                   //!< kernel workgroup size
     size_t compileSize_[3];         //!< kernel compiled workgroup size
+    size_t clusterSize_[3];         //!< cluster dims size
     uint64_t localMemSize_;         //!< amount of used local memory
     size_t preferredSizeMultiple_;  //!< preferred multiple for launch
     uint64_t privateMemSize_;       //!< amount of used private memory
@@ -230,9 +233,11 @@ class Kernel : public amd::HeapObject {
     size_t maxDynamicSharedSizeBytes_;
     std::string compileVecTypeHint_;  //!< kernel compiled vector type hint
 
-    int maxOccupancyPerCu_;      //!< Max occupancy per compute unit in threads
-    bool isWGPMode_;             //!< kernel compiled in WGP/cumode
-    bool uniformWorkGroupSize_;  //!< uniform work group size option
+    int maxOccupancyPerCu_;           //!< Max occupancy per compute unit in threads
+    bool isWGPMode_;                  //!< kernel compiled in WGP/cumode
+    bool uniformWorkGroupSize_;       //!< uniform work group size option
+    bool clusterSizeSet_;             //!< cluster metadata present in code object
+    uint8_t groupMemCarveout_;        //!< LDS carveout
   };
 
   //! Default constructor
@@ -275,14 +280,21 @@ class Kernel : public amd::HeapObject {
 
   size_t getWorkGroupSizeHint(int dim) const { return workGroupInfo_.compileSizeHint_[dim]; }
 
+  void setClusterSize(size_t x, size_t y, size_t z) {
+    workGroupInfo_.clusterSizeSet_ = true;
+    workGroupInfo_.clusterSize_[0] = x;
+    workGroupInfo_.clusterSize_[1] = y;
+    workGroupInfo_.clusterSize_[2] = z;
+  }
+
+  size_t getClusterSize(int dim) const { return workGroupInfo_.clusterSize_[dim]; }
+
+  bool clusterSizeSet() const { return workGroupInfo_.clusterSizeSet_; }
+
   //! Returns GPU device object, associated with this kernel
   const amd::Device& device() const { return dev_; }
 
   void setVecTypeHint(const std::string& hint) { workGroupInfo_.compileVecTypeHint_ = hint; }
-
-  void setLocalMemSize(size_t size) { workGroupInfo_.localMemSize_ = size; }
-
-  void setPreferredSizeMultiple(size_t size) { workGroupInfo_.preferredSizeMultiple_ = size; }
 
   const std::string& RuntimeHandle() const { return runtimeHandle_; }
   void setRuntimeHandle(const std::string& handle) { runtimeHandle_ = handle; }
@@ -333,6 +345,14 @@ class Kernel : public amd::HeapObject {
 
   const uint32_t WorkitemPrivateSegmentByteSize() const { return workitemPrivateSegmentByteSize_; }
   void SetWorkitemPrivateSegmentByteSize(uint32_t size) { workitemPrivateSegmentByteSize_ = size; }
+
+  const uint32_t WorkitemLanesharedSegmentByteSize() const { return workitemLanesharedSegmentByteSize_; }
+  void SetWorkitemLanesharedSegmentByteSize(uint32_t size) { workitemLanesharedSegmentByteSize_ = size;  }
+  const uint32_t NumWaveInWaveGroup() {
+    // num of wave group in a workgroup is fixed to 4 in gfx13.
+    assert(workGroupInfo_.size_ % (workGroupInfo_.wavefrontSize_ * 4) == 0);
+    return workGroupInfo_.size_ / workGroupInfo_.wavefrontSize_ / 4;
+  }
 
   const bool KernalHasDynamicCallStack() const { return kernelHasDynamicCallStack_; }
 
@@ -395,7 +415,8 @@ class Kernel : public amd::HeapObject {
   uint64_t kernelCodeHandle_ = 0;  //!< Kernel code handle (aka amd_kernel_code_t)
   uint32_t workgroupGroupSegmentByteSize_ = 0;
   uint32_t workitemPrivateSegmentByteSize_ = 0;
-  uint32_t kernargSegmentByteSize_ = 0;  //!< Size of kernel argument buffer
+  uint32_t workitemLanesharedSegmentByteSize_ = 0;
+  uint32_t kernargSegmentByteSize_ = 0;   //!< Size of kernel argument buffer
   uint32_t kernargSegmentAlignment_ = 0;
   bool kernelHasDynamicCallStack_ = 0;
 
