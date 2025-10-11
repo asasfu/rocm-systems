@@ -78,33 +78,33 @@ const size_t BlitSdmaBase::kMaxSingleCopySize = SDMA_PKT_COPY_LINEAR::kMaxSize_;
 const size_t BlitSdmaBase::kMaxSingleFillSize = SDMA_PKT_CONSTANT_FILL::kMaxSize_;
 
 // Initialize size of various sDMA commands use by this module
-template <bool useGCR>
-const uint32_t BlitSdma<useGCR>::linear_copy_command_size_ = sizeof(SDMA_PKT_COPY_LINEAR);
+template <bool useGCR, bool scopeFields>
+const uint32_t BlitSdma<useGCR, scopeFields>::linear_copy_command_size_ = sizeof(SDMA_PKT_COPY_LINEAR);
 
-template <bool useGCR>
-const uint32_t BlitSdma<useGCR>::fill_command_size_ = sizeof(SDMA_PKT_CONSTANT_FILL);
+template <bool useGCR, bool scopeFields>
+const uint32_t BlitSdma<useGCR, scopeFields>::fill_command_size_ = sizeof(SDMA_PKT_CONSTANT_FILL);
 
-template <bool useGCR>
-const uint32_t BlitSdma<useGCR>::fence_command_size_ = sizeof(SDMA_PKT_FENCE);
+template <bool useGCR, bool scopeFields>
+const uint32_t BlitSdma<useGCR, scopeFields>::fence_command_size_ = sizeof(SDMA_PKT_FENCE);
 
-template <bool useGCR>
-const uint32_t BlitSdma<useGCR>::poll_command_size_ = sizeof(SDMA_PKT_POLL_REGMEM);
+template <bool useGCR, bool scopeFields>
+const uint32_t BlitSdma<useGCR, scopeFields>::poll_command_size_ = sizeof(SDMA_PKT_POLL_REGMEM);
 
-template <bool useGCR>
-const uint32_t BlitSdma<useGCR>::flush_command_size_ = sizeof(SDMA_PKT_POLL_REGMEM);
+template <bool useGCR, bool scopeFields>
+const uint32_t BlitSdma<useGCR, scopeFields>::flush_command_size_ = sizeof(SDMA_PKT_POLL_REGMEM);
 
-template <bool useGCR>
-const uint32_t BlitSdma<useGCR>::atomic_command_size_ = sizeof(SDMA_PKT_ATOMIC);
+template <bool useGCR, bool scopeFields>
+const uint32_t BlitSdma<useGCR, scopeFields>::atomic_command_size_ = sizeof(SDMA_PKT_ATOMIC);
 
-template <bool useGCR>
-const uint32_t BlitSdma<useGCR>::timestamp_command_size_ = sizeof(SDMA_PKT_TIMESTAMP);
+template <bool useGCR, bool scopeFields>
+const uint32_t BlitSdma<useGCR, scopeFields>::timestamp_command_size_ = sizeof(SDMA_PKT_TIMESTAMP);
 
-template <bool useGCR> const uint32_t BlitSdma<useGCR>::trap_command_size_ = sizeof(SDMA_PKT_TRAP);
+template <bool useGCR, bool scopeFields> const uint32_t BlitSdma<useGCR, scopeFields>::trap_command_size_ = sizeof(SDMA_PKT_TRAP);
 
-template <bool useGCR> const uint32_t BlitSdma<useGCR>::gcr_command_size_ = sizeof(SDMA_PKT_GCR);
+template <bool useGCR, bool scopeFields> const uint32_t BlitSdma<useGCR, scopeFields>::gcr_command_size_ = sizeof(SDMA_PKT_GCR);
 
-template <bool useGCR>
-BlitSdma<useGCR>::BlitSdma()
+template <bool useGCR, bool scopeFields>
+BlitSdma<useGCR, scopeFields>::BlitSdma()
     : agent_(NULL),
       queue_start_addr_(NULL),
       bytes_queued_(0),
@@ -119,10 +119,10 @@ BlitSdma<useGCR>::BlitSdma()
   std::memset(&queue_resource_, 0, sizeof(queue_resource_));
 }
 
-template <bool useGCR> BlitSdma<useGCR>::~BlitSdma() {}
+template <bool useGCR, bool scopeFields> BlitSdma<useGCR, scopeFields>::~BlitSdma() {}
 
-template <bool useGCR>
-hsa_status_t BlitSdma<useGCR>::Initialize(const core::Agent& agent, bool use_xgmi,
+template <bool useGCR, bool scopeFields>
+hsa_status_t BlitSdma<useGCR, scopeFields>::Initialize(const core::Agent& agent, bool use_xgmi,
                                           size_t linear_copy_size_override, int rec_eng) {
   if (queue_start_addr_ != NULL) {
     // Already initialized.
@@ -209,7 +209,7 @@ hsa_status_t BlitSdma<useGCR>::Initialize(const core::Agent& agent, bool use_xgm
   return HSA_STATUS_SUCCESS;
 }
 
-template <bool useGCR> hsa_status_t BlitSdma<useGCR>::Destroy() {
+template <bool useGCR, bool scopeFields> hsa_status_t BlitSdma<useGCR, scopeFields>::Destroy() {
   // Release all allocated resources and reset them to zero.
 
   if (queue_resource_.QueueId != 0) {
@@ -234,8 +234,8 @@ template <bool useGCR> hsa_status_t BlitSdma<useGCR>::Destroy() {
   return HSA_STATUS_SUCCESS;
 }
 
-template <bool useGCR>
-hsa_status_t BlitSdma<useGCR>::SubmitBlockingCommand(const void* cmd, size_t cmd_size,
+template <bool useGCR, bool scopeFields>
+hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitBlockingCommand(const void* cmd, size_t cmd_size,
                                                      uint64_t size) {
   ScopedAcquire<KernelMutex> lock(&lock_);
 
@@ -266,8 +266,8 @@ hsa_status_t BlitSdma<useGCR>::SubmitBlockingCommand(const void* cmd, size_t cmd
   return ret;
 }
 
-template <bool useGCR>
-hsa_status_t BlitSdma<useGCR>::SubmitCommand(const void* cmd, size_t cmd_size, uint64_t size,
+template <bool useGCR, bool scopeFields>
+hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitCommand(const void* cmd, size_t cmd_size, uint64_t size,
                                              const std::vector<core::Signal*>& dep_signals,
                                              core::Signal& out_signal,
                                              std::vector<core::Signal*>& gang_signals) {
@@ -532,8 +532,8 @@ hsa_status_t BlitSdma<useGCR>::SubmitCommand(const void* cmd, size_t cmd_size, u
   return HSA_STATUS_SUCCESS;
 }
 
-template <bool useGCR>
-hsa_status_t BlitSdma<useGCR>::SubmitLinearCopyCommand(void* dst, const void* src, size_t size) {
+template <bool useGCR, bool scopeFields>
+hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyCommand(void* dst, const void* src, size_t size) {
   // Break the copy into multiple copy operation incase the copy size exceeds
   // the SDMA linear copy limit.
   const size_t max_copy_size = max_single_linear_copy_size_ ? max_single_linear_copy_size_ :
@@ -546,8 +546,8 @@ hsa_status_t BlitSdma<useGCR>::SubmitLinearCopyCommand(void* dst, const void* sr
   return SubmitBlockingCommand(&buff[0], buff.size() * sizeof(SDMA_PKT_COPY_LINEAR), size);
 }
 
-template <bool useGCR>
-hsa_status_t BlitSdma<useGCR>::SubmitLinearCopyCommand(void* dst, const void* src, size_t size,
+template <bool useGCR, bool scopeFields>
+hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyCommand(void* dst, const void* src, size_t size,
                                                        std::vector<core::Signal*>& dep_signals,
                                                        core::Signal& out_signal,
                                                        std::vector<core::Signal*>& gang_signals) {
@@ -565,8 +565,8 @@ hsa_status_t BlitSdma<useGCR>::SubmitLinearCopyCommand(void* dst, const void* sr
                        out_signal, gang_signals);
 }
 
-template <bool useGCR>
-hsa_status_t BlitSdma<useGCR>::SubmitCopyRectCommand(
+template <bool useGCR, bool scopeFields>
+hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitCopyRectCommand(
     const hsa_pitched_ptr_t* dst, const hsa_dim3_t* dst_offset, const hsa_pitched_ptr_t* src,
     const hsa_dim3_t* src_offset, const hsa_dim3_t* range, std::vector<core::Signal*>& dep_signals,
     core::Signal& out_signal) {
@@ -640,8 +640,8 @@ hsa_status_t BlitSdma<useGCR>::SubmitCopyRectCommand(
                        out_signal, gang_signals);
 }
 
-template <bool useGCR>
-hsa_status_t BlitSdma<useGCR>::SubmitLinearFillCommand(void* ptr, uint32_t value, size_t count) {
+template <bool useGCR, bool scopeFields>
+hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearFillCommand(void* ptr, uint32_t value, size_t count) {
   const size_t size = count * sizeof(uint32_t);
 
   const uint32_t num_fill_command = (size + kMaxSingleFillSize - 1) / kMaxSingleFillSize;
@@ -652,12 +652,12 @@ hsa_status_t BlitSdma<useGCR>::SubmitLinearFillCommand(void* ptr, uint32_t value
   return SubmitBlockingCommand(&buff[0], buff.size() * sizeof(SDMA_PKT_CONSTANT_FILL), size);
 }
 
-template <bool useGCR> hsa_status_t BlitSdma<useGCR>::EnableProfiling(bool enable) {
+template <bool useGCR, bool scopeFields> hsa_status_t BlitSdma<useGCR, scopeFields>::EnableProfiling(bool enable) {
   return HSA_STATUS_SUCCESS;
 }
 
-template <bool useGCR>
-char* BlitSdma<useGCR>::AcquireWriteAddress(uint32_t cmd_size, uint64_t& curr_index) {
+template <bool useGCR, bool scopeFields>
+char* BlitSdma<useGCR, scopeFields>::AcquireWriteAddress(uint32_t cmd_size, uint64_t& curr_index) {
   // Ring is full when all but one byte is written.
   if (cmd_size >= kQueueSize) {
     return nullptr;
@@ -696,8 +696,8 @@ char* BlitSdma<useGCR>::AcquireWriteAddress(uint32_t cmd_size, uint64_t& curr_in
   return nullptr;
 }
 
-template <bool useGCR>
-void BlitSdma<useGCR>::UpdateWriteAndDoorbellRegister(uint64_t curr_index, uint64_t new_index) {
+template <bool useGCR, bool scopeFields>
+void BlitSdma<useGCR, scopeFields>::UpdateWriteAndDoorbellRegister(uint64_t curr_index, uint64_t new_index) {
   while (true) {
     // Make sure that the address before ::curr_index is already released.
     // Otherwise the CP may read invalid packets.
@@ -732,8 +732,8 @@ void BlitSdma<useGCR>::UpdateWriteAndDoorbellRegister(uint64_t curr_index, uint6
   }
 }
 
-template <bool useGCR>
-void BlitSdma<useGCR>::ReleaseWriteAddress(uint64_t curr_index, uint32_t cmd_size) {
+template <bool useGCR, bool scopeFields>
+void BlitSdma<useGCR, scopeFields>::ReleaseWriteAddress(uint64_t curr_index, uint32_t cmd_size) {
   if (cmd_size > kQueueSize) {
     assert(false && "cmd_addr is outside the queue buffer range");
     return;
@@ -742,7 +742,7 @@ void BlitSdma<useGCR>::ReleaseWriteAddress(uint64_t curr_index, uint32_t cmd_siz
   UpdateWriteAndDoorbellRegister(curr_index, curr_index + cmd_size);
 }
 
-template <bool useGCR> void BlitSdma<useGCR>::PadRingToEnd(uint64_t curr_index) {
+template <bool useGCR, bool scopeFields> void BlitSdma<useGCR, scopeFields>::PadRingToEnd(uint64_t curr_index) {
   // Reserve region from here to the end of the ring.
   uint64_t new_index = curr_index + (kQueueSize - WrapIntoRing(curr_index));
 
@@ -765,11 +765,11 @@ template <bool useGCR> void BlitSdma<useGCR>::PadRingToEnd(uint64_t curr_index) 
   }
 }
 
-template <bool useGCR> uint32_t BlitSdma<useGCR>::WrapIntoRing(uint64_t index) {
+template <bool useGCR, bool scopeFields> uint32_t BlitSdma<useGCR, scopeFields>::WrapIntoRing(uint64_t index) {
   return index & (kQueueSize - 1);
 }
 
-template <bool useGCR> bool BlitSdma<useGCR>::CanWriteUpto(uint64_t upto_index) {
+template <bool useGCR, bool scopeFields> bool BlitSdma<useGCR, scopeFields>::CanWriteUpto(uint64_t upto_index) {
   // Get/calculate the monotonic read index.
   uint64_t hw_read_index = *reinterpret_cast<uint64_t*>(queue_resource_.Queue_read_ptr);
 
@@ -778,30 +778,52 @@ template <bool useGCR> bool BlitSdma<useGCR>::CanWriteUpto(uint64_t upto_index) 
   return (upto_index - hw_read_index) < kQueueSize;
 }
 
-template <bool useGCR>
-void BlitSdma<useGCR>::BuildFenceCommand(char* fence_command_addr, uint32_t* fence,
+template <bool useGCR, bool scopeFields>
+void BlitSdma<useGCR, scopeFields>::BuildFenceCommand(char* fence_command_addr, uint32_t* fence,
                                          uint32_t fence_value) {
   assert(fence_command_addr != NULL);
-  SDMA_PKT_FENCE* packet_addr =
+
+  // GFX12 or later use a different packet format that is incompatible (fields changed in size and location).
+  if (agent_->supported_isas()[0]->GetMajorVersion() >= 12) {
+    SDMA_PKT_FENCE_GFX12* packet_addr =
+      reinterpret_cast<SDMA_PKT_FENCE_GFX12*>(fence_command_addr);
+
+    memset(packet_addr, 0, sizeof(SDMA_PKT_FENCE_GFX12));
+
+    packet_addr->HEADER_UNION.op = SDMA_OP_FENCE;
+    packet_addr->HEADER_UNION.mtype = 3;
+
+    /* We only use fence on signals and they are in system memory */
+    packet_addr->HEADER_UNION.sys = 1;
+
+    if (scopeFields)
+      packet_addr->HEADER_UNION.scope = SDMA_MEMORY_SCOPE_SYS;
+
+    packet_addr->ADDR_LO_UNION.addr_31_0 = ptrlow32(fence);
+    packet_addr->ADDR_HI_UNION.addr_63_32 = ptrhigh32(fence);
+
+    packet_addr->DATA_UNION.data = fence_value;
+  } else {
+    SDMA_PKT_FENCE* packet_addr =
       reinterpret_cast<SDMA_PKT_FENCE*>(fence_command_addr);
 
-  memset(packet_addr, 0, sizeof(SDMA_PKT_FENCE));
+    memset(packet_addr, 0, sizeof(SDMA_PKT_FENCE));
 
-  packet_addr->HEADER_UNION.op = SDMA_OP_FENCE;
+    packet_addr->HEADER_UNION.op = SDMA_OP_FENCE;
 
-  if (agent_->supported_isas()[0]->GetMajorVersion() >= 10) {
-    packet_addr->HEADER_UNION.mtype = 3;
+    if (agent_->supported_isas()[0]->GetMajorVersion() >= 10) {
+      packet_addr->HEADER_UNION.mtype = 3;
+    }
+
+    packet_addr->ADDR_LO_UNION.addr_31_0 = ptrlow32(fence);
+    packet_addr->ADDR_HI_UNION.addr_63_32 = ptrhigh32(fence);
+
+    packet_addr->DATA_UNION.data = fence_value;\
   }
-
-  packet_addr->ADDR_LO_UNION.addr_31_0 = ptrlow32(fence);
-
-  packet_addr->ADDR_HI_UNION.addr_63_32 = ptrhigh32(fence);
-
-  packet_addr->DATA_UNION.data = fence_value;
 }
 
-template <bool useGCR>
-void BlitSdma<useGCR>::BuildCopyCommand(char* cmd_addr, uint32_t num_copy_command, void* dst,
+template <bool useGCR, bool scopeFields>
+void BlitSdma<useGCR, scopeFields>::BuildCopyCommand(char* cmd_addr, uint32_t num_copy_command, void* dst,
                                         const void* src, size_t size) {
   size_t cur_size = 0;
   const size_t max_copy_size = max_single_linear_copy_size_ ? max_single_linear_copy_size_ :
@@ -845,8 +867,8 @@ Elements are coded by the log2 of the element size in bytes (ie. element 0=1 byt
 This routine breaks a large rect into tiles that can be handled by hardware.  Pitches and offsets
 must be representable in terms of elements in all tiles of the copy.
 */
-template <bool useGCR>
-void BlitSdma<useGCR>::BuildCopyRectCommand(const std::function<void*(size_t)>& append,
+template <bool useGCR, bool scopeFields>
+void BlitSdma<useGCR, scopeFields>::BuildCopyRectCommand(const std::function<void*(size_t)>& append,
                                             const hsa_pitched_ptr_t* dst,
                                             const hsa_dim3_t* dst_offset,
                                             const hsa_pitched_ptr_t* src,
@@ -965,7 +987,11 @@ void BlitSdma<useGCR>::BuildCopyRectCommand(const std::function<void*(size_t)>& 
             (range->z == 1) ? 0 : (dst->slice >> element) - 1;
           pkt->RECT_PARAMETER_1_UNION.rect_x = xcount - 1;
           pkt->RECT_PARAMETER_1_UNION.rect_y = Min(range->y - y, max_y) - 1;
-          pkt->RECT_PARAMETER_2_UNION.rect_z = Min(range->z - z, max_z) - 1;
+          pkt->RECT_PARAMETER_2_UNION.gfx12.rect_z = Min(range->z - z, max_z) - 1;
+          if (scopeFields) {
+            pkt->RECT_PARAMETER_2_UNION.gfx1250.dst_scope = SDMA_MEMORY_SCOPE_SYS;
+            pkt->RECT_PARAMETER_2_UNION.gfx1250.src_scope = SDMA_MEMORY_SCOPE_SYS;
+          }
         } else {  // Pre-GFX12, common packet used
           SDMA_PKT_COPY_LINEAR_RECT* pkt =
             (SDMA_PKT_COPY_LINEAR_RECT*)append(sizeof(SDMA_PKT_COPY_LINEAR_RECT));
@@ -988,14 +1014,14 @@ void BlitSdma<useGCR>::BuildCopyRectCommand(const std::function<void*(size_t)>& 
           pkt->RECT_PARAMETER_1_UNION.rect_x = xcount - 1;
           pkt->RECT_PARAMETER_1_UNION.rect_y = Min(range->y - y, max_y) - 1;
           pkt->RECT_PARAMETER_2_UNION.rect_z = Min(range->z - z, max_z) - 1;
-	}
+	      }
       }
     }
   }
 }
 
-template <bool useGCR>
-void BlitSdma<useGCR>::BuildFillCommand(char* cmd_addr, uint32_t num_fill_command, void* ptr,
+template <bool useGCR, bool scopeFields>
+void BlitSdma<useGCR, scopeFields>::BuildFillCommand(char* cmd_addr, uint32_t num_fill_command, void* ptr,
                                         uint32_t value, size_t count) {
   char* cur_ptr = reinterpret_cast<char*>(ptr);
   const uint32_t maxDwordCount = kMaxSingleFillSize / sizeof(uint32_t);
@@ -1025,8 +1051,8 @@ void BlitSdma<useGCR>::BuildFillCommand(char* cmd_addr, uint32_t num_fill_comman
   assert(count == 0 && "SDMA fill command count error.");
 }
 
-template <bool useGCR>
-void BlitSdma<useGCR>::BuildPollCommand(char* cmd_addr, void* addr, uint32_t reference) {
+template <bool useGCR, bool scopeFields>
+void BlitSdma<useGCR, scopeFields>::BuildPollCommand(char* cmd_addr, void* addr, uint32_t reference) {
   SDMA_PKT_POLL_REGMEM* packet_addr =
       reinterpret_cast<SDMA_PKT_POLL_REGMEM*>(cmd_addr);
 
@@ -1046,14 +1072,15 @@ void BlitSdma<useGCR>::BuildPollCommand(char* cmd_addr, void* addr, uint32_t ref
   packet_addr->DW5_UNION.retry_count = 0xfff;  // Retry forever.
 }
 
-template <bool useGCR>
-void BlitSdma<useGCR>::BuildAtomicDecrementCommand(char* cmd_addr, void* addr) {
+template <bool useGCR, bool scopeFields>
+void BlitSdma<useGCR, scopeFields>::BuildAtomicDecrementCommand(char* cmd_addr, void* addr) {
   SDMA_PKT_ATOMIC* packet_addr = reinterpret_cast<SDMA_PKT_ATOMIC*>(cmd_addr);
 
   memset(packet_addr, 0, sizeof(SDMA_PKT_ATOMIC));
 
   packet_addr->HEADER_UNION.op = SDMA_OP_ATOMIC;
   packet_addr->HEADER_UNION.operation = SDMA_ATOMIC_ADD64;
+  if (scopeFields) packet_addr->HEADER_UNION.scope = SDMA_MEMORY_SCOPE_SYS;
 
   packet_addr->ADDR_LO_UNION.addr_31_0 = ptrlow32(addr);
   packet_addr->ADDR_HI_UNION.addr_63_32 = ptrhigh32(addr);
@@ -1062,8 +1089,8 @@ void BlitSdma<useGCR>::BuildAtomicDecrementCommand(char* cmd_addr, void* addr) {
   packet_addr->SRC_DATA_HI_UNION.src_data_63_32 = 0xffffffff;
 }
 
-template <bool useGCR>
-void BlitSdma<useGCR>::BuildGetGlobalTimestampCommand(char* cmd_addr, void* write_address) {
+template <bool useGCR, bool scopeFields>
+void BlitSdma<useGCR, scopeFields>::BuildGetGlobalTimestampCommand(char* cmd_addr, void* write_address) {
   SDMA_PKT_TIMESTAMP* packet_addr =
       reinterpret_cast<SDMA_PKT_TIMESTAMP*>(cmd_addr);
 
@@ -1076,7 +1103,7 @@ void BlitSdma<useGCR>::BuildGetGlobalTimestampCommand(char* cmd_addr, void* writ
   packet_addr->ADDR_HI_UNION.addr_63_32 = ptrhigh32(write_address);
 }
 
-template <bool useGCR> void BlitSdma<useGCR>::BuildTrapCommand(char* cmd_addr, uint32_t event_id) {
+template <bool useGCR, bool scopeFields> void BlitSdma<useGCR, scopeFields>::BuildTrapCommand(char* cmd_addr, uint32_t event_id) {
   SDMA_PKT_TRAP* packet_addr =
       reinterpret_cast<SDMA_PKT_TRAP*>(cmd_addr);
 
@@ -1086,13 +1113,13 @@ template <bool useGCR> void BlitSdma<useGCR>::BuildTrapCommand(char* cmd_addr, u
   packet_addr->INT_CONTEXT_UNION.int_ctx = event_id;
 }
 
-template <bool useGCR> void BlitSdma<useGCR>::BuildHdpFlushCommand(char* cmd_addr) {
+template <bool useGCR, bool scopeFields> void BlitSdma<useGCR, scopeFields>::BuildHdpFlushCommand(char* cmd_addr) {
   assert(cmd_addr != NULL);
   SDMA_PKT_POLL_REGMEM* addr = reinterpret_cast<SDMA_PKT_POLL_REGMEM*>(cmd_addr);
   memcpy(addr, &hdp_flush_cmd, flush_command_size_);
 }
 
-template <bool useGCR> void BlitSdma<useGCR>::BuildGCRCommand(char* cmd_addr, bool invalidate) {
+template <bool useGCR, bool scopeFields> void BlitSdma<useGCR, scopeFields>::BuildGCRCommand(char* cmd_addr, bool invalidate) {
   assert(cmd_addr != NULL);
   assert(useGCR && "Unsupported SDMA command - GCR.");
   SDMA_PKT_GCR* addr = reinterpret_cast<SDMA_PKT_GCR*>(cmd_addr);
@@ -1111,7 +1138,7 @@ template <bool useGCR> void BlitSdma<useGCR>::BuildGCRCommand(char* cmd_addr, bo
   addr->WORD2_UNION.GCR_CONTROL_GL2_RANGE = 0;
 }
 
-template <bool useGCR> uint64_t BlitSdma<useGCR>::PendingBytes() {
+template <bool useGCR, bool scopeFields> uint64_t BlitSdma<useGCR, scopeFields>::PendingBytes() {
   uint64_t commit = atomic::Load(&cached_commit_index_, std::memory_order_acquire);
   uint64_t hw_read_index = *reinterpret_cast<uint64_t*>(queue_resource_.Queue_read_ptr);
 
@@ -1119,8 +1146,9 @@ template <bool useGCR> uint64_t BlitSdma<useGCR>::PendingBytes() {
   return bytes_queued_ - bytes_written_[WrapIntoRing(hw_read_index)];
 }
 
-template class BlitSdma<false>;
-template class BlitSdma<true>;
+template class BlitSdma<false, false>;  // BlitSdmaV4
+template class BlitSdma<true, false>;   // BlitSdmaV5
+template class BlitSdma<true, true>;    // BlitSdmaV6
 
 }  // namespace amd
 }  // namespace rocr

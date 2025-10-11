@@ -752,6 +752,8 @@ core::Blit* GpuAgent::CreateBlitSdma(bool use_xgmi, int rec_eng) {
     case 12:
       if (core::Runtime::runtime_singleton_->thunkLoader()->IsDXG()) {
         sdma = new BlitSdmaV4();
+      } else if (isa_->GetMinorVersion() >= 5) {
+        sdma = new BlitSdmaV6();
       } else {
         sdma = new BlitSdmaV5();
       }
