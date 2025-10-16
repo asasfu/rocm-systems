@@ -118,8 +118,10 @@ bool g_use_interrupt_wait;
 bool g_use_mwaitx;
 Runtime* Runtime::runtime_singleton_ = NULL;
 
+KernelMutex Runtime::bootstrap_lock_;
+
 hsa_status_t Runtime::Acquire() {
-  ScopedAcquire<KernelMutex> boot(&bootstrap_lock());
+  ScopedAcquire<KernelMutex> boot(&bootstrap_lock_);
 
   if (runtime_singleton_ == NULL) {
     memset(log_flags, 0, sizeof(log_flags));
@@ -146,7 +148,7 @@ hsa_status_t Runtime::Acquire() {
 }
 
 hsa_status_t Runtime::Release() {
-  ScopedAcquire<KernelMutex> boot(&bootstrap_lock());
+  ScopedAcquire<KernelMutex> boot(&bootstrap_lock_);
 
   if (runtime_singleton_ == nullptr) return HSA_STATUS_ERROR_NOT_INITIALIZED;
 
@@ -622,6 +624,10 @@ hsa_status_t Runtime::GetPreferredEngine(core::Agent* dst_agent, core::Agent* sr
                                          uint32_t* recommended_ids_mask) {
   const bool src_gpu = (src_agent->device_type() == core::Agent::DeviceType::kAmdGpuDevice);
   core::Agent* copy_agent = (src_gpu) ? src_agent : dst_agent;
+
+  if (dst_agent == src_agent) {
+    return HSA_STATUS_ERROR_INVALID_AGENT;
+  }
 
   return copy_agent->DmaPreferredEngine(*dst_agent, *src_agent, recommended_ids_mask);
 }
@@ -3868,6 +3874,26 @@ hsa_status_t Runtime::VMemoryImportShareableHandle(int dmabuf_fd,
   *memoryOnlyHandle = MemoryHandle::Convert(thunk_handle);
 
   return HSA_STATUS_SUCCESS;
+}
+
+hsa_status_t Runtime::VMemoryExportFabricHandle(hsa_fabric_handle_t *fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t handle,
+                                               const uint64_t flags) {
+
+  auto memoryHandle = memory_handle_map_.find((void*)handle.handle);
+  if (memoryHandle == memory_handle_map_.end()) {
+    debug_warning(false && "Can't find memory handle");
+    return HSA_STATUS_ERROR_INVALID_ALLOCATION;
+  }
+
+  // NOT IMPLEMENTED: Call Thunk/KFD to get unique handle
+  return HSA_STATUS_ERROR;
+}
+
+hsa_status_t Runtime::VMemoryImportFabricHandle(hsa_fabric_handle_t fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t* handle) {
+  // NOT IMPLEMENTED: Call Thunk/KFD to import
+  return HSA_STATUS_ERROR;
 }
 
 hsa_status_t Runtime::VMemoryRetainAllocHandle(hsa_amd_vmem_alloc_handle_t* mapped_handle,

@@ -447,8 +447,13 @@ class GpuAgent : public GpuAgentInt {
     }
   }
 
-  const size_t MAX_SCRATCH_APERTURE_PER_XCC = (1ULL << 32);
-  size_t MaxScratchDevice() const { return properties_.NumXcc * MAX_SCRATCH_APERTURE_PER_XCC; }
+  const size_t MAX_SCRATCH_APERTURE_PER_XCC = (1ULL << 32); // 4GB
+  const size_t MAX_SCRATCH_APERTURE_PER_XCC_GFX12 = (2ULL << 32); // 8GB
+  __forceinline size_t MaxScratchDevice() const {
+    return properties_.NumXcc *
+          (isa_->GetMajorVersion() >= 12 ? MAX_SCRATCH_APERTURE_PER_XCC_GFX12 :
+                                            MAX_SCRATCH_APERTURE_PER_XCC);
+  }
 
   void ReserveScratch();
 
@@ -722,6 +727,8 @@ class GpuAgent : public GpuAgentInt {
 
   void GetInfoMemoryProperties(uint8_t value[8]) const;
 
+  void GetAqlInfoProperties(uint8_t value[8]) const;
+
   // @brief Alternative aperture base address. Only on KV.
   uintptr_t ape1_base_;
 
@@ -818,8 +825,6 @@ class GpuAgent : public GpuAgentInt {
   // @brief device handle
   amdgpu_device_handle ldrm_dev_;
 
-  DISALLOW_COPY_AND_ASSIGN(GpuAgent);
-
   // Check if SDMA engine by ID is free
   bool DmaEngineIsFree(uint32_t engine_id);
 
@@ -840,6 +845,16 @@ class GpuAgent : public GpuAgentInt {
   bool xgmi_cpu_gpu_;
   /// @brief Is PCIe large BAR enabled.
   bool large_bar_enabled_;
+
+  bool extended_aql_dispatch_supported_;
+
+  /* Workgroup Cluster Parameters */
+  bool workgroup_clusters_supported_;
+  hsa_amd_dim3_t kern_cluster_max_dim_;
+  hsa_amd_dim3_t cluster_max_dim_;
+
+  size_t max_wave_scratch_;
+
 };
 
 }  // namespace amd
