@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+# Copyright (c) 2025 Advanced Micro Devices, Inc. All Rights Reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,40 +19,30 @@
 # THE SOFTWARE.
 
 # Common Tests - Test independent of all platforms
+
+# Clusters only work on GPUs supporting Clusters
+
 set(TEST_SRC
-    hipMemFaultStackAllocation.cc
-    hipLaunchBounds.cc
-    hipDynamicShared.cc
-    hipDynamicShared2.cc
-    hipEmptyKernel.cc
-    hipGridLaunch.cc
-    hipLanguageExtensions.cc
-    hipLaunchParm.cc
-    hipLaunchParmFunctor.cc
-    hipTestConstant.cc
-    hipTestGlobalVariable.cc
-    hipTestMemKernel.cc
-    launch_bounds.cc
-    hipAutoThreadIdx.cc
-    hipLaunchKernelEx.cc
-    hipTestUserSgprIncrease.cc
-    hipKernelStackSize.cc
+    hipClusterCompilerDirective.cc
+    hipClusterLaunch.cc
+    cluster_class.cc
 )
-if(UNIX)
-  set(TEST_SRC ${TEST_SRC}
-      hipPrintfKernel.cc)
-endif()
 
-# only for AMD
-if(HIP_PLATFORM MATCHES "amd")
-  set(AMD_SRC
-      hipExtLaunchKernelGGL.cc
-      hipSetupArgument.cc
-      hipConfigureCall.cc
-  )
-  set(TEST_SRC ${TEST_SRC} ${AMD_SRC})
-endif()
+# Append it to the list
+set(CLUSTER_SUPPORTING_GPUS "gfx1250")
+set(CLUSTER_SUPPORTED OFF)
 
-hip_add_exe_to_target(NAME KernelTest
-                      TEST_SRC ${TEST_SRC}
-                      TEST_TARGET_NAME build_tests)
+foreach(CLUSTER_SUPPORTING_GPU IN LISTS CLUSTER_SUPPORTING_GPUS)
+    string(FIND "${OFFLOAD_ARCH_STR}" "${CLUSTER_SUPPORTING_GPU}" _index)
+    if(_index GREATER -1)
+        set(CLUSTER_SUPPORTED ON)
+        break()
+    endif()
+endforeach()
+
+if(CLUSTER_SUPPORTED)
+    message(STATUS "Clusters supported: ${OFFLOAD_ARCH_STR}")
+    hip_add_exe_to_target(NAME ClusterTest
+                          TEST_SRC ${TEST_SRC}
+                          TEST_TARGET_NAME build_tests)
+endif()

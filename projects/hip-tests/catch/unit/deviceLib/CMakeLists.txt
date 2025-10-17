@@ -79,7 +79,6 @@ set(AMD_TEST_SRC
     hipTestHalf.cc
     hipComplex.cc
     hipTestFMA.cc
-    hipTestNativeHalf.cc
     hip_test_make_type.cc
     bfloat16.cc
     AtomicsWithRandomActiveLanesInWavefront.cc
@@ -152,10 +151,12 @@ set_property(GLOBAL APPEND PROPERTY G_INSTALL_CUSTOM_TARGETS ${CMAKE_CURRENT_BIN
 set(ACCEPTED_OFFLOAD_ARCHS gfx90a gfx942)
 set(ACCEPTED_GFX940_ARCH gfx942)
 set(ACCEPTED_GFX1200_ARCH gfx1200 gfx1201)
+set(ACCEPTED_GFX1300_ARCH gfx1300)
 function(CheckAcceptedArchs OFFLOAD_ARCH_STR_LOCAL)
   set(ARCH_CHECK -1 PARENT_SCOPE)
   set(ARCH_GFX940 -1 PARENT_SCOPE)
   set(ARCH_GFX1200 -1 PARENT_SCOPE)
+  set(ARCH_GFX1300 -1 PARENT_SCOPE)
   string(REGEX MATCHALL "--offload-arch=gfx[0-9a-z]+" OFFLOAD_ARCH_LIST ${OFFLOAD_ARCH_STR_LOCAL})
   foreach(OFFLOAD_ARCH IN LISTS OFFLOAD_ARCH_LIST)
     string(REGEX MATCHALL "--offload-arch=(gfx[0-9a-z]+)" matches ${OFFLOAD_ARCH})
@@ -168,6 +169,9 @@ function(CheckAcceptedArchs OFFLOAD_ARCH_STR_LOCAL)
       endif()
       if (CMAKE_MATCH_1 IN_LIST ACCEPTED_GFX1200_ARCH)
         set(ARCH_GFX1200 1 PARENT_SCOPE)
+      endif()
+      if (CMAKE_MATCH_1 IN_LIST ACCEPTED_GFX1300_ARCH)
+        set(ARCH_GFX1300 1 PARENT_SCOPE)
       endif()
     endif()        # CMAKE_MATCH_COUNT
   endforeach()   # OFFLOAD_ARCH_LIST
@@ -182,6 +186,7 @@ if(HIP_PLATFORM MATCHES "amd")
       set(ARCH_CHECK -1)
       set(ARCH_GFX940 -1)
       set(ARCH_GFX1200 -1)
+      set(ARCH_GFX1300 -1)
     endif()
     set(TEST_SRC ${TEST_SRC} ${AMD_TEST_SRC})
     set_source_files_properties(floatTM.cc PROPERTIES COMPILE_FLAGS -std=c++17)
@@ -207,6 +212,10 @@ if(${ARCH_GFX940} GREATER_EQUAL 0)
 endif()
 if(${ARCH_GFX1200} GREATER_EQUAL 0)
   set(TEST_SRC ${TEST_SRC} ${AMD_GFX1200_SPEC_TEST_SRC})
+endif()
+#This test triggers a crash in llvm for gfx1300 (see SWDEV-498760)
+if(${ARCH_GFX1300} EQUAL -1)
+  set(TEST_SRC ${TEST_SRC} hipTestNativeHalf.cc)
 endif()
     hip_add_exe_to_target(NAME UnitDeviceTests
                       TEST_SRC ${TEST_SRC}
