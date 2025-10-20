@@ -90,11 +90,12 @@ struct formatter<hsa_amd_ext_perf_hint_t>
     template <typename Ctx>
     auto format(hsa_amd_ext_perf_hint_t const& hint, Ctx& ctx) const
     {
-        return fmt::format_to(ctx.out(), "[EXT_PERF_HINT, group_mem_carveout={}, reverse_dispatch_order={}, "
-                                         "hint_val={}]",
-                                         hint.group_mem_carveout,
-                                         hint.reverse_dispatch_order,
-                                         hint.hint_val);
+        return fmt::format_to(ctx.out(),
+                              "[EXT_PERF_HINT, group_mem_carveout={}, reverse_dispatch_order={}, "
+                              "hint_val={}]",
+                              hint.group_mem_carveout,
+                              hint.reverse_dispatch_order,
+                              hint.hint_val);
     }
 };
 
@@ -213,8 +214,7 @@ struct formatter<rocprofiler::hsa::rocprofiler_packet>
         {
             case 0:
                 // Vendor specific packet - check AMD format
-                if(pkt.ext_kernel_dispatch.amd_format ==
-                   HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH)
+                if(pkt.ext_kernel_dispatch.amd_format == HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH)
                     return fmt::format_to(ctx.out(), "{}", pkt.ext_kernel_dispatch);
                 else
                     return fmt::format_to(ctx.out(), "{}", pkt.ext_amd_aql_pm4);
@@ -232,4 +232,32 @@ struct formatter<rocprofiler::hsa::rocprofiler_packet>
         }
     }
 };
+#if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x08
+template <>
+struct formatter<hsa_fabric_handle_t>
+{
+    // No custom format specifiers for now
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(hsa_fabric_handle_t const& h, FormatContext& ctx) const
+    {
+        auto out = ctx.out();
+        fmt::format_to(out, "{{handle=");
+
+        // Print as 16 hex bytes separated by ':'
+        for(int i = 0; i < 16; ++i)
+        {
+            if(i != 0) fmt::format_to(out, ":");
+            fmt::format_to(out, "{:02x}", static_cast<unsigned>(h.handle[i]));
+        }
+
+        return fmt::format_to(out, "}}");
+    }
+};
+#endif
 }  // namespace fmt

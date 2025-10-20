@@ -1445,6 +1445,19 @@ typedef union rocprofiler_hsa_api_args_t
     } hsa_amd_portable_export_dmabuf_v2;
 #    endif
 #endif
+#if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x08
+    struct
+    {
+        hsa_fabric_handle_t*        fabric_handle;
+        hsa_amd_vmem_alloc_handle_t handle;
+        uint64_t                    flags;
+    } hsa_amd_vmem_export_fabric_handle;
+    struct
+    {
+        hsa_fabric_handle_t          fabric_handle;
+        hsa_amd_vmem_alloc_handle_t* handle;
+    } hsa_amd_vmem_import_fabric_handle;
+#endif
 } rocprofiler_hsa_api_args_t;
 
 ROCPROFILER_EXTERN_C_FINI
