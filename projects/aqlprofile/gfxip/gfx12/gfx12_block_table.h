@@ -95,10 +95,10 @@ static const CounterRegInfo Gcutcl2CounterRegAddr[] = {REG_INFO_WITH_CFG_4(GC, G
 // static const CounterRegInfo Gcvml2CounterRegAddr[] = {REG_INFO_2(GCVML2)};
 #if GFX12_VARIANT == GFX12_VARIANT_1250
 static const CounterRegInfo GcCaneCounterRegAddr[] = {REG_INFO_1(GC_CANE)};
-static const CounterRegInfo GcAtcl2CounterRegAddr[] = {REG_INFO_WITH_CFG_16(GC_ATC_L2)};
-static const CounterRegInfo Gcutcl2FfbmCounterRegAddr[] = {REG_INFO_WITH_CFG_16(GCUTCL2_FFBM)};
-static const CounterRegInfo GcL2tlbCounterRegAddr[] = {REG_INFO_WITH_CFG_4(GC_L2TLB)};
-static const CounterRegInfo Gcutcl2NhttlbCounterRegAddr[] = {REG_INFO_WITH_CFG_16(GCUTCL2_NHTTLB)};
+static const CounterRegInfo GcAtcl2CounterRegAddr[] = {REG_INFO_WITH_CFG_16(GC, GC_ATC_L2)};
+static const CounterRegInfo Gcutcl2FfbmCounterRegAddr[] = {REG_INFO_WITH_CFG_16(GC, GCUTCL2_FFBM)};
+static const CounterRegInfo GcL2tlbCounterRegAddr[] = {REG_INFO_WITH_CFG_4(GC, GC_L2TLB)};
+static const CounterRegInfo Gcutcl2NhttlbCounterRegAddr[] = {REG_INFO_WITH_CFG_16(GC, GCUTCL2_NHTTLB)};
 #endif
 static const CounterRegInfo GcEaCpwdCounterRegAddr[] = {REG_INFO_2(GC_EA_CPWD)};
 #if GFX12_VARIANT == GFX12_VARIANT_1250

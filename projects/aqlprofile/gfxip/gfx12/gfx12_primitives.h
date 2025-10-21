@@ -37,7 +37,7 @@ namespace gfx12 {
 #if GFX12_VARIANT == GFX12_VARIANT_1250
 namespace gfx1250 {
 #else
-namespace gfx1201 {
+namespace gfx1200 {
 #endif
 
 class gfx12_cntx_prim {

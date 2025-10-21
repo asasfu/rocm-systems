@@ -182,7 +182,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     }
   }
 
-  void SetGrbmGfxIndex(CmdBuffer* cmd_buffer, uint32_t value, bool set_grbma = false) {
+  void SetGrbmGfxIndex(CmdBuffer* cmd_buffer, uint32_t value, uint32_t attr = 0) {
     if (attr & CounterBlockGrbmaAttr)
       builder.BuildWritePConfigRegPacket(cmd_buffer, Primitives::GRBMA_GFX_INDEX_ADDR, value);
     else
@@ -195,7 +195,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
       SetGrbmGfxIndex(cmd_buffer, Primitives::grbm_broadcast_value(), true);
   }
 
-  void SetCpPerfmonCntl(CmdBuffer* cmd_buffer, uint32_t value, uint32_t attr) {
+  void SetPerfmonCntl(CmdBuffer* cmd_buffer, uint32_t value, uint32_t attr) {
     if (attr & CounterBlockCpmonAttr)
       builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::CP_PERFMON_CNTL_ADDR, value);
     if (attr & CounterBlockGrbmaAttr)
