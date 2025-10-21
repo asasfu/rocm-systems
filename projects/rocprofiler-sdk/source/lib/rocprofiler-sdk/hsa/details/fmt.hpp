@@ -234,6 +234,21 @@ struct formatter<rocprofiler::hsa::rocprofiler_packet>
 };
 #if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x08
 template <>
+struct formatter<hsa_amd_ais_file_handle_t>
+{
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(hsa_amd_ais_file_handle_t const& h, FormatContext& ctx) const
+    {
+        return fmt::format_to(ctx.out(), "{{fd={}, handle={}}}", h.fd, h.handle);
+    }
+};
+template <>
 struct formatter<hsa_fabric_handle_t>
 {
     // No custom format specifiers for now

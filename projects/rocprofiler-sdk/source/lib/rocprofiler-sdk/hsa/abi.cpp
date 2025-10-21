@@ -58,7 +58,7 @@ ROCP_SDK_ENFORCE_ABI_VERSIONING(::AmdExtTable, 74);
 #elif HSA_AMD_EXT_API_TABLE_STEP_VERSION == 0x07
 ROCP_SDK_ENFORCE_ABI_VERSIONING(::AmdExtTable, 75);
 #elif HSA_AMD_EXT_API_TABLE_STEP_VERSION == 0x08
-ROCP_SDK_ENFORCE_ABI_VERSIONING(::AmdExtTable, 77);
+ROCP_SDK_ENFORCE_ABI_VERSIONING(::AmdExtTable, 79);
 #else
 INTERNAL_CI_ROCP_SDK_ENFORCE_ABI_VERSIONING(::AmdExtTable, 0);
 #endif
@@ -296,8 +296,10 @@ ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_memory_get_preferred_copy_engine_fn,
 ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_portable_export_dmabuf_v2_fn, 74);
 #endif
 #if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x08
-ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_vmem_export_fabric_handle_fn, 75);
-ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_vmem_import_fabric_handle_fn, 76);
+ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_ais_file_write_fn, 75);
+ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_ais_file_read_fn, 76);
+ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_vmem_export_fabric_handle_fn, 77);
+ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_vmem_import_fabric_handle_fn, 78);
 #endif
 
 ROCP_SDK_ENFORCE_ABI(::ImageExtTable, hsa_ext_image_get_capability_fn, 1);
