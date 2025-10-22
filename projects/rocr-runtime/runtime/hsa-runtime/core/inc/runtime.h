@@ -417,6 +417,11 @@ class Runtime {
   hsa_status_t VMemoryGetAllocPropertiesFromHandle(const hsa_amd_vmem_alloc_handle_t memoryHandle,
                                                    const core::MemoryRegion** mem_region,
                                                    hsa_amd_memory_type_t* type);
+  hsa_status_t VMemoryExportFabricHandle(hsa_fabric_handle_t *fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t handle,
+                                               const uint64_t flags);
+  hsa_status_t VMemoryImportFabricHandle(hsa_fabric_handle_t fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t* handle);
 
   hsa_status_t EnableLogging(uint8_t* flags, void* file);
 
@@ -617,14 +622,7 @@ class Runtime {
     prefetch_map_t::iterator next;
   };
 
-  // Will be created before any user could call hsa_init but also could be
-  // destroyed before incorrectly written programs call hsa_shutdown.
-  static __forceinline KernelMutex& bootstrap_lock() {
-    // This allocation is meant to last until the last thread has exited.
-    // It is intentionally not freed.
-    static KernelMutex* bootstrap_lock_ = new KernelMutex;
-    return *bootstrap_lock_;
-  }
+  static KernelMutex bootstrap_lock_;
   Runtime();
 
   Runtime(const Runtime&);

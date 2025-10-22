@@ -1037,7 +1037,7 @@ bool Device::populateOCLDeviceConstants() {
       Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_CACHE_SIZE, cachesize)) {
     return false;
   }
-  assert(cachesize[0] > 0);
+
   info_.globalMemCacheSize_ = cachesize[0];
 
   info_.globalMemCacheType_ = CL_READ_WRITE_CACHE;

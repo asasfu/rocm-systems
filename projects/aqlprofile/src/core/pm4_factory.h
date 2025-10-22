@@ -69,6 +69,7 @@ enum gpu_id_t {
   GFX10_GPU_ID,  // generic Gfx10 id
   GFX11_GPU_ID,  // generic Gfx11 id
   GFX12_GPU_ID,  // generic Gfx12 id
+  MI450_GPU_ID,  // Mi450 GPU id
 };
 
 // Block info map class
@@ -284,6 +285,8 @@ class Pm4Factory {
   static Pm4Factory* Mi300Create(const AgentInfo* agent_info);
   // Create MI350 factory
   static Pm4Factory* Mi350Create(const AgentInfo* agent_info);
+  // Create MI450 factory
+  static Pm4Factory* Mi450Create(const AgentInfo* agent_info);
   // Return GPU id for a given agent
   static gpu_id_t GetGpuId(std::string_view);
 
@@ -338,6 +341,9 @@ inline Pm4Factory* Pm4Factory::Create(const AgentInfo* agent_info, gpu_id_t gpu_
         break;
       case MI350_GPU_ID:
         it->second = Mi350Create(agent_info);
+        break;
+      case MI450_GPU_ID:
+        it->second = Mi450Create(agent_info);
         break;
       default:
         throw aql_profile_exc_val<gpu_id_t>("GPU id error", gpu_id);
@@ -409,7 +415,7 @@ inline gpu_id_t Pm4Factory::GetGpuId(std::string_view gfx_ip) {
       {"gfx908", MI100_GPU_ID}, {"gfx90a", MI200_GPU_ID}, {"gfx900", GFX9_GPU_ID},
       {"gfx902", GFX9_GPU_ID},  {"gfx906", GFX9_GPU_ID},  {"gfx94", MI300_GPU_ID},
       {"gfx95", MI350_GPU_ID},  {"gfx10", GFX10_GPU_ID},  {"gfx11", GFX11_GPU_ID},
-      {"gfx12", GFX12_GPU_ID},
+      {"gfx125", MI450_GPU_ID}, {"gfx12", GFX12_GPU_ID},
   };
 
   for (const auto& [name, id] : gfxip_map) {

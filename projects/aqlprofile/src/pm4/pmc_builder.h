@@ -182,19 +182,24 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     }
   }
 
-  // 'attr' is reserved for future expansion
   void SetGrbmGfxIndex(CmdBuffer* cmd_buffer, uint32_t value, uint32_t attr = 0) {
-    builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::GRBM_GFX_INDEX_ADDR, value);
+    if (attr & CounterBlockGrbmaAttr)
+      builder.BuildWritePConfigRegPacket(cmd_buffer, Primitives::GRBMA_GFX_INDEX_ADDR, value);
+    else
+      builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::GRBM_GFX_INDEX_ADDR, value);
   }
 
-  // 'attr' is reserved for future expansion
   void SetGrbmBroadcast(CmdBuffer* cmd_buffer, uint32_t attr = 0) {
     SetGrbmGfxIndex(cmd_buffer, Primitives::grbm_broadcast_value());
+    if (attr & CounterBlockGrbmaAttr)
+      SetGrbmGfxIndex(cmd_buffer, Primitives::grbm_broadcast_value(), true);
   }
 
   void SetPerfmonCntl(CmdBuffer* cmd_buffer, uint32_t value, uint32_t attr) {
     if (attr & CounterBlockCpmonAttr)
       builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::CP_PERFMON_CNTL_ADDR, value);
+    if (attr & CounterBlockGrbmaAttr)
+      builder.BuildWritePConfigRegPacket(cmd_buffer, Primitives::AID_PERFMON_CNTL_ADDR, value);
   }
 
  public:

@@ -40,6 +40,7 @@ extern pthread_mutex_t hsakmt_mutex;
 extern bool hsakmt_is_dgpu;
 extern bool hsakmt_is_svm_api_supported;
 extern int hsakmt_zfb_support;
+extern int hsakmt_pm4_target_xcc;
 
 extern HsaVersionInfo hsakmt_kfd_version_info;
 
@@ -171,6 +172,8 @@ enum full_gfx_versions {
 	GFX_VERSION_WHEAT_NAS		= 0x0B0001,
 	GFX_VERSION_GFX1200		= 0x0C0000,
 	GFX_VERSION_GFX1201		= 0x0C0001,
+	GFX_VERSION_GFX1250		= 0x0C0500,
+	GFX_VERSION_GFX1251		= 0x0C0501,
 };
 
 struct hsa_gfxip_table {
@@ -249,5 +252,5 @@ bool hsakmt_is_forked_child(void);
 
 /* Calculate VGPR and SGPR register file size per CU */
 uint32_t hsakmt_get_vgpr_size_per_cu(uint32_t gfxv);
-#define SGPR_SIZE_PER_CU 0x4000
+uint32_t hsakmt_get_sgpr_size_per_cu(uint32_t gfxv);
 #endif

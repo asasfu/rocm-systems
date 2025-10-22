@@ -60,6 +60,7 @@
 #include "./amd_hsa_code_util.hpp"
 #include "core/inc/amd_core_dump.hpp"
 #include "hsakmt/hsakmt.h"
+#include "core/inc/runtime.h"
 
 constexpr char SNAPSHOT_INFO_ALIGNMENT = 0x8;
 constexpr uint32_t LOAD_ALIGNMENT_SHIFT = 4;
@@ -441,6 +442,11 @@ hsa_status_t build_core_dump(const std::string& filename, const SegmentsInfo& se
 }   //  namespace impl
 
 hsa_status_t dump_gpu_core() {
+  if (core::Runtime::runtime_singleton_->flag().disable_coredump()) {
+    printf("GPU core dump disabled\n");
+    return HSA_STATUS_SUCCESS;
+  }
+
   impl::NoteSegmentBuilder nbuilder;
   impl::LoadSegmentBuilder lbuilder;
   impl::SegmentsInfo segments;

@@ -546,8 +546,16 @@ bool LightningKernel::postLoad() {
   }
 
   // Setup the the workgroup info
-  setWorkGroupInfo(WorkitemPrivateSegmentByteSize(), WorkgroupGroupSegmentByteSize(),
-                   workGroupInfo()->usedSGPRs_, workGroupInfo()->usedVGPRs_);
+  uint32_t privateSegmentSize = 0;
+  if (AMD_HSA_BITS_GET(akd_.kernel_code_properties,
+                       llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_WAVEGROUP)) {
+    privateSegmentSize = WorkitemPrivateSegmentByteSize() * NumWaveInWaveGroup() +
+        WorkitemLanesharedSegmentByteSize();
+  } else {
+    privateSegmentSize = WorkitemPrivateSegmentByteSize();
+  }
+  setWorkGroupInfo(privateSegmentSize, WorkgroupGroupSegmentByteSize(), workGroupInfo()->usedSGPRs_,
+                   workGroupInfo()->usedVGPRs_);
 
   // Copy wavefront size
   workGroupInfo_.wavefrontSize_ = device().info().wavefrontWidth_;

@@ -104,6 +104,20 @@ static constexpr PalDevice supportedPalDevices[] = {
     {11, 5, 1, Pal::GfxIpLevel::GfxIp11_5, "gfx1151", Pal::AsicRevision::StrixHalo},
     {12, 0, 0, Pal::GfxIpLevel::GfxIp12, "gfx1200", Pal::AsicRevision::Navi44},
     {12, 0, 1, Pal::GfxIpLevel::GfxIp12, "gfx1201", Pal::AsicRevision::Navi48},
+#if PAL_BUILD_AT2 || PAL_BUILD_GFX13
+    {13, 0,  0,  Pal::GfxIpLevel::GfxIp13,   "gfx1300",       Pal::AsicRevision::AlphaTrion1},
+  #endif
+#if PAL_BUILD_AT1 || PAL_BUILD_GFX13
+    {13, 0,  1,  Pal::GfxIpLevel::GfxIp13,   "gfx1301",       Pal::AsicRevision::AlphaTrion1},
+#endif
+#if PAL_BUILD_AT3 || PAL_BUILD_GFX13
+    {13, 0,  2,  Pal::GfxIpLevel::GfxIp13,   "gfx1302",       Pal::AsicRevision::AlphaTrion1},
+#endif
+#if PAL_BUILD_GFX13
+  {13, 0,  15,  Pal::GfxIpLevel::GfxIp13,   "gfx130F",       Pal::AsicRevision::AlphaTrion1},
+  {13, 0,  14,  Pal::GfxIpLevel::GfxIp13,   "gfx130E",       Pal::AsicRevision::AlphaTrion1},
+  {13, 0,  13,  Pal::GfxIpLevel::GfxIp13,   "gfx130D",       Pal::AsicRevision::AlphaTrion1},
+#endif
 };
 
 static std::tuple<const amd::Isa*, const char*> findIsa(uint32_t gfxipMajor, uint32_t gfxipMinor,
@@ -244,6 +258,7 @@ bool NullDevice::create(const char* palName, const amd::Isa& isa, Pal::GfxIpLeve
   properties.gfxTriple.major = isa.versionMajor();
   properties.gfxTriple.major = isa.versionMinor();
   properties.gfxTriple.stepping = isa.versionStepping();
+  properties.gfxipProperties.shaderCore.ldsSizePerCu = 64 * Ki;
   uint subtarget = 0;
 
   pal::Settings* palSettings = new pal::Settings();
@@ -559,7 +574,7 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
   info_.preferredWorkGroupSize_ = settings().preferredWorkGroupSize_;
 
   info_.localMemType_ = CL_LOCAL;
-  info_.localMemSize_ = settings().hwLDSSize_;
+  info_.localMemSize_ = palProp.gfxipProperties.shaderCore.ldsSizePerCu;
   info_.extensions_ = getExtensionString();
 
   // OpenCL1.2 device info fields
@@ -675,6 +690,7 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
     info_.largeBar_ = false;
 #endif  // _WIN64
   }
+  info_.shareLocalMemInWGP_ = isa().versionMajor() >= 13;
   info_.virtualMemoryManagement_ = true;
   info_.virtualMemAllocGranularity_ =
       static_cast<size_t>(palProp.gpuMemoryProperties.virtualMemAllocGranularity);

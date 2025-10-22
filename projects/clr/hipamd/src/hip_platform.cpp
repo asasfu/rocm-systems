@@ -427,7 +427,7 @@ hipError_t ihipOccupancyMaxActiveBlocksPerMultiprocessor(
   // multiply the number of SIMDs by 2, to account for 2CUs in 1 WGP.
   uint32_t simdPerCU = device.isa().simdPerCU();
   if (wrkGrpInfo->isWGPMode_) {
-    simdPerCU *= 2;
+    simdPerCU  *= 2;
   }
 
   const size_t alu_occupancy = simdPerCU * std::min(MaxWavesPerSimd, GprWaves);
@@ -643,7 +643,7 @@ hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(int* numBlocks,
 
 hipError_t ihipLaunchKernel(const void* hostFunction, dim3 gridDim, dim3 blockDim, void** args,
                             size_t sharedMemBytes, hipStream_t stream, hipEvent_t startEvent,
-                            hipEvent_t stopEvent, int flags) {
+                            hipEvent_t stopEvent, int flags, dim3 clusterDim = {1, 1, 1}) {
   if (!hip::isValid(stream)) {
     return hipErrorInvalidValue;
   }
@@ -669,7 +669,8 @@ hipError_t ihipLaunchKernel(const void* hostFunction, dim3 gridDim, dim3 blockDi
   }
 
   amd::HIPLaunchParams launch_params(gridDim.x, gridDim.y, gridDim.z, blockDim.x, blockDim.y,
-                                     blockDim.z, sharedMemBytes);
+                                     blockDim.z, sharedMemBytes, clusterDim.x, clusterDim.y,
+                                     clusterDim.z);
   if (!launch_params.IsValidConfig()) {
     return hipErrorInvalidConfiguration;
   }
