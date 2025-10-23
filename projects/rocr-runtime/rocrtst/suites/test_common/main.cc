@@ -526,18 +526,6 @@ TEST(rocrtstStress, Queue_LoadStore_Write_Index_ConcurrentTest) {
   RunCustomTestEpilog(&Qw);
 }
 
-TEST(rocrtstPerf, Memory_Async_Copy) {
-  MemoryAsyncCopy mac;
-  // To do full test, uncomment this:
-  //  mac.set_full_test(true);
-  // To test only 1 path, add lines like this:
-  //  mac.set_src_pool(<src pool id>);
-  //  mac.set_dst_pool(<dst pool id>);
-  // The default is to and from the cpu to 1 gpu, and to/from a gpu to
-  // another gpu
-  RunGenericTest(&mac);
-}
-
 TEST(rocrtstPerf, Memory_Async_Copy_On_Engine) {
   MemoryAsyncCopyOnEngine mac;
   RunGenericTest(&mac);
