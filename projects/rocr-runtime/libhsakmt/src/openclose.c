@@ -218,8 +218,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtOpenKFD(void)
 
 		useSvmStr = getenv("HSA_USE_SVM");
 		hsakmt_is_svm_api_supported = !(useSvmStr && !strcmp(useSvmStr, "0"));
-		if(!hsakmt_use_model)
-			result = hsakmt_topology_sysfs_get_system_props(&sys_props);
+		result = hsakmt_topology_sysfs_get_system_props(&sys_props);
 		
 		if (result != HSAKMT_STATUS_SUCCESS)
 			goto topology_sysfs_failed;
