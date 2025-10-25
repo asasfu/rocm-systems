@@ -462,9 +462,10 @@ enum hip_api_id_t {
   HIP_API_ID_hipLibraryGetKernel = 442,
   HIP_API_ID_hipLibraryGetKernelCount = 443,
   HIP_API_ID_hipMemGetHandleForAddressRange = 444,
-  HIP_API_ID_hipOccupancyMaxActiveClusters = 445,
-  HIP_API_ID_hipOccupancyMaxPotentialClusterSize = 446,
-  HIP_API_ID_LAST = 446,
+  HIP_API_ID_hipStreamCopyAttributes = 445,
+  HIP_API_ID_hipOccupancyMaxActiveClusters = 446,
+  HIP_API_ID_hipOccupancyMaxPotentialClusterSize = 447,
+  HIP_API_ID_LAST = 447,
 
   HIP_API_ID_hipChooseDevice = HIP_API_ID_CONCAT(HIP_API_ID_,hipChooseDevice),
   HIP_API_ID_hipGetDeviceProperties = HIP_API_ID_CONCAT(HIP_API_ID_,hipGetDeviceProperties),
@@ -889,6 +890,7 @@ static inline const char* hip_api_name(const uint32_t id) {
     case HIP_API_ID_hipStreamBatchMemOp: return "hipStreamBatchMemOp";
     case HIP_API_ID_hipStreamBeginCapture: return "hipStreamBeginCapture";
     case HIP_API_ID_hipStreamBeginCaptureToGraph: return "hipStreamBeginCaptureToGraph";
+    case HIP_API_ID_hipStreamCopyAttributes: return "hipStreamCopyAttributes";
     case HIP_API_ID_hipStreamCreate: return "hipStreamCreate";
     case HIP_API_ID_hipStreamCreateWithFlags: return "hipStreamCreateWithFlags";
     case HIP_API_ID_hipStreamCreateWithPriority: return "hipStreamCreateWithPriority";
@@ -1329,6 +1331,7 @@ static inline uint32_t hipApiIdByName(const char* name) {
   if (strcmp("hipStreamBatchMemOp", name) == 0) return HIP_API_ID_hipStreamBatchMemOp;
   if (strcmp("hipStreamBeginCapture", name) == 0) return HIP_API_ID_hipStreamBeginCapture;
   if (strcmp("hipStreamBeginCaptureToGraph", name) == 0) return HIP_API_ID_hipStreamBeginCaptureToGraph;
+  if (strcmp("hipStreamCopyAttributes", name) == 0) return HIP_API_ID_hipStreamCopyAttributes;
   if (strcmp("hipStreamCreate", name) == 0) return HIP_API_ID_hipStreamCreate;
   if (strcmp("hipStreamCreateWithFlags", name) == 0) return HIP_API_ID_hipStreamCreateWithFlags;
   if (strcmp("hipStreamCreateWithPriority", name) == 0) return HIP_API_ID_hipStreamCreateWithPriority;
@@ -2730,13 +2733,13 @@ typedef struct hip_api_data_s {
       hipLibrary_t* library;
       hipLibrary_t library__val;
       const void* code;
-      hipJitOption** jitOptions;
-      hipJitOption* jitOptions__val;
+      hipJitOption* jitOptions;
+      hipJitOption jitOptions__val;
       void** jitOptionsValues;
       void* jitOptionsValues__val;
       unsigned int numJitOptions;
-      hipLibraryOption** libraryOptions;
-      hipLibraryOption* libraryOptions__val;
+      hipLibraryOption* libraryOptions;
+      hipLibraryOption libraryOptions__val;
       void** libraryOptionValues;
       void* libraryOptionValues__val;
       unsigned int numLibraryOptions;
@@ -2746,13 +2749,13 @@ typedef struct hip_api_data_s {
       hipLibrary_t library__val;
       const char* fileName;
       char fileName__val;
-      hipJitOption** jitOptions;
-      hipJitOption* jitOptions__val;
+      hipJitOption* jitOptions;
+      hipJitOption jitOptions__val;
       void** jitOptionsValues;
       void* jitOptionsValues__val;
       unsigned int numJitOptions;
-      hipLibraryOption** libraryOptions;
-      hipLibraryOption* libraryOptions__val;
+      hipLibraryOption* libraryOptions;
+      hipLibraryOption libraryOptions__val;
       void** libraryOptionValues;
       void* libraryOptionValues__val;
       unsigned int numLibraryOptions;
@@ -3751,6 +3754,10 @@ typedef struct hip_api_data_s {
       size_t numDependencies;
       hipStreamCaptureMode mode;
     } hipStreamBeginCaptureToGraph;
+    struct {
+      hipStream_t dst;
+      hipStream_t src;
+    } hipStreamCopyAttributes;
     struct {
       hipStream_t* stream;
       hipStream_t stream__val;
@@ -5371,25 +5378,25 @@ typedef struct hip_api_data_s {
   cb_data.args.hipLibraryGetKernelCount.count = (unsigned int*)count; \
   cb_data.args.hipLibraryGetKernelCount.library = (hipLibrary_t)library; \
 };
-// hipLibraryLoadData[('hipLibrary_t*', 'library'), ('const void*', 'code'), ('hipJitOption**', 'jitOptions'), ('void**', 'jitOptionsValues'), ('unsigned int', 'numJitOptions'), ('hipLibraryOption**', 'libraryOptions'), ('void**', 'libraryOptionValues'), ('unsigned int', 'numLibraryOptions')]
+// hipLibraryLoadData[('hipLibrary_t*', 'library'), ('const void*', 'code'), ('hipJitOption*', 'jitOptions'), ('void**', 'jitOptionsValues'), ('unsigned int', 'numJitOptions'), ('hipLibraryOption*', 'libraryOptions'), ('void**', 'libraryOptionValues'), ('unsigned int', 'numLibraryOptions')]
 #define INIT_hipLibraryLoadData_CB_ARGS_DATA(cb_data) { \
   cb_data.args.hipLibraryLoadData.library = (hipLibrary_t*)library; \
   cb_data.args.hipLibraryLoadData.code = (const void*)image; \
-  cb_data.args.hipLibraryLoadData.jitOptions = (hipJitOption**)jitOptions; \
+  cb_data.args.hipLibraryLoadData.jitOptions = (hipJitOption*)jitOptions; \
   cb_data.args.hipLibraryLoadData.jitOptionsValues = (void**)jitOptionsValues; \
   cb_data.args.hipLibraryLoadData.numJitOptions = (unsigned int)numJitOptions; \
-  cb_data.args.hipLibraryLoadData.libraryOptions = (hipLibraryOption**)libraryOptions; \
+  cb_data.args.hipLibraryLoadData.libraryOptions = (hipLibraryOption*)libraryOptions; \
   cb_data.args.hipLibraryLoadData.libraryOptionValues = (void**)libraryOptionValues; \
   cb_data.args.hipLibraryLoadData.numLibraryOptions = (unsigned int)numLibraryOptions; \
 };
-// hipLibraryLoadFromFile[('hipLibrary_t*', 'library'), ('const char*', 'fileName'), ('hipJitOption**', 'jitOptions'), ('void**', 'jitOptionsValues'), ('unsigned int', 'numJitOptions'), ('hipLibraryOption**', 'libraryOptions'), ('void**', 'libraryOptionValues'), ('unsigned int', 'numLibraryOptions')]
+// hipLibraryLoadFromFile[('hipLibrary_t*', 'library'), ('const char*', 'fileName'), ('hipJitOption*', 'jitOptions'), ('void**', 'jitOptionsValues'), ('unsigned int', 'numJitOptions'), ('hipLibraryOption*', 'libraryOptions'), ('void**', 'libraryOptionValues'), ('unsigned int', 'numLibraryOptions')]
 #define INIT_hipLibraryLoadFromFile_CB_ARGS_DATA(cb_data) { \
   cb_data.args.hipLibraryLoadFromFile.library = (hipLibrary_t*)library; \
   cb_data.args.hipLibraryLoadFromFile.fileName = (fname) ? strdup(fname) : NULL; \
-  cb_data.args.hipLibraryLoadFromFile.jitOptions = (hipJitOption**)jitOptions; \
+  cb_data.args.hipLibraryLoadFromFile.jitOptions = (hipJitOption*)jitOptions; \
   cb_data.args.hipLibraryLoadFromFile.jitOptionsValues = (void**)jitOptionsValues; \
   cb_data.args.hipLibraryLoadFromFile.numJitOptions = (unsigned int)numJitOptions; \
-  cb_data.args.hipLibraryLoadFromFile.libraryOptions = (hipLibraryOption**)libraryOptions; \
+  cb_data.args.hipLibraryLoadFromFile.libraryOptions = (hipLibraryOption*)libraryOptions; \
   cb_data.args.hipLibraryLoadFromFile.libraryOptionValues = (void**)libraryOptionValues; \
   cb_data.args.hipLibraryLoadFromFile.numLibraryOptions = (unsigned int)numLibraryOptions; \
 };
@@ -6422,6 +6429,11 @@ typedef struct hip_api_data_s {
   cb_data.args.hipStreamBeginCaptureToGraph.dependencyData = (const hipGraphEdgeData*)dependencyData; \
   cb_data.args.hipStreamBeginCaptureToGraph.numDependencies = (size_t)numDependencies; \
   cb_data.args.hipStreamBeginCaptureToGraph.mode = (hipStreamCaptureMode)mode; \
+};
+// hipStreamCopyAttributes[('hipStream_t', 'dst'), ('hipStream_t', 'src')]
+#define INIT_hipStreamCopyAttributes_CB_ARGS_DATA(cb_data) { \
+  cb_data.args.hipStreamCopyAttributes.dst = (hipStream_t)dst; \
+  cb_data.args.hipStreamCopyAttributes.src = (hipStream_t)src; \
 };
 // hipStreamCreate[('hipStream_t*', 'stream')]
 #define INIT_hipStreamCreate_CB_ARGS_DATA(cb_data) { \
@@ -7678,7 +7690,7 @@ static inline void hipApiArgsInit(hip_api_id_t id, hip_api_data_t* data) {
     case HIP_API_ID_hipLibraryGetKernelCount:
       if (data->args.hipLibraryGetKernelCount.count) data->args.hipLibraryGetKernelCount.count__val = *(data->args.hipLibraryGetKernelCount.count);
       break;
-// hipLibraryLoadData[('hipLibrary_t*', 'library'), ('const void*', 'code'), ('hipJitOption**', 'jitOptions'), ('void**', 'jitOptionsValues'), ('unsigned int', 'numJitOptions'), ('hipLibraryOption**', 'libraryOptions'), ('void**', 'libraryOptionValues'), ('unsigned int', 'numLibraryOptions')]
+// hipLibraryLoadData[('hipLibrary_t*', 'library'), ('const void*', 'code'), ('hipJitOption*', 'jitOptions'), ('void**', 'jitOptionsValues'), ('unsigned int', 'numJitOptions'), ('hipLibraryOption*', 'libraryOptions'), ('void**', 'libraryOptionValues'), ('unsigned int', 'numLibraryOptions')]
     case HIP_API_ID_hipLibraryLoadData:
       if (data->args.hipLibraryLoadData.library) data->args.hipLibraryLoadData.library__val = *(data->args.hipLibraryLoadData.library);
       if (data->args.hipLibraryLoadData.jitOptions) data->args.hipLibraryLoadData.jitOptions__val = *(data->args.hipLibraryLoadData.jitOptions);
@@ -7686,7 +7698,7 @@ static inline void hipApiArgsInit(hip_api_id_t id, hip_api_data_t* data) {
       if (data->args.hipLibraryLoadData.libraryOptions) data->args.hipLibraryLoadData.libraryOptions__val = *(data->args.hipLibraryLoadData.libraryOptions);
       if (data->args.hipLibraryLoadData.libraryOptionValues) data->args.hipLibraryLoadData.libraryOptionValues__val = *(data->args.hipLibraryLoadData.libraryOptionValues);
       break;
-// hipLibraryLoadFromFile[('hipLibrary_t*', 'library'), ('const char*', 'fileName'), ('hipJitOption**', 'jitOptions'), ('void**', 'jitOptionsValues'), ('unsigned int', 'numJitOptions'), ('hipLibraryOption**', 'libraryOptions'), ('void**', 'libraryOptionValues'), ('unsigned int', 'numLibraryOptions')]
+// hipLibraryLoadFromFile[('hipLibrary_t*', 'library'), ('const char*', 'fileName'), ('hipJitOption*', 'jitOptions'), ('void**', 'jitOptionsValues'), ('unsigned int', 'numJitOptions'), ('hipLibraryOption*', 'libraryOptions'), ('void**', 'libraryOptionValues'), ('unsigned int', 'numLibraryOptions')]
     case HIP_API_ID_hipLibraryLoadFromFile:
       if (data->args.hipLibraryLoadFromFile.library) data->args.hipLibraryLoadFromFile.library__val = *(data->args.hipLibraryLoadFromFile.library);
       if (data->args.hipLibraryLoadFromFile.fileName) data->args.hipLibraryLoadFromFile.fileName__val = *(data->args.hipLibraryLoadFromFile.fileName);
@@ -8262,6 +8274,9 @@ static inline void hipApiArgsInit(hip_api_id_t id, hip_api_data_t* data) {
     case HIP_API_ID_hipStreamBeginCaptureToGraph:
       if (data->args.hipStreamBeginCaptureToGraph.dependencies) data->args.hipStreamBeginCaptureToGraph.dependencies__val = *(data->args.hipStreamBeginCaptureToGraph.dependencies);
       if (data->args.hipStreamBeginCaptureToGraph.dependencyData) data->args.hipStreamBeginCaptureToGraph.dependencyData__val = *(data->args.hipStreamBeginCaptureToGraph.dependencyData);
+      break;
+// hipStreamCopyAttributes[('hipStream_t', 'dst'), ('hipStream_t', 'src')]
+    case HIP_API_ID_hipStreamCopyAttributes:
       break;
 // hipStreamCreate[('hipStream_t*', 'stream')]
     case HIP_API_ID_hipStreamCreate:
@@ -10295,12 +10310,12 @@ static inline const char* hipApiString(hip_api_id_t id, const hip_api_data_t* da
       else { oss << "library="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadData.library__val); }
       oss << ", code="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadData.code);
       if (data->args.hipLibraryLoadData.jitOptions == NULL) oss << ", jitOptions=NULL";
-      else { oss << ", jitOptions="; roctracer::hip_support::detail::operator<<(oss, (void*)data->args.hipLibraryLoadData.jitOptions__val); }
+      else { oss << ", jitOptions="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadData.jitOptions__val); }
       if (data->args.hipLibraryLoadData.jitOptionsValues == NULL) oss << ", jitOptionsValues=NULL";
       else { oss << ", jitOptionsValues="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadData.jitOptionsValues__val); }
       oss << ", numJitOptions="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadData.numJitOptions);
       if (data->args.hipLibraryLoadData.libraryOptions == NULL) oss << ", libraryOptions=NULL";
-      else { oss << ", libraryOptions="; roctracer::hip_support::detail::operator<<(oss, (void*)data->args.hipLibraryLoadData.libraryOptions__val); }
+      else { oss << ", libraryOptions="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadData.libraryOptions__val); }
       if (data->args.hipLibraryLoadData.libraryOptionValues == NULL) oss << ", libraryOptionValues=NULL";
       else { oss << ", libraryOptionValues="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadData.libraryOptionValues__val); }
       oss << ", numLibraryOptions="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadData.numLibraryOptions);
@@ -10313,12 +10328,12 @@ static inline const char* hipApiString(hip_api_id_t id, const hip_api_data_t* da
       if (data->args.hipLibraryLoadFromFile.fileName == NULL) oss << ", fileName=NULL";
       else { oss << ", fileName="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadFromFile.fileName__val); }
       if (data->args.hipLibraryLoadFromFile.jitOptions == NULL) oss << ", jitOptions=NULL";
-      else { oss << ", jitOptions="; roctracer::hip_support::detail::operator<<(oss, (void*)data->args.hipLibraryLoadFromFile.jitOptions__val); }
+      else { oss << ", jitOptions="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadFromFile.jitOptions__val); }
       if (data->args.hipLibraryLoadFromFile.jitOptionsValues == NULL) oss << ", jitOptionsValues=NULL";
       else { oss << ", jitOptionsValues="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadFromFile.jitOptionsValues__val); }
       oss << ", numJitOptions="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadFromFile.numJitOptions);
       if (data->args.hipLibraryLoadFromFile.libraryOptions == NULL) oss << ", libraryOptions=NULL";
-      else { oss << ", libraryOptions="; roctracer::hip_support::detail::operator<<(oss, (void*)data->args.hipLibraryLoadFromFile.libraryOptions__val); }
+      else { oss << ", libraryOptions="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadFromFile.libraryOptions__val); }
       if (data->args.hipLibraryLoadFromFile.libraryOptionValues == NULL) oss << ", libraryOptionValues=NULL";
       else { oss << ", libraryOptionValues="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadFromFile.libraryOptionValues__val); }
       oss << ", numLibraryOptions="; roctracer::hip_support::detail::operator<<(oss, data->args.hipLibraryLoadFromFile.numLibraryOptions);
@@ -11624,6 +11639,12 @@ static inline const char* hipApiString(hip_api_id_t id, const hip_api_data_t* da
       else { oss << ", dependencyData="; roctracer::hip_support::detail::operator<<(oss, data->args.hipStreamBeginCaptureToGraph.dependencyData__val); }
       oss << ", numDependencies="; roctracer::hip_support::detail::operator<<(oss, data->args.hipStreamBeginCaptureToGraph.numDependencies);
       oss << ", mode="; roctracer::hip_support::detail::operator<<(oss, data->args.hipStreamBeginCaptureToGraph.mode);
+      oss << ")";
+    break;
+    case HIP_API_ID_hipStreamCopyAttributes:
+      oss << "hipStreamCopyAttributes(";
+      oss << "dst="; roctracer::hip_support::detail::operator<<(oss, data->args.hipStreamCopyAttributes.dst);
+      oss << ", src="; roctracer::hip_support::detail::operator<<(oss, data->args.hipStreamCopyAttributes.src);
       oss << ")";
     break;
     case HIP_API_ID_hipStreamCreate:

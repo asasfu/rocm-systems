@@ -62,6 +62,7 @@
 #include "suites/performance/dispatch_time.h"
 #include "suites/performance/memory_async_copy.h"
 #include "suites/performance/memory_async_copy_numa.h"
+#include "suites/performance/memory_async_copy_on_engine.h"
 #include "suites/performance/enqueueLatency.h"
 #include "suites/negative/memory_allocate_negative_tests.h"
 #include "suites/negative/queue_validation.h"
@@ -446,6 +447,7 @@ TEST(rocrtstFunc, SvmMemory_Basic_Test) {
 
   RunCustomTestProlog(&smt);
   smt.TestCreateDestroy();
+  smt.TestSVMPrefetch();
   RunCustomTestEpilog(&smt);
 }
 
@@ -522,6 +524,11 @@ TEST(rocrtstStress, Queue_LoadStore_Write_Index_ConcurrentTest) {
   RunCustomTestProlog(&Qw);
   Qw.QueueLoadStoreWriteIndexAtomic();
   RunCustomTestEpilog(&Qw);
+}
+
+TEST(rocrtstPerf, Memory_Async_Copy_On_Engine) {
+  MemoryAsyncCopyOnEngine mac;
+  RunGenericTest(&mac);
 }
 
 #endif  // ROCRTST_EMULATOR_BUILD
