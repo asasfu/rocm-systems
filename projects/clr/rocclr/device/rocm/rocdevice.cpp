@@ -1032,6 +1032,13 @@ bool Device::populateOCLDeviceConstants() {
   info_.globalMemCacheLineSize_ =
       (info_.globalMemCacheLineSize_ != 0) ? info_.globalMemCacheLineSize_ : 64;
 
+  // Currently KFD returns cache line size as 128. override cache line size to 256 for gfx1250,
+  // as it is used for kern arg alignment.
+  if ((isa().versionMajor() == 12 && isa().versionMinor() == 5 && isa().versionStepping() == 0)
+		  && (info_.globalMemCacheLineSize_ < 256)) {
+    info_.globalMemCacheLineSize_ = 256;
+  }
+
   uint32_t cachesize[4] = {0};
   if (HSA_STATUS_SUCCESS !=
       Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_CACHE_SIZE, cachesize)) {
