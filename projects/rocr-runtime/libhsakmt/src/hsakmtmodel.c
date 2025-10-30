@@ -819,6 +819,14 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		fprintf(stderr, "model: Debugger runtime not implemented\n");
 		fprintf(stderr, "Fix this by clearing bit 30 of the 'capability' field in $HSA_MODEL_TOPOLOGY/%%d/properties\n");
 		abort();
+	case AMDKFD_IOC_ALLOC_QUEUE_GWS:
+	{
+		struct kfd_ioctl_alloc_queue_gws_args *args = arg;
+		pr_debug("MODEL IOCTL: AMDKFD_IOC_ALLOC_QUEUE_GWS: queue_id: %u, num_gws: %u\n", args->queue_id, args->num_gws);
+		// GWS is a GPU-side feature. We don't model it.
+		args->first_gws = 0;
+		return 0;
+	}
 	default:
 		fprintf(stderr, "model: Unimplemented KFD ioctl\n");
 		abort();
