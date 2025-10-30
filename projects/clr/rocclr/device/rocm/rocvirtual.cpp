@@ -3841,12 +3841,14 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
   // Pass the header accordingly
   auto aqlHeaderWithOrder = (useNewDispatchPacket) ? vendorSpecificPacketHeader_ : aqlHeader_;
 
-  if (vcmd != nullptr && vcmd->getAnyOrderLaunchFlag()) {
-    constexpr uint32_t kAqlHeaderMask = ~(1 << HSA_PACKET_HEADER_BARRIER);
-    aqlHeaderWithOrder &= kAqlHeaderMask;
-  }
-  if (vcmd->getCommandEntryScope() == amd::Device::kCacheStateSystem) {
-    addSystemScope_ = true;
+  if (vcmd != nullptr) {
+    if (vcmd->getAnyOrderLaunchFlag()) {
+      constexpr uint32_t kAqlHeaderMask = ~(1 << HSA_PACKET_HEADER_BARRIER);
+      aqlHeaderWithOrder &= kAqlHeaderMask;
+    }
+    if (vcmd->getCommandEntryScope() == amd::Device::kCacheStateSystem) {
+      addSystemScope_ = true;
+    }
   }
 
   // Copy scheduler's AQL packet for possible relaunch from the scheduler itself
