@@ -1020,6 +1020,7 @@ bool VirtualGPU::dispatchGenericAqlPacket(AqlPacket* packet, uint16_t header, ui
 
   // Check for queue full and wait if needed.
   uint64_t index = Hsa::queue_add_write_index_screlease(gpu_queue_, 1);
+  uint64_t read = hsa_queue_load_read_index_relaxed(gpu_queue_);
   fence_dirty_ = true;
 
   if (addSystemScope_) {
@@ -1033,6 +1034,12 @@ bool VirtualGPU::dispatchGenericAqlPacket(AqlPacket* packet, uint16_t header, ui
   auto expected_fence_state = extractAqlBits(header, HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE,
                                              HSA_PACKET_HEADER_WIDTH_SCRELEASE_FENCE_SCOPE);
 
+  // Reset fence_dirty_ flag if we submit a packet with system scopes
+  if (expected_fence_state == amd::Device::kCacheStateSystem) {
+    fence_dirty_ = false;
+  }
+
+  // Dirty optimization to save on consequent dispatch packets which have requested flushes
   if (fence_state_ == amd::Device::kCacheStateSystem &&
       expected_fence_state == amd::Device::kCacheStateSystem) {
     header = dev().settings().useNewDispatchPacket_ ? vendorSpecificPacketHeader_
