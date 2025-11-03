@@ -76,6 +76,7 @@
 #include "suites/functional/concurrent_shutdown.h"
 #include "suites/functional/reference_count.h"
 #include "suites/functional/signal_concurrent.h"
+#include "suites/functional/metadata_prefetch.h"
 #include "suites/functional/aql_barrier_bit.h"
 #include "suites/functional/signal_kernel.h"
 #include "suites/functional/cu_masking.h"
@@ -221,6 +222,12 @@ TEST(rocrtstFunc, Signal_Create_Concurrently) {
   RunCustomTestProlog(&sd);
   sd.TestSignalCreateConcurrent();
   RunCustomTestEpilog(&sd);
+}
+
+TEST(rocrtst, Test_MetadataPrefetchPacket) {
+  MetadataPrefetch tst;
+
+  RunGenericTest(&tst);
 }
 
 TEST(rocrtstFunc, Memory_Available) {

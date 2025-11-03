@@ -693,34 +693,17 @@ static int handle_concrete_asic(HsaKFDContext *ctx,
  */
 static uint32_t priority_map[] = {0, 3, 5, 7, 9, 11, 15};
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueCtx(HsaKFDContext *ctx,
-						 HSAuint32 NodeId,
-						 HSA_QUEUE_TYPE Type,
-						 HSAuint32 QueuePercentage,
-						 HSA_QUEUE_PRIORITY Priority,
-						 void *QueueAddress,
-						 HSAuint64 QueueSizeInBytes,
-						 HsaEvent *Event,
-						 HsaQueueResource *QueueResource)
-{
-	if (Type == HSA_QUEUE_SDMA_BY_ENG_ID)
-		return HSAKMT_STATUS_ERROR;
-
-	return hsaKmtCreateQueueExtCtx(ctx, NodeId, Type, QueuePercentage, Priority, 0,
-				    QueueAddress, QueueSizeInBytes, Event,
-				    QueueResource);
-}
-
-HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtCtx(HsaKFDContext *ctx,
-						 HSAuint32 NodeId,
-					     HSA_QUEUE_TYPE Type,
-					     HSAuint32 QueuePercentage,
-					     HSA_QUEUE_PRIORITY Priority,
-					     HSAuint32 SdmaEngineId,
-					     void *QueueAddress,
-					     HSAuint64 QueueSizeInBytes,
-					     HsaEvent *Event,
-					     HsaQueueResource *QueueResource)
+HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2(HsaKFDContext *ctx,
+							HSAuint32 NodeId,
+					        HSA_QUEUE_TYPE Type,
+					        HSAuint32 QueuePercentage,
+					        HSA_QUEUE_PRIORITY Priority,
+					        HSAuint32 SdmaEngineId,
+					        void *QueueAddress,
+					        HSAuint64 QueueSizeInBytes,
+					        HSAuint64 MetaDataQueueSizeInBytes,
+					        HsaEvent *Event,
+					        HsaQueueResource *QueueResource)
 {
 	HSAKMT_STATUS result;
 	uint32_t gpu_id;
@@ -733,6 +716,11 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtCtx(HsaKFDContext *ctx,
 	CHECK_KFD_OPEN();
 
 	struct hsa_kfd_queue_context *queue_ctx = hsakmt_kfdcontext_get_queue_context(ctx);
+	if (MetaDataQueueSizeInBytes) {
+		CHECK_KFD_MINOR_VERSION(19);
+		if (!IS_PAGE_ALIGNED(MetaDataQueueSizeInBytes))
+			return HSAKMT_STATUS_INVALID_PARAMETER;
+	}
 
 	if (Priority < HSA_QUEUE_PRIORITY_MINIMUM ||
 		Priority > HSA_QUEUE_PRIORITY_MAXIMUM)
@@ -818,6 +806,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtCtx(HsaKFDContext *ctx,
 	args.queue_percentage = QueuePercentage;
 	args.queue_priority = priority_map[Priority+3];
 	args.sdma_engine_id = SdmaEngineId;
+	args.metadata_ring_size = MetaDataQueueSizeInBytes;
 
 	err = hsakmt_ioctl(ctx->fd, AMDKFD_IOC_CREATE_QUEUE, &args);
 
@@ -858,6 +847,39 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtCtx(HsaKFDContext *ctx,
 						     doorbell_offset);
 
 	return HSAKMT_STATUS_SUCCESS;
+}
+
+HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueCtx(HsaKFDContext *ctx,
+						 HSAuint32 NodeId,
+						 HSA_QUEUE_TYPE Type,
+						 HSAuint32 QueuePercentage,
+						 HSA_QUEUE_PRIORITY Priority,
+						 void *QueueAddress,
+						 HSAuint64 QueueSizeInBytes,
+						 HsaEvent *Event,
+						 HsaQueueResource *QueueResource)
+{
+	if (Type == HSA_QUEUE_SDMA_BY_ENG_ID)
+		return HSAKMT_STATUS_ERROR;
+
+	return hsaKmtCreateQueueExtV2(ctx, NodeId, Type, QueuePercentage, Priority, 0,
+				    QueueAddress, QueueSizeInBytes, 0, Event, QueueResource);
+}
+
+HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtCtx(HsaKFDContext *ctx,
+						 HSAuint32 NodeId,
+					     HSA_QUEUE_TYPE Type,
+					     HSAuint32 QueuePercentage,
+					     HSA_QUEUE_PRIORITY Priority,
+					     HSAuint32 SdmaEngineId,
+					     void *QueueAddress,
+					     HSAuint64 QueueSizeInBytes,
+					     HsaEvent *Event,
+					     HsaQueueResource *QueueResource)
+{
+	return hsaKmtCreateQueueExtV2(ctx, NodeId, Type, QueuePercentage, Priority,
+				      SdmaEngineId, QueueAddress, QueueSizeInBytes, 0,
+				      Event, QueueResource);
 }
 
 HSAKMT_STATUS HSAKMTAPI hsaKmtUpdateQueueCtx(HsaKFDContext *ctx,

@@ -718,14 +718,14 @@ hsa_status_t GpuAgent::VisitRegion(
 
 core::Queue* GpuAgent::CreateInterceptibleQueue(void (*callback)(hsa_status_t status,
                                                                  hsa_queue_t* source, void* data),
-                                                void* data, const uint32_t in_size) {
+                                                void* data, bool metadata_prefetch, const uint32_t in_size) {
   // Disabled intercept of internal queues pending tools updates.
   core::Queue* queue = nullptr;
   uint32_t size = std::max(in_size, minAqlSize_);
   size = std::min(size, maxAqlSize_);
 
   QueueCreate(size, HSA_QUEUE_TYPE_MULTI, HSA_AMD_QUEUE_CREATE_SYSTEM_MEM, callback, data, 0, 0,
-              &queue);
+              metadata_prefetch, &queue);
   if (queue != nullptr)
     core::Runtime::runtime_singleton_->InternalQueueCreateNotify(core::Queue::Convert(queue),
                                                                  this->public_handle());
@@ -794,7 +794,7 @@ core::Blit* GpuAgent::CreateBlitKernel(core::Queue* queue) {
 void GpuAgent::InitDma() {
   // Setup lazy init pointers on queues and blits.
   auto queue_lambda = [this](HSA_QUEUE_PRIORITY priority = HSA_QUEUE_PRIORITY_NORMAL) {
-    auto queue = CreateInterceptibleQueue();
+    auto queue = CreateInterceptibleQueue(false);
     if (queue == nullptr)
       throw AMD::hsa_exception(HSA_STATUS_ERROR_OUT_OF_RESOURCES,
                                "Internal queue creation failed.");
@@ -914,7 +914,7 @@ void GpuAgent::InitGWS() {
   gws_queue_.queue_.reset([this]() {
     if (properties_.NumGws == 0) return (core::Queue*)nullptr;
     const uint32_t defaultGWSQueueSize = 0x4000; // 16KB
-    std::unique_ptr<core::Queue> queue(CreateInterceptibleQueue(defaultGWSQueueSize));
+    std::unique_ptr<core::Queue> queue(CreateInterceptibleQueue(true, defaultGWSQueueSize));
     if (queue == nullptr)
       throw AMD::hsa_exception(HSA_STATUS_ERROR_OUT_OF_RESOURCES,
                                "Internal queue creation failed.");
@@ -1784,7 +1784,7 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
 hsa_status_t GpuAgent::QueueCreate(size_t size, hsa_queue_type32_t queue_type, uint64_t flags,
                                    core::HsaEventCallback event_callback, void* data,
                                    uint32_t private_segment_size, uint32_t group_segment_size,
-                                   core::Queue** queue) {
+                                   bool metadata_queue, core::Queue** queue) {
   // Handle GWS queues.
   if (queue_type == HSA_QUEUE_TYPE_COOPERATIVE) {
     ScopedAcquire<KernelMutex> lock(&gws_queue_.lock_);
@@ -1877,7 +1877,7 @@ hsa_status_t GpuAgent::QueueCreate(size_t size, hsa_queue_type32_t queue_type, u
   if (!shared_queue) return HSA_STATUS_ERROR_OUT_OF_RESOURCES;
 
   auto aql_queue = new AqlQueue(shared_queue, this, size, node_id(), scratch, event_callback, data,
-                                flags);
+                                metadata_queue, flags);
   *queue = aql_queue;
   aql_queues_.push_back(aql_queue);
 
