@@ -1518,23 +1518,6 @@ typedef enum _HsaAisFlags {
     HSA_AIS_WRITE= 0x2
 } HsaAisFlags;
 
-/*
- * HsaKFDContext
- *
- * Represents the execution context for a connection to the Kernel Fusion Driver (KFD).
- *
- * This structure encapsulates all state required to manage a KFD session, including:
- *   - The file descriptor associated with the open KFD device
- *   - Related resources tied to this file descriptor
- *
- * Multiple HsaKFDContext instances can coexist simultaneously, each maintaining its own
- * independent set of resources. These contexts are fully isolated from one another and
- * must not have their resources mixed. For example, memory resources created in
- * context A cannot be used in context B directly. If resources need to be shared between
- * contexts, they must be explicitly exported and imported using the appropriate APIs.
- */
-typedef struct _HsaKFDContext HsaKFDContext;
-
 #pragma pack(pop, hsakmttypes_h)
 
 

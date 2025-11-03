@@ -1001,7 +1001,7 @@ static manageable_aperture_t *fmm_get_aperture(struct hsa_kfd_fmm_context *fmm_c
 	}
 }
 
-static manageable_aperture_t *fmm_is_scratch_aperture(struct hsa_kfd_fmm_context *fmm_ctx, const void *address)
+static gpu_mem_t *fmm_is_scratch_aperture(struct hsa_kfd_fmm_context *fmm_ctx, const void *address)
 {
 	uint32_t i;
 

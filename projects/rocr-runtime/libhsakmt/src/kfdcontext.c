@@ -6,6 +6,7 @@
 
 #include "kfdcontext.h"
 #include "libhsakmt.h"
+#include <stdlib.h>
 #include <stddef.h>
 #include <assert.h>
 #include <stdio.h>
