@@ -423,11 +423,10 @@ hipError_t ihipOccupancyMaxActiveBlocksPerMultiprocessor(
     GprWaves = std::min(VgprWaves, SgprWaves);
   }
 
-  // The table contains SIMD per CU, not per WGP, so when WGP mode is set on kernel metadata,
   // multiply the number of SIMDs by 2, to account for 2CUs in 1 WGP.
-  uint32_t simdPerCU = device.isa().simdPerCU();
+  uint32_t simdPerCU = device.info().simdPerCU_;
   if (wrkGrpInfo->isWGPMode_) {
-    simdPerCU  *= 2;
+    simdPerCU *= 2;
   }
 
   const size_t alu_occupancy = simdPerCU * std::min(MaxWavesPerSimd, GprWaves);
