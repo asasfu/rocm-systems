@@ -255,12 +255,7 @@ std::pair<const Isa*, const Isa*> Isa::supportedIsas() {
   {"gfx1250", "gfx1250", true, true, 12, 5, 0, NONE, NONE, 4, 32, 1, 256, 320* Ki, 64},
   {"gfx1251", "gfx1251", true, true, 12, 5, 1, NONE, NONE, 4, 32, 1, 256, 320* Ki, 64},
   {"gfx12-generic", nullptr, true, true, 12, 0, 0, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32},
-  {"gfx1300", "gfx1300", true, true, 13, 0, 0, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32},
-  {"gfx1301", "gfx1301", true, true, 13, 0, 1, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32},
-  {"gfx1302", "gfx1302", true, true, 13, 0, 2, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32},
-  {"gfx130F", "gfx130F", true, true, 13, 0, 15, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32},
-  {"gfx130E", "gfx130E", true, true, 13, 0, 14, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32},
-  {"gfx130D", "gfx130D", true, true, 13, 0, 13, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32},
+  {"gfx1310", "gfx1310", true, true, 13, 1, 0, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32},
   };
   return std::make_pair(std::begin(supportedIsas_), std::end(supportedIsas_));
 }
