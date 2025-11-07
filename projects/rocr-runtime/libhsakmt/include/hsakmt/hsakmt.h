@@ -361,7 +361,6 @@ hsaKmtCreateQueueExt(
 HSAKMT_STATUS
 HSAKMTAPI
 hsaKmtCreateQueueExtV2(
-    HsaKFDContext*      ctx,                              //IN
     HSAuint32           NodeId,                           //IN
     HSA_QUEUE_TYPE      Type,                             //IN
     HSAuint32           QueuePercentage,                  //IN
@@ -373,7 +372,6 @@ hsaKmtCreateQueueExtV2(
     HsaEvent*           Event,                            //IN
     HsaQueueResource*   QueueResource                     //OUT
     );
-
 
 /**
   Updates a queue

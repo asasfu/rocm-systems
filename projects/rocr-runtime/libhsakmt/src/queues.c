@@ -111,11 +111,11 @@ struct hsa_kfd_queue_context *hsakmt_kfdcontext_get_queue_context(HsaKFDContext 
 static unsigned int num_xcc;
 
 static void updateQueuePercentage(uint32_t *QueuePercentage,
-				  int hsakmt_pm4_target_xcc, int num_xcc, struct queue *q) {
-	if (q->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE && num_xcc > 1 &&
-		hsakmt_pm4_target_xcc > 0 && hsakmt_pm4_target_xcc < num_xcc) {
+				  int pm4_target_xcc, int xcc_count, struct queue *q) {
+	if (q->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE && xcc_count > 1 &&
+		pm4_target_xcc > 0 && pm4_target_xcc < xcc_count) {
 		// Set bits 8-15 of QueuePercentage
-		*QueuePercentage |= (hsakmt_pm4_target_xcc << 8);
+		*QueuePercentage |= (pm4_target_xcc << 8);
 	}
 }
 
@@ -693,7 +693,7 @@ static int handle_concrete_asic(HsaKFDContext *ctx,
  */
 static uint32_t priority_map[] = {0, 3, 5, 7, 9, 11, 15};
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2(HsaKFDContext *ctx,
+HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2Ctx(HsaKFDContext *ctx,
 							HSAuint32 NodeId,
 					        HSA_QUEUE_TYPE Type,
 					        HSAuint32 QueuePercentage,
@@ -862,7 +862,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueCtx(HsaKFDContext *ctx,
 	if (Type == HSA_QUEUE_SDMA_BY_ENG_ID)
 		return HSAKMT_STATUS_ERROR;
 
-	return hsaKmtCreateQueueExtV2(ctx, NodeId, Type, QueuePercentage, Priority, 0,
+	return hsaKmtCreateQueueExtV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority, 0,
 				    QueueAddress, QueueSizeInBytes, 0, Event, QueueResource);
 }
 
@@ -877,7 +877,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtCtx(HsaKFDContext *ctx,
 					     HsaEvent *Event,
 					     HsaQueueResource *QueueResource)
 {
-	return hsaKmtCreateQueueExtV2(ctx, NodeId, Type, QueuePercentage, Priority,
+	return hsaKmtCreateQueueExtV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority,
 				      SdmaEngineId, QueueAddress, QueueSizeInBytes, 0,
 				      Event, QueueResource);
 }
@@ -1118,6 +1118,23 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExt(HSAuint32 NodeId,
 	return hsaKmtCreateQueueExtCtx(&hsakmt_primary_kfd_ctx, NodeId, Type,
 					QueuePercentage, Priority, SdmaEngineId, QueueAddress,
 					QueueSizeInBytes, Event, QueueResource);
+}
+
+HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2(HSAuint32 NodeId,
+					     HSA_QUEUE_TYPE Type,
+					     HSAuint32 QueuePercentage,
+					     HSA_QUEUE_PRIORITY Priority,
+					     HSAuint32 SdmaEngineId,
+					     void *QueueAddress,
+					     HSAuint64 QueueSizeInBytes,
+					     HSAuint64 MetaDataQueueSizeInBytes,
+					     HsaEvent *Event,
+					     HsaQueueResource *QueueResource)
+{
+	return hsaKmtCreateQueueExtV2Ctx(&hsakmt_primary_kfd_ctx,
+				       NodeId, Type, QueuePercentage, Priority,
+				       SdmaEngineId, QueueAddress, QueueSizeInBytes,
+				       MetaDataQueueSizeInBytes, Event, QueueResource);
 }
 
 HSAKMT_STATUS HSAKMTAPI hsaKmtUpdateQueue(HSA_QUEUEID QueueId,
