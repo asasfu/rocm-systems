@@ -576,6 +576,10 @@ hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(int* numBlocks,
                                                                  unsigned int flags);
 hipError_t hipOccupancyMaxPotentialBlockSize(int* gridSize, int* blockSize, const void* f,
                                              size_t dynSharedMemPerBlk, int blockSizeLimit);
+hipError_t hipOccupancyMaxActiveClusters(int* numClusters, const void* f,
+                                         const hipLaunchConfig_t* launchConfig);
+hipError_t hipOccupancyMaxPotentialClusterSize(int* clusterSize, const void* func,
+                                               const hipLaunchConfig_t* config);
 hipError_t hipPeekAtLastError(void);
 hipError_t hipPointerGetAttribute(void* data, hipPointer_attribute attribute, hipDeviceptr_t ptr);
 hipError_t hipPointerGetAttributes(hipPointerAttribute_t* attributes, const void* ptr);
@@ -1251,6 +1255,9 @@ void UpdateDispatchTable(HipDispatchTable* ptrDispatchTable) {
   ptrDispatchTable->hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags_fn =
       hip::hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags;
   ptrDispatchTable->hipOccupancyMaxPotentialBlockSize_fn = hip::hipOccupancyMaxPotentialBlockSize;
+  ptrDispatchTable->hipOccupancyMaxActiveClusters_fn = hip::hipOccupancyMaxActiveClusters;
+  ptrDispatchTable->hipOccupancyMaxPotentialClusterSize_fn =
+      hip::hipOccupancyMaxPotentialClusterSize;
   ptrDispatchTable->hipPeekAtLastError_fn = hip::hipPeekAtLastError;
   ptrDispatchTable->hipPointerGetAttribute_fn = hip::hipPointerGetAttribute;
   ptrDispatchTable->hipPointerGetAttributes_fn = hip::hipPointerGetAttributes;
@@ -2088,15 +2095,19 @@ HIP_ENFORCE_ABI(HipDispatchTable, hipLibraryGetKernel_fn, 499);
 HIP_ENFORCE_ABI(HipDispatchTable, hipLibraryGetKernelCount_fn, 500);
 // HIP_RUNTIME_API_TABLE_STEP_VERSION == 16
 HIP_ENFORCE_ABI(HipDispatchTable, hipStreamCopyAttributes_fn, 501);
+// HIP_RUNTIME_API_TABLE_STEP_VERSION == 17
+HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxPotentialClusterSize_fn, 502);
+HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxActiveClusters_fn, 503);
+
 // if HIP_ENFORCE_ABI entries are added for each new function pointer in the table, the number below
 // will be +1 of the number in the last HIP_ENFORCE_ABI line. E.g.:
 //
 //  HIP_ENFORCE_ABI(<table>, <functor>, 8)
 //
 //  HIP_ENFORCE_ABI_VERSIONING(<table>, 9) <- 8 + 1 = 9
-HIP_ENFORCE_ABI_VERSIONING(HipDispatchTable, 502)
+HIP_ENFORCE_ABI_VERSIONING(HipDispatchTable, 504)
 
-static_assert(HIP_RUNTIME_API_TABLE_MAJOR_VERSION == 0 && HIP_RUNTIME_API_TABLE_STEP_VERSION == 16,
+static_assert(HIP_RUNTIME_API_TABLE_MAJOR_VERSION == 0 && HIP_RUNTIME_API_TABLE_STEP_VERSION == 17,
               "If you get this error, add new HIP_ENFORCE_ABI(...) code for the new function "
               "pointers and then update this check so it is true");
 #endif

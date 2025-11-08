@@ -1354,6 +1354,18 @@ extern "C" hipError_t hipOccupancyMaxPotentialBlockSize(int* gridSize, int* bloc
   return hip::GetHipDispatchTable()->hipOccupancyMaxPotentialBlockSize_fn(
       gridSize, blockSize, f, dynSharedMemPerBlk, blockSizeLimit);
 }
+
+extern "C" hipError_t hipOccupancyMaxActiveClusters(int* numClusters, const void* func,
+                                                    const hipLaunchConfig_t* launchConfig) {
+  return hip::GetHipDispatchTable()->hipOccupancyMaxActiveClusters_fn(numClusters, func,
+                                                                      launchConfig);
+}
+
+extern "C" hipError_t hipOccupancyMaxPotentialClusterSize(int* clusterSize, const void* func,
+                                                          const hipLaunchConfig_t* config) {
+  return hip::GetHipDispatchTable()->hipOccupancyMaxPotentialClusterSize_fn(clusterSize, func,
+                                                                            config);
+}
 hipError_t hipPeekAtLastError(void) { return hip::GetHipDispatchTable()->hipPeekAtLastError_fn(); }
 hipError_t hipPointerGetAttribute(void* data, hipPointer_attribute attribute, hipDeviceptr_t ptr) {
   return hip::GetHipDispatchTable()->hipPointerGetAttribute_fn(data, attribute, ptr);

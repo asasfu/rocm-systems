@@ -678,6 +678,8 @@ api_map = {
   'hipArray3DCreate': '',
   'hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags': '',
   'hipOccupancyMaxPotentialBlockSize': '',
+  'hipOccupancyMaxActiveClusters': '',
+  'hipOccupancyMaxPotentialClusterSize': '',
   'hipMallocManaged': '',
   'hipOccupancyMaxActiveBlocksPerMultiprocessor': '',
   'hipGetErrorString': '',
