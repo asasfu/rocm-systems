@@ -278,7 +278,7 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
 
   static const uint32_t trap_command_size_;
 
-  static const uint32_t gcr_command_size_;
+  uint32_t gcr_command_size();
 
   // Max copy size of a single linear copy command packet.
   size_t max_single_linear_copy_size_;

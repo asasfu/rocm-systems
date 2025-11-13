@@ -274,7 +274,8 @@ typedef struct SDMA_PKT_COPY_LINEAR_RECT_TAG_GFX12 {
     struct {
       unsigned int op       :  8;
       unsigned int sub_op   :  8;
-      unsigned int reserved : 13;
+      unsigned int reserved : 12;
+      unsigned int npd      :  1;
       unsigned int element  :  3;
     };
     unsigned int DW_0_DATA;
@@ -758,6 +759,73 @@ typedef struct SDMA_PKT_GCR_TAG {
     unsigned int DW_4_DATA;
   } WORD4_UNION;
 } SDMA_PKT_GCR;
+
+typedef struct SDMA_PKT_GCR_TAG_GFX1250 {
+  union {
+    struct {
+      unsigned int op : 8;
+      unsigned int sub_op : 8;
+      unsigned int : 16;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int : 7;
+      unsigned int BaseVA_LO : 25;
+    };
+    unsigned int DW_1_DATA;
+  } WORD1_UNION;
+
+  union {
+    struct {
+      unsigned int BaseVA_HI                : 25;
+      unsigned int                          : 7;
+    };
+    unsigned int DW_2_DATA;
+  } WORD2_UNION;
+
+  union {
+    struct {
+      unsigned int GCR_CONTROL_GLI_INV      : 2;
+      unsigned int GCR_CONTROL_GL1_RANGE    : 2;
+      unsigned int GCR_CONTROL_GL2_SCOPE    : 2;
+      unsigned int GCR_CONTROL_GLV_WB       : 1;
+      unsigned int GCR_CONTROL_GLK_INV      : 1;
+      unsigned int GCR_CONTROL_GLV_INV      : 1;
+      unsigned int                          : 1;
+      unsigned int GCR_CONTROL_GL2_US       : 1;
+      unsigned int GCR_CONTROL_GL2_RANGE    : 2;
+      unsigned int GCR_CONTROL_GL2_DISCARD  : 1;
+      unsigned int GCR_CONTROL_GL2_INV      : 1;
+      unsigned int GCR_CONTROL_GL2_WB       : 1;
+      unsigned int GCR_CONTROL_SEQ          : 2;
+      unsigned int GCR_CONTROL_RANGE_IS_PA  : 1;
+      unsigned int                          : 4;
+      unsigned int LimitVA_LO               : 9;
+    };
+    unsigned int DW_3_DATA;
+  } WORD3_UNION;
+
+  union {
+    struct {
+      unsigned int LimitVA_MID              : 32;
+    };
+    unsigned int DW_4_DATA;
+  } WORD4_UNION;
+
+  union {
+    struct {
+      unsigned int LimitVA_HI               : 9;
+      unsigned int                          : 17;
+      unsigned int VMID                     : 4;
+      unsigned int                          : 2;
+    };
+    unsigned int DW_5_DATA;
+  } WORD5_UNION;
+} SDMA_PKT_GCR_GFX1250;
+
 // clang-format on
 
 }  // namespace amd
