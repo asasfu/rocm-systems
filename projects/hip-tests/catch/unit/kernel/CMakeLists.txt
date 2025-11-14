@@ -35,6 +35,8 @@ set(TEST_SRC
     launch_bounds.cc
     hipAutoThreadIdx.cc
     hipLaunchKernelEx.cc
+    hipTestUserSgprIncrease.cc
+    hipKernelStackSize.cc
 )
 if(UNIX)
   set(TEST_SRC ${TEST_SRC}

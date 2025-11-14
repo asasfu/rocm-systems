@@ -112,6 +112,9 @@ if (UNIX)
   target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE "${HSA_COMMON_DEFS}" __linux__ HSA_EXPORT=1 HSA_EXPORT_FINALIZER=1 HSA_EXPORT_IMAGES=1 HSA_DEPRECATED=
   ROCR_BUILD_ID="${PACKAGE_VERSION_STRING}-${VERSION_JOB}-${VERSION_HASH}" )
   
+  # Code that are wrapped with AMD_NPI_ONLY are not to be upstreamed
+  target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE AMD_NPI_ONLY)
+
   ## Check for memfd_create syscall
   include(CheckSymbolExists)
   CHECK_SYMBOL_EXISTS ( "__NR_memfd_create" "sys/syscall.h" HAVE_MEMFD_CREATE )

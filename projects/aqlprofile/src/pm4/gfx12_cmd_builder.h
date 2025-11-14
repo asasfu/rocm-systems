@@ -211,9 +211,17 @@ class Gfx12CmdBuilder : public CmdBuilder {
     uint32_t dword3 = PACKET3_COPY_DATA__IMM_DATA(value);
 
     uint32_t dword5 = PACKET3_COPY_DATA__DST_REG_OFFSET(addr);
+    uint32_t dword6 = 0;
+    // This logic will be removed when we switch to use RRMT
+    if (addr < 0x7000) {
+      // bit32 1 = Remote DIE
+      dword5 |= 0x40000000;
+      // bit34-39 1 = AID0. Temporary hack. Won't work for AID1.
+      dword6 = 1;
+    }
 
     // build the pm4mec_copy_data command which has 6 Dwords
-    uint32_t pm4mec_copy_data_cmd[6] = {header, dword2, dword3, 0, dword5, 0};
+    uint32_t pm4mec_copy_data_cmd[6] = {header, dword2, dword3, 0, dword5, dword6};
 
     // Append the built command into output Command Buffer
     APPEND_COMMAND_WRAPPER(cmdbuf, pm4mec_copy_data_cmd);
@@ -244,6 +252,14 @@ class Gfx12CmdBuilder : public CmdBuilder {
 
     // Specify the source register offset
     uint32_t dword3 = PACKET3_COPY_DATA__SRC_REG_OFFSET(src_reg_addr);
+    uint32_t dword4 = 0;
+    // This logic will be removed when we switch to use RRMT
+    if (src_reg_addr < 0x7000) {
+      // bit32 1 = Remote DIE
+      dword3 |= 0x40000000;
+      // bit34-39 1 = AID0. Temporary hack. Won't work for AID1.
+      dword4 = 1;
+    }
 
     // Specify the destination memory address
     uint32_t dword6 = PACKET3_COPY_DATA__DST_ADDR_HI(PtrHigh32(dst_addr));
@@ -256,7 +272,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
     }
 
     // build the pm4mec_copy_data command which has 6 Dwords
-    uint32_t pm4mec_copy_data_cmd[6] = {header, dword2, dword3, 0, dword5, dword6};
+    uint32_t pm4mec_copy_data_cmd[6] = {header, dword2, dword3, dword4, dword5, dword6};
     // Append the built command into output Command Buffer
     APPEND_COMMAND_WRAPPER(cmdbuf, pm4mec_copy_data_cmd);
   }
@@ -349,7 +365,18 @@ class Gfx12CmdBuilder : public CmdBuilder {
     APPEND_COMMAND_WRAPPER(cmdbuf, pm4mec_indirect_buffer_cmd);
   }
 
-  void BuildPredExecPacket(CmdBuffer* cmdbuf, uint32_t xcc_id = 0, uint32_t exec_count = 0) {}
+  void BuildPredExecPacket(CmdBuffer* cmdbuf, uint32_t xcc_select = 0, uint32_t exec_count = 0) {
+#if GFX12_VARIANT >= GFX12_VARIANT_1250
+    uint32_t header = MakePacket3Header(PACKET3_PRED_EXEC, 2 * sizeof(uint32_t));
+    uint32_t virtualxccid_select = 1 << xcc_select;
+    uint32_t dword2 = PACKET3_PRED_EXEC__EXEC_COUNT(exec_count) |
+                      PACKET3_PRED_EXEC__VIRTUAL_XCC_ID_SELECT(virtualxccid_select);
+
+    // build the pm4_mec_pred_exec command which has 2 Dwords
+    uint32_t pm4_mec_pred_exec_cmd[2] = {header, dword2};
+    APPEND_COMMAND_WRAPPER(cmdbuf, pm4_mec_pred_exec_cmd);
+#endif
+  }
 
   void BuildMutexAcquirePacket(CmdBuffer* cmdbuf, size_t addr) override {
     constexpr uint32_t GL2_OP_ATOMIC_CMPSWAP_RTN_32 = 8;

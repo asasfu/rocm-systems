@@ -145,8 +145,8 @@ void model_init_env_vars(void)
 			abort();
 #endif
 		}
-		assert(hsakmt_kfd_fd < 0);
-		hsakmt_kfd_fd = fd;
+		assert(hsakmt_primary_kfd_ctx.fd < 0);
+		hsakmt_kfdcontext_init_context(fd, &hsakmt_primary_kfd_ctx);
 		pthread_condattr_t condattr;
 		pthread_condattr_init(&condattr);
 		pthread_condattr_setclock(&condattr, CLOCK_MONOTONIC);
@@ -193,7 +193,7 @@ static uint64_t allocate_from_memfd(uint64_t size, uint64_t align)
 	model_memfd_size = (model_memfd_size + align - 1) & ~(align - 1);
 	uint64_t offset = model_memfd_size;
 	model_memfd_size += size;
-	int ret = ftruncate(hsakmt_kfd_fd, model_memfd_size);
+	int ret = ftruncate(hsakmt_primary_kfd_ctx.fd, model_memfd_size);
 	if (ret < 0)
 	{
 		fprintf(stderr, "model: ftruncate on memfd failed\n");
@@ -269,7 +269,7 @@ void model_init(void)
 	HSAKMT_STATUS result;
 	HsaSystemProperties props;
 	/* Read the topology to determine nodes. */
-	result = hsakmt_topology_sysfs_get_system_props(&props);
+	result = hsakmt_topology_sysfs_get_system_props(&hsakmt_primary_kfd_ctx, &props);
 	if (result != HSAKMT_STATUS_SUCCESS)
 	{
 		fprintf(stderr, "model: Failed to parse topology\n");
@@ -383,14 +383,30 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		struct kfd_process_device_apertures *apertures =
 			(void *)args->kfd_process_device_apertures_ptr;
 		assert(args->num_of_nodes == model_num_nodes);
+		const char *gpuvm_base_str = getenv("HSA_KMT_MODEL_GPUVM_BASE");
+		const char *gpuvm_size_str = getenv("HSA_KMT_MODEL_GPUVM_SIZE");
+		unsigned long gpuvm_base, gpuvm_size, gpuvm_limit;
+
+		if (!gpuvm_base_str)
+			gpuvm_base = 0x4000llu;
+		else
+			sscanf(gpuvm_base_str, "%lx", &gpuvm_base);
+
+		if (!gpuvm_size_str) {
+			gpuvm_limit = MODEL_APERTURE_SIZE;
+		} else {
+			sscanf(gpuvm_size_str, "%lx", &gpuvm_size);
+			gpuvm_limit = gpuvm_base + gpuvm_size;
+		}
+
 		for (unsigned node_id = 0; node_id < args->num_of_nodes; ++node_id)
 		{
 			memset(&apertures[node_id], 0, sizeof(apertures[node_id]));
 			if (!model_nodes[node_id].is_gpu)
 				continue;
 			apertures[node_id].gpu_id = 1 + node_id;
-			apertures[node_id].gpuvm_base = 0x4000llu;
-			apertures[node_id].gpuvm_limit = MODEL_APERTURE_SIZE;
+			apertures[node_id].gpuvm_base = gpuvm_base;
+			apertures[node_id].gpuvm_limit = gpuvm_limit;
 			apertures[node_id].lds_base = 0x4000000000000000llu; // 0x1000000000000?
 			apertures[node_id].lds_limit = 0x40000000ffffffffllu;
 			apertures[node_id].scratch_base = 0x5000000000000000llu; // 0x2000000000000?
@@ -503,7 +519,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		// unclear whether the current implementation causes kernel data
 		// structures to grow. But in practice, it almost certainly never
 		// matters.
-		int ret = fallocate(hsakmt_kfd_fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+		int ret = fallocate(hsakmt_primary_kfd_ctx.fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 							mem_data->file_offset, mem_data->size);
 		if (ret != 0)
 		{
@@ -539,7 +555,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 			pr_debug("MODEL IOCTL: AMDKFD_IOC_MAP_MEMORY_TO_GPU: VA: %lx : Size: %lu, Flags: %x\n", mem_data->va_addr, mem_data->size, mem_data->flags);
 			void *ret = mmap(VOID_PTR_ADD(model_nodes[node_id].aperture, mem_data->va_addr),
 							 mem_data->size, prot,
-							 MAP_SHARED | MAP_FIXED, hsakmt_kfd_fd, mem_data->file_offset);
+							 MAP_SHARED | MAP_FIXED, hsakmt_primary_kfd_ctx.fd, mem_data->file_offset);
 			if (ret == MAP_FAILED)
 			{
 				fprintf(stderr, "model: mmap failed\n");
@@ -767,7 +783,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 			model_functions->register_queue(model_nodes[node_id].model, &info);
 		model_queues[queue_id].node_id = node_id;
 		args->queue_id = queue_id;
-		// Note that strictly speaking, this is the offset into the hsakmt_kfd_fd
+		// Note that strictly speaking, this is the offset into the hsakmt_primary_kfd_ctx.fd
 		// file, not the DRM fd (but they are the same in our case).
 		args->doorbell_offset = model_nodes[node_id].doorbell_offset + 8 * queue_id;
 		return 0;
@@ -803,6 +819,14 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		fprintf(stderr, "model: Debugger runtime not implemented\n");
 		fprintf(stderr, "Fix this by clearing bit 30 of the 'capability' field in $HSA_MODEL_TOPOLOGY/%%d/properties\n");
 		abort();
+	case AMDKFD_IOC_ALLOC_QUEUE_GWS:
+	{
+		struct kfd_ioctl_alloc_queue_gws_args *args = arg;
+		pr_debug("MODEL IOCTL: AMDKFD_IOC_ALLOC_QUEUE_GWS: queue_id: %u, num_gws: %u\n", args->queue_id, args->num_gws);
+		// GWS is a GPU-side feature. We don't model it.
+		args->first_gws = 0;
+		return 0;
+	}
 	default:
 		fprintf(stderr, "model: Unimplemented KFD ioctl\n");
 		abort();

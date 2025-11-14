@@ -641,6 +641,11 @@ HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNT
 #if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 18
 HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipOccupancyAvailableDynamicSMemPerBlock, hipOccupancyAvailableDynamicSMemPerBlock, hipOccupancyAvailableDynamicSMemPerBlock_fn, dynamicSmemSize, f, numBlocks, blockSize);
 #endif
+
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 19
+HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipOccupancyMaxPotentialClusterSize, hipOccupancyMaxPotentialClusterSize, hipOccupancyMaxPotentialClusterSize_fn, maxPotentialClusterSize, f, numBlocks, blockSize);
+HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipOccupancyMaxActiveClusters, hipOccupancyMaxActiveClusters, hipOccupancyMaxActiveClusters_fn, maxActiveClusters, f, numBlocks, blockSize);
+#endif
 // clang-format on
 
 #else

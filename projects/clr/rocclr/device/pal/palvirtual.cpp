@@ -2729,6 +2729,10 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
   dispatchParam.useAtc = dev().settings().svmFineGrainSystem_ ? true : false;
   dispatchParam.kernargSegmentSize = hsaKernel.argsBufferSize();
   dispatchParam.aqlPacketIndex = aql_index;
+  dispatchParam.clusterSizeX = sizes.cluster()[0];
+  dispatchParam.clusterSizeY = sizes.cluster()[1];
+  dispatchParam.clusterSizeZ = sizes.cluster()[2];
+
   // Run AQL dispatch in HW
   eventBegin(MainEngine);
   iCmd()->CmdDispatchAql(dispatchParam);
@@ -3743,7 +3747,7 @@ bool VirtualGPU::processMemObjectsHSA(const amd::Kernel& kernel, const_address p
     }
   }
 
-  if (ldsAddress > dev().info().localMemSize_) {
+  if (ldsAddress > hsaKernel.workGroupInfo()->availableLDSSize_) {
     LogError("No local memory available\n");
     return false;
   }

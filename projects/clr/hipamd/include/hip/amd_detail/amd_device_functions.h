@@ -706,11 +706,7 @@ __device__ inline static void __work_group_barrier(__cl_mem_fence_flags flags) {
 
 __device__ inline static void __barrier(int n) { __work_group_barrier((__cl_mem_fence_flags)n); }
 
-__device__
-inline
-__attribute__((convergent))
-void __syncthreads()
-{
+__device__ inline __attribute__((convergent)) void __syncthreads() {
   __barrier(__CLK_GLOBAL_MEM_FENCE | __CLK_LOCAL_MEM_FENCE);
 }
 
@@ -793,7 +789,13 @@ __device__ inline __attribute__((convergent)) int __syncthreads_or(int predicate
 #define XCC_ID_XCC_ID_OFFSET 0
 #endif
 
-#if !defined(__HIP_NO_IMAGE_SUPPORT) && defined(__gfx94plus_clr__)
+#if defined(__gfx1250__) || defined(__gfx1251__)
+#define __gfx125plus_clr__
+#define SE_HW_ID_XCC_ID_SIZE 4
+#define SE_HW_ID_XCC_ID_OFFSET 16
+#endif
+
+#if !defined(__HIP_NO_IMAGE_SUPPORT) && defined(__gfx94plus_clr__) || defined(__gfx125plus_clr__)
 #define __HIP_NO_IMAGE_SUPPORT 1
 #endif
 

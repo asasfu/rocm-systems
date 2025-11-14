@@ -87,6 +87,7 @@ Settings::Settings() {
   // Use coarse grain system memory for kernel arguments by default (to keep GPU cache)
   fgs_kernel_arg_ = false;
   barrier_value_packet_ = false;
+  useNewDispatchPacket_ = false;
   kernel_arg_impl_ = KernelArgImpl::HostKernelArgs;
   gwsInitSupported_ = true;
   limit_blit_wg_ = 16;
@@ -161,13 +162,18 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
   setKernelArgImpl(isa, isXgmi, hasValidHDPFlush);
 
   if (gfxipMajor >= 10) {
-    enableWave32Mode_ = true;
-    enableWgpMode_ = GPU_ENABLE_WGP_MODE;
-    if (gfxipMinor == 1) {
-      // GFX10.1 HW doesn't support custom pitch. Enable double copy workaround
-      // TODO: This should be updated when ROCr support custom pitch
-      imageBufferWar_ = GPU_IMAGE_BUFFER_WAR;
-    }
+     enableWave32Mode_ = true;
+     // Disable wgp mode for MI450
+     if (gfxipMajor == 12 && gfxipMinor >= 5) {
+        enableWgpMode_ = false;
+     } else {
+        enableWgpMode_ = GPU_ENABLE_WGP_MODE;
+     }
+     if (gfxipMinor == 1) {
+       // GFX10.1 HW doesn't support custom pitch. Enable double copy workaround
+       // TODO: This should be updated when ROCr support custom pitch
+       imageBufferWar_ = GPU_IMAGE_BUFFER_WAR;
+     }
   }
 
   if (!flagIsDefault(GPU_ENABLE_WAVE32_MODE)) {
@@ -178,6 +184,15 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
 
   if (gfxipMajor > 10 || (gfxipMajor == 9 && gfxipMinor >= 4)) {
     gwsInitSupported_ = false;
+  }
+
+  if (gfxipMajor == 12 && gfxipMinor >= 5) {
+    useNewDispatchPacket_ = true;
+    groupMemCarveout_ = true;
+    groupMemPref_.totalSharedBanks = 7;
+    groupMemPref_.preferLDSBanks = 5;
+    groupMemPref_.preferCacheLDSBanks = 2;
+    groupMemPref_.preferEqualLDSBanks = 3;
   }
 
   // Override current device settings

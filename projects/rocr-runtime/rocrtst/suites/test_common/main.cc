@@ -76,6 +76,7 @@
 #include "suites/functional/concurrent_shutdown.h"
 #include "suites/functional/reference_count.h"
 #include "suites/functional/signal_concurrent.h"
+#include "suites/functional/metadata_prefetch.h"
 #include "suites/functional/aql_barrier_bit.h"
 #include "suites/functional/signal_kernel.h"
 #include "suites/functional/cu_masking.h"
@@ -224,11 +225,8 @@ TEST(rocrtstFunc, Signal_Create_Concurrently) {
   RunCustomTestEpilog(&sd);
 }
 
-/* Temporary: Disable CU Masking until it is fixed */
-TEST(rocrtstFunc, DISABLED_CU_Masking) {
-  CU_Masking sd;
-  RunGenericTest(&sd);
-}
+TEST(rocrtst, Test_MetadataPrefetchPacket) {
+  MetadataPrefetch tst;
 
 TEST(rocrtstFunc, IPC) {
   RUN_IF_NOT_EMU_MODE(
@@ -311,6 +309,58 @@ TEST(rocrtstFunc, Memory_Available) {
   );
 }
 
+TEST(rocrtstPerf, Memory_Async_Copy) {
+  MemoryAsyncCopy mac;
+  // To do full test, uncomment this:
+  //  mac.set_full_test(true);
+  // To test only 1 path, add lines like this:
+  //  mac.set_src_pool(<src pool id>);
+  //  mac.set_dst_pool(<dst pool id>);
+  // The default is to and from the cpu to 1 gpu, and to/from a gpu to
+  // another gpu
+  RunGenericTest(&mac);
+}
+
+TEST(rocrtstNeg, Memory_Negative_Tests) {
+  MemoryAllocateNegativeTest mt;
+  RunCustomTestProlog(&mt);
+  mt.ZeroMemoryAllocateTest();
+  mt.MaxMemoryAllocateTest();
+
+  // Disabled temporarily - Renable this test only
+  // on recent GPUs - gfx94x+
+  // mt.FreeQueueRingBufferTest();
+
+  RunCustomTestEpilog(&mt);
+}
+
+TEST(rocrtstNeg, Queue_Validation_InvalidDimension) {
+  QueueValidation qv(true, false, false, false, false);
+  RunCustomTestProlog(&qv);
+  qv.QueueValidationForInvalidDimension();
+  RunCustomTestEpilog(&qv);
+}
+
+TEST(rocrtstNeg, Queue_Validation_InvalidGroupMemory) {
+  QueueValidation qv(false, true, false, false, false);
+  RunCustomTestProlog(&qv);
+  qv.QueueValidationInvalidGroupMemory();
+  RunCustomTestEpilog(&qv);
+}
+
+TEST(rocrtstNeg, Queue_Validation_InvalidKernelObject) {
+  QueueValidation qv(false, false, true, false, false);
+  RunCustomTestProlog(&qv);
+  qv.QueueValidationForInvalidKernelObject();
+  RunCustomTestEpilog(&qv);
+}
+
+TEST(rocrtstNeg, Queue_Validation_InvalidPacket) {
+  QueueValidation qv(false, false, false, true, false);
+  RunCustomTestProlog(&qv);
+  qv.QueueValidationForInvalidPacket();
+  RunCustomTestEpilog(&qv);
+}
 
 TEST(rocrtstFunc, Memory_Atomic_Add_Test) {
   RUN_IF_NOT_EMU_MODE(
@@ -400,6 +450,67 @@ TEST(rocrtstFunc, Memory_Atomic_Xchg_Test) {
     ma.MemoryAtomicTest();
     RunCustomTestEpilog(&ma);
   );
+}
+/* Temporary: Disable CU Masking until it is fixed */
+TEST(rocrtstFunc, DISABLED_CU_Masking) {
+  CU_Masking sd;
+  RunGenericTest(&sd);
+}
+
+#ifndef ROCRTST_EMULATOR_BUILD
+TEST(rocrtstFunc, IPC) {
+  IPCTest ipc;
+  RunGenericTest(&ipc);
+}
+
+TEST(rocrtstFunc, DISABLED_Signal_Kernel_Set) {
+  SignalKernelTest sk(SET);
+  RunCustomTestProlog(&sk);
+  sk.TestSignalKernelSet();
+  RunCustomTestEpilog(&sk);
+}
+
+TEST(rocrtstFunc, DISABLED_Signal_Kernel_Multi_Set) {
+  SignalKernelTest sk(MULTISET);
+  RunCustomTestProlog(&sk);
+  sk.TestSignalKernelMultiSet();
+  RunCustomTestEpilog(&sk);
+}
+
+TEST(rocrtstFunc, DISABLED_Signal_Kernel_Wait) {
+  SignalKernelTest sw(WAIT);
+  RunCustomTestProlog(&sw);
+  sw.TestSignalKernelWait();
+  RunCustomTestEpilog(&sw);
+}
+
+TEST(rocrtstFunc, DISABLED_Signal_Kernel_Multi_Wait) {
+  SignalKernelTest sw(MULTIWAIT);
+  RunCustomTestProlog(&sw);
+  sw.TestSignalKernelMultiWait();
+  RunCustomTestEpilog(&sw);
+}
+
+TEST(rocrtstFunc, DISABLED_Aql_Barrier_Bit_Set) {
+  AqlBarrierBitTest ab(true, false);
+  RunCustomTestProlog(&ab);
+  ab.BarrierBitSet();
+  RunCustomTestEpilog(&ab);
+}
+
+TEST(rocrtstFunc, DISABLED_Aql_Barrier_Bit_Not_Set) {
+  AqlBarrierBitTest ab(false, true);
+  RunCustomTestProlog(&ab);
+  ab.BarrierBitNotSet();
+  RunCustomTestEpilog(&ab);
+}
+
+TEST(rocrtstFunc, Memory_Max_Mem) {
+  MemoryTest mt;
+
+  RunCustomTestProlog(&mt);
+  mt.MaxSingleAllocationTest();
+  RunCustomTestEpilog(&mt);
 }
 
 TEST(rocrtstFunc, DISABLED_DebugBasicTests) {

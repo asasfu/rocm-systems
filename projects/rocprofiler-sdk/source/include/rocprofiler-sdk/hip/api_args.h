@@ -3358,6 +3358,22 @@ typedef union rocprofiler_hip_api_args_t
         int blockSize;
     } hipOccupancyAvailableDynamicSMemPerBlock;
 #endif
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 19
+    struct
+    {
+        size_t* maxPotentialClusterSize;
+        const void* f;
+        int numBlocks;
+        int blockSize;
+    } hipOccupancyMaxPotentialClusterSize;
+    struct
+    {
+        size_t* maxActiveClusters;
+        const void* f;
+        int numBlocks;
+        int blockSize;
+    } hipOccupancyMaxActiveClusters;
+#endif
 } rocprofiler_hip_api_args_t;
 
 ROCPROFILER_EXTERN_C_FINI

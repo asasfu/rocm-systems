@@ -159,6 +159,13 @@ add_custom_target(copyKernelGenericTargetCompressed.code
                   -o ${CMAKE_CURRENT_BINARY_DIR}/../../unit/module/copyKernelGenericTargetCompressed.code
                   -I${HIP_PATH}/include/ --hip-path=${HIP_PATH}
                   -I${CMAKE_CURRENT_SOURCE_DIR}/../../include)
+add_custom_target(anyOrderLaunch.code
+                  COMMAND ${CMAKE_CXX_COMPILER} -mcode-object-version=5 --genco ${OFFLOAD_ARCH_STR}
+                  ${CMAKE_CURRENT_SOURCE_DIR}/anyOrderLaunch.cc
+                  -o ${CMAKE_CURRENT_BINARY_DIR}/../../unit/module/anyOrderLaunch.code
+                  -I${HIP_PATH}/include/ --rocm-path=${ROCM_PATH}
+                  -I${CMAKE_CURRENT_SOURCE_DIR}/../../include --rocm-path=${ROCM_PATH})
+
 set_property(GLOBAL APPEND PROPERTY G_INSTALL_CUSTOM_TARGETS
   ${CMAKE_CURRENT_BINARY_DIR}/empty_module.code
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernel.code
@@ -169,6 +176,7 @@ set_property(GLOBAL APPEND PROPERTY G_INSTALL_CUSTOM_TARGETS
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernelCompressed.code
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernelGenericTarget.code
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernelGenericTargetCompressed.code
+  ${CMAKE_CURRENT_BINARY_DIR}/anyOrderLaunch.code
 )
 
 if(UNIX)
@@ -271,6 +279,7 @@ add_dependencies(build_tests copyKernelCompressed.code)
 add_dependencies(build_tests copyKernelGenericTarget.code)
 add_dependencies(build_tests copyKernelGenericTargetCompressed.code)
 
+add_dependencies(build_tests anyOrderLaunch.code)
 if(UNIX)
 add_dependencies(build_tests copiousArgKernel.code copiousArgKernel0.code copiousArgKernel1.code copiousArgKernel2.code
 copiousArgKernel3.code copiousArgKernel16.code copiousArgKernel17.code)
