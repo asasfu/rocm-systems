@@ -74,8 +74,8 @@ struct queue {
 	 * cu_mask bits array.
 	 */
 	uint32_t cu_mask_count; /* in bits */
-	uint32_t cu_mask[0];
 	uint32_t queue_type;
+	uint32_t cu_mask[0];
 };
 
 struct process_doorbells {
