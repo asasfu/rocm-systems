@@ -3361,17 +3361,15 @@ typedef union rocprofiler_hip_api_args_t
 #if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 19
     struct
     {
-        size_t* maxPotentialClusterSize;
+        int* clusterSize;
         const void* f;
-        int numBlocks;
-        int blockSize;
+        const hipLaunchConfig_t* config;
     } hipOccupancyMaxPotentialClusterSize;
     struct
     {
-        size_t* maxActiveClusters;
+        int* numClusters;
         const void* f;
-        int numBlocks;
-        int blockSize;
+        const hipLaunchConfig_t* config;
     } hipOccupancyMaxActiveClusters;
 #endif
 } rocprofiler_hip_api_args_t;

@@ -490,6 +490,22 @@ struct formatter<hipSynchronizationPolicy> : rocprofiler::hip::details::base_for
         return fmt::format_to(ctx.out(), "Unknown");
     }
 };
+template <>
+struct formatter<hipClusterSchedulingPolicy> : rocprofiler::hip::details::base_formatter
+{
+    template <typename Ctx>
+    auto format(hipClusterSchedulingPolicy v, Ctx& ctx) const
+    {
+        switch(v)
+        {
+            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipClusterSchedulingPolicy, Default);
+            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipClusterSchedulingPolicy, Spread);
+            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipClusterSchedulingPolicy, LoadBalancing);
+            ROCP_SDK_HIP_FORMAT_DFLT_CASE(hipClusterSchedulingPolicy);
+        }
+        return fmt::format_to(ctx.out(), "Unknown");
+    }
+};
 ROCP_SDK_HIP_FORMATTER(hipLaunchMemSyncDomainMap, "{{default={}, remote={}}}", v.default_, v.remote)
 template <>
 struct formatter<hipLaunchMemSyncDomain> : rocprofiler::hip::details::base_formatter
@@ -552,6 +568,8 @@ struct formatter<hipLaunchAttributeID> : rocprofiler::hip::details::base_formatt
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, AccessPolicyWindow);
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, Cooperative);
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, SynchronizationPolicy);
+            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, ClusterDimension);
+            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, ClusterSchedulingPolicyPreference);
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, Priority);
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, MemSyncDomainMap);
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, MemSyncDomain);
@@ -576,7 +594,9 @@ struct formatter<hipLaunchAttributeValue> : rocprofiler::hip::details::base_form
             v.priority,
             v.syncPolicy,
             v.memSyncDomainMap,
-            v.memSyncDomain);
+            v.memSyncDomain,
+            v.clusterDim,
+            v.clusterSchedulingPolicyPreference);
     }
 };
 ROCP_SDK_HIP_FORMATTER(hipMemcpyAttributes,
