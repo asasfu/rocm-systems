@@ -1444,7 +1444,7 @@ typedef union rocprofiler_hsa_api_args_t
         uint64_t    flags;
     } hsa_amd_portable_export_dmabuf_v2;
 #    endif
-#if  HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x08
+#    if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x08
     struct
     {
         hsa_amd_ais_file_handle_t handle;
@@ -1463,6 +1463,8 @@ typedef union rocprofiler_hsa_api_args_t
         uint64_t*                 size_copied;
         int32_t*                  status;
     } hsa_amd_ais_file_read;
+#    endif
+#    if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x09
     struct
     {
         hsa_fabric_handle_t*        fabric_handle;
@@ -1474,6 +1476,11 @@ typedef union rocprofiler_hsa_api_args_t
         hsa_fabric_handle_t          fabric_handle;
         hsa_amd_vmem_alloc_handle_t* handle;
     } hsa_amd_vmem_import_fabric_handle;
+    struct
+    {
+        hsa_signal_t signal;
+        uint32_t*    event_id;
+    } hsa_amd_signal_get_event_id;
 #    endif
 #endif
 } rocprofiler_hsa_api_args_t;
