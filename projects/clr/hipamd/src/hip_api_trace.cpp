@@ -879,6 +879,12 @@ hipError_t hipLibraryLoadFromFile(hipLibrary_t* library, const char* fileName,
 hipError_t hipLibraryUnload(hipLibrary_t library);
 hipError_t hipLibraryGetKernel(hipKernel_t* pKernel, hipLibrary_t library, const char* name);
 hipError_t hipLibraryGetKernelCount(unsigned int* count, hipLibrary_t library);
+hipError_t hipLibraryEnumerateKernels(hipKernel_t* kernels, unsigned int numKernels,
+                                      hipLibrary_t library);
+hipError_t hipKernelGetLibrary(hipLibrary_t* library, hipKernel_t kernel);
+hipError_t hipKernelGetName(const char** name, hipKernel_t kernel);
+hipError_t hipOccupancyAvailableDynamicSMemPerBlock(size_t* dynamicSmemSize, const void* f,
+                                                    int numBlocks, int blockSize);
 }  // namespace hip
 
 namespace hip {
@@ -1423,6 +1429,10 @@ void UpdateDispatchTable(HipDispatchTable* ptrDispatchTable) {
   ptrDispatchTable->hipLibraryUnload_fn = hip::hipLibraryUnload;
   ptrDispatchTable->hipLibraryGetKernel_fn = hip::hipLibraryGetKernel;
   ptrDispatchTable->hipLibraryGetKernelCount_fn = hip::hipLibraryGetKernelCount;
+  ptrDispatchTable->hipLibraryEnumerateKernels_fn = hip::hipLibraryEnumerateKernels;
+  ptrDispatchTable->hipKernelGetLibrary_fn = hip::hipKernelGetLibrary;
+  ptrDispatchTable->hipKernelGetName_fn = hip::hipKernelGetName;
+  ptrDispatchTable->hipOccupancyAvailableDynamicSMemPerBlock_fn = hip::hipOccupancyAvailableDynamicSMemPerBlock;
 }
 
 #if HIP_ROCPROFILER_REGISTER > 0
@@ -2096,8 +2106,14 @@ HIP_ENFORCE_ABI(HipDispatchTable, hipLibraryGetKernelCount_fn, 500);
 // HIP_RUNTIME_API_TABLE_STEP_VERSION == 16
 HIP_ENFORCE_ABI(HipDispatchTable, hipStreamCopyAttributes_fn, 501);
 // HIP_RUNTIME_API_TABLE_STEP_VERSION == 17
-HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxPotentialClusterSize_fn, 502);
-HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxActiveClusters_fn, 503);
+HIP_ENFORCE_ABI(HipDispatchTable, hipLibraryEnumerateKernels_fn, 502);
+HIP_ENFORCE_ABI(HipDispatchTable, hipKernelGetLibrary_fn, 503);
+HIP_ENFORCE_ABI(HipDispatchTable, hipKernelGetName_fn, 504);
+// HIP_RUNTIME_API_TABLE_STEP_VERSION == 18
+HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyAvailableDynamicSMemPerBlock_fn, 505);
+// HIP_RUNTIME_API_TABLE_STEP_VERSION == 19
+HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxPotentialClusterSize_fn, 506);
+HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxActiveClusters_fn, 507);
 
 // if HIP_ENFORCE_ABI entries are added for each new function pointer in the table, the number below
 // will be +1 of the number in the last HIP_ENFORCE_ABI line. E.g.:
@@ -2105,9 +2121,9 @@ HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxActiveClusters_fn, 503);
 //  HIP_ENFORCE_ABI(<table>, <functor>, 8)
 //
 //  HIP_ENFORCE_ABI_VERSIONING(<table>, 9) <- 8 + 1 = 9
-HIP_ENFORCE_ABI_VERSIONING(HipDispatchTable, 504)
+HIP_ENFORCE_ABI_VERSIONING(HipDispatchTable, 508)
 
-static_assert(HIP_RUNTIME_API_TABLE_MAJOR_VERSION == 0 && HIP_RUNTIME_API_TABLE_STEP_VERSION == 17,
+static_assert(HIP_RUNTIME_API_TABLE_MAJOR_VERSION == 0 && HIP_RUNTIME_API_TABLE_STEP_VERSION == 19,
               "If you get this error, add new HIP_ENFORCE_ABI(...) code for the new function "
               "pointers and then update this check so it is true");
 #endif

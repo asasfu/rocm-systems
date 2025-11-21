@@ -517,6 +517,8 @@ HSA_API_INFO_DEFINITION_V(ROCPROFILER_HSA_TABLE_ID_AmdExt,
                           file_offset,
                           size_copied,
                           status)
+#        endif
+#        if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x09
 HSA_API_INFO_DEFINITION_V(ROCPROFILER_HSA_TABLE_ID_AmdExt,
                           ROCPROFILER_HSA_AMD_EXT_API_ID_hsa_amd_vmem_export_fabric_handle,
                           hsa_amd_vmem_export_fabric_handle,
@@ -530,6 +532,12 @@ HSA_API_INFO_DEFINITION_V(ROCPROFILER_HSA_TABLE_ID_AmdExt,
                           hsa_amd_vmem_import_fabric_handle_fn,
                           fabric_handle,
                           handle)
+HSA_API_INFO_DEFINITION_V(ROCPROFILER_HSA_TABLE_ID_AmdExt,
+                          ROCPROFILER_HSA_AMD_EXT_API_ID_hsa_amd_signal_get_event_id,
+                          hsa_amd_signal_get_event_id,
+                          hsa_amd_signal_get_event_id_fn,
+                          signal,
+                          event_id)
 #        endif
 #    endif
 

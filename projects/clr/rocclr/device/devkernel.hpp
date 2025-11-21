@@ -20,9 +20,6 @@
 
 #pragma once
 
-#if defined(WITH_COMPILER_LIB)
-#include "aclTypes.h"
-#endif
 #include "platform/context.hpp"
 #include "platform/object.hpp"
 #include "platform/memory.hpp"
@@ -98,7 +95,6 @@ struct KernelParameterDescriptor {
 };
 }  // namespace amd
 
-#if defined(USE_COMGR_LIBRARY)
 //! Runtime handle structure for device enqueue
 struct RuntimeHandle {
   uint64_t kernel_handle;         //!< Pointer to amd_kernel_code_s or kernel_descriptor_t
@@ -175,8 +171,6 @@ enum class KernelField : uint8_t {
   LanesharedSegmentFixedSize = 19,
   MaxSize                    = 20
 };
-
-#endif  // defined(USE_COMGR_LIBRARY)
 
 namespace amd {
 namespace hsa {
@@ -304,10 +298,6 @@ class Kernel : public amd::HeapObject {
   //! Return the build log
   const std::string& buildLog() const { return buildLog_; }
 
-#if defined(WITH_COMPILER_LIB)
-  static std::string openclMangledName(const std::string& name);
-#endif
-
   const std::unordered_map<size_t, size_t>& patch() const { return patchReferences_; }
 
   //! Returns TRUE if kernel uses dynamic parallelism
@@ -378,7 +368,6 @@ class Kernel : public amd::HeapObject {
 
  protected:
   //! Initializes the abstraction layer kernel parameters
-#if defined(USE_COMGR_LIBRARY)
   void InitParameters(const amd_comgr_metadata_node_t kernelMD);
 
   //! Retrieve kernel attribute and code properties metadata
@@ -394,13 +383,7 @@ class Kernel : public amd::HeapObject {
   const uint32_t codeObjectVer() const { return prog().codeObjectVer(); }
   //! Initializes HSAIL Printf metadata and info for LC
   void InitPrintf(const std::vector<std::string>& printfInfoStrings);
-#endif
-#if defined(WITH_COMPILER_LIB)
-  void InitParameters(const aclArgData* aclArg,  //!< List of ACL arguments
-                      uint32_t argBufferSize);
-  //! Initializes HSAIL Printf metadata and info
-  void InitPrintf(const aclPrintfFmt* aclPrintf);
-#endif
+
   //! Returns program associated with this kernel
   const Program& prog() const { return prog_; }
 
@@ -449,7 +432,5 @@ class Kernel : public amd::HeapObject {
   KernelKind kind_{Normal};  //!< Kernel kind, is normal unless specified otherwise
 };
 
-#if defined(USE_COMGR_LIBRARY)
 amd_comgr_status_t getMetaBuf(const amd_comgr_metadata_node_t meta, std::string* str);
-#endif  // defined(USE_COMGR_LIBRARY)
 }  // namespace amd::device

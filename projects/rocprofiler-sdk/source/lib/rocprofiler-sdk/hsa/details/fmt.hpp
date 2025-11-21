@@ -248,6 +248,8 @@ struct formatter<hsa_amd_ais_file_handle_t>
         return fmt::format_to(ctx.out(), "{{fd={}, handle={}}}", h.fd, h.handle);
     }
 };
+#endif
+#if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x09
 template <>
 struct formatter<hsa_fabric_handle_t>
 {
