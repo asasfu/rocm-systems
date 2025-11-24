@@ -19,12 +19,13 @@
  THE SOFTWARE. */
 
 #include "os_driver.h"
+
 #include "debug.h"
 #include "linux/kfd_ioctl.h"
 #include "linux/kfd_sysfs.h"
 #include "logging.h"
-#include "utils.h"
 #include "process.h"
+#include "utils.h"
 
 #include <algorithm>
 #include <fstream>
@@ -480,12 +481,35 @@ protected:
   virtual amd_dbgapi_status_t
   kfd_agent_snapshot (kfd_dbg_device_info_entry *agents, size_t snapshot_count,
                       size_t *agent_count,
-                      os_exception_mask_t exceptions_cleared) const = 0;
+                      os_exception_mask_t exceptions_cleared) const
+    = 0;
 
   virtual amd_dbgapi_status_t
   kfd_queue_snapshot (kfd_queue_snapshot_entry *queues, size_t snapshot_count,
                       size_t *queue_cout,
-                      os_exception_mask_t exceptions_cleared) const = 0;
+                      os_exception_mask_t exceptions_cleared) const
+    = 0;
+
+  amd_dbgapi_status_t xfer_host_memory_partial (host_address_t address,
+                                                void *read, const void *write,
+                                                size_t *size) const override
+  {
+    /* We have a unified address space, so just use the global memory access
+       to handle agent memory.  */
+    return xfer_global_memory_partial (global_address_t{ address }, read,
+                                       write, size);
+  }
+
+  amd_dbgapi_status_t xfer_agent_memory_partial (os_agent_id_t /* agent  */,
+                                                 agent_address_t address,
+                                                 void *read, const void *write,
+                                                 size_t *size) const override
+  {
+    /* We have a unified address space, so just use the global memory access
+       to handle agent memory.  */
+    return xfer_global_memory_partial (global_address_t{ address }, read,
+                                       write, size);
+  }
 
 private:
   static std::string marketing_name (uint32_t vendor_id, uint32_t device_id,
@@ -759,7 +783,8 @@ struct kfd_note_header_t
 class kfd_core_driver_t final : public kfd_driver_base_t
 {
 public:
-  kfd_core_driver_t (const amd_dbgapi_core_state_data_t &core_state);
+  kfd_core_driver_t (amd_dbgapi_client_process_id_t client_process_id,
+                     const amd_dbgapi_core_state_data_t &core_state);
 
   bool is_valid () const override { return m_state != nullptr; }
 
@@ -775,6 +800,11 @@ public:
   }
 
   bool is_debug_enabled () const override;
+
+  amd_dbgapi_status_t xfer_global_memory_partial (global_address_t address,
+                                                  void *read,
+                                                  const void *write,
+                                                  size_t *size) const override;
 
 protected:
   virtual amd_dbgapi_status_t
@@ -798,6 +828,7 @@ private:
   };
 
   std::unique_ptr<kfd_simulated_state_t> m_state;
+  amd_dbgapi_client_process_id_t const m_client_process_id;
 };
 
 kfd_driver_base_t::version_t
@@ -812,9 +843,8 @@ class note_reader
 {
 public:
   explicit note_reader (const amd_dbgapi_core_state_data_t &core_state)
-    : head{ static_cast<const std::byte *> (core_state.data) }, end{
-        head + core_state.size
-      }
+    : head{ static_cast<const std::byte *> (core_state.data) },
+      end{ head + core_state.size }
   {
   }
 
@@ -852,8 +882,9 @@ private:
 };
 
 kfd_core_driver_t::kfd_core_driver_t (
+  amd_dbgapi_client_process_id_t client_process_id,
   const amd_dbgapi_core_state_data_t &core_state)
-  : kfd_driver_base_t (std::nullopt)
+  : kfd_driver_base_t (std::nullopt), m_client_process_id{ client_process_id }
 {
   if (core_state.endianness
       != (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ ? AMD_DBGAPI_ENDIAN_LITTLE
@@ -903,6 +934,15 @@ bool
 kfd_core_driver_t::is_debug_enabled () const
 {
   return m_state->runtime_info.runtime_state == os_runtime_state_t::enabled;
+}
+
+amd_dbgapi_status_t
+kfd_core_driver_t::xfer_global_memory_partial (global_address_t address,
+                                               void *read, const void *write,
+                                               size_t *size) const
+{
+  return detail::process_callbacks.xfer_global_memory (
+    m_client_process_id, address, size, read, write);
 }
 
 amd_dbgapi_status_t
@@ -1067,7 +1107,7 @@ public:
   amd_dbgapi_status_t
   query_debug_event (os_exception_mask_t *exceptions_present,
                      os_queue_id_t *os_queue_id, os_agent_id_t *os_agent_id,
-                     os_exception_mask_t exceptions_cleared) override;
+                     os_exception_mask_t exceptions_cleared) const override;
 
   amd_dbgapi_status_t
   query_exception_info (os_exception_code_t exception,
@@ -1090,10 +1130,10 @@ public:
                       size_t snapshot_count, size_t *queue_count,
                       os_exception_mask_t exceptions_cleared) const override;
 
-  amd_dbgapi_status_t set_address_watch (
-    os_agent_id_t os_agent_id, amd_dbgapi_global_address_t address,
-    amd_dbgapi_global_address_t mask, os_watch_mode_t os_watch_mode,
-    os_watch_id_t *os_watch_id) const override;
+  amd_dbgapi_status_t
+  set_address_watch (os_agent_id_t os_agent_id, agent_address_t address,
+                     agent_address_t mask, os_watch_mode_t os_watch_mode,
+                     os_watch_id_t *os_watch_id) const override;
 
   amd_dbgapi_status_t
   clear_address_watch (os_agent_id_t os_agent_id,
@@ -1112,9 +1152,10 @@ public:
   amd_dbgapi_status_t
   set_process_flags (os_process_flags_t flags) const override;
 
-  amd_dbgapi_status_t
-  xfer_global_memory_partial (amd_dbgapi_global_address_t address, void *read,
-                              const void *write, size_t *size) const override;
+  amd_dbgapi_status_t xfer_global_memory_partial (global_address_t address,
+                                                  void *read,
+                                                  const void *write,
+                                                  size_t *size) const override;
 };
 
 size_t kfd_driver_t::s_kfd_open_count{ 0 };
@@ -1250,9 +1291,7 @@ struct kfd_snapshots
 class note_builder
 {
 public:
-  note_builder ()
-  {
-  }
+  note_builder () {}
 
   template <typename T, std::enable_if_t<!std::is_pointer_v<T>, int> = 0>
   void write (const T &v)
@@ -1545,7 +1584,7 @@ amd_dbgapi_status_t
 kfd_driver_t::query_debug_event (os_exception_mask_t *exceptions_present,
                                  os_queue_id_t *os_queue_id,
                                  os_agent_id_t *os_agent_id,
-                                 os_exception_mask_t exceptions_cleared)
+                                 os_exception_mask_t exceptions_cleared) const
 {
   TRACE_DRIVER_BEGIN (param_in (exceptions_present), param_in (os_queue_id),
                       param_in (os_agent_id), param_in (exceptions_cleared));
@@ -1764,8 +1803,7 @@ kfd_driver_t::kfd_queue_snapshot (kfd_queue_snapshot_entry *snapshots,
 
 amd_dbgapi_status_t
 kfd_driver_t::set_address_watch (os_agent_id_t os_agent_id,
-                                 amd_dbgapi_global_address_t address,
-                                 amd_dbgapi_global_address_t mask,
+                                 agent_address_t address, agent_address_t mask,
                                  os_watch_mode_t os_watch_mode,
                                  os_watch_id_t *os_watch_id) const
 {
@@ -1898,8 +1936,8 @@ kfd_driver_t::set_process_flags (os_process_flags_t flags) const
 }
 
 amd_dbgapi_status_t
-kfd_driver_t::xfer_global_memory_partial (amd_dbgapi_global_address_t address,
-                                          void *read, const void *write,
+kfd_driver_t::xfer_global_memory_partial (global_address_t address, void *read,
+                                          const void *write,
                                           size_t *size) const
 {
   dbgapi_assert (!read != !write && "either read or write buffer");
@@ -1941,7 +1979,8 @@ os_driver_t::create_driver (std::optional<amd_dbgapi_os_process_id_t> os_pid)
 }
 
 std::unique_ptr<os_driver_t>
-os_driver_t::create_driver (const amd_dbgapi_core_state_data_t &core_state)
+os_driver_t::create_driver (amd_dbgapi_client_process_id_t client_process_id,
+                            const amd_dbgapi_core_state_data_t &core_state)
 {
   std::unique_ptr<os_driver_t> os_driver;
 
@@ -1952,13 +1991,13 @@ os_driver_t::create_driver (const amd_dbgapi_core_state_data_t &core_state)
   switch (note_version)
     {
     case amdgpu_core_note_version_t::kfd_note:
-      os_driver = std::make_unique<kfd_core_driver_t> (core_state);
+      os_driver
+        = std::make_unique<kfd_core_driver_t> (client_process_id, core_state);
       break;
     default:
-      warning (
-        "Cannot open core state version %" PRIu64,
-        static_cast<std::underlying_type_t<decltype (note_version)>> (
-          note_version));
+      warning ("Cannot open core state version %" PRIu64,
+               static_cast<std::underlying_type_t<decltype (note_version)>> (
+                 note_version));
     }
 
   if (os_driver != nullptr && os_driver->is_valid ())

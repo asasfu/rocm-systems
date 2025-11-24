@@ -106,7 +106,7 @@ public:
   void set_mark (epoch_t mark) { m_mark = mark; }
 
   /* Return the address of the memory holding the queue packets.  */
-  amd_dbgapi_global_address_t address () const;
+  host_address_t address () const;
 
   /* Return the size of the memory holding the queue packets.  */
   amd_dbgapi_size_t size () const;
@@ -120,12 +120,14 @@ public:
   virtual void
   active_packets_info (amd_dbgapi_os_queue_packet_id_t *read_packet_id_p,
                        amd_dbgapi_os_queue_packet_id_t *write_packet_id_p,
-                       size_t *packets_byte_size_p) const = 0;
+                       size_t *packets_byte_size_p) const
+    = 0;
 
   virtual void
   active_packets_bytes (amd_dbgapi_os_queue_packet_id_t read_packet_id,
                         amd_dbgapi_os_queue_packet_id_t write_packet_id,
-                        void *memory, size_t memory_size) const = 0;
+                        void *memory, size_t memory_size) const
+    = 0;
 
   void get_info (amd_dbgapi_queue_info_t query, size_t value_size,
                  void *value) const;
@@ -143,9 +145,9 @@ public:
   /* A displaced instruction ptr holds the address of an instruction in
      device accessible memory.  The address is returned to the queue when the
      displaced instruction ptr is destructed.  */
-  using displaced_instruction_ptr_t = utils::unique_resource_t<
-    amd_dbgapi_global_address_t,
-    std::function<void (amd_dbgapi_global_address_t)>>;
+  using displaced_instruction_ptr_t
+    = utils::unique_resource_t<agent_address_t,
+                               std::function<void (agent_address_t)>>;
 
 protected:
   class dummy_dispatch_t : public dispatch_t
@@ -158,8 +160,8 @@ protected:
         : architecture_t::kernel_descriptor_t (process, 0)
       {
       }
-      amd_dbgapi_global_address_t entry_address () const override { return 0; }
-      bool is_at_kernel_entry (amd_dbgapi_global_address_t /* pc  */) const override
+      global_address_t entry_address () const override { return 0; }
+      bool is_at_kernel_entry (global_address_t /* pc  */) const override
       {
         return false;
       }
@@ -202,15 +204,16 @@ public:
   bool is_all_stopped () const override;
 
   /* Return the address of a park instruction.  */
-  virtual amd_dbgapi_global_address_t park_instruction_address () = 0;
+  virtual agent_address_t park_instruction_address () = 0;
   /* Return the address of a terminating instruction.  */
-  virtual amd_dbgapi_global_address_t terminating_instruction_address () = 0;
+  virtual agent_address_t terminating_instruction_address () = 0;
 
   /* Return the wave's scratch memory region (address and size).  */
-  virtual std::pair<amd_dbgapi_global_address_t /* address */,
+  virtual std::pair<agent_address_t /* address */,
                     amd_dbgapi_size_t /* size */>
   scratch_memory_region (
-    const architecture_t::cwsr_record_t &cwsr_record) const = 0;
+    const architecture_t::cwsr_record_t &cwsr_record) const
+    = 0;
 
   /* Return a pointer to device accessible memory containing the given
      instruction bytes.  */

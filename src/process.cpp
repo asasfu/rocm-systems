@@ -63,27 +63,6 @@ handle_object_set_t<process_t> process_t::s_process_map;
 process_t::process_t (amd_dbgapi_process_id_t process_id,
                       amd_dbgapi_client_process_id_t client_process_id)
   : handle_object (process_id), m_client_process_id (client_process_id),
-    m_memory_cache (
-      [this] (amd_dbgapi_global_address_t address, void *read,
-              const void *write, size_t size)
-      {
-        amd_dbgapi_status_t status = os_driver ().xfer_global_memory_partial (
-          address, read, write, &size);
-
-        if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
-          status = detail::process_callbacks.xfer_global_memory (
-            m_client_process_id, address, &size, read, write);
-
-        if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
-          throw process_exited_exception_t (*this);
-        else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
-          throw memory_access_error_t (address_space_t::global (), address);
-        else if (status != AMD_DBGAPI_STATUS_SUCCESS)
-          fatal_error ("xfer_global_memory_partial failed (%s)",
-                       to_cstring (status));
-
-        return size;
-      }),
     m_dummy_agent (AMD_DBGAPI_AGENT_NONE, *this, nullptr, {})
 {
   /* Create the notifier pipe.  */
@@ -116,7 +95,8 @@ process_t::process_t (amd_dbgapi_process_id_t process_id,
         = client_process_get_info (AMD_DBGAPI_CLIENT_PROCESS_INFO_CORE_STATE,
                                    sizeof (core_state), &core_state);
       if (status == AMD_DBGAPI_STATUS_SUCCESS)
-        m_os_driver = os_driver_t::create_driver (core_state);
+        m_os_driver
+          = os_driver_t::create_driver (m_client_process_id, core_state);
       else
         m_os_driver = os_driver_t::create_driver (std::nullopt);
     }
@@ -129,10 +109,6 @@ process_t::process_t (amd_dbgapi_process_id_t process_id,
 
 process_t::~process_t ()
 {
-  /* Drop all active cache lines.  */
-  m_memory_cache.write_back ();
-  m_memory_cache.discard ();
-
   /* Destruct the os_driver before closing the notifier.  */
   m_os_driver.reset ();
   client_notifier ().close ();
@@ -240,9 +216,10 @@ process_t::detach ()
          waves' context save area memory.  */
       try
         {
-          memory_cache ().write_back (0, -1);
+          for (auto &&agent : range<agent_t> ())
+            agent.memory_cache ().write_back ();
         }
-      catch (const memory_access_error_t &)
+      catch (const memory_error_t &)
         {
           /* If there is no real underlying process, writes can fail.  This
              can happen when trying to write back to a read-only core dump
@@ -304,11 +281,11 @@ process_t::detach ()
 }
 
 void
-process_t::read_string (amd_dbgapi_global_address_t address,
-                        std::string *string, size_t size) const
+process_t::read_string (host_address_t address, std::string *string,
+                        size_t size) const
 {
-  constexpr size_t chunk_size = memory_cache_t::cache_line_size;
-  static_assert (!(chunk_size & (chunk_size - 1)), "must be a power of 2");
+  constexpr size_t chunk_size
+    = memory_cache_t<host_address_t>::cache_line_size;
 
   dbgapi_assert (string && "invalid argument");
 
@@ -323,7 +300,7 @@ process_t::read_string (amd_dbgapi_global_address_t address,
 
       size_t request_size = chunk_size - (address & (chunk_size - 1));
       size_t xfer_size
-        = read_global_memory_partial (address, staging_buffer, request_size);
+        = read_host_memory_partial (address, staging_buffer, request_size);
 
       size_t length = std::min (size, xfer_size);
 
@@ -360,7 +337,8 @@ process_t::xfer_segment_memory (const address_space_t &address_space,
     = address_space.lower (segment_address);
 
   if (lowered_address_space.kind () == address_space_t::kind_t::global)
-    return xfer_global_memory (lowered_address, read, write, size);
+    return xfer_global_memory (global_address_t{ lowered_address }, read,
+                               write, size);
   else
     throw memory_access_error_t (address_space, segment_address,
                                  "address is not supported");
@@ -503,8 +481,7 @@ process_t::set_precise_memory (bool enabled)
   if (m_runtime_state != AMD_DBGAPI_RUNTIME_STATE_LOADED_SUCCESS)
     return;
 
-  amd_dbgapi_status_t status
-    = os_driver ().set_process_flags (new_flags);
+  amd_dbgapi_status_t status = os_driver ().set_process_flags (new_flags);
 
   if (status != AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED
       && status != AMD_DBGAPI_STATUS_SUCCESS)
@@ -646,10 +623,11 @@ process_t::update_agents ()
           auto [major, minor, stepping] = agent_info.gfxip;
 
           const std::string arch_name = string_printf (
-              "gfx%d%c%c", major,
-              (minor < 10) ? (minor + '0') : (minor - 10 + 'a'),
-              (stepping < 10) ? (stepping + '0') : (stepping - 10 + 'a'));
-          const architecture_t *architecture = architecture_t::find (arch_name);
+            "gfx%d%c%c", major,
+            (minor < 10) ? (minor + '0') : (minor - 10 + 'a'),
+            (stepping < 10) ? (stepping + '0') : (stepping - 10 + 'a'));
+          const architecture_t *architecture
+            = architecture_t::find (arch_name);
 
           if (architecture == nullptr)
             warning ("os_agent_id %d (`%s'): architecture %s not supported.",
@@ -1000,9 +978,9 @@ process_t::resume_queues (const std::vector<queue_t *> &queues,
 
   size_t num_resumed_queues;
   std::vector<os_queue_state_t> queue_states (queue_ids.size ());
-  amd_dbgapi_status_t status = os_driver ().resume_queues (
-    queue_ids.data (), queue_ids.size (), &num_resumed_queues,
-    queue_states.data ());
+  amd_dbgapi_status_t status
+    = os_driver ().resume_queues (queue_ids.data (), queue_ids.size (),
+                                  &num_resumed_queues, queue_states.data ());
   if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
     {
       for (auto &&queue : queues)
@@ -1291,8 +1269,8 @@ process_t::update_code_objects ()
   try
     {
       decltype (r_debug::r_state) state;
-      read_global_memory (m_runtime_info.r_debug + offsetof (r_debug, r_state),
-                          &state);
+      read_host_memory (m_runtime_info.r_debug + offsetof (r_debug, r_state),
+                        &state);
 
       /* If the state is not RT_CONSISTENT then that indicates there is a
          thread actively updating the code object list.  We cannot read the
@@ -1303,19 +1281,19 @@ process_t::update_code_objects ()
       if (state != r_debug::RT_CONSISTENT)
         return;
 
-      amd_dbgapi_global_address_t link_map_address;
-      read_global_memory (m_runtime_info.r_debug + offsetof (r_debug, r_map),
-                          &link_map_address);
+      host_address_t link_map_address;
+      read_host_memory (m_runtime_info.r_debug + offsetof (r_debug, r_map),
+                        &link_map_address);
 
-      while (link_map_address)
+      while (link_map_address != 0)
         {
-          amd_dbgapi_global_address_t load_address;
-          read_global_memory (link_map_address + offsetof (link_map, l_addr),
-                              &load_address);
+          global_address_t load_address;
+          read_host_memory (link_map_address + offsetof (link_map, l_addr),
+                            &load_address);
 
-          amd_dbgapi_global_address_t l_name_address;
-          read_global_memory (link_map_address + offsetof (link_map, l_name),
-                              &l_name_address);
+          host_address_t l_name_address;
+          read_host_memory (link_map_address + offsetof (link_map, l_name),
+                            &l_name_address);
 
           std::string uri;
           read_string (l_name_address, &uri, -1);
@@ -1336,8 +1314,8 @@ process_t::update_code_objects ()
 
           code_object->set_mark (code_object_mark);
 
-          read_global_memory (link_map_address + offsetof (link_map, l_next),
-                              &link_map_address);
+          read_host_memory (link_map_address + offsetof (link_map, l_next),
+                            &link_map_address);
         }
     }
   catch (const process_exited_exception_t &)
@@ -1382,7 +1360,7 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
     /* Check the r_version.  It should not be incompatible with any
        architecture found in the system.  */
     rocr_rdebug_version_t r_version;
-    read_global_memory (
+    read_host_memory (
       runtime_info.r_debug + offsetof (struct r_debug, r_version), &r_version);
 
     m_rocr_debug_version = r_version;
@@ -1531,9 +1509,9 @@ process_t::runtime_enable (os_runtime_info_t runtime_info)
     *action = AMD_DBGAPI_BREAKPOINT_ACTION_HALT;
   };
 
-  amd_dbgapi_global_address_t r_brk_address;
-  read_global_memory (m_runtime_info.r_debug + offsetof (r_debug, r_brk),
-                      &r_brk_address);
+  host_address_t r_brk_address;
+  read_host_memory (m_runtime_info.r_debug + offsetof (r_debug, r_brk),
+                    &r_brk_address);
 
   if (!create<breakpoint_t> (*this, r_brk_address, r_brk_callback)
          .is_inserted ())
@@ -1603,9 +1581,10 @@ void
 process_t::attach ()
 {
   log_info ("attaching %s to %s", to_cstring (id ()),
-            m_os_process_id
-              ? string_printf ("OS process %d", *m_os_process_id).c_str ()
-              : "exited process");
+            m_os_process_id ? string_printf ("OS process " PROCESS_ID_FORMAT,
+                                             *m_os_process_id)
+                                .c_str ()
+                            : "exited process");
 
   if (os_driver ().check_version () != AMD_DBGAPI_STATUS_SUCCESS)
     throw api_error_t (AMD_DBGAPI_STATUS_ERROR_RESTRICTION);
@@ -1667,7 +1646,8 @@ process_t::freeze ()
   /* The freeze operation is used before creating a core dump of the current
      process.  Ensure that any modification done to memory so far is flushed
      to the inferior's memory so it can be captured in the core dump.  */
-  memory_cache ().write_back ();
+  for (auto &&agent : range<agent_t> ())
+    agent.memory_cache ().write_back ();
 
   m_frozen = true;
 }
@@ -2274,7 +2254,7 @@ process_t::client_process_get_info (amd_dbgapi_client_process_info_t query,
 }
 
 amd_dbgapi_status_t
-process_t::insert_breakpoint (amd_dbgapi_global_address_t address,
+process_t::insert_breakpoint (host_address_t address,
                               amd_dbgapi_breakpoint_id_t breakpoint_id)
 {
   TRACE_CALLBACK_BEGIN (make_hex (param_in (address)),

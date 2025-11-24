@@ -23,6 +23,7 @@
 
 #include "amd-dbgapi.h"
 #include "debug.h"
+#include "format_printf.h"
 #include "utils.h"
 
 #include <cinttypes>
@@ -47,6 +48,12 @@
 #define log_info(...) dbgapi_log (AMD_DBGAPI_LOG_LEVEL_INFO, __VA_ARGS__)
 #define log_verbose(...) dbgapi_log (AMD_DBGAPI_LOG_LEVEL_VERBOSE, __VA_ARGS__)
 
+#if defined (__linux__)
+#define PROCESS_ID_FORMAT "%d"
+#elif defined (_WIN32)
+#define PROCESS_ID_FORMAT "%lu"
+#endif
+
 namespace amd::dbgapi
 {
 namespace detail
@@ -55,10 +62,7 @@ namespace detail
 extern size_t log_indent_depth;
 
 extern void log (amd_dbgapi_log_level_t level, const char *format, ...)
-#if defined(__GNUC__)
-  __attribute__ ((format (printf, 2, 3)))
-#endif /* defined (__GNUC__) */
-  ;
+  ATTRIBUTE_PRINTF_FORMAT (2, 3);
 
 } /* namespace detail */
 
@@ -592,8 +596,7 @@ to_string (std::tuple<Args...> &&t)
 {
   return std::apply (
     [] (auto &&...ts)
-    { return detail::to_string_helper (std::forward<Args> (ts)...); },
-    t);
+    { return detail::to_string_helper (std::forward<Args> (ts)...); }, t);
 }
 
 /* Construct a temporary std::string in the caller's frame to hold the result

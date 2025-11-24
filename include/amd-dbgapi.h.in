@@ -378,6 +378,11 @@
  *     made from a thread which is the tracer of the target process (i.e. the
  *     calling thread must be PTRACE-attached to the process).
  *
+ * 12. Windows is supported only on the gfx120x architectures (gfx1201,
+ *     gfx1202).
+ *
+ * 13. Multidevice configurations are not supported on Windows.
+ *
  * \section references References
  *
  * 1. Advanced Micro Devices: [www.amd.com] (https://www.amd.com/)
@@ -539,6 +544,10 @@ extern "C" {
 #include <sys/types.h>
 #endif /* __linux__ */
 
+#if defined(_WIN32)
+#include <windef.h>
+#endif /* _WIN32 */
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -617,6 +626,12 @@ extern "C" {
  */
 #define AMD_DBGAPI_VERSION_0_77
 
+/**
+ * The function was introduced in version 0.77 of the interface and has the
+ * symbol version string of ``"@AMD_DBGAPI_NAME@_0.78"``.
+ */
+#define AMD_DBGAPI_VERSION_0_78
+
 /** @} */
 
 /** \ingroup callbacks_group
@@ -678,7 +693,9 @@ typedef enum
  */
 #if defined(__linux__)
 typedef pid_t amd_dbgapi_os_process_id_t;
-#endif /* __linux__ */
+#elif defined(_WIN32)
+typedef DWORD amd_dbgapi_os_process_id_t;
+#endif /* _WIN32 */
 
 /**
  * Type used to notify the client of the library that a process may have
@@ -703,10 +720,18 @@ typedef pid_t amd_dbgapi_os_process_id_t;
  * of the number of pending events as the file may become full and so no
  * further data will be added.  The file descriptor is simply a robust way to
  * determine if there may be some pending events.
+ *
+ * For Windows<sup>&reg;</sup> this is a HANDLE for an event object.  When the
+ * event object is marked, the client is expected to clear the event object
+ * (ResetEvent) and read the pending events until none are available.  If new
+ * pending events are added while reading the pending events, then the event
+ * object will be marked again.
  */
 #if defined(__linux__)
 typedef int amd_dbgapi_notifier_t;
-#endif /* __linux__ */
+#elif defined(_WIN32)
+typedef HANDLE amd_dbgapi_notifier_t;
+#endif /* _WIN32 */
 
 /**
  * Native operating system agent ID.
@@ -715,9 +740,9 @@ typedef int amd_dbgapi_notifier_t;
  * is executing the library to specify the AMD GPU agents accessible to a
  * process.
  */
-#if defined(__linux__)
+#if defined(__linux__) || defined(_WIN32)
 typedef uint64_t amd_dbgapi_os_agent_id_t;
-#endif /* __linux__ */
+#endif /* __linux__ || _WIN32  */
 
 /**
  * Native operating system queue ID.
@@ -725,9 +750,9 @@ typedef uint64_t amd_dbgapi_os_agent_id_t;
  * This is the queue ID used by the operating system AMD GPU device driver that
  * is executing the library to specify the AMD GPU queues of a process.
  */
-#if defined(__linux__)
+#if defined(__linux__) || defined(_WIN32)
 typedef uint64_t amd_dbgapi_os_queue_id_t;
-#endif /* __linux__ */
+#endif /* __linux__ || _WIN32  */
 
 /**
  * Native operating system queue packet ID.
@@ -737,9 +762,9 @@ typedef uint64_t amd_dbgapi_os_queue_id_t;
  * queue of a process.  The meaning of the queue packet ID is dependent on the
  * queue type.  See ::amd_dbgapi_os_queue_type_t.
  */
-#if defined(__linux__)
+#if defined(__linux__) || defined(_WIN32)
 typedef uint64_t amd_dbgapi_os_queue_packet_id_t;
-#endif /* __linux__ */
+#endif /* __linux__ || _WIN32  */
 
 /**
  * Native operating system queue type.
@@ -748,7 +773,7 @@ typedef uint64_t amd_dbgapi_os_queue_packet_id_t;
  * the library to specify the AMD GPU queue mechanics supported by the queues
  * of a process.
  */
-#if defined(__linux__)
+#if defined(__linux__) || defined(_WIN32)
 typedef enum
 {
   /**
@@ -772,7 +797,7 @@ typedef enum
    */
   AMD_DBGAPI_OS_QUEUE_TYPE_AMD_SDMA_XGMI = 514
 } amd_dbgapi_os_queue_type_t;
-#endif /* __linux__ */
+#endif /* __linux__ || _WIN32  */
 
 /** @} */
 
@@ -1028,6 +1053,10 @@ typedef enum
    * This operation is not allowed when the process is not frozen.
    */
   AMD_DBGAPI_STATUS_ERROR_PROCESS_NOT_FROZEN = -49,
+  /**
+   * The requested memory location is valid but currently unreachable.
+   */
+  AMD_DBGAPI_STATUS_ERROR_MEMORY_UNAVAILABLE = -50,
 } amd_dbgapi_status_t;
 
 /**
@@ -6511,13 +6540,17 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_address_is_in_address_class (
  * \retval ::AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS The input \p value_size was
  * greater than 0 and no bytes were successfully read.  The output \p
  * value_size is set to 0.  \p value is unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_MEMORY_UNAVAILABLE The address \p
+ * segment_address is a valid address in the address space \p address_space_id
+ * but is currently unavailable.  \p value_size and \p value are unaltered.
  */
 amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_read_memory (
     amd_dbgapi_process_id_t process_id, amd_dbgapi_wave_id_t wave_id,
     amd_dbgapi_lane_id_t lane_id,
     amd_dbgapi_address_space_id_t address_space_id,
     amd_dbgapi_segment_address_t segment_address,
-    amd_dbgapi_size_t *value_size, void *value) AMD_DBGAPI_VERSION_0_54;
+    amd_dbgapi_size_t *value_size, void *value) AMD_DBGAPI_VERSION_0_78;
 
 /**
  * Write memory.
@@ -6620,13 +6653,17 @@ amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_read_memory (
  * \retval ::AMD_DBGAPI_STATUS_ERROR_PROCESS_FROZEN This operation is not
  * permitted because the process is frozen.  The memory and \p value_size are
  * unaltered.
+ *
+ * \retval ::AMD_DBGAPI_STATUS_ERROR_MEMORY_UNAVAILABLE The address \p
+ * segment_address is a valid address in the address space \p address_space_id
+ * but is currently unavailable.  \p value_size and \p value are unaltered.
  */
 amd_dbgapi_status_t AMD_DBGAPI amd_dbgapi_write_memory (
     amd_dbgapi_process_id_t process_id, amd_dbgapi_wave_id_t wave_id,
     amd_dbgapi_lane_id_t lane_id,
     amd_dbgapi_address_space_id_t address_space_id,
     amd_dbgapi_segment_address_t segment_address,
-    amd_dbgapi_size_t *value_size, const void *value) AMD_DBGAPI_VERSION_0_76;
+    amd_dbgapi_size_t *value_size, const void *value) AMD_DBGAPI_VERSION_0_78;
 
 /**
  * Memory access precision.

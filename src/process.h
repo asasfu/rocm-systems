@@ -34,10 +34,10 @@
 #include "logging.h"
 #include "os_driver.h"
 #include "queue.h"
+#include "rocr_rdebug.h"
 #include "utils.h"
 #include "watchpoint.h"
 #include "wave.h"
-#include "rocr_rdebug.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -102,7 +102,6 @@ private:
   };
   rocr_rdebug_version_t m_rocr_debug_version = ROCR_RDEBUG_VERSION_INVALID;
 
-  mutable memory_cache_t m_memory_cache;
   std::unique_ptr<os_driver_t> m_os_driver{};
   flag_t m_flags{};
 
@@ -174,44 +173,89 @@ public:
      processes left in the s_process_map. */
   static void reset_all_ids ();
 
-  memory_cache_t &memory_cache () { return m_memory_cache; }
   os_driver_t &os_driver () const { return *m_os_driver; }
 
   inline void set_flag (flag_t flags);
   inline void clear_flag (flag_t flags);
   inline bool is_flag_set (flag_t flags) const;
 
-  [[nodiscard]] size_t
-  read_global_memory_partial (amd_dbgapi_global_address_t address,
-                              void *buffer, size_t size) const
+  [[nodiscard]] size_t read_global_memory_partial (global_address_t address,
+                                                   void *buffer,
+                                                   size_t size) const
   {
-    return m_memory_cache.read_global_memory (address, buffer, size);
+    return xfer_global_memory (address, buffer, nullptr, size);
   }
 
-  [[nodiscard]] size_t
-  write_global_memory_partial (amd_dbgapi_global_address_t address,
-                               const void *buffer, size_t size) const
+  [[nodiscard]] size_t write_global_memory_partial (global_address_t address,
+                                                    const void *buffer,
+                                                    size_t size) const
   {
-    return m_memory_cache.write_global_memory (address, buffer, size);
+    return xfer_global_memory (address, nullptr, buffer, size);
   }
 
-  [[nodiscard]] size_t
-  xfer_global_memory (amd_dbgapi_segment_address_t global_address, void *read,
-                      const void *write, size_t size) const
+  [[nodiscard]] size_t read_host_memory_partial (host_address_t address,
+                                                 void *buffer,
+                                                 size_t size) const
   {
-    return read != nullptr
-             ? read_global_memory_partial (global_address, read, size)
-             : write_global_memory_partial (global_address, write, size);
+    return xfer_host_memory (address, buffer, nullptr, size);
+  }
+
+  [[nodiscard]] size_t write_host_memory_partial (host_address_t address,
+                                                  const void *buffer,
+                                                  size_t size) const
+  {
+    return xfer_host_memory (address, nullptr, buffer, size);
+  }
+
+  [[nodiscard]] size_t xfer_global_memory (global_address_t address,
+                                           void *read, const void *write,
+                                           size_t size) const
+  {
+    amd_dbgapi_status_t status = os_driver ().xfer_global_memory_partial (
+      global_address_t{ address }, read, write, &size);
+
+    if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
+      throw process_exited_exception_t (id ());
+    else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
+      throw memory_access_error_t (address_space_t::global (), address);
+    else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_UNAVAILABLE)
+      throw memory_unavailable_error_t (address_space_t::global (), address);
+    else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+      fatal_error ("xfer_global_memory_partial failed (%s)",
+                   to_cstring (status));
+
+    return size;
+  }
+
+  [[nodiscard]] size_t xfer_host_memory (host_address_t address, void *read,
+                                         const void *write, size_t size) const
+  {
+    amd_dbgapi_status_t status = os_driver ().xfer_host_memory_partial (
+      address, read, write, &size);
+
+    if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
+      throw process_exited_exception_t (id ());
+    else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
+      throw memory_access_error_t (address_space_t::global (), address);
+    else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+      fatal_error ("xfer_global_memory_partial failed (%s)",
+                   to_cstring (status));
+
+    return size;
   }
 
   template <typename T>
-  void read_global_memory (amd_dbgapi_global_address_t address, T *ptr,
+  void read_global_memory (global_address_t address, T *ptr,
                            size_t size = sizeof (T)) const;
+
   template <typename T>
-  void write_global_memory (amd_dbgapi_global_address_t address, const T *ptr,
+  void read_host_memory (host_address_t address, T *ptr,
+                         size_t size = sizeof (T)) const;
+  template <typename T>
+  void write_global_memory (host_address_t address, const T *ptr,
                             size_t size = sizeof (T)) const;
 
-  void read_string (amd_dbgapi_global_address_t address, std::string *string,
+  void read_string (host_address_t address, std::string *string,
                     size_t size) const;
 
   [[nodiscard]] size_t
@@ -300,7 +344,7 @@ public:
   client_process_get_info (amd_dbgapi_client_process_info_t query,
                            size_t value_size, void *value) const;
   amd_dbgapi_status_t
-  insert_breakpoint (amd_dbgapi_global_address_t address,
+  insert_breakpoint (host_address_t address,
                      amd_dbgapi_breakpoint_id_t breakpoint_id);
   amd_dbgapi_status_t
   remove_breakpoint (amd_dbgapi_breakpoint_id_t breakpoint_id);
@@ -368,7 +412,8 @@ public:
   template <typename Handle,
             std::enable_if_t<!std::is_void_v<object_type_from_handle_t<
                                Handle, decltype (m_handle_object_sets)>>,
-                             int> = 0>
+                             int>
+            = 0>
   auto *find (Handle id, bool all = false)
   {
     using object_type
@@ -381,7 +426,8 @@ public:
   template <typename Handle,
             std::enable_if_t<!std::is_void_v<object_type_from_handle_t<
                                Handle, decltype (m_handle_object_sets)>>,
-                             int> = 0>
+                             int>
+            = 0>
   auto const *find (Handle id, bool all = false) const
   {
     using object_type
@@ -424,7 +470,7 @@ public:
 
 template <typename T>
 void
-process_t::read_global_memory (amd_dbgapi_global_address_t address, T *ptr,
+process_t::read_global_memory (global_address_t address, T *ptr,
                                size_t size) const
 {
   try
@@ -434,7 +480,7 @@ process_t::read_global_memory (amd_dbgapi_global_address_t address, T *ptr,
         throw memory_access_error_t (address_space_t::global (),
                                      address + xfer_size);
     }
-  catch (const memory_access_error_t &e)
+  catch (const memory_error_t &e)
     {
       fatal_error ("process_t::read_global_memory failed: %s", e.what ());
     }
@@ -442,8 +488,25 @@ process_t::read_global_memory (amd_dbgapi_global_address_t address, T *ptr,
 
 template <typename T>
 void
-process_t::write_global_memory (amd_dbgapi_global_address_t address,
-                                const T *ptr, size_t size) const
+process_t::read_host_memory (host_address_t address, T *ptr, size_t size) const
+{
+  try
+    {
+      if (size_t xfer_size = read_host_memory_partial (address, ptr, size);
+          xfer_size != size)
+        throw memory_access_error_t (address_space_t::host (),
+                                     address + xfer_size);
+    }
+  catch (const memory_access_error_t &e)
+    {
+      fatal_error ("process_t::read_host_memory failed: %s", e.what ());
+    }
+}
+
+template <typename T>
+void
+process_t::write_global_memory (host_address_t address, const T *ptr,
+                                size_t size) const
 {
   try
     {
@@ -452,7 +515,7 @@ process_t::write_global_memory (amd_dbgapi_global_address_t address,
         throw memory_access_error_t (address_space_t::global (),
                                      address + xfer_size);
     }
-  catch (const memory_access_error_t &e)
+  catch (const memory_error_t &e)
     {
       fatal_error ("process_t::write_global_memory failed: %s", e.what ());
     }
@@ -466,9 +529,10 @@ using process_find_t
 } /* namespace detail */
 
 /* Find an object with the given handle.  */
-template <typename Handle,
-          std::enable_if_t<
-            utils::is_detected_v<detail::process_find_t, Handle>, int> = 0>
+template <
+  typename Handle,
+  std::enable_if_t<utils::is_detected_v<detail::process_find_t, Handle>, int>
+  = 0>
 auto
 find (Handle id) -> decltype (std::declval<process_t> ().find (id))
 {

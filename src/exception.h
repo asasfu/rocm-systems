@@ -50,15 +50,19 @@ public:
 class process_exited_exception_t : public exception_t
 {
 private:
-  process_t &m_process;
+  amd_dbgapi_process_id_t m_process_id;
 
 public:
-  process_exited_exception_t (process_t &process, std::string message = {})
-    : exception_t (std::move (message)), m_process (process)
+  process_exited_exception_t (amd_dbgapi_process_id_t process_id,
+                              std::string message = {})
+    : exception_t (std::move (message)), m_process_id (process_id)
   {
   }
 
-  process_t &process () const noexcept { return m_process; }
+  amd_dbgapi_process_id_t process_id () const noexcept
+  {
+    return m_process_id;
+  }
 };
 
 class api_error_t : public exception_t
@@ -76,19 +80,37 @@ public:
   amd_dbgapi_status_t code () const noexcept { return m_code; }
 };
 
-class memory_access_error_t : public api_error_t
+class memory_error_t : public api_error_t
 {
 private:
   std::optional<
     std::pair<const address_space_t &, amd_dbgapi_segment_address_t>>
     m_address;
 
+protected:
+  memory_error_t (amd_dbgapi_status_t code,
+                  const address_space_t &address_space,
+                  amd_dbgapi_segment_address_t segment_address,
+                  std::string message);
+
+public:
+  const auto &address () const noexcept { return m_address; }
+};
+
+class memory_access_error_t : public memory_error_t
+{
 public:
   memory_access_error_t (const address_space_t &address_space,
                          amd_dbgapi_segment_address_t segment_address,
                          std::string message = {});
+};
 
-  const auto &address () const noexcept { return m_address; }
+class memory_unavailable_error_t : public memory_error_t
+{
+public:
+  memory_unavailable_error_t (const address_space_t &address_space,
+                              amd_dbgapi_segment_address_t segment_address,
+                              std::string message = {});
 };
 
 class fatal_error_t : public api_error_t
@@ -130,7 +152,7 @@ void update_process_handles (process_t *process);
        fatal error.  */                                                       \
     if (!_exited_process)                                                     \
       {                                                                       \
-        _exited_process = &_error.process ();                                 \
+        _exited_process = find (_error.process_id ());                        \
         continue;                                                             \
       }                                                                       \
     return AMD_DBGAPI_STATUS_FATAL;                                           \

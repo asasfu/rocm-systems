@@ -165,21 +165,20 @@ public:
   class kernel_descriptor_t
   {
   private:
-    amd_dbgapi_global_address_t const m_address;
+    global_address_t const m_address;
     process_t &m_process;
 
   public:
-    kernel_descriptor_t (process_t &process,
-                         amd_dbgapi_global_address_t address)
+    kernel_descriptor_t (process_t &process, global_address_t address)
       : m_address (address), m_process (process)
     {
     }
     virtual ~kernel_descriptor_t () = default;
 
-    virtual amd_dbgapi_global_address_t entry_address () const = 0;
-    virtual bool is_at_kernel_entry (amd_dbgapi_global_address_t pc) const = 0;
+    virtual global_address_t entry_address () const = 0;
+    virtual bool is_at_kernel_entry (global_address_t pc) const = 0;
 
-    amd_dbgapi_global_address_t address () const { return m_address; }
+    global_address_t address () const { return m_address; }
     process_t &process () const { return m_process; }
   };
 
@@ -220,7 +219,7 @@ public:
     /* Size of the hwreg block, in dwords.  */
     virtual size_t hwreg_count () const = 0;
 
-    virtual std::optional<amd_dbgapi_global_address_t>
+    virtual std::optional<agent_address_t>
     register_address (amdgpu_regnum_t regnum) const = 0;
 
     /* Return true if a scratch slot is allocated for this record.  */
@@ -232,9 +231,9 @@ public:
     virtual uint32_t scratch_scoreboard_id () const = 0;
 
     /* The address of the first byte in the wave's context save.  */
-    virtual amd_dbgapi_global_address_t begin () const = 0;
+    virtual agent_address_t begin () const = 0;
     /* The address of the byte following the last byte in the context save. */
-    virtual amd_dbgapi_global_address_t end () const = 0;
+    virtual agent_address_t end () const = 0;
 
     uint32_t xcc_id () const { return m_xcc_id; }
 
@@ -261,45 +260,52 @@ public:
 
   virtual size_t control_stack_iterate (
     compute_queue_t &queue, uint32_t xcc_id, const uint32_t *control_stack,
-    size_t control_stack_words, amd_dbgapi_global_address_t wave_area_address,
+    size_t control_stack_words, agent_address_t wave_area_address,
     amd_dbgapi_size_t wave_area_size,
     const std::function<void (std::unique_ptr<const cwsr_record_t>)>
-      &wave_callback) const = 0;
+      &wave_callback) const
+    = 0;
 
-  virtual std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
-    const architecture_t::cwsr_record_t &cwsr_record) const = 0;
+  virtual std::optional<uint64_t>
+  dispatch_packet_id (const architecture_t::cwsr_record_t &cwsr_record) const
+    = 0;
 
   /* Default initialize the trap temporary registers normally set up by SPI.
    */
   virtual void initialize_spi_ttmps (const wave_t &wave) const = 0;
 
-  virtual void record_spi_ttmps_setup (const wave_t &wave, bool enabled) const = 0;
+  virtual void record_spi_ttmps_setup (const wave_t &wave, bool enabled) const
+    = 0;
 
   /* Return true if the trap temporary registers used by the trap handler to
      communicate with the debugger API have been initialized.  */
-  virtual bool
-  are_trap_handler_ttmps_initialized (const wave_t &wave) const = 0;
+  virtual bool are_trap_handler_ttmps_initialized (const wave_t &wave) const
+    = 0;
   /* Default initialize the trap temporary registers normally set up by the
      trap handler.  */
   virtual void initialize_trap_handler_ttmps (const wave_t &wave) const = 0;
 
   virtual size_t maximum_queue_packet_count () const = 0;
 
-  virtual std::unique_ptr<const kernel_descriptor_t> make_kernel_descriptor (
-    process_t &process,
-    amd_dbgapi_global_address_t kernel_descriptor_address) const = 0;
+  virtual std::unique_ptr<const kernel_descriptor_t>
+  make_kernel_descriptor (process_t &process,
+                          global_address_t kernel_descriptor_address) const
+    = 0;
 
   virtual std::pair<amd_dbgapi_size_t /* offset  */,
                     amd_dbgapi_size_t /* size  */>
   scratch_memory_region (const agent_t &,
                          uint32_t compute_tmpring_size_register,
-                         const cwsr_record_t &cwsr_record) const = 0;
+                         const cwsr_record_t &cwsr_record) const
+    = 0;
 
   virtual bool
-  is_address_space_supported (const address_space_t &address_space) const = 0;
+  is_address_space_supported (const address_space_t &address_space) const
+    = 0;
 
   virtual bool
-  is_address_class_supported (const address_class_t &address_class) const = 0;
+  is_address_class_supported (const address_class_t &address_class) const
+    = 0;
 
   /* Return the watchpoints for which an exception was generated in the given
      stopped wave.  */
@@ -315,59 +321,65 @@ public:
   virtual instruction_t terminating_instruction () const = 0;
 
   virtual bool
-  is_terminating_instruction (const instruction_t &instruction) const = 0;
+  is_terminating_instruction (const instruction_t &instruction) const
+    = 0;
 
-  virtual bool
-  can_execute_displaced (wave_t &wave,
-                         const instruction_t &instruction) const = 0;
+  virtual bool can_execute_displaced (wave_t &wave,
+                                      const instruction_t &instruction) const
+    = 0;
   virtual bool can_simulate (wave_t &wave,
-                             const instruction_t &instruction) const = 0;
+                             const instruction_t &instruction) const
+    = 0;
 
-  virtual bool simulate (wave_t &wave, amd_dbgapi_global_address_t pc,
-                         const instruction_t &instruction) const = 0;
+  virtual bool simulate (wave_t &wave, agent_address_t pc,
+                         const instruction_t &instruction) const
+    = 0;
 
   /* Report that a given ABI version is unreliable for the current
      architecture.  */
-  virtual bool
-    check_runtime_abi_version (rocr_rdebug_version_t) const = 0;
+  virtual bool check_runtime_abi_version (rocr_rdebug_version_t) const = 0;
 
   virtual bool park_stopped_waves (rocr_rdebug_version_t) const = 0;
-  virtual void save_pc_for_park (const wave_t &wave,
-                                 amd_dbgapi_global_address_t pc) const = 0;
-  virtual amd_dbgapi_global_address_t
-  saved_parked_pc (const wave_t &wave) const = 0;
+  virtual void save_pc_for_park (const wave_t &wave, agent_address_t pc) const
+    = 0;
+  virtual agent_address_t saved_parked_pc (const wave_t &wave) const = 0;
 
   virtual bool has_architected_flat_scratch () const = 0;
 
   virtual amd_dbgapi_size_t
-  instruction_size (const instruction_t &instruction) const = 0;
+  instruction_size (const instruction_t &instruction) const
+    = 0;
 
   virtual std::tuple<amd_dbgapi_instruction_kind_t /* instruction_kind  */,
                      amd_dbgapi_instruction_properties_t /* properties  */,
                      size_t /* instruction_size  */,
                      std::vector<uint64_t> /* information  */>
-  classify_instruction (amd_dbgapi_global_address_t address,
-                        const instruction_t &instruction) const = 0;
+  classify_instruction (agent_address_t address,
+                        const instruction_t &instruction) const
+    = 0;
 
-  virtual std::tuple<
-    amd_dbgapi_size_t /* instruction_size  */,
-    std::string /* instruction_text  */,
-    std::vector<amd_dbgapi_global_address_t> /* address_operands  */>
-  disassemble_instruction (amd_dbgapi_global_address_t address,
-                           const instruction_t &instruction) const = 0;
+  virtual std::tuple<amd_dbgapi_size_t /* instruction_size  */,
+                     std::string /* instruction_text  */,
+                     std::vector<uint64_t> /* address_operands  */>
+  disassemble_instruction (agent_address_t address,
+                           const instruction_t &instruction) const
+    = 0;
 
   virtual std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
   wave_get_state (wave_t &wave) const = 0;
   virtual void wave_set_state (wave_t &wave,
-                               amd_dbgapi_wave_state_t state) const = 0;
+                               amd_dbgapi_wave_state_t state) const
+    = 0;
 
   virtual bool wave_get_halt (const wave_t &wave) const = 0;
   virtual void wave_set_halt (wave_t &wave, bool halt) const = 0;
 
   virtual void wave_enable_traps (wave_t &wave,
-                                  os_wave_launch_trap_mask_t mask) const = 0;
+                                  os_wave_launch_trap_mask_t mask) const
+    = 0;
   virtual void wave_disable_traps (wave_t &wave,
-                                   os_wave_launch_trap_mask_t mask) const = 0;
+                                   os_wave_launch_trap_mask_t mask) const
+    = 0;
 
   amd_dbgapi_architecture_id_t id () const { return m_architecture_id; }
   elf_amdgpu_machine_t elf_amdgpu_machine () const { return m_e_machine; }
@@ -410,29 +422,33 @@ public:
 
   /* Return the pointer to a statically allocated mask of read-only bits for
      the given register, or nullptr if all bits are writable.  */
-  virtual const void *
-  register_read_only_mask (amdgpu_regnum_t regnum) const = 0;
+  virtual const void *register_read_only_mask (amdgpu_regnum_t regnum) const
+    = 0;
 
   virtual std::string register_name (amdgpu_regnum_t regnum) const = 0;
   virtual std::string register_type (amdgpu_regnum_t regnum) const = 0;
   virtual amd_dbgapi_size_t register_size (amdgpu_regnum_t regnum) const = 0;
   virtual amd_dbgapi_register_properties_t
-  register_properties (amdgpu_regnum_t regnum) const = 0;
+  register_properties (amdgpu_regnum_t regnum) const
+    = 0;
 
   std::set<amdgpu_regnum_t> register_set () const;
   bool is_register_available (amdgpu_regnum_t regnum) const;
 
   virtual bool is_pseudo_register_available (const wave_t &wave,
-                                             amdgpu_regnum_t regnum) const = 0;
+                                             amdgpu_regnum_t regnum) const
+    = 0;
 
   virtual void read_pseudo_register (const wave_t &wave,
                                      amdgpu_regnum_t regnum, size_t offset,
-                                     size_t value_size, void *value) const = 0;
+                                     size_t value_size, void *value) const
+    = 0;
 
   virtual void write_pseudo_register (const wave_t &wave,
                                       amdgpu_regnum_t regnum, size_t offset,
                                       size_t value_size,
-                                      const void *value) const = 0;
+                                      const void *value) const
+    = 0;
 
   void get_info (amd_dbgapi_architecture_info_t query, size_t value_size,
                  void *value) const;
@@ -462,7 +478,8 @@ public:
   template <typename Handle,
             std::enable_if_t<!std::is_void_v<object_type_from_handle_t<
                                Handle, decltype (m_handle_object_sets)>>,
-                             int> = 0>
+                             int>
+            = 0>
   const auto *find (Handle id) const
   {
     using object_type
@@ -478,7 +495,8 @@ public:
   template <typename Handle,
             std::enable_if_t<!std::is_void_v<object_type_from_handle_t<
                                Handle, decltype (m_handle_object_sets)>>,
-                             int> = 0>
+                             int>
+            = 0>
   auto *find (Handle id)
   {
     using object_type
@@ -492,7 +510,8 @@ public:
   }
 
   /* Find an object for which the unary predicate f returns true.  */
-  template <typename Functor> const auto *find_if (Functor predicate) const
+  template <typename Functor>
+  const auto *find_if (Functor predicate, bool all = false) const
   {
     using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
 
@@ -501,10 +520,11 @@ public:
         return &address_space_t::global ();
 
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
-      .find_if (predicate);
+      .find_if (predicate, all);
   }
   /* Find an object for which the unary predicate f returns true.  */
-  template <typename Functor> auto *find_if (Functor predicate)
+  template <typename Functor>
+  auto *find_if (Functor predicate, bool all = false)
   {
     using object_type = std::decay_t<utils::first_argument_of_t<Functor>>;
 
@@ -512,7 +532,7 @@ public:
     static_assert (!std::is_same_v<object_type, address_space_t>);
 
     return std::get<handle_object_set_t<object_type>> (m_handle_object_sets)
-      .find_if (predicate);
+      .find_if (predicate, all);
   }
 };
 
@@ -525,10 +545,10 @@ using architecture_find_t
 } /* namespace detail */
 
 /* Find an object with the given handle.  */
-template <
-  typename Handle,
-  std::enable_if_t<utils::is_detected_v<detail::architecture_find_t, Handle>,
-                   int> = 0>
+template <typename Handle,
+          std::enable_if_t<
+            utils::is_detected_v<detail::architecture_find_t, Handle>, int>
+          = 0>
 auto
 find (Handle id) -> decltype (std::declval<const architecture_t> ().find (id))
 {

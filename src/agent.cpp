@@ -41,7 +41,33 @@ agent_t::agent_t (amd_dbgapi_agent_id_t agent_id, process_t &process,
                   const architecture_t *architecture,
                   const os_agent_info_t &os_agent_info)
   : handle_object (agent_id), m_os_agent_info (os_agent_info),
-    m_architecture (architecture), m_process (process)
+    m_architecture (architecture), m_process (process),
+    m_memory_cache (
+      [this] (agent_address_t address, void *read, const void *write,
+              size_t size)
+      {
+        if (this->process ().from_core ())
+          /* FIXME_lmoriche: This won't work for distinct agent address spaces.
+             Not sure how we will store the agents' memory in the core file. */
+          return this->process ().xfer_global_memory (
+            global_address_t{ address }, read, write, size);
+
+        amd_dbgapi_status_t status
+          = m_process.os_driver ().xfer_agent_memory_partial (
+            os_agent_id (), address, read, write, &size);
+
+        if (status == AMD_DBGAPI_STATUS_ERROR_PROCESS_EXITED)
+          throw process_exited_exception_t (m_process.id ());
+        else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS)
+          throw memory_access_error_t (agent_address_space (), address);
+        else if (status == AMD_DBGAPI_STATUS_ERROR_MEMORY_UNAVAILABLE)
+          throw memory_unavailable_error_t (agent_address_space (), address);
+        else if (status != AMD_DBGAPI_STATUS_SUCCESS)
+          fatal_error ("xfer_global_memory_partial failed (%s)",
+                       to_cstring (status));
+
+        return size;
+      })
 {
   if (agent_id != AMD_DBGAPI_AGENT_NONE && !m_os_agent_info.firmware_supported)
     warning ("AMD GPU gpu_id %d's firmware version %d not supported",
@@ -77,6 +103,13 @@ agent_t::agent_t (amd_dbgapi_agent_id_t agent_id, process_t &process,
     }
 
   m_watchpoints.resize (os_info ().address_watch_register_count);
+}
+
+agent_t::~agent_t ()
+{
+  /* Drop all active cache lines.  */
+  m_memory_cache.write_back ();
+  m_memory_cache.discard ();
 }
 
 bool
@@ -208,9 +241,9 @@ agent_t::insert_watchpoint (const watchpoint_t &watchpoint)
     fatal_error (
       "invalid os_watch_id returned by os_driver_t::set_address_watch ()");
 
-  log_info ("%s: set address_watch%d [%#" PRIx64 "-%#" PRIx64 "] (%s)",
-            to_cstring (id ()), os_watch_id, watchpoint.address (),
-            watchpoint.address () + watchpoint.size (),
+  log_info ("%s: set address_watch%d [%s-%s] (%s)", to_cstring (id ()),
+            os_watch_id, to_cstring (watchpoint.address ()),
+            to_cstring (watchpoint.address () + watchpoint.size ()),
             to_cstring (watchpoint.kind ()));
 
   m_watchpoints[os_watch_id] = &watchpoint;
@@ -237,6 +270,17 @@ agent_t::remove_watchpoint (const watchpoint_t &watchpoint)
     fatal_error ("failed to remove watchpoint (%s)", to_cstring (status));
 
   log_info ("%s: clear address_watch%d", to_cstring (id ()), os_watch_id);
+}
+
+const address_space_t &
+agent_t::agent_address_space () const
+{
+  const address_space_t *agent_address_space = this->architecture ()->find_if (
+    [] (const address_space_t &aspace)
+    { return aspace.kind () == address_space_t::kind_t::agent; },
+    true);
+  dbgapi_assert (agent_address_space != nullptr);
+  return *agent_address_space;
 }
 
 } /* namespace amd::dbgapi */

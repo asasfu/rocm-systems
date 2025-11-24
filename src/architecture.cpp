@@ -98,12 +98,20 @@ protected:
     cdbgsys_and_user, /* Conditional Debug for System and User is 1.  */
   };
 
-  static constexpr amd_dbgapi_global_address_t local_address_aperture_base
-    = amd_dbgapi_global_address_t{ 1 } << 48;
-  static constexpr amd_dbgapi_global_address_t private_address_aperture_base
-    = amd_dbgapi_global_address_t{ 2 } << 48;
-  static constexpr amd_dbgapi_global_address_t address_aperture_mask
-    = utils::bit_mask<amd_dbgapi_global_address_t> (0, 15) << 48;
+#if defined(__linux__)
+  static constexpr agent_address_t local_address_aperture_base
+    = agent_address_t{ 1 } << 48;
+  static constexpr agent_address_t private_address_aperture_base
+    = agent_address_t{ 2 } << 48;
+#elif defined(_WIN32)
+  static constexpr agent_address_t local_address_aperture_base
+    = agent_address_t{ 2 } << 60;
+  static constexpr agent_address_t private_address_aperture_base
+    = agent_address_t{ 1 } << 60;
+#endif
+
+  static constexpr agent_address_t address_aperture_mask
+    = utils::bit_mask<agent_address_t> (0, 15) << 48;
 
   static constexpr uint32_t sq_wave_status_scc_mask = 1 << 0;
   static constexpr uint32_t sq_wave_status_priv_mask = 1 << 5;
@@ -201,19 +209,18 @@ protected:
     } m_descriptor;
 
   public:
-    kernel_descriptor_t (process_t &process,
-                         amd_dbgapi_global_address_t address)
+    kernel_descriptor_t (process_t &process, global_address_t address)
       : architecture_t::kernel_descriptor_t (process, address)
     {
       process.read_global_memory (address, &m_descriptor);
     }
 
-    amd_dbgapi_global_address_t entry_address () const override
+    global_address_t entry_address () const override
     {
       return address () + m_descriptor.kernel_code_entry_byte_offset;
     }
 
-    bool is_at_kernel_entry (amd_dbgapi_global_address_t pc) const override
+    bool is_at_kernel_entry (global_address_t pc) const override
     {
       /* There are 2 possible entry points to a kernel, one at offset 0x0 and
          the other at offset 0x100 from the kernel_code_entry address.  The
@@ -253,9 +260,9 @@ protected:
         return true;
 
       uint32_t ttmp6;
-      const amd_dbgapi_global_address_t ttmp6_address
+      const agent_address_t ttmp6_address
         = register_address (amdgpu_regnum_t::ttmp6).value ();
-      process ().read_global_memory (ttmp6_address, &ttmp6);
+      agent ().read_agent_memory (ttmp6_address, &ttmp6);
       return !(ttmp6 & ttmp6_spi_ttmps_setup_disabled_mask);
     }
 
@@ -289,7 +296,7 @@ public:
   std::unique_ptr<const architecture_t::kernel_descriptor_t>
   make_kernel_descriptor (
     process_t &process,
-    amd_dbgapi_global_address_t kernel_descriptor_address) const override
+    global_address_t kernel_descriptor_address) const override
   {
     return std::make_unique<amdgcn_architecture_t::kernel_descriptor_t> (
       process, kernel_descriptor_address);
@@ -408,7 +415,8 @@ protected:
 
   /* Return the condition code for the given conditional branch.  */
   virtual cbranch_cond_t
-  cbranch_condition_code (const instruction_t &instruction) const = 0;
+  cbranch_condition_code (const instruction_t &instruction) const
+    = 0;
 
   virtual bool is_sethalt (const instruction_t &instruction) const = 0;
   virtual bool is_barrier (const instruction_t &instruction) const = 0;
@@ -423,7 +431,8 @@ protected:
   virtual bool is_cbranch_g_fork (const instruction_t &instruction) const = 0;
   virtual bool is_cbranch_join (const instruction_t &instruction) const = 0;
   virtual bool is_trap (const instruction_t &instruction,
-                        trap_id_t *trap_id = nullptr) const = 0;
+                        trap_id_t *trap_id = nullptr) const
+    = 0;
   virtual bool is_endpgm (const instruction_t &instruction) const = 0;
   virtual bool is_sequential (const instruction_t &instruction) const = 0;
 
@@ -442,17 +451,16 @@ protected:
     return !can_halt_at_endpgm ();
   }
   void save_pc_for_park (const wave_t &wave,
-                         amd_dbgapi_global_address_t pc) const override;
-  amd_dbgapi_global_address_t
-  saved_parked_pc (const wave_t &wave) const override;
+                         agent_address_t pc) const override;
+  agent_address_t saved_parked_pc (const wave_t &wave) const override;
 
   bool has_architected_flat_scratch () const override { return false; };
 
   virtual bool is_branch_taken (wave_t &wave,
                                 const instruction_t &instruction) const;
 
-  virtual amd_dbgapi_global_address_t
-  branch_target (wave_t &wave, amd_dbgapi_global_address_t pc,
+  virtual agent_address_t
+  branch_target (wave_t &wave, agent_address_t pc,
                  const instruction_t &instruction) const;
 
   amd_dbgapi_size_t
@@ -462,13 +470,13 @@ protected:
              amd_dbgapi_instruction_properties_t, /* instruction_properties  */
              size_t,                              /* instruction_size  */
              std::vector<uint64_t> /* instruction_information  */>
-  classify_instruction (amd_dbgapi_global_address_t address,
+  classify_instruction (agent_address_t address,
                         const instruction_t &instruction) const override;
 
   std::tuple<amd_dbgapi_size_t /* instruction_size  */,
              std::string /* instruction_text  */,
-             std::vector<amd_dbgapi_global_address_t> /* address_operands  */>
-  disassemble_instruction (amd_dbgapi_global_address_t address,
+             std::vector<uint64_t> /* address_operands  */>
+  disassemble_instruction (agent_address_t address,
                            const instruction_t &instruction) const override;
 
   bool can_execute_displaced (wave_t &wave,
@@ -476,17 +484,17 @@ protected:
   bool can_simulate (wave_t &wave,
                      const instruction_t &instruction) const override;
 
-  virtual std::optional<amd_dbgapi_global_address_t>
-  simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
+  virtual std::optional<agent_address_t>
+  simulate_instruction (wave_t &wave, agent_address_t pc,
                         const instruction_t &instruction) const;
 
-  virtual void simulate_instruction_fixup (wave_t & wave) const = 0;
+  virtual void simulate_instruction_fixup (wave_t &wave) const = 0;
 
-  virtual void
-  simulate_trap_handler (wave_t &wave, amd_dbgapi_global_address_t pc,
-                         std::optional<trap_id_t> trap_id = {}) const;
+  virtual void simulate_trap_handler (wave_t &wave, agent_address_t pc,
+                                      std::optional<trap_id_t> trap_id
+                                      = {}) const;
 
-  virtual bool simulate (wave_t &wave, amd_dbgapi_global_address_t pc,
+  virtual bool simulate (wave_t &wave, agent_address_t pc,
                          const instruction_t &instruction) const override;
 };
 
@@ -504,7 +512,7 @@ struct disassembly_user_data_t
   size_t offset;
   size_t size;
   std::string *instruction;
-  std::vector<amd_dbgapi_global_address_t> *operands;
+  std::vector<uint64_t> *operands;
 };
 
 } /* namespace detail */
@@ -568,8 +576,7 @@ amdgcn_architecture_t::disassembly_info () const
         detail::disassembly_user_data_t *data
           = static_cast<detail::disassembly_user_data_t *> (user_data);
         if (data->operands != nullptr)
-          data->operands->emplace_back (
-            static_cast<amd_dbgapi_global_address_t> (address));
+          data->operands->emplace_back (address);
       };
 
       if (amd_comgr_create_disassembly_info (
@@ -605,9 +612,9 @@ amdgcn_architecture_t::instruction_size (
 
 std::tuple<amd_dbgapi_size_t /* instruction_size  */,
            std::string /* instruction_text  */,
-           std::vector<amd_dbgapi_global_address_t> /* address_operands  */>
+           std::vector<uint64_t> /* address_operands  */>
 amdgcn_architecture_t::disassemble_instruction (
-  amd_dbgapi_global_address_t address, const instruction_t &instruction) const
+  agent_address_t address, const instruction_t &instruction) const
 {
   dbgapi_assert (
     utils::is_aligned (address, minimum_instruction_alignment ()));
@@ -680,7 +687,7 @@ amdgcn_architecture_t::minimum_instruction_alignment () const
   auto *mask = register_read_only_mask (amdgpu_regnum_t::pc);
   dbgapi_assert (mask);
 
-  size_t align = *static_cast<const amd_dbgapi_global_address_t *> (mask) + 1;
+  size_t align = *static_cast<const uint64_t *> (mask) + 1;
   dbgapi_assert (utils::is_power_of_two (align));
 
   return align;
@@ -837,20 +844,18 @@ amdgcn_architecture_t::is_branch_taken (wave_t &wave,
   dbgapi_assert_not_reached ("not a branch instruction");
 }
 
-amd_dbgapi_global_address_t
-amdgcn_architecture_t::branch_target (wave_t &wave,
-                                      amd_dbgapi_global_address_t pc,
+agent_address_t
+amdgcn_architecture_t::branch_target (wave_t &wave, agent_address_t pc,
                                       const instruction_t &instruction) const
 {
   dbgapi_assert (instruction.is_valid ());
-  amd_dbgapi_global_address_t target;
+  agent_address_t target;
 
   if (is_branch (instruction) || is_call (instruction)
       || is_cbranch (instruction) || is_cbranch_i_fork (instruction))
     {
-      target
-        = pc + instruction.size ()
-          + (static_cast<int64_t> (simm16_operand (instruction)) << 2);
+      target = pc + instruction.size ()
+               + (static_cast<int64_t> (simm16_operand (instruction)) << 2);
     }
   else if (is_cbranch_g_fork (instruction))
     {
@@ -873,8 +878,7 @@ amdgcn_architecture_t::branch_target (wave_t &wave,
       wave.read_register (*ssrc_regnum + 0, &ssrc_lo);
       wave.read_register (*ssrc_regnum + 1, &ssrc_hi);
 
-      target = amd_dbgapi_global_address_t{ ssrc_lo }
-               | amd_dbgapi_global_address_t{ ssrc_hi } << 32;
+      target = (static_cast<uint64_t> (ssrc_hi) << 32) | ssrc_lo;
     }
   else if (is_cbranch_join (instruction))
     {
@@ -898,7 +902,7 @@ amdgcn_architecture_t::branch_target (wave_t &wave,
 std::tuple<amd_dbgapi_instruction_kind_t, amd_dbgapi_instruction_properties_t,
            size_t, std::vector<uint64_t>>
 amdgcn_architecture_t::classify_instruction (
-  amd_dbgapi_global_address_t address, const instruction_t &instruction) const
+  agent_address_t address, const instruction_t &instruction) const
 {
   enum class information_kind_t
   {
@@ -1079,7 +1083,7 @@ amdgcn_architecture_t::can_simulate (wave_t & /* wave  */,
 }
 
 bool
-amdgcn_architecture_t::simulate (wave_t &wave, amd_dbgapi_global_address_t pc,
+amdgcn_architecture_t::simulate (wave_t &wave, agent_address_t pc,
                                  const instruction_t &instruction) const
 {
   dbgapi_assert (wave.state () == AMD_DBGAPI_WAVE_STATE_SINGLE_STEP
@@ -1099,19 +1103,18 @@ amdgcn_architecture_t::simulate (wave_t &wave, amd_dbgapi_global_address_t pc,
        handler with no trap_id.  */
     simulate_trap_handler (wave, *new_pc);
 
-  log_info ("%s simulated \"%s\" (pc=%#" PRIx64 ")", to_cstring (wave.id ()),
+  log_info ("%s simulated \"%s\" (pc=%s)", to_cstring (wave.id ()),
             std::get<std::string> (
               wave.architecture ().disassemble_instruction (pc, instruction))
               .c_str (),
-            pc);
+            to_cstring (pc));
 
   return true;
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 amdgcn_architecture_t::simulate_instruction (
-  wave_t &wave, amd_dbgapi_global_address_t pc,
-  const instruction_t &instruction) const
+  wave_t &wave, agent_address_t pc, const instruction_t &instruction) const
 {
   dbgapi_assert (utils::is_aligned (pc, minimum_instruction_alignment ()));
 
@@ -1149,8 +1152,9 @@ amdgcn_architecture_t::simulate_instruction (
         {
           bool taken = is_branch_taken (wave, instruction);
 
-          uint64_t saved_pc = taken ? pc + instruction.size ()
-                                    : branch_target (wave, pc, instruction);
+          agent_address_t saved_pc
+            = (taken ? pc + instruction.size ()
+                     : branch_target (wave, pc, instruction));
 
           uint32_t saved_exec_lo = taken ? mask_fail : mask_pass;
           uint32_t saved_exec_hi = (taken ? mask_fail : mask_pass) >> 32;
@@ -1197,7 +1201,7 @@ amdgcn_architecture_t::simulate_instruction (
       auto sdst_regnum = scalar_operand_to_regnum (sdst_operand (instruction));
       dbgapi_assert (sdst_regnum);
 
-      uint64_t sdst_value = pc + instruction.size ();
+      agent_address_t sdst_value = pc + instruction.size ();
       uint32_t sdst_lo = static_cast<uint32_t> (sdst_value);
       uint32_t sdst_hi = static_cast<uint32_t> (sdst_value >> 32);
 
@@ -1210,7 +1214,7 @@ amdgcn_architecture_t::simulate_instruction (
       dbgapi_assert_not_reached ("cannot simulate instruction");
     }
 
-  amd_dbgapi_global_address_t new_pc
+  agent_address_t new_pc
     = (is_sequential (instruction) || !is_branch_taken (wave, instruction))
         ? pc + instruction.size ()
         : branch_target (wave, pc, instruction);
@@ -1220,8 +1224,7 @@ amdgcn_architecture_t::simulate_instruction (
 
 void
 amdgcn_architecture_t::simulate_trap_handler (
-  wave_t &wave, amd_dbgapi_global_address_t pc,
-  std::optional<trap_id_t> trap_id) const
+  wave_t &wave, agent_address_t pc, std::optional<trap_id_t> trap_id) const
 {
   dbgapi_assert (utils::is_aligned (pc, minimum_instruction_alignment ()));
 
@@ -1247,6 +1250,7 @@ amdgcn_architecture_t::simulate_trap_handler (
   if (park_stopped_waves (wave.process ().rocr_rdebug_version ()))
     {
       save_pc_for_park (wave, pc);
+      // FIXME_lmoriche: What shoudl we do for PC?
       pc = wave.queue ().park_instruction_address ();
     }
 
@@ -1864,11 +1868,9 @@ amdgcn_architecture_t::register_name (amdgpu_regnum_t regnum) const
     {
       return string_printf ("s%" PRId64, regnum - amdgpu_regnum_t::first_sgpr);
     }
-  if (regnum >= amdgpu_regnum_t::v0_64
-      && regnum <= amdgpu_regnum_t::v255_64)
+  if (regnum >= amdgpu_regnum_t::v0_64 && regnum <= amdgpu_regnum_t::v255_64)
     {
-      return string_printf ("v%" PRId64,
-                            regnum - amdgpu_regnum_t::v0_64);
+      return string_printf ("v%" PRId64, regnum - amdgpu_regnum_t::v0_64);
     }
   if (regnum >= amdgpu_regnum_t::first_ttmp
       && regnum <= amdgpu_regnum_t::last_ttmp)
@@ -1959,8 +1961,7 @@ std::string
 amdgcn_architecture_t::register_type (amdgpu_regnum_t regnum) const
 {
   /* Vector registers.  */
-  if (regnum >= amdgpu_regnum_t::v0_64
-      && regnum <= amdgpu_regnum_t::v255_64)
+  if (regnum >= amdgpu_regnum_t::v0_64 && regnum <= amdgpu_regnum_t::v255_64)
     {
       return "int32_t[64]";
     }
@@ -2023,8 +2024,7 @@ amd_dbgapi_size_t
 amdgcn_architecture_t::register_size (amdgpu_regnum_t regnum) const
 {
   /* Vector registers.  */
-  if (regnum >= amdgpu_regnum_t::v0_64
-      && regnum <= amdgpu_regnum_t::v255_64)
+  if (regnum >= amdgpu_regnum_t::v0_64 && regnum <= amdgpu_regnum_t::v255_64)
     {
       return sizeof (int32_t) * 64;
     }
@@ -2359,7 +2359,7 @@ amdgcn_architecture_t::write_pseudo_register (const wave_t &wave,
 
 void
 amdgcn_architecture_t::save_pc_for_park (const wave_t &wave,
-                                         amd_dbgapi_global_address_t pc) const
+                                         agent_address_t pc) const
 {
   dbgapi_assert (park_stopped_waves (wave.process ().rocr_rdebug_version ()));
 
@@ -2375,7 +2375,7 @@ amdgcn_architecture_t::save_pc_for_park (const wave_t &wave,
   wave.write_register (amdgpu_regnum_t::ttmp11, ttmp11);
 }
 
-amd_dbgapi_global_address_t
+agent_address_t
 amdgcn_architecture_t::saved_parked_pc (const wave_t &wave) const
 {
   dbgapi_assert (park_stopped_waves (wave.process ().rocr_rdebug_version ()));
@@ -2386,12 +2386,8 @@ amdgcn_architecture_t::saved_parked_pc (const wave_t &wave) const
   wave.read_register (amdgpu_regnum_t::ttmp7, &ttmp7);
   wave.read_register (amdgpu_regnum_t::ttmp11, &ttmp11);
 
-  amd_dbgapi_global_address_t pc
-    = static_cast<amd_dbgapi_global_address_t> (ttmp7)
-      | static_cast<amd_dbgapi_global_address_t> (
-          utils::bit_extract (ttmp11, 7, 22))
-          << 32;
-  return pc;
+  return static_cast<uint64_t> (ttmp7)
+         | static_cast<uint64_t> (utils::bit_extract (ttmp11, 7, 22)) << 32;
 }
 
 /* Base class for all GFX9 architectures.  */
@@ -2408,7 +2404,7 @@ protected:
   protected:
     uint32_t const m_compute_relaunch_wave;
     uint32_t const m_compute_relaunch_state;
-    amd_dbgapi_global_address_t const m_context_save_address;
+    agent_address_t const m_context_save_address;
 
     static constexpr uint32_t
     compute_relaunch_state_payload_vgprs (uint32_t relaunch_state)
@@ -2456,7 +2452,7 @@ protected:
     cwsr_record_t (compute_queue_t &queue, uint32_t xcc_id,
                    uint32_t compute_relaunch_wave,
                    uint32_t compute_relaunch_state,
-                   amd_dbgapi_global_address_t context_save_address)
+                   agent_address_t context_save_address)
       : amdgcn_architecture_t::cwsr_record_t (queue, xcc_id),
         m_compute_relaunch_wave (compute_relaunch_wave),
         m_compute_relaunch_state (compute_relaunch_state),
@@ -2489,26 +2485,23 @@ protected:
     size_t lds_size () const override;
     size_t hwreg_count () const override;
 
-    amd_dbgapi_global_address_t begin () const override
+    agent_address_t begin () const override
     {
       return register_address (lane_count () == 32 ? amdgpu_regnum_t::v0_32
                                                    : amdgpu_regnum_t::v0_64)
         .value ();
     }
-    amd_dbgapi_global_address_t end () const override
-    {
-      return m_context_save_address;
-    }
+    agent_address_t end () const override { return m_context_save_address; }
 
-    std::optional<amd_dbgapi_global_address_t>
+    std::optional<agent_address_t>
     register_address (amdgpu_regnum_t regnum) const override;
   };
 
   virtual std::unique_ptr<architecture_t::cwsr_record_t>
-  make_gfx9_cwsr_record (
-    compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
-    uint32_t compute_relaunch_state,
-    amd_dbgapi_global_address_t context_save_address) const
+  make_gfx9_cwsr_record (compute_queue_t &queue, uint32_t xcc_id,
+                         uint32_t compute_relaunch_wave,
+                         uint32_t compute_relaunch_state,
+                         agent_address_t context_save_address) const
   {
     return std::make_unique<cwsr_record_t> (
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
@@ -2554,13 +2547,13 @@ public:
 
   size_t control_stack_iterate (
     compute_queue_t &queue, uint32_t xcc_id, const uint32_t *control_stack,
-    size_t control_stack_words, amd_dbgapi_global_address_t wave_area_address,
+    size_t control_stack_words, agent_address_t wave_area_address,
     amd_dbgapi_size_t wave_area_size,
     const std::function<void (
       std::unique_ptr<const architecture_t::cwsr_record_t>)> &wave_callback)
     const override;
 
-  std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
+  std::optional<uint64_t> dispatch_packet_id (
     const architecture_t::cwsr_record_t &cwsr_record) const override;
 
   size_t maximum_queue_packet_count () const override
@@ -2586,6 +2579,7 @@ gfx9_architecture_t::gfx9_architecture_t (elf_amdgpu_machine_t e_machine,
 {
   /* Create address spaces.  */
 
+  create<agent_address_space_t> ("agent");
   auto &local = create<local_address_space_t> ("local");
   auto &private_lane = create<private_swizzled_address_space_t> (
     "private_lane", /* interleave_size  */ sizeof (uint32_t));
@@ -2710,8 +2704,8 @@ gfx9_architecture_t::wave_get_state (wave_t &wave) const
           /* Resume the wave in single-step mode.  */
           wave_set_state (wave, AMD_DBGAPI_WAVE_STATE_SINGLE_STEP);
 
-          log_info ("%s (pc=%#" PRIx64 ") ignore spurious single-step",
-                    to_cstring (wave.id ()), wave.pc ());
+          log_info ("%s (pc=%s) ignore spurious single-step",
+                    to_cstring (wave.id ()), to_cstring (wave.pc ()));
 
           return { AMD_DBGAPI_WAVE_STATE_SINGLE_STEP,
                    AMD_DBGAPI_WAVE_STOP_REASON_NONE };
@@ -2730,11 +2724,11 @@ gfx9_architecture_t::wave_get_state (wave_t &wave) const
 amd_dbgapi_wave_id_t
 gfx9_architecture_t::cwsr_record_t::id () const
 {
-  const amd_dbgapi_global_address_t wave_id_address
+  const agent_address_t wave_id_address
     = register_address (amdgpu_regnum_t::ttmp4).value ();
 
   amd_dbgapi_wave_id_t wave_id;
-  process ().read_global_memory (wave_id_address, &wave_id);
+  agent ().read_agent_memory (wave_id_address, &wave_id);
 
   return wave_id;
 }
@@ -2745,11 +2739,11 @@ gfx9_architecture_t::cwsr_record_t::group_ids () const
   if (!agent ().spi_ttmps_setup_enabled () || !spi_ttmps_setup_enabled ())
     return std::nullopt;
 
-  const amd_dbgapi_global_address_t group_ids_address
+  const agent_address_t group_ids_address
     = register_address (amdgpu_regnum_t::ttmp8).value ();
 
   std::array<uint32_t, 3> coordinates;
-  process ().read_global_memory (group_ids_address, &coordinates);
+  agent ().read_agent_memory (group_ids_address, &coordinates);
 
   return coordinates;
 }
@@ -2760,11 +2754,11 @@ gfx9_architecture_t::cwsr_record_t::position_in_group () const
   if (!agent ().spi_ttmps_setup_enabled () || !spi_ttmps_setup_enabled ())
     return std::nullopt;
 
-  const amd_dbgapi_global_address_t ttmp11_address
+  const agent_address_t ttmp11_address
     = register_address (amdgpu_regnum_t::ttmp11).value ();
 
   uint32_t ttmp11;
-  process ().read_global_memory (ttmp11_address, &ttmp11);
+  agent ().read_agent_memory (ttmp11_address, &ttmp11);
 
   return (ttmp11 & ttmp11_wave_in_group_mask) >> ttmp11_wave_in_group_shift;
 }
@@ -3153,14 +3147,14 @@ gfx9_architecture_t::is_sequential (const instruction_t &instruction) const
     && !is_sopk_encoding<16, 21> (instruction);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 gfx9_architecture_t::cwsr_record_t::register_address (
   amdgpu_regnum_t regnum) const
 {
   const auto &architecture
     = static_cast<const gfx9_architecture_t &> (queue ().architecture ());
 
-  amd_dbgapi_global_address_t save_area_addr = m_context_save_address;
+  agent_address_t save_area_addr = m_context_save_address;
 
   if (is_first_wave ())
     {
@@ -3177,7 +3171,7 @@ gfx9_architecture_t::cwsr_record_t::register_address (
   /* TTMP registers are saved at the end of the HWREG block.  */
   const size_t ttmp_size = sizeof (uint32_t);
   const size_t ttmp_count = 16;
-  const size_t ttmps_addr = save_area_addr - ttmp_count * ttmp_size;
+  const agent_address_t ttmps_addr = save_area_addr - ttmp_count * ttmp_size;
 
   if (regnum >= amdgpu_regnum_t::first_ttmp
       && regnum <= amdgpu_regnum_t::last_ttmp)
@@ -3230,7 +3224,7 @@ gfx9_architecture_t::cwsr_record_t::register_address (
 
   size_t sgpr_count = this->sgpr_count ();
   size_t sgpr_size = sizeof (int32_t);
-  size_t sgprs_addr = hwregs_addr - sgpr_count * sgpr_size;
+  agent_address_t sgprs_addr = hwregs_addr - sgpr_count * sgpr_size;
 
   amdgpu_regnum_t aliased_sgpr_end
     = amdgpu_regnum_t::first_sgpr
@@ -3288,10 +3282,9 @@ gfx9_architecture_t::cwsr_record_t::register_address (
 
   size_t vgpr_count = this->vgpr_count ();
   size_t vgpr_size = sizeof (int32_t) * 64;
-  size_t vgprs_addr = sgprs_addr - vgpr_count * vgpr_size;
+  agent_address_t vgprs_addr = sgprs_addr - vgpr_count * vgpr_size;
 
-  if (regnum >= amdgpu_regnum_t::v0_64
-      && regnum <= amdgpu_regnum_t::v255_64
+  if (regnum >= amdgpu_regnum_t::v0_64 && regnum <= amdgpu_regnum_t::v255_64
       && ((regnum - amdgpu_regnum_t::v0_64) < vgpr_count))
     {
       return vgprs_addr + (regnum - amdgpu_regnum_t::v0_64) * vgpr_size;
@@ -3303,7 +3296,7 @@ gfx9_architecture_t::cwsr_record_t::register_address (
 size_t
 gfx9_architecture_t::control_stack_iterate (
   compute_queue_t &queue, uint32_t xcc_id, const uint32_t *control_stack,
-  size_t control_stack_words, amd_dbgapi_global_address_t wave_area_address,
+  size_t control_stack_words, agent_address_t wave_area_address,
   amd_dbgapi_size_t wave_area_size,
   const std::function<void (
     std::unique_ptr<const architecture_t::cwsr_record_t>)> &wave_callback)
@@ -3312,7 +3305,7 @@ gfx9_architecture_t::control_stack_iterate (
   size_t wave_count = 0;
   uint32_t state = 0;
 
-  amd_dbgapi_global_address_t last_wave_area = wave_area_address;
+  agent_address_t last_wave_area = wave_area_address;
 
   for (size_t i = 2; /* Skip the 2 PM4 packets at the top of the stack.  */
        i < control_stack_words; ++i)
@@ -3333,8 +3326,7 @@ gfx9_architecture_t::control_stack_iterate (
             queue, xcc_id, relaunch, state, last_wave_area - 64);
 
           last_wave_area
-            = cwsr_record->register_address (amdgpu_regnum_t::v0_64)
-                .value ();
+            = cwsr_record->register_address (amdgpu_regnum_t::v0_64).value ();
 
           wave_callback (std::move (cwsr_record));
           ++wave_count;
@@ -3350,30 +3342,21 @@ gfx9_architecture_t::control_stack_iterate (
   return wave_count;
 }
 
-std::optional<amd_dbgapi_global_address_t>
-gfx9_architecture_t::dispatch_packet_address (
+std::optional<uint64_t>
+gfx9_architecture_t::dispatch_packet_id (
   const architecture_t::cwsr_record_t &cwsr_record) const
 {
   if (!cwsr_record.agent ().spi_ttmps_setup_enabled ()
       || !cwsr_record.spi_ttmps_setup_enabled ())
     return std::nullopt;
 
-  const amd_dbgapi_global_address_t ttmp6_address
+  const agent_address_t ttmp6_address
     = cwsr_record.register_address (amdgpu_regnum_t::ttmp6).value ();
 
   uint32_t ttmp6;
-  cwsr_record.process ().read_global_memory (ttmp6_address, &ttmp6);
+  cwsr_record.agent ().read_agent_memory (ttmp6_address, &ttmp6);
 
-  uint64_t dispatch_packet_index
-    = (ttmp6 & ttmp6_queue_packet_id_mask) >> ttmp6_queue_packet_id_shift;
-
-  const compute_queue_t &queue = cwsr_record.queue ();
-
-  if ((dispatch_packet_index * queue.packet_size ()) >= queue.size ())
-    fatal_error ("dispatch_packet_index %#" PRIx64 " is out of bounds in %s",
-                 dispatch_packet_index, to_cstring (queue.id ()));
-
-  return queue.address () + (dispatch_packet_index * queue.packet_size ());
+  return (ttmp6 & ttmp6_queue_packet_id_mask) >> ttmp6_queue_packet_id_shift;
 }
 
 std::pair<amd_dbgapi_size_t /* offset  */, amd_dbgapi_size_t /* size  */>
@@ -3429,7 +3412,6 @@ public:
   }
 };
 
-
 /* Vega10 Architecture.  */
 
 class gfx900_t final : public gfx9_architecture_t
@@ -3465,23 +3447,24 @@ protected:
     cwsr_record_t (compute_queue_t &queue, uint32_t xcc_id,
                    uint32_t compute_relaunch_wave,
                    uint32_t compute_relaunch_state,
-                   amd_dbgapi_global_address_t context_save_address)
+                   agent_address_t context_save_address)
       : gfx9_architecture_t::cwsr_record_t (
-        queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
-        context_save_address)
+          queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
+          context_save_address)
     {
     }
 
     virtual size_t acc_vgpr_count () const = 0;
 
-    std::optional<amd_dbgapi_global_address_t>
+    std::optional<agent_address_t>
     register_address (amdgpu_regnum_t regnum) const override;
   };
 
-  std::unique_ptr<architecture_t::cwsr_record_t> make_gfx9_cwsr_record (
-    compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
-    uint32_t compute_relaunch_state,
-    amd_dbgapi_global_address_t context_save_address) const override
+  std::unique_ptr<architecture_t::cwsr_record_t>
+  make_gfx9_cwsr_record (compute_queue_t &queue, uint32_t xcc_id,
+                         uint32_t compute_relaunch_wave,
+                         uint32_t compute_relaunch_state,
+                         agent_address_t context_save_address) const override
     = 0;
 
   mi_architecture_t (elf_amdgpu_machine_t e_machine,
@@ -3519,11 +3502,9 @@ mi_architecture_t::mi_architecture_t (elf_amdgpu_machine_t e_machine,
 std::string
 mi_architecture_t::register_name (amdgpu_regnum_t regnum) const
 {
-  if (regnum >= amdgpu_regnum_t::a0_64
-      && regnum <= amdgpu_regnum_t::a255_64)
+  if (regnum >= amdgpu_regnum_t::a0_64 && regnum <= amdgpu_regnum_t::a255_64)
     {
-      return string_printf ("a%" PRId64,
-                            regnum - amdgpu_regnum_t::a0_64);
+      return string_printf ("a%" PRId64, regnum - amdgpu_regnum_t::a0_64);
     }
 
   return gfx9_architecture_t::register_name (regnum);
@@ -3532,8 +3513,7 @@ mi_architecture_t::register_name (amdgpu_regnum_t regnum) const
 std::string
 mi_architecture_t::register_type (amdgpu_regnum_t regnum) const
 {
-  if (regnum >= amdgpu_regnum_t::a0_64
-      && regnum <= amdgpu_regnum_t::a255_64)
+  if (regnum >= amdgpu_regnum_t::a0_64 && regnum <= amdgpu_regnum_t::a255_64)
     {
       return "int32_t[64]";
     }
@@ -3544,8 +3524,7 @@ mi_architecture_t::register_type (amdgpu_regnum_t regnum) const
 amd_dbgapi_size_t
 mi_architecture_t::register_size (amdgpu_regnum_t regnum) const
 {
-  if (regnum >= amdgpu_regnum_t::a0_64
-      && regnum <= amdgpu_regnum_t::a255_64)
+  if (regnum >= amdgpu_regnum_t::a0_64 && regnum <= amdgpu_regnum_t::a255_64)
     {
       return sizeof (int32_t) * 64;
     }
@@ -3553,7 +3532,7 @@ mi_architecture_t::register_size (amdgpu_regnum_t regnum) const
   return gfx9_architecture_t::register_size (regnum);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 mi_architecture_t::cwsr_record_t::register_address (
   amdgpu_regnum_t regnum) const
 {
@@ -3566,14 +3545,13 @@ mi_architecture_t::cwsr_record_t::register_address (
     amdgpu_regnum_t::first_sgpr);
   dbgapi_assert (first_sgpr_addr);
 
-  size_t sgprs_addr = *first_sgpr_addr;
+  agent_address_t sgprs_addr = *first_sgpr_addr;
 
   size_t accvgpr_count = this->acc_vgpr_count ();
   size_t accvgpr_size = sizeof (int32_t) * 64;
-  size_t accvgprs_addr = sgprs_addr - accvgpr_count * accvgpr_size;
+  agent_address_t accvgprs_addr = sgprs_addr - accvgpr_count * accvgpr_size;
 
-  if (regnum >= amdgpu_regnum_t::a0_64
-      && regnum <= amdgpu_regnum_t::a255_64
+  if (regnum >= amdgpu_regnum_t::a0_64 && regnum <= amdgpu_regnum_t::a255_64
       && ((regnum - amdgpu_regnum_t::a0_64) < accvgpr_count))
     {
       return accvgprs_addr + (regnum - amdgpu_regnum_t::a0_64) * accvgpr_size;
@@ -3581,10 +3559,9 @@ mi_architecture_t::cwsr_record_t::register_address (
 
   size_t vgpr_count = this->vgpr_count ();
   size_t vgpr_size = sizeof (int32_t) * 64;
-  size_t vgprs_addr = accvgprs_addr - vgpr_count * vgpr_size;
+  agent_address_t vgprs_addr = accvgprs_addr - vgpr_count * vgpr_size;
 
-  if (regnum >= amdgpu_regnum_t::v0_64
-      && regnum <= amdgpu_regnum_t::v255_64
+  if (regnum >= amdgpu_regnum_t::v0_64 && regnum <= amdgpu_regnum_t::v255_64
       && ((regnum - amdgpu_regnum_t::v0_64) < vgpr_count))
     {
       return vgprs_addr + (regnum - amdgpu_regnum_t::v0_64) * vgpr_size;
@@ -3610,7 +3587,7 @@ class gfx908_t final : public mi_architecture_t
     cwsr_record_t (compute_queue_t &queue, uint32_t xcc_id,
                    uint32_t compute_relaunch_wave,
                    uint32_t compute_relaunch_state,
-                   amd_dbgapi_global_address_t context_save_address)
+                   agent_address_t context_save_address)
       : mi_architecture_t::cwsr_record_t (queue, xcc_id, compute_relaunch_wave,
                                           compute_relaunch_state,
                                           context_save_address)
@@ -3625,10 +3602,11 @@ class gfx908_t final : public mi_architecture_t
     }
   };
 
-  std::unique_ptr<architecture_t::cwsr_record_t> make_gfx9_cwsr_record (
-    compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
-    uint32_t compute_relaunch_state,
-    amd_dbgapi_global_address_t context_save_address) const override
+  std::unique_ptr<architecture_t::cwsr_record_t>
+  make_gfx9_cwsr_record (compute_queue_t &queue, uint32_t xcc_id,
+                         uint32_t compute_relaunch_wave,
+                         uint32_t compute_relaunch_state,
+                         agent_address_t context_save_address) const override
   {
     return std::make_unique<cwsr_record_t> (
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
@@ -3670,7 +3648,7 @@ protected:
     cwsr_record_t (compute_queue_t &queue, uint32_t xcc_id,
                    uint32_t compute_relaunch_wave,
                    uint32_t compute_relaunch_state,
-                   amd_dbgapi_global_address_t context_save_address)
+                   agent_address_t context_save_address)
       : mi_architecture_t::cwsr_record_t (queue, xcc_id, compute_relaunch_wave,
                                           compute_relaunch_state,
                                           context_save_address)
@@ -3687,10 +3665,11 @@ protected:
     }
   };
 
-  std::unique_ptr<architecture_t::cwsr_record_t> make_gfx9_cwsr_record (
-    compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
-    uint32_t compute_relaunch_state,
-    amd_dbgapi_global_address_t context_save_address) const override
+  std::unique_ptr<architecture_t::cwsr_record_t>
+  make_gfx9_cwsr_record (compute_queue_t &queue, uint32_t xcc_id,
+                         uint32_t compute_relaunch_wave,
+                         uint32_t compute_relaunch_state,
+                         agent_address_t context_save_address) const override
   {
     return std::make_unique<cwsr_record_t> (
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
@@ -3764,7 +3743,7 @@ protected:
     cwsr_record_t (compute_queue_t &queue, uint32_t xcc_id,
                    uint32_t compute_relaunch_wave,
                    uint32_t compute_relaunch_state,
-                   amd_dbgapi_global_address_t context_save_address)
+                   agent_address_t context_save_address)
       : gfx90a_t::cwsr_record_t (queue, xcc_id, compute_relaunch_wave,
                                  compute_relaunch_state, context_save_address)
     {
@@ -3789,12 +3768,12 @@ protected:
         return true;
 
       uint32_t ttmp6, ttmp11;
-      const amd_dbgapi_global_address_t ttmp6_address
+      const agent_address_t ttmp6_address
         = register_address (amdgpu_regnum_t::ttmp6).value ();
-      const amd_dbgapi_global_address_t ttmp11_address
+      const agent_address_t ttmp11_address
         = register_address (amdgpu_regnum_t::ttmp11).value ();
-      process ().read_global_memory (ttmp6_address, &ttmp6);
-      process ().read_global_memory (ttmp11_address, &ttmp11);
+      agent ().read_agent_memory (ttmp6_address, &ttmp6);
+      agent ().read_agent_memory (ttmp11_address, &ttmp11);
       /* SPI initialized TTMP registers can only be invalidated by dbgapi
          by setting ttmp6[31].  This can only be done after trap handler
          initialized TTMP registers have been initialized (marked by ttmp11[31]
@@ -3805,10 +3784,11 @@ protected:
     }
   };
 
-  std::unique_ptr<architecture_t::cwsr_record_t> make_gfx9_cwsr_record (
-    compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
-    uint32_t compute_relaunch_state,
-    amd_dbgapi_global_address_t context_save_address) const override
+  std::unique_ptr<architecture_t::cwsr_record_t>
+  make_gfx9_cwsr_record (compute_queue_t &queue, uint32_t xcc_id,
+                         uint32_t compute_relaunch_wave,
+                         uint32_t compute_relaunch_state,
+                         agent_address_t context_save_address) const override
   {
     return std::make_unique<cwsr_record_t> (
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
@@ -3832,8 +3812,8 @@ protected:
   std::pair<amd_dbgapi_wave_state_t, amd_dbgapi_wave_stop_reasons_t>
   wave_get_state (wave_t &wave) const override;
 
-  std::optional<amd_dbgapi_global_address_t>
-  simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
+  std::optional<agent_address_t>
+  simulate_instruction (wave_t &wave, agent_address_t pc,
                         const instruction_t &instruction) const override;
 
   void simulate_instruction_fixup (wave_t &wave) const override;
@@ -3841,7 +3821,7 @@ protected:
   std::string register_type (amdgpu_regnum_t regnum) const override;
   const void *register_read_only_mask (amdgpu_regnum_t regnum) const override;
 
-  std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
+  std::optional<uint64_t> dispatch_packet_id (
     const architecture_t::cwsr_record_t &cwsr_record) const override;
 
   bool can_halt_at_endpgm () const override { return true; }
@@ -3927,20 +3907,20 @@ gfx9_4_architecture_t::cwsr_record_t::id () const
   dbgapi_assert (
     process ().is_flag_set (process_t::flag_t::spi_ttmps_setup_enabled));
 
-  const amd_dbgapi_global_address_t ttmp11_address
+  const agent_address_t ttmp11_address
     = register_address (amdgpu_regnum_t::ttmp11).value ();
 
   uint32_t ttmp11;
-  process ().read_global_memory (ttmp11_address, &ttmp11);
+  agent ().read_agent_memory (ttmp11_address, &ttmp11);
 
   if (!(ttmp11 & ttmp11_trap_hander_ttmps_setup_mask))
     return wave_t::undefined;
 
-  const amd_dbgapi_global_address_t wave_id_address
+  const agent_address_t wave_id_address
     = register_address (amdgpu_regnum_t::ttmp4).value ();
 
   amd_dbgapi_wave_id_t wave_id;
-  process ().read_global_memory (wave_id_address, &wave_id.handle);
+  agent ().read_agent_memory (wave_id_address, &wave_id.handle);
 
   return wave_id;
 }
@@ -3995,10 +3975,9 @@ gfx9_4_architecture_t::wave_get_state (wave_t &wave) const
   return amdgcn_architecture_t::wave_get_state (wave);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 gfx9_4_architecture_t::simulate_instruction (
-  wave_t &wave, amd_dbgapi_global_address_t pc,
-  const instruction_t &instruction) const
+  wave_t &wave, agent_address_t pc, const instruction_t &instruction) const
 {
   auto next_pc = gfx90a_t::simulate_instruction (wave, pc, instruction);
 
@@ -4009,8 +3988,7 @@ gfx9_4_architecture_t::simulate_instruction (
 }
 
 void
-gfx9_4_architecture_t::simulate_instruction_fixup (
-  wave_t &wave) const
+gfx9_4_architecture_t::simulate_instruction_fixup (wave_t &wave) const
 {
   uint32_t mode_reg;
   wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
@@ -4025,12 +4003,10 @@ gfx9_4_architecture_t::simulate_instruction_fixup (
     }
 }
 
-
 std::string
 gfx9_4_architecture_t::register_type (amdgpu_regnum_t regnum) const
 {
-  if (regnum >= amdgpu_regnum_t::a0_64
-      && regnum <= amdgpu_regnum_t::a255_64)
+  if (regnum >= amdgpu_regnum_t::a0_64 && regnum <= amdgpu_regnum_t::a255_64)
     {
       return "int32_t[64]";
     }
@@ -4169,31 +4145,22 @@ gfx9_4_architecture_t::register_read_only_mask (amdgpu_regnum_t regnum) const
     }
 }
 
-std::optional<amd_dbgapi_global_address_t>
-gfx9_4_architecture_t::dispatch_packet_address (
+std::optional<uint64_t>
+gfx9_4_architecture_t::dispatch_packet_id (
   const architecture_t::cwsr_record_t &cwsr_record) const
 {
   if (!cwsr_record.agent ().spi_ttmps_setup_enabled ()
       || !cwsr_record.spi_ttmps_setup_enabled ())
     return std::nullopt;
 
-  const compute_queue_t &queue = cwsr_record.queue ();
-
-  const amd_dbgapi_global_address_t ttmp11_address
+  const agent_address_t ttmp11_address
     = cwsr_record.register_address (amdgpu_regnum_t::ttmp11).value ();
 
   uint32_t ttmp11;
-  cwsr_record.process ().read_global_memory (ttmp11_address, &ttmp11);
+  cwsr_record.agent ().read_agent_memory (ttmp11_address, &ttmp11);
 
-  amd_dbgapi_os_queue_packet_id_t dispatch_packet_index
-    = (ttmp11 & ttmp11_queue_packet_id_mask) >> ttmp11_queue_packet_id_shift;
-
-  if ((dispatch_packet_index * queue.packet_size ()) >= queue.size ())
-    /* The dispatch_packet_index is out of bounds.  */
-    fatal_error ("dispatch_packet_index %#" PRIx64 " is out of bounds in %s",
-                 dispatch_packet_index, to_string (queue.id ()).c_str ());
-
-  return queue.address () + (dispatch_packet_index * queue.packet_size ());
+  return (ttmp11 & ttmp11_queue_packet_id_mask)
+         >> ttmp11_queue_packet_id_shift;
 }
 
 /* Generic gfx9.4 architecture.  */
@@ -4227,7 +4194,7 @@ protected:
     cwsr_record_t (compute_queue_t &queue, uint32_t xcc_id,
                    uint32_t compute_relaunch_wave,
                    uint32_t compute_relaunch_state,
-                   amd_dbgapi_global_address_t context_save_address)
+                   agent_address_t context_save_address)
       : gfx9_4_architecture_t::cwsr_record_t (
           queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
           context_save_address)
@@ -4237,10 +4204,11 @@ protected:
     size_t lds_size () const override;
   };
 
-  std::unique_ptr<architecture_t::cwsr_record_t> make_gfx9_cwsr_record (
-    compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
-    uint32_t compute_relaunch_state,
-    amd_dbgapi_global_address_t context_save_address) const override
+  std::unique_ptr<architecture_t::cwsr_record_t>
+  make_gfx9_cwsr_record (compute_queue_t &queue, uint32_t xcc_id,
+                         uint32_t compute_relaunch_wave,
+                         uint32_t compute_relaunch_state,
+                         agent_address_t context_save_address) const override
   {
     return std::make_unique<cwsr_record_t> (
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
@@ -4318,10 +4286,10 @@ protected:
                    uint32_t compute_relaunch_wave,
                    uint32_t compute_relaunch_state,
                    uint32_t compute_relaunch2_state,
-                   amd_dbgapi_global_address_t context_save_address)
+                   agent_address_t context_save_address)
       : gfx9_architecture_t::cwsr_record_t (
-        queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
-        context_save_address),
+          queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
+          context_save_address),
         m_compute_relaunch2_state (compute_relaunch2_state)
     {
     }
@@ -4341,15 +4309,16 @@ protected:
     bool is_last_wave () const override;
     bool is_first_wave () const override;
 
-    std::optional<amd_dbgapi_global_address_t>
+    std::optional<agent_address_t>
     register_address (amdgpu_regnum_t regnum) const override;
   };
 
   virtual std::unique_ptr<architecture_t::cwsr_record_t>
-  make_gfx1x_cwsr_record (
-    compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
-    uint32_t compute_relaunch_state, uint32_t compute_relaunch2_state,
-    amd_dbgapi_global_address_t context_save_address) const
+  make_gfx1x_cwsr_record (compute_queue_t &queue, uint32_t xcc_id,
+                          uint32_t compute_relaunch_wave,
+                          uint32_t compute_relaunch_state,
+                          uint32_t compute_relaunch2_state,
+                          agent_address_t context_save_address) const
   {
     return std::make_unique<cwsr_record_t> (
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
@@ -4361,8 +4330,8 @@ protected:
   size_t scalar_register_count () const override { return 106; }
   size_t scalar_alias_count () const override { return 2; }
 
-  amd_dbgapi_global_address_t
-  branch_target (wave_t &wave, amd_dbgapi_global_address_t pc,
+  agent_address_t
+  branch_target (wave_t &wave, agent_address_t pc,
                  const instruction_t &instruction) const override;
 
   gfx10_architecture_t (elf_amdgpu_machine_t e_machine,
@@ -4405,20 +4374,20 @@ public:
   bool can_simulate (wave_t &wave,
                      const instruction_t &instruction) const override;
 
-  std::optional<amd_dbgapi_global_address_t>
-  simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
+  std::optional<agent_address_t>
+  simulate_instruction (wave_t &wave, agent_address_t pc,
                         const instruction_t &instruction) const override;
 
   std::tuple<amd_dbgapi_instruction_kind_t,       /* instruction_kind  */
              amd_dbgapi_instruction_properties_t, /* instruction_properties  */
              size_t,                              /* instruction_size  */
              std::vector<uint64_t> /* instruction_information  */>
-  classify_instruction (amd_dbgapi_global_address_t address,
+  classify_instruction (agent_address_t address,
                         const instruction_t &instruction) const override;
 
   size_t control_stack_iterate (
     compute_queue_t &queue, uint32_t xcc_id, const uint32_t *control_stack,
-    size_t control_stack_words, amd_dbgapi_global_address_t wave_area_address,
+    size_t control_stack_words, agent_address_t wave_area_address,
     amd_dbgapi_size_t wave_area_size,
     const std::function<void (
       std::unique_ptr<const architecture_t::cwsr_record_t>)> &wave_callback)
@@ -4497,11 +4466,9 @@ gfx10_architecture_t::gfx10_architecture_t (elf_amdgpu_machine_t e_machine,
 std::string
 gfx10_architecture_t::register_name (amdgpu_regnum_t regnum) const
 {
-  if (regnum >= amdgpu_regnum_t::v0_32
-      && regnum <= amdgpu_regnum_t::v255_32)
+  if (regnum >= amdgpu_regnum_t::v0_32 && regnum <= amdgpu_regnum_t::v255_32)
     {
-      return string_printf ("v%" PRId64,
-                            regnum - amdgpu_regnum_t::v0_32);
+      return string_printf ("v%" PRId64, regnum - amdgpu_regnum_t::v0_32);
     }
   if (regnum == amdgpu_regnum_t::exec_32
       || regnum == amdgpu_regnum_t::pseudo_exec_32)
@@ -4534,8 +4501,7 @@ std::string
 gfx10_architecture_t::register_type (amdgpu_regnum_t regnum) const
 {
   /* Vector registers (arch and acc).  */
-  if ((regnum >= amdgpu_regnum_t::v0_32
-       && regnum <= amdgpu_regnum_t::v255_32))
+  if ((regnum >= amdgpu_regnum_t::v0_32 && regnum <= amdgpu_regnum_t::v255_32))
     {
       return "int32_t[32]";
     }
@@ -4650,8 +4616,7 @@ amd_dbgapi_size_t
 gfx10_architecture_t::register_size (amdgpu_regnum_t regnum) const
 {
   /* Vector registers (arch and acc).  */
-  if ((regnum >= amdgpu_regnum_t::v0_32
-       && regnum <= amdgpu_regnum_t::v255_32))
+  if ((regnum >= amdgpu_regnum_t::v0_32 && regnum <= amdgpu_regnum_t::v255_32))
     {
       return sizeof (int32_t) * 32;
     }
@@ -4822,9 +4787,8 @@ gfx10_architecture_t::scalar_operand_to_regnum (int operand, bool priv) const
     }
 }
 
-amd_dbgapi_global_address_t
-gfx10_architecture_t::branch_target (wave_t &wave,
-                                     amd_dbgapi_global_address_t pc,
+agent_address_t
+gfx10_architecture_t::branch_target (wave_t &wave, agent_address_t pc,
                                      const instruction_t &instruction) const
 {
   dbgapi_assert (instruction.is_valid ());
@@ -4858,7 +4822,7 @@ gfx10_architecture_t::cwsr_record_t::scratch_scoreboard_id () const
     m_compute_relaunch_wave);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 gfx10_architecture_t::cwsr_record_t::register_address (
   amdgpu_regnum_t regnum) const
 {
@@ -4927,7 +4891,7 @@ gfx10_architecture_t::cwsr_record_t::register_address (
     amdgpu_regnum_t::first_sgpr);
   dbgapi_assert (first_sgpr_addr);
 
-  size_t sgprs_addr = *first_sgpr_addr;
+  agent_address_t sgprs_addr = *first_sgpr_addr;
 
   /* The shared vgprs are 32-wide vector registers shared between the 2 halves
      of a wave64 on gfx10.  They are logically addressed right after the
@@ -4935,11 +4899,12 @@ gfx10_architecture_t::cwsr_record_t::register_address (
      they are still allocated.  */
   size_t shared_vgpr_count = this->shared_vgpr_count ();
   size_t shared_vgpr_size = sizeof (int32_t) * 32;
-  size_t shared_vgprs_addr = sgprs_addr - shared_vgpr_count * shared_vgpr_size;
+  agent_address_t shared_vgprs_addr
+    = sgprs_addr - shared_vgpr_count * shared_vgpr_size;
 
   size_t private_vgpr_count = this->vgpr_count ();
   size_t private_vgpr_size = sizeof (int32_t) * lane_count;
-  size_t private_vgprs_addr
+  agent_address_t private_vgprs_addr
     = shared_vgprs_addr - private_vgpr_count * private_vgpr_size;
 
   if (regnum >= (amdgpu_regnum_t::v0_32 + private_vgpr_count)
@@ -5142,10 +5107,9 @@ gfx10_architecture_t::can_simulate (wave_t &wave,
   return gfx9_architecture_t::can_simulate (wave, instruction);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 gfx10_architecture_t::simulate_instruction (
-  wave_t &wave, amd_dbgapi_global_address_t pc,
-  const instruction_t &instruction) const
+  wave_t &wave, agent_address_t pc, const instruction_t &instruction) const
 {
   if (is_subvector_loop_begin (instruction))
     {
@@ -5209,7 +5173,7 @@ gfx10_architecture_t::simulate_instruction (
 std::tuple<amd_dbgapi_instruction_kind_t, amd_dbgapi_instruction_properties_t,
            size_t, std::vector<uint64_t>>
 gfx10_architecture_t::classify_instruction (
-  amd_dbgapi_global_address_t address, const instruction_t &instruction) const
+  agent_address_t address, const instruction_t &instruction) const
 {
   dbgapi_assert (instruction.is_valid ());
 
@@ -5239,7 +5203,7 @@ gfx10_architecture_t::classify_instruction (
 size_t
 gfx10_architecture_t::control_stack_iterate (
   compute_queue_t &queue, uint32_t xcc_id, const uint32_t *control_stack,
-  size_t control_stack_words, amd_dbgapi_global_address_t wave_area_address,
+  size_t control_stack_words, agent_address_t wave_area_address,
   amd_dbgapi_size_t wave_area_size,
   const std::function<void (
     std::unique_ptr<const architecture_t::cwsr_record_t>)> &wave_callback)
@@ -5248,7 +5212,7 @@ gfx10_architecture_t::control_stack_iterate (
   size_t wave_count = 0;
   uint32_t state0 = 0, state1 = 0;
 
-  amd_dbgapi_global_address_t last_wave_area = wave_area_address;
+  agent_address_t last_wave_area = wave_area_address;
 
   for (size_t i = 2; /* Skip the 2 PM4 packets at the top of the stack.  */
        i < control_stack_words; ++i)
@@ -5417,14 +5381,14 @@ protected:
                    uint32_t compute_relaunch_wave,
                    uint32_t compute_relaunch_state,
                    uint32_t compute_relaunch2_state,
-                   amd_dbgapi_global_address_t context_save_address)
+                   agent_address_t context_save_address)
       : gfx10_architecture_t::cwsr_record_t (
-        queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
-        compute_relaunch2_state, context_save_address)
+          queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
+          compute_relaunch2_state, context_save_address)
     {
     }
 
-    std::optional<amd_dbgapi_global_address_t>
+    std::optional<agent_address_t>
     register_address (amdgpu_regnum_t regnum) const override;
 
     uint32_t shader_engine_id () const override;
@@ -5433,7 +5397,7 @@ protected:
   std::unique_ptr<architecture_t::cwsr_record_t> make_gfx1x_cwsr_record (
     compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
     uint32_t compute_relaunch_state, uint32_t compute_relaunch2_state,
-    amd_dbgapi_global_address_t context_save_address) const override
+    agent_address_t context_save_address) const override
   {
     return std::make_unique<cwsr_record_t> (
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
@@ -5457,8 +5421,8 @@ public:
   exception_mask_t set_exceptions (wave_t &, exception_mask_t,
                                    exception_mask_t) const override;
 
-  std::optional<amd_dbgapi_global_address_t>
-  simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
+  std::optional<agent_address_t>
+  simulate_instruction (wave_t &wave, agent_address_t pc,
                         const instruction_t &instruction) const override;
 
   void simulate_instruction_fixup (wave_t &wave) const override;
@@ -5615,19 +5579,18 @@ gfx11_architecture_t::cwsr_record_t::shader_engine_id () const
   return compute_relaunch_wave_payload_se_id (m_compute_relaunch_wave);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 gfx11_architecture_t::cwsr_record_t::register_address (
   amdgpu_regnum_t regnum) const
 {
-  if ((regnum >= amdgpu_regnum_t::v0_64
-       && regnum < amdgpu_regnum_t::v255_64)
+  if ((regnum >= amdgpu_regnum_t::v0_64 && regnum < amdgpu_regnum_t::v255_64)
       || (regnum >= amdgpu_regnum_t::v0_32
           && regnum < amdgpu_regnum_t::v255_32))
     {
-      const amd_dbgapi_global_address_t status_reg_address
+      const agent_address_t status_reg_address
         = register_address (amdgpu_regnum_t::status).value ();
       uint32_t status_reg;
-      process ().read_global_memory (status_reg_address, &status_reg);
+      agent ().read_agent_memory (status_reg_address, &status_reg);
 
       if (status_reg & sq_wave_status_no_vgprs_mask)
         return std::nullopt;
@@ -5636,12 +5599,11 @@ gfx11_architecture_t::cwsr_record_t::register_address (
   return gfx10_architecture_t::cwsr_record_t::register_address (regnum);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 gfx11_architecture_t::simulate_instruction (
-  wave_t &wave, amd_dbgapi_global_address_t pc,
-  const instruction_t &instruction) const
+  wave_t &wave, agent_address_t pc, const instruction_t &instruction) const
 {
-  std::optional<amd_dbgapi_global_address_t> next_pc;
+  std::optional<agent_address_t> next_pc;
   sendmsg_message_type_t msg;
   if (is_sendmsg (instruction, &msg) && msg == MSG_DEALLOC_VGPRS)
     {
@@ -5663,8 +5625,7 @@ gfx11_architecture_t::simulate_instruction (
 }
 
 void
-gfx11_architecture_t::simulate_instruction_fixup (
-  wave_t &wave) const
+gfx11_architecture_t::simulate_instruction_fixup (wave_t &wave) const
 {
   uint32_t mode_reg;
   wave.read_register (amdgpu_regnum_t::mode, &mode_reg);
@@ -6231,14 +6192,14 @@ protected:
                    uint32_t compute_relaunch_wave,
                    uint32_t compute_relaunch_state,
                    uint32_t compute_relaunch2_state,
-                   amd_dbgapi_global_address_t context_save_address)
+                   agent_address_t context_save_address)
       : gfx11_architecture_t::cwsr_record_t (
-        queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
-        compute_relaunch2_state, context_save_address)
+          queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
+          compute_relaunch2_state, context_save_address)
     {
     }
 
-    std::optional<amd_dbgapi_global_address_t>
+    std::optional<agent_address_t>
     register_address (amdgpu_regnum_t regnum) const override;
 
     amd_dbgapi_wave_id_t id () const override;
@@ -6258,7 +6219,7 @@ protected:
   std::unique_ptr<architecture_t::cwsr_record_t> make_gfx1x_cwsr_record (
     compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
     uint32_t compute_relaunch_state, uint32_t compute_relaunch2_state,
-    amd_dbgapi_global_address_t context_save_address) const override
+    agent_address_t context_save_address) const override
   {
     return std::make_unique<cwsr_record_t> (
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
@@ -6268,7 +6229,7 @@ protected:
   gfx12_architecture_t (elf_amdgpu_machine_t e_machine,
                         std::string target_triple);
 
-  std::optional<amd_dbgapi_global_address_t> dispatch_packet_address (
+  std::optional<uint64_t> dispatch_packet_id (
     const architecture_t::cwsr_record_t &cwsr_record) const override;
 
   bool are_trap_handler_ttmps_initialized (const wave_t &wave) const override;
@@ -6278,9 +6239,8 @@ protected:
                                bool enabled) const override final;
 
   void save_pc_for_park (const wave_t &wave,
-                         amd_dbgapi_global_address_t pc) const override;
-  amd_dbgapi_global_address_t
-  saved_parked_pc (const wave_t &wave) const override;
+                         agent_address_t pc) const override;
+  agent_address_t saved_parked_pc (const wave_t &wave) const override;
 
   exception_mask_t signaled_exceptions (const wave_t &) const override;
 
@@ -6317,7 +6277,7 @@ protected:
                               const void *value) const override;
 
   size_t largest_instruction_size () const override { return 24; }
-  void simulate_trap_handler (wave_t &wave, amd_dbgapi_global_address_t pc,
+  void simulate_trap_handler (wave_t &wave, agent_address_t pc,
                               std::optional<trap_id_t> trap_id) const override;
 
   void simulate_instruction_fixup (wave_t &wave) const override;
@@ -6381,31 +6341,21 @@ gfx12_architecture_t::gfx12_architecture_t (elf_amdgpu_machine_t e_machine,
                                   amdgpu_regnum_t::excp_flag_user);
 }
 
-std::optional<amd_dbgapi_global_address_t>
-gfx12_architecture_t::dispatch_packet_address (
+std::optional<uint64_t>
+gfx12_architecture_t::dispatch_packet_id (
   const architecture_t::cwsr_record_t &cwsr_record) const
 {
   if (!cwsr_record.agent ().spi_ttmps_setup_enabled ()
       || !cwsr_record.spi_ttmps_setup_enabled ())
     return std::nullopt;
 
-  const compute_queue_t &queue = cwsr_record.queue ();
-
-  const amd_dbgapi_global_address_t ttmp8_address
+  const agent_address_t ttmp8_address
     = cwsr_record.register_address (amdgpu_regnum_t::ttmp8).value ();
 
   uint32_t ttmp8;
-  cwsr_record.process ().read_global_memory (ttmp8_address, &ttmp8);
+  cwsr_record.agent ().read_agent_memory (ttmp8_address, &ttmp8);
 
-  amd_dbgapi_os_queue_packet_id_t dispatch_packet_index
-    = (ttmp8 & ttmp8_queue_packet_id_mask) >> ttmp8_queue_packet_id_shift;
-
-  if ((dispatch_packet_index * queue.packet_size ()) >= queue.size ())
-    /* The dispatch_packet_index is out of bounds.  */
-    fatal_error ("dispatch_packet_index %#" PRIx64 " is out of bounds in %s",
-                 dispatch_packet_index, to_string (queue.id ()).c_str ());
-
-  return queue.address () + (dispatch_packet_index * queue.packet_size ());
+  return (ttmp8 & ttmp8_queue_packet_id_mask) >> ttmp8_queue_packet_id_shift;
 }
 
 amdgcn_architecture_t::exception_mask_t
@@ -7102,7 +7052,7 @@ gfx12_architecture_t::wave_disable_traps (
   wave.write_register (amdgpu_regnum_t::trap_ctrl, trap_ctrl_reg);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 gfx12_architecture_t::cwsr_record_t::register_address (
   amdgpu_regnum_t regnum) const
 {
@@ -7181,7 +7131,7 @@ gfx12_architecture_t::record_spi_ttmps_setup (const wave_t &, bool) const
 
 void
 gfx12_architecture_t::save_pc_for_park (const wave_t &wave,
-                                        amd_dbgapi_global_address_t pc) const
+                                        agent_address_t pc) const
 {
   dbgapi_assert (park_stopped_waves (wave.process ().rocr_rdebug_version ()));
 
@@ -7197,7 +7147,7 @@ gfx12_architecture_t::save_pc_for_park (const wave_t &wave,
   wave.write_register (amdgpu_regnum_t::ttmp11, ttmp11);
 }
 
-amd_dbgapi_global_address_t
+agent_address_t
 gfx12_architecture_t::saved_parked_pc (const wave_t &wave) const
 {
   dbgapi_assert (park_stopped_waves (wave.process ().rocr_rdebug_version ()));
@@ -7208,18 +7158,13 @@ gfx12_architecture_t::saved_parked_pc (const wave_t &wave) const
   wave.read_register (amdgpu_regnum_t::ttmp10, &ttmp10);
   wave.read_register (amdgpu_regnum_t::ttmp11, &ttmp11);
 
-  amd_dbgapi_global_address_t pc
-    = static_cast<amd_dbgapi_global_address_t> (ttmp10)
-      | static_cast<amd_dbgapi_global_address_t> (
-          utils::bit_extract (ttmp11, 7, 22))
-          << 32;
-  return pc;
+  return static_cast<uint64_t> (ttmp10)
+         | static_cast<uint64_t> (utils::bit_extract (ttmp11, 7, 22)) << 32;
 }
 
 void
 gfx12_architecture_t::simulate_trap_handler (
-  wave_t &wave, amd_dbgapi_global_address_t pc,
-  std::optional<trap_id_t> trap_id) const
+  wave_t &wave, agent_address_t pc, std::optional<trap_id_t> trap_id) const
 {
   dbgapi_assert (utils::is_aligned (pc, minimum_instruction_alignment ()));
 
@@ -7245,6 +7190,7 @@ gfx12_architecture_t::simulate_trap_handler (
   if (park_stopped_waves (wave.process ().rocr_rdebug_version ()))
     {
       save_pc_for_park (wave, pc);
+      // FIXME_lmoriche:
       pc = wave.queue ().park_instruction_address ();
     }
 
@@ -7256,8 +7202,7 @@ gfx12_architecture_t::simulate_trap_handler (
 }
 
 void
-gfx12_architecture_t::simulate_instruction_fixup (
-  wave_t &wave) const
+gfx12_architecture_t::simulate_instruction_fixup (wave_t &wave) const
 {
   uint32_t trap_ctrl_reg;
   wave.read_register (amdgpu_regnum_t::trap_ctrl, &trap_ctrl_reg);
@@ -7281,19 +7226,19 @@ gfx12_architecture_t::cwsr_record_t::id () const
     process ().is_flag_set (process_t::flag_t::spi_ttmps_setup_enabled));
 
   uint32_t ttmp8;
-  const amd_dbgapi_global_address_t ttmp8_address
+  const agent_address_t ttmp8_address
     = register_address (amdgpu_regnum_t::ttmp8).value ();
 
-  process ().read_global_memory (ttmp8_address, &ttmp8);
+  agent ().read_agent_memory (ttmp8_address, &ttmp8);
 
   if (!(ttmp8 & ttmp8_debug_mark_mask))
     return wave_t::undefined;
 
-  const amd_dbgapi_global_address_t wave_id_address
+  const agent_address_t wave_id_address
     = register_address (amdgpu_regnum_t::ttmp4).value ();
 
   amd_dbgapi_wave_id_t wave_id;
-  process ().read_global_memory (wave_id_address, &wave_id);
+  agent ().read_agent_memory (wave_id_address, &wave_id);
 
   return wave_id;
 }
@@ -7306,16 +7251,16 @@ gfx12_architecture_t::cwsr_record_t::group_ids () const
 
   uint32_t ttmp7, ttmp8, ttmp9;
 
-  const amd_dbgapi_global_address_t ttmp7_address
+  const agent_address_t ttmp7_address
     = register_address (amdgpu_regnum_t::ttmp7).value ();
-  const amd_dbgapi_global_address_t ttmp8_address
+  const agent_address_t ttmp8_address
     = register_address (amdgpu_regnum_t::ttmp8).value ();
-  const amd_dbgapi_global_address_t ttmp9_address
+  const agent_address_t ttmp9_address
     = register_address (amdgpu_regnum_t::ttmp9).value ();
 
-  process ().read_global_memory (ttmp7_address, &ttmp7);
-  process ().read_global_memory (ttmp8_address, &ttmp8);
-  process ().read_global_memory (ttmp9_address, &ttmp9);
+  agent ().read_agent_memory (ttmp7_address, &ttmp7);
+  agent ().read_agent_memory (ttmp8_address, &ttmp8);
+  agent ().read_agent_memory (ttmp9_address, &ttmp9);
 
   std::array<uint32_t, 3> coordinates = { 0, 0, 0 };
   coordinates[0] = ttmp9;
@@ -7336,10 +7281,10 @@ gfx12_architecture_t::cwsr_record_t::position_in_group () const
 
   uint32_t ttmp8;
 
-  const amd_dbgapi_global_address_t ttmp8_address
+  const agent_address_t ttmp8_address
     = register_address (amdgpu_regnum_t::ttmp8).value ();
 
-  process ().read_global_memory (ttmp8_address, &ttmp8);
+  agent ().read_agent_memory (ttmp8_address, &ttmp8);
 
   return (ttmp8 & utils::bit_mask (25, 29)) >> 25;
 }
@@ -7571,14 +7516,14 @@ protected:
     size_t lds_size () const override;
     bool is_last_wave () const override;
 
-    std::optional<amd_dbgapi_global_address_t>
+    std::optional<agent_address_t>
     register_address (amdgpu_regnum_t regnum) const override;
   };
 
   std::unique_ptr<architecture_t::cwsr_record_t> make_gfx1x_cwsr_record (
     compute_queue_t &queue, uint32_t xcc_id, uint32_t compute_relaunch_wave,
     uint32_t compute_relaunch_state, uint32_t compute_relaunch2_state,
-    amd_dbgapi_global_address_t context_save_address) const override
+    agent_address_t context_save_address) const override
   {
     return std::make_unique<cwsr_record_t> (
       queue, xcc_id, compute_relaunch_wave, compute_relaunch_state,
@@ -7608,7 +7553,7 @@ protected:
 
   void initialize_trap_handler_ttmps (const wave_t &wave) const override;
 
-  void simulate_trap_handler (wave_t &wave, amd_dbgapi_global_address_t pc,
+  void simulate_trap_handler (wave_t &wave, agent_address_t pc,
                               std::optional<trap_id_t> trap_id) const override;
 
   bool can_halt_at_endpgm () const override { return true; }
@@ -7657,18 +7602,18 @@ protected:
                      const instruction_t &instruction) const override;
   bool is_branch_taken (wave_t &wave,
                         const instruction_t &instruction) const override;
-  amd_dbgapi_global_address_t
-  branch_target (wave_t &wave, amd_dbgapi_global_address_t pc,
+  agent_address_t
+  branch_target (wave_t &wave, agent_address_t pc,
                  const instruction_t &instruction) const override;
-  std::optional<amd_dbgapi_global_address_t>
-  simulate_instruction (wave_t &wave, amd_dbgapi_global_address_t pc,
+  std::optional<agent_address_t>
+  simulate_instruction (wave_t &wave, agent_address_t pc,
                         const instruction_t &instruction) const override;
 
   std::tuple<amd_dbgapi_instruction_kind_t,       /* instruction_kind  */
              amd_dbgapi_instruction_properties_t, /* instruction_properties  */
              size_t,                              /* instruction_size  */
              std::vector<uint64_t> /* instruction_information  */>
-  classify_instruction (amd_dbgapi_global_address_t address,
+  classify_instruction (agent_address_t address,
                         const instruction_t &instruction) const override;
 
 public:
@@ -7717,11 +7662,9 @@ gfx12_5_architecture_t::gfx12_5_architecture_t (elf_amdgpu_machine_t e_machine,
 std::string
 gfx12_5_architecture_t::register_name (amdgpu_regnum_t regnum) const
 {
-  if (regnum >= amdgpu_regnum_t::v0_32
-      && regnum <= amdgpu_regnum_t::v1023_32)
+  if (regnum >= amdgpu_regnum_t::v0_32 && regnum <= amdgpu_regnum_t::v1023_32)
     {
-      return string_printf ("v%" PRId64,
-                            regnum - amdgpu_regnum_t::v0_32);
+      return string_printf ("v%" PRId64, regnum - amdgpu_regnum_t::v0_32);
     }
 
   switch (regnum)
@@ -7880,7 +7823,7 @@ gfx12_5_architecture_t::cwsr_record_t::is_last_wave () const
   return compute_relaunch_wave_payload_last_wave (m_compute_relaunch_wave);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 gfx12_5_architecture_t::cwsr_record_t::register_address (
   amdgpu_regnum_t regnum) const
 {
@@ -7979,8 +7922,7 @@ gfx12_5_architecture_t::initialize_trap_handler_ttmps (
 
 void
 gfx12_5_architecture_t::simulate_trap_handler (
-  wave_t &wave, amd_dbgapi_global_address_t pc,
-  std::optional<trap_id_t> trap_id) const
+  wave_t &wave, agent_address_t pc, std::optional<trap_id_t> trap_id) const
 {
   dbgapi_assert (utils::is_aligned (pc, minimum_instruction_alignment ()));
 
@@ -8084,9 +8026,8 @@ gfx12_5_architecture_t::is_branch_taken (
   return gfx12_architecture_t::is_branch_taken (wave, instruction);
 }
 
-amd_dbgapi_global_address_t
-gfx12_5_architecture_t::branch_target (wave_t &wave,
-                                       amd_dbgapi_global_address_t pc,
+agent_address_t
+gfx12_5_architecture_t::branch_target (wave_t &wave, agent_address_t pc,
                                        const instruction_t &instruction) const
 {
   dbgapi_assert (instruction.is_valid ());
@@ -8133,12 +8074,11 @@ gfx12_5_architecture_t::branch_target (wave_t &wave,
     return gfx12_architecture_t::branch_target (wave, pc, instruction);
 }
 
-std::optional<amd_dbgapi_global_address_t>
+std::optional<agent_address_t>
 gfx12_5_architecture_t::simulate_instruction (
-  wave_t &wave, amd_dbgapi_global_address_t pc,
-  const instruction_t &instruction) const
+  wave_t &wave, agent_address_t pc, const instruction_t &instruction) const
 {
-  std::optional<amd_dbgapi_global_address_t> next_pc;
+  std::optional<agent_address_t> next_pc;
 
   if (is_add_pc (instruction))
     next_pc = branch_target (wave, pc, instruction);
@@ -8156,7 +8096,7 @@ gfx12_5_architecture_t::simulate_instruction (
 std::tuple<amd_dbgapi_instruction_kind_t, amd_dbgapi_instruction_properties_t,
            size_t, std::vector<uint64_t>>
 gfx12_5_architecture_t::classify_instruction (
-  amd_dbgapi_global_address_t address, const instruction_t &instruction) const
+  agent_address_t address, const instruction_t &instruction) const
 {
   if (is_add_pc (instruction))
     {
@@ -8177,8 +8117,7 @@ gfx12_5_architecture_t::classify_instruction (
           else
             dbgapi_assert_not_reached ("Invalid is_add_pc offset");
           info.emplace_back (address + instruction.size () + offset);
-          instruction_kind
-            = AMD_DBGAPI_INSTRUCTION_KIND_DIRECT_BRANCH;
+          instruction_kind = AMD_DBGAPI_INSTRUCTION_KIND_DIRECT_BRANCH;
         }
       /* Dealing with a register pair.  */
       else
@@ -8222,7 +8161,7 @@ public:
 architecture_t::architecture_t (elf_amdgpu_machine_t e_machine,
                                 std::string target_triple)
   : m_architecture_id (
-    amd_dbgapi_architecture_id_t{ s_next_architecture_id () }),
+      amd_dbgapi_architecture_id_t{ s_next_architecture_id () }),
     m_e_machine (e_machine), m_target_triple (std::move (target_triple))
 {
 }
@@ -8288,9 +8227,9 @@ architecture_t::find (const std::string &name)
       && detail::last_found_architecture->name () == name)
     return detail::last_found_architecture;
 
-  auto it = std::find_if (
-    s_architecture_map.begin (), s_architecture_map.end (),
-    [&] (const auto &value) { return value.second->name () == name; });
+  auto it = std::find_if (s_architecture_map.begin (),
+                          s_architecture_map.end (), [&] (const auto &value)
+                          { return value.second->name () == name; });
   if (it != s_architecture_map.end ())
     {
       auto architecture = it->second.get ();

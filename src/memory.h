@@ -23,6 +23,7 @@
 
 #include "amd-dbgapi.h"
 #include "handle_object.h"
+#include "logging.h"
 #include "utils.h"
 
 #include <cstddef>
@@ -61,6 +62,68 @@ constexpr uint64_t DW_ASPACE_AMDGPU_local = 0x03;
 constexpr uint64_t DW_ASPACE_AMDGPU_private_lane = 0x05;
 constexpr uint64_t DW_ASPACE_AMDGPU_private_wave = 0x06;
 
+namespace detail
+{
+
+template <typename T> class base_address_t
+{
+protected:
+  uint64_t m_address;
+
+public:
+  constexpr base_address_t () = default;
+  constexpr base_address_t (uint64_t address) : m_address (address) {}
+  constexpr operator uint64_t () const { return m_address; }
+
+  template <typename U> T operator+ (U increment) const
+  {
+    return T{ m_address + increment };
+  }
+  template <typename U> T operator- (U decrement) const
+  {
+    return T{ m_address - decrement };
+  }
+  template <typename U> T &operator+= (U increment)
+  {
+    m_address += increment;
+    return static_cast<T &> (*this);
+  }
+  template <typename U> T &operator-= (U decrement)
+  {
+    m_address -= decrement;
+    return static_cast<T &> (*this);
+  }
+};
+
+} /* namespace detail  */
+
+class agent_address_t : public detail::base_address_t<agent_address_t>
+{
+public:
+  constexpr agent_address_t () : base_address_t (){};
+  constexpr agent_address_t (uint64_t address) : base_address_t (address) {}
+};
+
+class host_address_t : public detail::base_address_t<host_address_t>
+{
+public:
+  constexpr host_address_t () : base_address_t (){};
+  constexpr host_address_t (uint64_t address) : base_address_t (address) {}
+};
+
+class global_address_t : public detail::base_address_t<global_address_t>
+{
+public:
+  constexpr global_address_t () : base_address_t (){};
+  constexpr global_address_t (uint64_t address) : base_address_t (address) {}
+  operator agent_address_t () { return agent_address_t{ m_address }; }
+  operator host_address_t () { return host_address_t{ m_address }; }
+};
+
+template <> std::string to_string (agent_address_t address);
+template <> std::string to_string (host_address_t address);
+template <> std::string to_string (global_address_t address);
+
 class address_class_t;
 
 class address_space_t
@@ -73,22 +136,32 @@ public:
     local,
     global,
     private_swizzled,
-    private_unswizzled
+    private_unswizzled,
+    agent,
+    host
+  };
+
+  enum class reserved_ids_t
+  {
+    global = AMD_DBGAPI_ADDRESS_SPACE_GLOBAL.handle,
+    host,
+    next_non_reserved_id
   };
 
   static const address_space_t &global ();
+  static const address_space_t &host ();
 
 private:
   kind_t const m_kind;
   std::string const m_name;
-  uint64_t const m_dwarf_value;
+  std::optional<uint64_t> const m_dwarf_value;
   amd_dbgapi_size_t const m_address_size;
   amd_dbgapi_segment_address_t const m_null_address;
   amd_dbgapi_address_space_access_t const m_access;
 
 protected:
   address_space_t (amd_dbgapi_address_space_id_t address_space_id, kind_t kind,
-                   std::string name, uint64_t dwarf_value,
+                   std::string name, std::optional<uint64_t> dwarf_value,
                    amd_dbgapi_size_t address_size,
                    amd_dbgapi_segment_address_t null_address,
                    amd_dbgapi_address_space_access_t access)
@@ -104,9 +177,11 @@ protected:
 public:
   virtual ~address_space_t () = default;
 
-  uint64_t dwarf_value () const { return m_dwarf_value; }
+  std::optional<uint64_t> dwarf_value () const { return m_dwarf_value; }
   const std::string &name () const { return m_name; }
   kind_t kind () const { return m_kind; }
+  bool is_internal () const { return !dwarf_value ().has_value (); }
+  bool is_valid () const { return !is_internal (); }
 
   amd_dbgapi_size_t address_size () const { return m_address_size; }
   amd_dbgapi_segment_address_t null_address () const { return m_null_address; }
@@ -123,7 +198,8 @@ public:
                                const address_class_t &address_class) const;
 
   virtual amd_dbgapi_segment_address_dependency_t
-  address_dependency (amd_dbgapi_segment_address_t address) const = 0;
+  address_dependency (amd_dbgapi_segment_address_t address) const
+    = 0;
 
   /* Lower an address in this address space to an address in a base address
      space in the same architecture.  The base address spaces kinds are global,
@@ -141,7 +217,8 @@ public:
                     amd_dbgapi_size_t /* to_contiguous_bytes  */>
   convert (const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
            const address_space_t &from_address_space,
-           amd_dbgapi_segment_address_t from_address) const = 0;
+           amd_dbgapi_segment_address_t from_address) const
+    = 0;
 
   void get_info (amd_dbgapi_address_space_info_t query, size_t value_size,
                  void *value) const;
@@ -153,7 +230,7 @@ public:
   global_address_space_t (amd_dbgapi_address_space_id_t address_space_id,
                           std::string name)
     : address_space_t (address_space_id, kind_t::global, std::move (name),
-                       DW_ASPACE_none, 64, 0x0000000000000000,
+                       { DW_ASPACE_none }, 64, 0x0000000000000000,
                        AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL)
   {
   }
@@ -179,7 +256,7 @@ public:
   local_address_space_t (amd_dbgapi_address_space_id_t address_space_id,
                          std::string name)
     : address_space_t (address_space_id, kind_t::local, std::move (name),
-                       DW_ASPACE_AMDGPU_local, 32, 0xFFFFFFFF,
+                       { DW_ASPACE_AMDGPU_local }, 32, 0xFFFFFFFF,
                        AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL)
   {
   }
@@ -209,7 +286,7 @@ public:
     amd_dbgapi_address_space_id_t address_space_id, std::string name,
     amd_dbgapi_size_t interleave_size)
     : address_space_t (address_space_id, kind_t::private_swizzled,
-                       std::move (name), DW_ASPACE_AMDGPU_private_lane, 32,
+                       std::move (name), { DW_ASPACE_AMDGPU_private_lane }, 32,
                        0xFFFFFFFF, AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL),
       m_interleave_size (interleave_size)
   {
@@ -248,7 +325,7 @@ public:
   private_unswizzled_address_space_t (
     amd_dbgapi_address_space_id_t address_space_id, std::string name)
     : address_space_t (address_space_id, kind_t::private_unswizzled,
-                       std::move (name), DW_ASPACE_AMDGPU_private_wave, 32,
+                       std::move (name), { DW_ASPACE_AMDGPU_private_wave }, 32,
                        0xFFFFFFFF, AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL)
   {
   }
@@ -273,8 +350,8 @@ class generic_address_space_t : public address_space_t
 public:
   struct aperture_t
   {
-    amd_dbgapi_global_address_t base;
-    amd_dbgapi_global_address_t mask;
+    agent_address_t base;
+    agent_address_t mask;
     const address_space_t &address_space;
   };
 
@@ -306,12 +383,79 @@ public:
            amd_dbgapi_segment_address_t from_address) const override;
 };
 
-/* The amd_dbgapi_address_space_id_t{1} is reserved for the distinguished
-   global address space id, to we need to start numbering at 2.  */
+class agent_address_space_t : public address_space_t
+{
+public:
+  agent_address_space_t (amd_dbgapi_address_space_id_t address_space_id,
+                         std::string name)
+    : address_space_t (address_space_id, kind_t::agent, std::move (name),
+                       std::nullopt, 64, 0x0000000000000000,
+                       AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL)
+  {
+  }
+
+  amd_dbgapi_segment_address_dependency_t address_dependency (
+    amd_dbgapi_segment_address_t /* address  */) const override
+  {
+    return AMD_DBGAPI_SEGMENT_ADDRESS_DEPENDENCE_AGENT;
+  }
+
+  std::pair<const address_space_t &, amd_dbgapi_segment_address_t>
+  lower (amd_dbgapi_segment_address_t local_address) const override;
+
+  std::pair<amd_dbgapi_segment_address_t, amd_dbgapi_size_t>
+  convert (const wave_t &wave, amd_dbgapi_lane_id_t lane_id,
+           const address_space_t &from_address_space,
+           amd_dbgapi_segment_address_t from_address) const override;
+};
+
+class host_address_space_t : public address_space_t
+{
+public:
+  host_address_space_t (amd_dbgapi_address_space_id_t address_space_id,
+                        std::string name)
+    : address_space_t (address_space_id, kind_t::host, std::move (name),
+                       std::nullopt, 64, 0x0000000000000000,
+                       AMD_DBGAPI_ADDRESS_SPACE_ACCESS_ALL)
+  {
+  }
+
+  amd_dbgapi_segment_address_dependency_t address_dependency (
+    amd_dbgapi_segment_address_t /* address  */) const override
+  {
+    return AMD_DBGAPI_SEGMENT_ADDRESS_DEPENDENCE_AGENT;
+  }
+
+  std::pair<const address_space_t &, amd_dbgapi_segment_address_t>
+  lower (amd_dbgapi_segment_address_t host_address) const override
+  {
+    return { *this, host_address };
+  }
+
+  std::pair<amd_dbgapi_segment_address_t, amd_dbgapi_size_t>
+  convert (const wave_t & /* wave  */, amd_dbgapi_lane_id_t /* lane_id  */,
+           const address_space_t &from_address_space,
+           amd_dbgapi_segment_address_t from_address) const override
+  {
+    auto [lowered_address_space, lowered_address]
+      = from_address_space.lower (from_address);
+
+    if (lowered_address_space.kind () == kind_t::host)
+      return { lowered_address, last_address () - lowered_address + 1 };
+
+    throw api_error_t (
+      AMD_DBGAPI_STATUS_ERROR_INVALID_ADDRESS_SPACE_CONVERSION);
+  }
+};
+
+/* Some IDs are reserved for static address spaces (global, host).  Make sure
+   to start the numbering at the first non-reserved address space ID.  */
 template <>
 struct monotonic_counter_start_t<amd_dbgapi_address_space_id_t>
   : public std::integral_constant<
-      decltype (amd_dbgapi_address_space_id_t::handle), 2>
+      decltype (amd_dbgapi_address_space_id_t::handle),
+      static_cast<std::underlying_type_t<address_space_t::reserved_ids_t>> (
+        address_space_t::reserved_ids_t::next_non_reserved_id)>
 {
 };
 
@@ -341,7 +485,7 @@ public:
                  void *value) const;
 };
 
-class memory_cache_t
+template <typename AddressType> class memory_cache_t
 {
 public:
   enum class policy_t
@@ -361,9 +505,9 @@ public:
   static constexpr policy_t policy = policy_t::write_back;
 
 private:
-  using delegate_fn_type = std::function<size_t (
-    amd_dbgapi_global_address_t /* address */, void * /* read */,
-    const void * /* write */, size_t /* size */)>;
+  using delegate_fn_type
+    = std::function<size_t (AddressType /* address */, void * /* read */,
+                            const void * /* write */, size_t /* size */)>;
 
   struct cache_line_t
   {
@@ -371,16 +515,14 @@ private:
     bool m_dirty{ false };
   };
 
-  std::map<amd_dbgapi_global_address_t, cache_line_t> m_cache_line_map;
+  std::map<AddressType, cache_line_t> m_cache_line_map;
   delegate_fn_type const m_xfer_global_memory;
 
-  void fetch_cache_line (cache_line_t &cache_line,
-                         amd_dbgapi_global_address_t address) const;
-  void commit_cache_line (cache_line_t &cache_line,
-                          amd_dbgapi_global_address_t address) const;
+  void fetch_cache_line (cache_line_t &cache_line, AddressType address) const;
+  void commit_cache_line (cache_line_t &cache_line, AddressType address) const;
   void allocate_0_cache_line (cache_line_t &cache_line) const;
 
-  size_t xfer_global_memory (amd_dbgapi_global_address_t address, void *read,
+  size_t xfer_global_memory (AddressType address, void *read,
                              const void *write, size_t size);
 
 public:
@@ -390,31 +532,28 @@ public:
   }
   ~memory_cache_t () { dbgapi_assert (m_cache_line_map.empty ()); }
 
-  bool contains_all (amd_dbgapi_global_address_t address,
-                     amd_dbgapi_size_t size) const;
+  bool contains_all (AddressType address, amd_dbgapi_size_t size) const;
 
   /* Create cache lines if not already valid, and immediately fill them in.  */
-  void prefetch (amd_dbgapi_global_address_t address, amd_dbgapi_size_t size);
+  void prefetch (AddressType address, amd_dbgapi_size_t size);
 
   /* Discard all cache lines in the specified range.  If FORCE_DISCARD
      is true, dirty lines are silently dropped.  Otherwise it is an error to
      discarded dirty cache lines.  */
-  void discard (amd_dbgapi_global_address_t address = 0,
-                amd_dbgapi_size_t size = -1, bool force_discard = false);
+  void discard (AddressType address = 0, amd_dbgapi_size_t size = -1,
+                bool force_discard = false);
 
   /* Write dirty lines back to memory.  */
-  void write_back (amd_dbgapi_global_address_t address = 0,
-                   amd_dbgapi_size_t size = -1);
+  void write_back (AddressType address = 0, amd_dbgapi_size_t size = -1);
 
-  [[nodiscard]] size_t read_global_memory (amd_dbgapi_global_address_t address,
-                                           void *buffer, size_t size)
+  [[nodiscard]] size_t read_global_memory (AddressType address, void *buffer,
+                                           size_t size)
   {
     return xfer_global_memory (address, buffer, nullptr, size);
   }
 
-  [[nodiscard]] size_t
-  write_global_memory (amd_dbgapi_global_address_t address, const void *buffer,
-                       size_t size)
+  [[nodiscard]] size_t write_global_memory (AddressType address,
+                                            const void *buffer, size_t size)
   {
     return xfer_global_memory (address, nullptr, buffer, size);
   }

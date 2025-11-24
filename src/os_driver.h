@@ -23,6 +23,7 @@
 
 #include "amd-dbgapi.h"
 #include "logging.h"
+#include "memory.h"
 #include "utils.h"
 
 #include <cstddef>
@@ -106,13 +107,13 @@ struct os_agent_info_t
   /* ucode version.  */
   uint32_t fw_version{ 0 };
   /* local/shared address aperture base.  */
-  amd_dbgapi_global_address_t local_address_aperture_base{ 0 };
+  agent_address_t local_address_aperture_base{ 0 };
   /* local/shared address aperture limit.  */
-  amd_dbgapi_global_address_t local_address_aperture_limit{ 0 };
+  agent_address_t local_address_aperture_limit{ 0 };
   /* private/scratch address aperture base.  */
-  amd_dbgapi_global_address_t private_address_aperture_base{ 0 };
+  agent_address_t private_address_aperture_base{ 0 };
   /* private/scratch address aperture limit.  */
-  amd_dbgapi_global_address_t private_address_aperture_limit{ 0 };
+  agent_address_t private_address_aperture_limit{ 0 };
   /* indicates if this agent's debugging capabilities are sufficient.  */
   bool debugging_supported{ false };
   /* indicates if address watch is supported.  */
@@ -120,7 +121,7 @@ struct os_agent_info_t
   /* number of address watch registers.  */
   size_t address_watch_register_count{ 0 };
   /* bits that can be programmed in the address watch mask.  */
-  amd_dbgapi_global_address_t address_watch_mask_bits{ 0 };
+  uint64_t address_watch_mask_bits{ 0 };
   /* whether the address watch registers are shared between processes.  */
   bool watchpoint_exclusive{ false };
   /* indicates if precise memory operations reporting is supported.  */
@@ -205,7 +206,7 @@ enum class os_runtime_state_t : uint32_t
 
 struct os_runtime_info_t
 {
-  amd_dbgapi_global_address_t r_debug;
+  uintptr_t r_debug;
   os_runtime_state_t runtime_state;
   bool ttmp_setup;
 };
@@ -288,7 +289,6 @@ enum class os_exception_mask_t : uint64_t
   process_device_remove = ec_mask (os_exception_code_t::process_device_remove),
 };
 
-
 /* Helper function to convert an exception mask with only 1 bit set to an
    exception code.  This is written as templated code as driver backends
    might use this helper as well.  */
@@ -297,10 +297,10 @@ template <typename Code, typename Mask>
 static inline constexpr Code
 excp_mask_to_excp_code (Mask m)
 {
-  using scalar_mask_t
-    = typename std::conditional_t<std::is_enum_v<Mask>,
-                                  std::underlying_type<Mask>,
-                                  utils::type_identity<Mask>>::type;
+  using scalar_mask_t =
+    typename std::conditional_t<std::is_enum_v<Mask>,
+                                std::underlying_type<Mask>,
+                                utils::type_identity<Mask>>::type;
 
   const auto imask{ static_cast<scalar_mask_t> (m) };
   dbgapi_assert (utils::is_power_of_two (imask));
@@ -402,11 +402,11 @@ struct os_queue_snapshot_entry_t
   os_agent_id_t gpu_id;
   os_queue_type_t queue_type{ os_queue_type_t::unknown };
   os_exception_mask_t exception_status;
-  amd_dbgapi_global_address_t ring_base_address;
+  host_address_t ring_base_address;
   amd_dbgapi_size_t ring_size;
-  amd_dbgapi_global_address_t write_pointer_address;
-  amd_dbgapi_global_address_t read_pointer_address;
-  amd_dbgapi_global_address_t ctx_save_restore_address;
+  host_address_t write_pointer_address;
+  host_address_t read_pointer_address;
+  agent_address_t ctx_save_restore_address;
   amd_dbgapi_size_t ctx_save_restore_area_size;
 };
 
@@ -454,7 +454,8 @@ public:
   create_driver (std::optional<amd_dbgapi_os_process_id_t> os_pid);
 
   static std::unique_ptr<os_driver_t>
-  create_driver (const amd_dbgapi_core_state_data_t &core_state);
+  create_driver (amd_dbgapi_client_process_id_t client_process_id,
+                 const amd_dbgapi_core_state_data_t &core_state);
 
   virtual bool is_valid () const = 0;
 
@@ -462,12 +463,14 @@ public:
 
   virtual amd_dbgapi_status_t
   create_core_state_note (const os_runtime_info_t &runtime_info,
-                          amd_dbgapi_core_state_data_t *data) const = 0;
+                          amd_dbgapi_core_state_data_t *data) const
+    = 0;
 
   virtual amd_dbgapi_status_t
   agent_snapshot (os_agent_info_t *snapshots, size_t snapshot_count,
                   size_t *agent_count,
-                  os_exception_mask_t exceptions_cleared) const = 0;
+                  os_exception_mask_t exceptions_cleared) const
+    = 0;
 
   virtual amd_dbgapi_status_t
   enable_debug (os_exception_mask_t exceptions_reported,
@@ -478,22 +481,25 @@ public:
   virtual bool is_debug_enabled () const = 0;
 
   virtual amd_dbgapi_status_t
-  set_exceptions_reported (os_exception_mask_t exceptions_reported) const = 0;
+  set_exceptions_reported (os_exception_mask_t exceptions_reported) const
+    = 0;
 
   virtual amd_dbgapi_status_t
   send_exceptions (os_exception_mask_t exceptions,
                    std::optional<os_agent_id_t> agent_id,
-                   std::optional<os_queue_id_t> queue_id) const = 0;
+                   std::optional<os_queue_id_t> queue_id) const
+    = 0;
 
   virtual amd_dbgapi_status_t
   query_debug_event (os_exception_mask_t *exceptions_present,
                      os_queue_id_t *os_queue_id, os_agent_id_t *os_agent_id,
-                     os_exception_mask_t exceptions_cleared)
+                     os_exception_mask_t exceptions_cleared) const
     = 0;
 
   virtual amd_dbgapi_status_t query_exception_info (
     os_exception_code_t exception, os_source_id_t os_source_id,
-    os_exception_info_t *os_exception_info, bool clear_exception) const = 0;
+    os_exception_info_t *os_exception_info, bool clear_exception) const
+    = 0;
 
   virtual amd_dbgapi_status_t
   suspend_queues (const os_queue_id_t *queues, size_t queue_count,
@@ -509,32 +515,49 @@ public:
   virtual amd_dbgapi_status_t
   queue_snapshot (os_queue_snapshot_entry_t *snapshots, size_t snapshot_count,
                   size_t *queue_count,
-                  os_exception_mask_t exceptions_cleared) const = 0;
+                  os_exception_mask_t exceptions_cleared) const
+    = 0;
 
-  virtual amd_dbgapi_status_t set_address_watch (
-    os_agent_id_t os_agent_id, amd_dbgapi_global_address_t address,
-    amd_dbgapi_global_address_t mask, os_watch_mode_t os_watch_mode,
-    os_watch_id_t *os_watch_id) const = 0;
+  virtual amd_dbgapi_status_t
+  set_address_watch (os_agent_id_t os_agent_id, agent_address_t address,
+                     agent_address_t mask, os_watch_mode_t os_watch_mode,
+                     os_watch_id_t *os_watch_id) const
+    = 0;
 
   virtual amd_dbgapi_status_t
   clear_address_watch (os_agent_id_t os_agent_id,
-                       os_watch_id_t os_watch_id) const = 0;
+                       os_watch_id_t os_watch_id) const
+    = 0;
 
   virtual amd_dbgapi_status_t
-  set_wave_launch_mode (os_wave_launch_mode_t mode) const = 0;
+  set_wave_launch_mode (os_wave_launch_mode_t mode) const
+    = 0;
 
   virtual amd_dbgapi_status_t set_wave_launch_trap_override (
     os_wave_launch_trap_override_t override, os_wave_launch_trap_mask_t value,
     os_wave_launch_trap_mask_t mask,
     os_wave_launch_trap_mask_t *previous_value = nullptr,
-    os_wave_launch_trap_mask_t *supported_mask = nullptr) const = 0;
+    os_wave_launch_trap_mask_t *supported_mask = nullptr) const
+    = 0;
 
   virtual amd_dbgapi_status_t
-  set_process_flags (os_process_flags_t flags) const = 0;
+  set_process_flags (os_process_flags_t flags) const
+    = 0;
 
   virtual amd_dbgapi_status_t
-  xfer_global_memory_partial (amd_dbgapi_global_address_t address, void *read,
-                              const void *write, size_t *size) const = 0;
+  xfer_global_memory_partial (global_address_t address, void *read,
+                              const void *write, size_t *size) const
+    = 0;
+
+  virtual amd_dbgapi_status_t
+  xfer_host_memory_partial (host_address_t address, void *read,
+                            const void *write, size_t *size) const
+    = 0;
+
+  virtual amd_dbgapi_status_t
+  xfer_agent_memory_partial (os_agent_id_t agent, agent_address_t address,
+                             void *read, const void *write, size_t *size) const
+    = 0;
 };
 
 /* OS driver class that implements no access that can be used if there is no
@@ -606,10 +629,10 @@ public:
     return AMD_DBGAPI_STATUS_ERROR;
   }
 
-  amd_dbgapi_status_t
-  query_debug_event (os_exception_mask_t *exceptions_present,
-                     os_queue_id_t *os_queue_id, os_agent_id_t *os_agent_id,
-                     os_exception_mask_t /* exceptions_cleared  */) override
+  amd_dbgapi_status_t query_debug_event (
+    os_exception_mask_t *exceptions_present, os_queue_id_t *os_queue_id,
+    os_agent_id_t *os_agent_id,
+    os_exception_mask_t /* exceptions_cleared  */) const override
   {
     *exceptions_present = os_exception_mask_t::none;
     *os_queue_id = *os_agent_id = 0;
@@ -666,12 +689,10 @@ public:
     return AMD_DBGAPI_STATUS_SUCCESS;
   }
 
-  amd_dbgapi_status_t
-  set_address_watch (os_agent_id_t /* os_agent_id  */,
-                     amd_dbgapi_global_address_t /* address  */,
-                     amd_dbgapi_global_address_t /* mask  */,
-                     os_watch_mode_t /* os_watch_mode  */,
-                     os_watch_id_t * /* os_watch_id  */) const override
+  amd_dbgapi_status_t set_address_watch (
+    os_agent_id_t /* os_agent_id  */, agent_address_t /* address  */,
+    agent_address_t /* mask  */, os_watch_mode_t /* os_watch_mode  */,
+    os_watch_id_t * /* os_watch_id  */) const override
   {
     return AMD_DBGAPI_STATUS_ERROR_NOT_SUPPORTED;
   }
@@ -707,9 +728,30 @@ public:
   }
 
   amd_dbgapi_status_t
-  xfer_global_memory_partial (amd_dbgapi_global_address_t /* address  */,
-                              void *read, const void *write,
+  xfer_global_memory_partial (global_address_t /* address  */, void *read,
+                              const void *write,
                               size_t * /* size  */) const override
+  {
+    dbgapi_assert (!read != !write && "either read or write buffer");
+    /* Suppress warnings in release builds.  */
+    [] (auto &&...) {}(read, write);
+    return AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS;
+  }
+
+  amd_dbgapi_status_t
+  xfer_host_memory_partial (host_address_t /* address  */, void *read,
+                            const void *write,
+                            size_t * /* size  */) const override
+  {
+    dbgapi_assert (!read != !write && "either read or write buffer");
+    /* Suppress warnings in release builds.  */
+    [] (auto &&...) {}(read, write);
+    return AMD_DBGAPI_STATUS_ERROR_MEMORY_ACCESS;
+  }
+
+  amd_dbgapi_status_t xfer_agent_memory_partial (
+    os_agent_id_t /* agent  */, agent_address_t /* address */, void *read,
+    const void *write, size_t * /* size  */) const override
   {
     dbgapi_assert (!read != !write && "either read or write buffer");
     /* Suppress warnings in release builds.  */
