@@ -127,6 +127,8 @@ static uint32_t get_hwreg_size_per_cu(uint32_t gfxv)
 		hwreg_size = 0x1000; /* 128 bytes per wave, 32 waves per CU */
 	else if (gfxv <= GFX_VERSION_GFX1251)
 		hwreg_size = 0x8000; /* 512 bytes per wave, 64 waves per CU */
+	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
+		hwreg_size = 0x4000; /* 512 bytes per wave, 32 waves per CU */
 
 	assert(hwreg_size);
 
@@ -151,6 +153,8 @@ uint32_t hsakmt_get_vgpr_size_per_cu(uint32_t gfxv)
 		vgpr_size = 0x60000;
 	else if (gfxv <= GFX_VERSION_GFX1251)
 		vgpr_size = 0x80000;
+	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
+		vgpr_size = 0x40000; /* 128kiB per SIMD */
 
 	assert(vgpr_size);
 
@@ -165,6 +169,8 @@ uint32_t hsakmt_get_sgpr_size_per_cu(uint32_t gfxv)
 		sgpr_size = 0x4000;
 	else if (gfxv <= GFX_VERSION_GFX1251)
 		sgpr_size = 0x8000;
+	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
+		sgpr_size = 0x4000; /* 32 waves * 128 SGPRs */
 
 	assert(sgpr_size);
 
@@ -182,6 +188,8 @@ static uint32_t get_num_waves(HsaNodeProperties *node, uint32_t gfxv,
 		wave_num = cu_num * 32;
 	else if (gfxv <= GFX_VERSION_GFX1251)
 		wave_num = cu_num * 64;
+	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
+		wave_num = cu_num * 32;
 
 	assert(wave_num);
 

@@ -139,6 +139,11 @@ extern int hsakmt_debug_level;
 #define HSA_GET_GFX_VERSION_MINOR(gfxv)   (((gfxv) / 100) % 100)
 #define HSA_GET_GFX_VERSION_STEP(gfxv)    ((gfxv) % 100)
 
+/* Expects gfxv (full) in hexadecimal */
+#define HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv)   (((gfxv) >> 16) & 0xff)
+#define HSA_GET_GFX_VERSION_HEX_MINOR(gfxv)   (((gfxv) >> 8) & 0xff)
+#define HSA_GET_GFX_VERSION_HEX_STEP(gfxv)    ((gfxv) & 0xff)
+
 /* Expects HSA_ENGINE_ID.ui32, returns gfxv (full) in hex */
 #define HSA_GET_GFX_VERSION_FULL(ui32) \
 	(((ui32.Major) << 16) | ((ui32.Minor) << 8) | (ui32.Stepping))

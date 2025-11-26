@@ -278,6 +278,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
     ASICShader compute_11;
     ASICShader compute_12;
     ASICShader compute_1250;
+    ASICShader compute_13;
   };
 
   std::map<std::string, CompiledShader> compiled_shaders = {
@@ -294,6 +295,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            // GFX12_TODO: Using one for GFX10 for now.
            //             If NULL is used (like GFX11), get an assert.
            {kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4},          // gfx12
+           {NULL, 0, 0, 0},                                                 // gfx13
        }},
       {"TrapHandlerKfdExceptions",
        {
@@ -307,6 +309,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeTrapHandlerV2_11, sizeof(kCodeTrapHandlerV2_11), 2, 4},    // gfx11
            {kCodeTrapHandlerV2_12, sizeof(kCodeTrapHandlerV2_12), 2, 4},    // gfx12
            {kCodeTrapHandlerV2_1250, sizeof(kCodeTrapHandlerV2_1250), 2, 4},  // gfx1250
+           {NULL, 0, 0, 0},                                                 // gfx13
        }},
       {"CopyAligned",
        {
@@ -320,6 +323,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeCopyAligned11, sizeof(kCodeCopyAligned11), 32, 12},        // gfx11
            {kCodeCopyAligned12, sizeof(kCodeCopyAligned12), 32, 12},        // gfx12
            {kCodeCopyAligned1250, sizeof(kCodeCopyAligned1250), 32, 12},    // gfx1250
+           {kCodeCopyAligned13, sizeof(kCodeCopyAligned13), 32, 12},        // gfx13
        }},
       {"CopyMisaligned",
        {
@@ -333,6 +337,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeCopyMisaligned11, sizeof(kCodeCopyMisaligned11), 23, 10},  // gfx11
            {kCodeCopyMisaligned12, sizeof(kCodeCopyMisaligned12), 23, 10},  // gfx12
            {kCodeCopyMisaligned1250, sizeof(kCodeCopyMisaligned1250), 23, 10},  // gfx1250
+           {kCodeCopyMisaligned13, sizeof(kCodeCopyMisaligned13), 23, 10},  // gfx13
        }},
       {"Fill",
        {
@@ -346,6 +351,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeFill11, sizeof(kCodeFill11), 19, 8},                       // gfx11
            {kCodeFill12, sizeof(kCodeFill12), 19, 8},                       // gfx12
            {kCodeFill1250, sizeof(kCodeFill1250), 19, 8},                   // gfx1250
+           {kCodeFill13, sizeof(kCodeFill13), 19, 8},                       // gfx13
        }}};
 
   auto compiled_shader_it = compiled_shaders.find(func_name);
@@ -384,6 +390,9 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
           asic_shader = &compiled_shader_it->second.compute_1250;
         else
           asic_shader = &compiled_shader_it->second.compute_12;
+      break;
+    case 13:
+      asic_shader = &compiled_shader_it->second.compute_13;
       break;
     default:
       assert(false && "Precompiled shader unavailable for target");
@@ -441,6 +450,8 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
       int gran_accvgprs = ((gran_vgprs + 1) * 8) / 4 - 1;
       header->max_scratch_backing_memory_byte_size = uint64_t(gran_accvgprs) << 32;
     }
+    header->wavefront_size = isa_->GetMajorVersion() >= 10 ? AMD_POWERTWO_32 : AMD_POWERTWO_64;
+    header->workitem_vgpr_count = asic_shader->num_vgprs;
   }
 
   // Copy shader code into the GPU-visible buffer.
@@ -2402,7 +2413,7 @@ void GpuAgent::InvalidateCodeCaches(void *ptr, size_t size) {
       // Microcode is handling code cache invalidation.
       return;
     }
-  } else if (isa_->GetMajorVersion() > 12) {
+  } else if (isa_->GetMajorVersion() > 13) {
     assert(false && "Code cache invalidation not implemented for this agent");
   }
 

@@ -452,6 +452,7 @@ const IsaRegistry::IsaMap& IsaRegistry::GetSupportedIsas() {
   ISAREG_ENTRY_GEN("gfx1201",                12, 0, 1, unsupported, unsupported, 32, "gfx12-generic")
   ISAREG_ENTRY_GEN("gfx1250",                12, 5, 0, unsupported, unsupported, 32, "gfx12-generic")
   ISAREG_ENTRY_GEN("gfx1251",                12, 5, 1, unsupported, unsupported, 32, "gfx12-generic")
+  ISAREG_ENTRY_GEN("gfx1310",                13, 1, 0, unsupported, unsupported, 32, "gfx1310")
 #undef ISAREG_ENTRY_GEN
 
   return *supported_isas;
