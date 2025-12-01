@@ -162,6 +162,9 @@ namespace core {
       HSAKMT_PFN(hsaKmtCreateQueueExt) = (HSAKMT_DEF(hsaKmtCreateQueueExt)*)dlsym(thunk_handle, "hsaKmtCreateQueueExt");
       if (HSAKMT_PFN(hsaKmtCreateQueueExt) == NULL) goto ERROR;
 
+      HSAKMT_PFN(hsaKmtCreateQueueExtV2) = (HSAKMT_DEF(hsaKmtCreateQueueExtV2)*)dlsym(thunk_handle, "hsaKmtCreateQueueExtV2");
+      if (HSAKMT_PFN(hsaKmtCreateQueueExtV2) == NULL) goto ERROR;
+
       HSAKMT_PFN(hsaKmtUpdateQueue) = (HSAKMT_DEF(hsaKmtUpdateQueue)*)dlsym(thunk_handle, "hsaKmtUpdateQueue");
       if (HSAKMT_PFN(hsaKmtUpdateQueue) == NULL) goto ERROR;
 
@@ -438,6 +441,7 @@ ERROR:
       HSAKMT_PFN(hsaKmtWaitOnMultipleEvents) = (HSAKMT_DEF(hsaKmtWaitOnMultipleEvents)*)(&hsaKmtWaitOnMultipleEvents);
       HSAKMT_PFN(hsaKmtCreateQueue) = (HSAKMT_DEF(hsaKmtCreateQueue)*)(&hsaKmtCreateQueue);
       HSAKMT_PFN(hsaKmtCreateQueueExt) = (HSAKMT_DEF(hsaKmtCreateQueueExt)*)(&hsaKmtCreateQueueExt);
+      HSAKMT_PFN(hsaKmtCreateQueueExtV2) = (HSAKMT_DEF(hsaKmtCreateQueueExtV2)*)(&hsaKmtCreateQueueExtV2);
       HSAKMT_PFN(hsaKmtUpdateQueue) = (HSAKMT_DEF(hsaKmtUpdateQueue)*)(&hsaKmtUpdateQueue);
       HSAKMT_PFN(hsaKmtDestroyQueue) = (HSAKMT_DEF(hsaKmtDestroyQueue)*)(&hsaKmtDestroyQueue);
       HSAKMT_PFN(hsaKmtSetQueueCUMask) = (HSAKMT_DEF(hsaKmtSetQueueCUMask)*)(&hsaKmtSetQueueCUMask);

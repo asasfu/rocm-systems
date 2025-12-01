@@ -611,6 +611,8 @@ class VirtualGPU : public device::VirtualDevice {
 
   uint16_t dispatchPacketHeaderNoSync_;
   uint16_t dispatchPacketHeader_;
+  uint16_t vendorSpecificPacketHeaderNoSync_;
+  uint16_t vendorSpecificPacketHeader_;
 
   //!< bit-vector representing the CU mask. Each active bit represents using one CU
   const std::vector<uint32_t> cuMask_;

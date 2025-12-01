@@ -590,6 +590,8 @@
         "Unit_hipGraph_PerfCheck_hipGraphExecChildGraphNodeSetParams",
         "=== SWDEV-553920 disabled until multi device graph issues are resolved ===",
         "Unit_hipGraphUpload_Functional_multidevice_test",
+        "=== SWDEV-SWDEV-515087 - disabled until distributed shared memory is supported ===",
+        "Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch",
     #endif
     #if defined gfx90a || defined gfx942 || defined gfx950
         "=== SWDEV-443630 : Below test failed in stress test on 19/01/24 ===",
