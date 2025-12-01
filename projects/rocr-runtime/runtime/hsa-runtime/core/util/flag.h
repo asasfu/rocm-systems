@@ -298,6 +298,17 @@ class Flag {
 
     var = os::GetEnvVar("HSA_CO_DMACOPY_SIZE");
     co_dmacopy_size_ = var.empty() ? 1024*1024 : atoi(var.c_str());
+    var = os::GetEnvVar("HSA_AGENT_CACHELINE_SIZE_OVERRIDE");
+    cacheline_size_override_ = var.empty() ? -1 : atoi(var.c_str());
+
+    // NPI ONLY - DO NOT UPSTREAM
+#ifdef AMD_NPI_ONLY
+    var = os::GetEnvVar("HSA_NPI_RAW_TIMESTAMPS");
+    raw_timestamps_ = (var == "1") ? true : false;
+
+    var = os::GetEnvVar("HSA_DISABLE_COREDUMP");
+    disable_coredump_ = (var == "1") ? true : false;
+#endif
   }
 
   void parse_masks(uint32_t maxGpu, uint32_t maxCU) {
@@ -426,6 +437,13 @@ class Flag {
 
   bool enable_3d_swizzle() const { return enable_3d_swizzle_; }
 
+  int cacheline_size_override() const { return cacheline_size_override_; }
+
+#ifdef AMD_NPI_ONLY
+  bool raw_timestamps() const  { return raw_timestamps_; }
+  bool disable_coredump() const { return disable_coredump_; }
+#endif
+
   bool enable_dtif() const { return enable_dtif_; }
 
   bool enable_dxg_detection() const { return enable_dxg_detection_; }
@@ -489,7 +507,7 @@ class Flag {
   bool enable_3d_swizzle_ = false;
   bool enable_dtif_;
   bool enable_dxg_detection_;
-
+  int cacheline_size_override_ = -1;
   SDMA_OVERRIDE enable_sdma_;
   SDMA_OVERRIDE enable_peer_sdma_;
   SDMA_OVERRIDE enable_sdma_gang_;
@@ -524,6 +542,11 @@ class Flag {
 
   // Map GPU index post RVD to its default cu mask.
   std::map<uint32_t, std::vector<uint32_t>> cu_mask_;
+
+#ifdef AMD_NPI_ONLY
+  bool raw_timestamps_;
+  bool disable_coredump_;
+#endif
 
   void parse_masks(std::string& args, uint32_t maxGpu, uint32_t maxCU);
 

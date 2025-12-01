@@ -214,8 +214,10 @@ SET(AQLPROFILE_V2_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../parse_ip_discovery.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../navi_reg_init.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../vega20_reg_init.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../soc_v1_0_reg_init.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../spm_data.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../gfx12_factory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gfx1250_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../gfx11_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../gfx115x_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../gfx10_factory.cpp

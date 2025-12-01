@@ -53,6 +53,7 @@ add_subdirectory(syncthreads)
 add_subdirectory(threadfence)
 add_subdirectory(virtualMemoryManagement)
 add_subdirectory(c_compilation)
+add_subdirectory(cluster)
 
 if(HIP_PLATFORM STREQUAL "amd")
 add_subdirectory(callback)
