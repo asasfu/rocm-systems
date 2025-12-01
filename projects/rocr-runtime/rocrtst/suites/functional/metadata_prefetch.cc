@@ -37,7 +37,7 @@ static const char kSubTestSeparator[] = "  **************************";
 }
 
 MetadataPrefetch::MetadataPrefetch(void) :
-    TestBase() {
+    TestBase(){
   set_num_iteration(10);  // Number of iterations to execute of the main test;
                           // This is a default value which can be overridden
                           // on the command line.
@@ -88,6 +88,7 @@ void MetadataPrefetch::SetUp(void) {
 
   err = rocrtst::EnableMetadataPrefetch(this, q);
   if (err == HSA_STATUS_ERROR_INVALID_QUEUE) {
+    markAsSkip();
     if (verbosity() > 0) {
       std::cout<< "Test not applicable as GPU does not support metadata prefetch."
                   "Skipping."<< std::endl;
@@ -204,6 +205,7 @@ static bool VerifyResult(uint32_t *ar, size_t sz) {
   return true;
 }
 void MetadataPrefetch::Run(void) {
+  if (Skip()) return;
   // Compare required profile for this test case with what we're actually
   // running on
   if (!rocrtst::CheckProfile(this)) {
@@ -307,6 +309,7 @@ void MetadataPrefetch::DisplayTestInfo(void) {
 }
 
 void MetadataPrefetch::DisplayResults(void) const {
+  if (Skip()) return;
   // Compare required profile for this test case with what we're actually
   // running on
   if (!rocrtst::CheckProfile(this)) {
@@ -320,13 +323,15 @@ void MetadataPrefetch::DisplayResults(void) const {
 }
 
 void MetadataPrefetch::Close() {
-  hsa_status_t err;
+  if (!Skip()) {
+    hsa_status_t err;
 
-  err = hsa_amd_memory_pool_free(src_buffer_);
-  ASSERT_EQ(HSA_STATUS_SUCCESS, err);
+    err = hsa_amd_memory_pool_free(src_buffer_);
+    ASSERT_EQ(HSA_STATUS_SUCCESS, err);
 
-  err = hsa_amd_memory_pool_free(dst_buffer_);
-  ASSERT_EQ(HSA_STATUS_SUCCESS, err);
+    err = hsa_amd_memory_pool_free(dst_buffer_);
+    ASSERT_EQ(HSA_STATUS_SUCCESS, err);
+  }
 
   // This will close handles opened within rocrtst utility calls and call
   // hsa_shut_down(), so it should be done after other hsa cleanup
