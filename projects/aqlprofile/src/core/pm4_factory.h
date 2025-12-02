@@ -69,6 +69,7 @@ enum gpu_id_t {
   MI350_GPU_ID,  // Mi350 GPU id
   GFX10_GPU_ID,  // generic Gfx10 id
   GFX11_GPU_ID,  // generic Gfx11 id
+  GFX115X_GPU_ID,  // Gfx11.5x id
   GFX12_GPU_ID,  // generic Gfx12 id
   MI450_GPU_ID,  // Mi450 GPU id
 };
