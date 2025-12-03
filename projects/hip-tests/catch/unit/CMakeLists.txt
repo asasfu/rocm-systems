@@ -62,6 +62,7 @@ add_subdirectory(hip_specific)
 # Vulkan interop APIs currently undefined for Nvidia
 add_subdirectory(vulkan_interop)
 add_subdirectory(gl_interop) # Disabled on NVIDIA due to defect - EXSWHTEC-246
+add_subdirectory(TDM)
 endif()
 add_subdirectory(synchronization)
 add_subdirectory(launchBounds)
