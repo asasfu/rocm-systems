@@ -28,7 +28,6 @@ struct hsa_kfd_event_context;
  * context A cannot be used in context B directly. If resources need to be shared between
  * contexts, they must be explicitly exported and imported using the appropriate APIs.
  */
-
 typedef struct _HsaKFDContext
 {
     /* File descriptor for the KFD device */

@@ -12,6 +12,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 typedef struct _HsaKFDContext HsaKFDContext;
 
 /**
@@ -349,10 +350,10 @@ hsaKmtCreateQueueExtV2Ctx(
     HsaEvent*           Event,                            //IN
     HsaQueueResource*   QueueResource                     //OUT
     );
+
 /**
   Updates a queue
 */
-
 HSAKMT_STATUS
 HSAKMTAPI
 hsaKmtUpdateQueueCtx(

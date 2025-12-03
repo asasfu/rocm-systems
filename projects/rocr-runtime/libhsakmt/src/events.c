@@ -168,9 +168,9 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateEventCtx(HsaKFDContext *ctx,
 			hsaKmtDestroyEventCtx(ctx, e);
 			return HSAKMT_STATUS_ERROR;
 		}
-    }
+	}
 
-    *Event = e;
+	*Event = e;
 	if (!event_ctx->events_page)
 		event_ctx->events_page = events_page;
 
