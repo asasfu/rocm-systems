@@ -373,7 +373,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		pr_debug("MODEL IOCTL: AMDKFD_IOC_GET_VERSION\n");
 		struct kfd_ioctl_get_version_args *args = arg;
 		args->major_version = 1;
-		args->minor_version = 14;
+		args->minor_version = 15;
 		return 0;
 	}
 	case AMDKFD_IOC_GET_PROCESS_APERTURES_NEW:
