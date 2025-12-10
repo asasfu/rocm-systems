@@ -259,7 +259,10 @@ std::pair<const Isa*, const Isa*> Isa::supportedIsas() {
       {"gfx11-generic", true, true, 11, 0, 0, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
       {"gfx1200", true, true, 12, 0, 0, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
       {"gfx1201", true, true, 12, 0, 1, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
+      {"gfx1250", true, true, 12, 5, 0, NONE, NONE, 4, 32, 1, 256, 320* Ki, 64, 1024},
+      {"gfx1251", true, true, 12, 5, 1, NONE, NONE, 4, 32, 1, 256, 320* Ki, 64, 1024},
       {"gfx12-generic", true, true, 12, 0, 0, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
+      {"gfx1310", true, true, 13, 1, 0, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32, 1024},
   };
   return std::make_pair(std::begin(supportedIsas_), std::end(supportedIsas_));
 }
@@ -1190,6 +1193,7 @@ Settings::Settings() : value_(0) {
   }
 
   gwsInitSupported_ = true;
+  groupMemCarveout_ = false;
 }
 
 void Memory::saveMapInfo(const void* mapAddress, const amd::Coord3D origin,

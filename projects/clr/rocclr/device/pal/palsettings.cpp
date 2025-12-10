@@ -47,7 +47,6 @@ Settings::Settings() {
   disablePersistent_ = false;
 
   imageSupport_ = false;
-  hwLDSSize_ = 0;
 
   // Set this to true when we drop the flag
   doublePrecision_ = ::CL_KHR_FP64;
@@ -155,9 +154,20 @@ bool Settings::create(const Pal::DeviceProperties& palProp,
   amd::Os::getAppPathAndFileName(appName, appPathAndName);
 
   switch (palProp.revision) {
-    // Fall through for Navi4x ...
+#if PAL_BUILD_AT1 || PAL_BUILD_GFX13
+    case Pal::AsicRevision::AlphaTrion1:
+#endif
+/* #if PAL_BUILD_AT2
+    case Pal::AsicRevision::AT2:
+#endif
+#if PAL_BUILD_AT3
+    case Pal::AsicRevision::AT3:
+#endif */
+    case Pal::AsicRevision::Krackan1:
+#ifdef PAL_BUILD_NAVI44
     case Pal::AsicRevision::Navi44:
     case Pal::AsicRevision::Navi48:
+#endif
     // Fall through for Navi3x ...
     case Pal::AsicRevision::Navi33:
     case Pal::AsicRevision::Navi32:

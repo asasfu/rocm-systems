@@ -35,6 +35,8 @@ set(TEST_SRC
     launch_bounds.cc
     hipAutoThreadIdx.cc
     hipLaunchKernelEx.cc
+    hipTestUserSgprIncrease.cc
+    hipKernelStackSize.cc
 )
 if(UNIX)
   set(TEST_SRC ${TEST_SRC}
@@ -54,3 +56,12 @@ endif()
 hip_add_exe_to_target(NAME KernelTest
                       TEST_SRC ${TEST_SRC}
                       TEST_TARGET_NAME build_tests)
+if(HIP_PLATFORM MATCHES "amd")
+if(UNIX)
+set(TEST_SRC hipLaunchParmFunctor.cc)
+hip_add_exe_to_target(NAME KernelArgPrefetchTest
+                      TEST_SRC ${TEST_SRC}
+                      TEST_TARGET_NAME build_tests)
+set_target_properties(KernelArgPrefetchTest PROPERTIES COMPILE_FLAGS "-DKERNEL_ARG_PREFETCH -mllvm -amdgpu-kernarg-preload-count=16")
+endif()
+endif()

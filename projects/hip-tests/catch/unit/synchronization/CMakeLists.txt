@@ -19,6 +19,7 @@ if(NOT WIN32)
   )
   set(TEST_SRC ${TEST_SRC} ${AMD_SRC})
 endif()
+  set(TEST_SRC ${TEST_SRC} kernel_monitor.cc)
 endif()
 
 hip_add_exe_to_target(NAME synchronizationTests

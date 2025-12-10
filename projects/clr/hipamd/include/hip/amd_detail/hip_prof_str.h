@@ -468,7 +468,9 @@ enum hip_api_id_t {
   HIP_API_ID_hipKernelGetName = 448,
   HIP_API_ID_hipOccupancyAvailableDynamicSMemPerBlock = 449,
   HIP_API_ID_hipKernelGetParamInfo = 450,
-  HIP_API_ID_LAST = 450,
+  HIP_API_ID_RESERVED_451 = 451,
+  HIP_API_ID_RESERVED_452 = 452,
+  HIP_API_ID_LAST = 452,
 
   HIP_API_ID_hipChooseDevice = HIP_API_ID_CONCAT(HIP_API_ID_,hipChooseDevice),
   HIP_API_ID_hipGetDeviceProperties = HIP_API_ID_CONCAT(HIP_API_ID_,hipGetDeviceProperties),

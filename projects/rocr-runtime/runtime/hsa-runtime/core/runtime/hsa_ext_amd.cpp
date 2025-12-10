@@ -463,6 +463,12 @@ hsa_status_t hsa_amd_profiling_get_dispatch_time(
   }
 
   AMD::GpuAgentInt* gpu_agent = static_cast<AMD::GpuAgentInt*>(agent);
+#ifdef AMD_NPI_ONLY
+    if (core::Runtime::runtime_singleton_->flag().raw_timestamps()) {
+      signal->GetRawTs(false, time->start, time->end);
+      return HSA_STATUS_SUCCESS;
+    }
+#endif
 
   // Translate timestamp from GPU to system domain.
   gpu_agent->TranslateTime(signal, *time);
@@ -489,8 +495,15 @@ hsa_status_t hsa_amd_profiling_get_async_copy_time(
   }
 
   if (agent->device_type() == core::Agent::DeviceType::kAmdGpuDevice) {
+#ifdef AMD_NPI_ONLY
+    if (core::Runtime::runtime_singleton_->flag().raw_timestamps()) {
+      signal->GetRawTs(false, time->start, time->end);
+      return HSA_STATUS_SUCCESS;
+    }
+#endif
     // Translate timestamp from GPU to system domain.
     static_cast<AMD::GpuAgentInt*>(agent)->TranslateTime(signal, *time);
+
     return HSA_STATUS_SUCCESS;
   }
 
@@ -667,7 +680,6 @@ uint32_t hsa_amd_signal_wait_any(uint32_t signal_count, hsa_signal_t* hsa_signal
   uint32_t satisfying_signal_idx =
       core::Signal::WaitMultiple(valid_signals.size(), valid_signals.data(), conds, values, timeout_hint, wait_hint,
                                  satisfying_value_vec, false);
-
   //  Map back the index
   satisfying_signal_idx = valid_signal_ids[satisfying_signal_idx];
 
@@ -676,6 +688,18 @@ uint32_t hsa_amd_signal_wait_any(uint32_t signal_count, hsa_signal_t* hsa_signal
   return satisfying_signal_idx;
   CATCHRET(uint32_t);
 }
+
+hsa_status_t hsa_amd_signal_get_event_id(hsa_signal_t hsa_signal, uint32_t *event_id) {
+  TRY;
+  IS_OPEN();
+  IS_BAD_PTR(event_id);
+  core::Signal* signal = core::Signal::Convert(hsa_signal);
+  IS_VALID(signal);
+
+  return core::Runtime::runtime_singleton_->GetSignalEventId(hsa_signal, event_id);
+  CATCH;
+}
+
 
 hsa_status_t hsa_amd_signal_async_handler(hsa_signal_t hsa_signal, hsa_signal_condition_t cond,
                                           hsa_signal_value_t value, hsa_amd_signal_handler handler,
@@ -1585,6 +1609,27 @@ hsa_status_t hsa_amd_enable_logging(uint8_t* flags, void *file) {
   return core::Runtime::runtime_singleton_->EnableLogging(flags, file);
   CATCH;
 }
+
+hsa_status_t hsa_amd_vmem_export_fabric_handle(hsa_fabric_handle_t *fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t handle,
+                                               uint64_t flags) {
+  TRY;
+  IS_OPEN();
+  return core::Runtime::runtime_singleton_->VMemoryExportFabricHandle(fabric_handle,
+                                                handle, flags);
+  CATCH;
+}
+
+
+hsa_status_t hsa_amd_vmem_import_fabric_handle(hsa_fabric_handle_t fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t* handle) {
+  TRY;
+  IS_OPEN();
+  return core::Runtime::runtime_singleton_->VMemoryImportFabricHandle(fabric_handle,
+                                                handle);
+  CATCH;
+}
+
 
 }   //  namespace amd
 }   //  namespace rocr

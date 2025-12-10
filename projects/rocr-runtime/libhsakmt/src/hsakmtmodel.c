@@ -373,7 +373,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		pr_debug("MODEL IOCTL: AMDKFD_IOC_GET_VERSION\n");
 		struct kfd_ioctl_get_version_args *args = arg;
 		args->major_version = 1;
-		args->minor_version = 14;
+		args->minor_version = 15;
 		return 0;
 	}
 	case AMDKFD_IOC_GET_PROCESS_APERTURES_NEW:
@@ -383,14 +383,30 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		struct kfd_process_device_apertures *apertures =
 			(void *)args->kfd_process_device_apertures_ptr;
 		assert(args->num_of_nodes == model_num_nodes);
+		const char *gpuvm_base_str = getenv("HSA_KMT_MODEL_GPUVM_BASE");
+		const char *gpuvm_size_str = getenv("HSA_KMT_MODEL_GPUVM_SIZE");
+		unsigned long gpuvm_base, gpuvm_size, gpuvm_limit;
+
+		if (!gpuvm_base_str)
+			gpuvm_base = 0x4000llu;
+		else
+			sscanf(gpuvm_base_str, "%lx", &gpuvm_base);
+
+		if (!gpuvm_size_str) {
+			gpuvm_limit = MODEL_APERTURE_SIZE;
+		} else {
+			sscanf(gpuvm_size_str, "%lx", &gpuvm_size);
+			gpuvm_limit = gpuvm_base + gpuvm_size;
+		}
+
 		for (unsigned node_id = 0; node_id < args->num_of_nodes; ++node_id)
 		{
 			memset(&apertures[node_id], 0, sizeof(apertures[node_id]));
 			if (!model_nodes[node_id].is_gpu)
 				continue;
 			apertures[node_id].gpu_id = 1 + node_id;
-			apertures[node_id].gpuvm_base = 0x4000llu;
-			apertures[node_id].gpuvm_limit = MODEL_APERTURE_SIZE;
+			apertures[node_id].gpuvm_base = gpuvm_base;
+			apertures[node_id].gpuvm_limit = gpuvm_limit;
 			apertures[node_id].lds_base = 0x4000000000000000llu; // 0x1000000000000?
 			apertures[node_id].lds_limit = 0x40000000ffffffffllu;
 			apertures[node_id].scratch_base = 0x5000000000000000llu; // 0x2000000000000?
@@ -803,6 +819,14 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		fprintf(stderr, "model: Debugger runtime not implemented\n");
 		fprintf(stderr, "Fix this by clearing bit 30 of the 'capability' field in $HSA_MODEL_TOPOLOGY/%%d/properties\n");
 		abort();
+	case AMDKFD_IOC_ALLOC_QUEUE_GWS:
+	{
+		struct kfd_ioctl_alloc_queue_gws_args *args = arg;
+		pr_debug("MODEL IOCTL: AMDKFD_IOC_ALLOC_QUEUE_GWS: queue_id: %u, num_gws: %u\n", args->queue_id, args->num_gws);
+		// GWS is a GPU-side feature. We don't model it.
+		args->first_gws = 0;
+		return 0;
+	}
 	default:
 		fprintf(stderr, "model: Unimplemented KFD ioctl\n");
 		abort();
