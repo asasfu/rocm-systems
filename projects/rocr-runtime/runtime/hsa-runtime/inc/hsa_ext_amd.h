@@ -1115,7 +1115,7 @@ typedef enum hsa_amd_agent_info_s {
   /**
    * The agent uses PM4 emulation mode.
    */
-  HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA119
+  HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA11F,
 } hsa_amd_agent_info_t;
 
 /**
