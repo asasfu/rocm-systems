@@ -1112,6 +1112,7 @@ typedef enum hsa_amd_agent_info_s {
    * Returns hsa_amd_dim3_t into value output.
    */
   HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM = 0xA11E,
+  /**
    * The agent uses PM4 emulation mode.
    */
   HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA119
