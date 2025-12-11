@@ -4221,4 +4221,139 @@ void VirtualGPU::submitPerfCounter(amd::PerfCounterCommand& vcmd) {
   }
 }
 
-}  // namespace amd::roc
+// ================================================================================================
+void VirtualGPU::MetaDataPreloader::Attach(hsa_queue_t* queue) {
+  if (!DEBUG_CLR_ENABLE_PREFETCH_METADATA) {
+    return;
+  }
+  Detach();
+
+  void* ring_buffer = nullptr;
+  hsa_amd_queue_get_info(queue, HSA_AMD_QUEUE_INFO_PREFETCH_METADATA_RING_BUFFER,
+                         &ring_buffer);
+  if (ring_buffer == nullptr) {
+    return;  // Not supported on this device
+  }
+
+  uint8_t version_major = 0, version_minor = 0;
+  hsa_amd_queue_get_info(queue, HSA_AMD_QUEUE_INFO_PREFETCH_METADATA_DISPATCH_PKT_VERSION_MAJOR,
+                         &version_major);
+  if (version_major >= (1 << 3)) {
+    // major is 3-bits
+    return;
+  }
+
+  hsa_amd_queue_get_info(queue, HSA_AMD_QUEUE_INFO_PREFETCH_METADATA_DISPATCH_PKT_VERSION_MINOR,
+                         &version_minor);
+  if (version_minor >= (1 << 5)) {
+    // minor is 5 bits
+    return;
+  }
+  queue_base_ = ring_buffer;
+  version_major_ = version_major;
+  version_minor_ = version_minor;
+}
+
+// ================================================================================================
+void VirtualGPU::MetaDataPreloader::SetHeader(
+	 hsa_kernel_dispatch_packet_t* packet, uint16_t header,
+     hsa_amd_metadata_kernel_dispatch_packet_t* metadata_packet) const {
+  uint8_t type = GetType(header);
+  ClPrint(amd::LOG_INFO, amd::LOG_QUEUE,
+     "prefetch: SetHeader: hsa_kernel_dispatch_packet_t type = %d", type);
+  uint32_t metadata_header = type;
+  metadata_header |= version_major_
+       << HSA_AMD_METADATA_PACKET_HEADER_VERSION_MAJOR;
+  metadata_header |= version_minor_
+       << HSA_AMD_METADATA_PACKET_HEADER_VERSION_MINOR;
+  metadata_packet->header0 = metadata_header;
+  metadata_packet->header1 = metadata_header;
+  metadata_packet->header2 = metadata_header;
+  metadata_packet->header3 = metadata_header;
+}
+
+// ================================================================================================
+void VirtualGPU::MetaDataPreloader::SetPacket(
+    hsa_kernel_dispatch_packet_t* aql,  uint16_t header,
+    hsa_amd_metadata_kernel_dispatch_packet_t* metadata) const {
+  const uint8_t*  kernargs = reinterpret_cast<const uint8_t*>(aql->kernarg_address);
+  assert(kernargs);
+
+  // Fill hsa_amd_metadata_kernel_dispatch_packet->kernel_descriptor fields.
+  // The metadata packet kernel descriptor fields is a subset of
+  // kernel_descriptor_t(Code Object V3 Kernel Descriptor) from the AQL packet, from bytes
+  // llvm::amdhsa::KERNEL_CODE_ENTRY_BYTE_OFFSET_OFFSET(16) to sizeof(kernel_descriptor_t).
+  // See include/llvm/Support/AMDHSAKernelDescriptor.h.
+  const void* host_address = nullptr;
+  Device::loaderQueryHostAddress(reinterpret_cast<void*>(aql->kernel_object), &host_address);
+  if (host_address == nullptr) {
+    return;
+  }
+
+  const size_t KERNEL_CODE_ENTRY_BYTE_OFFSET_OFFSET = 16;
+  const hsa_amd_metadata_kernel_descriptor_t* kernel_descriptor =
+      reinterpret_cast<const hsa_amd_metadata_kernel_descriptor_t*>
+      (reinterpret_cast<const uint8_t*>(host_address) + KERNEL_CODE_ENTRY_BYTE_OFFSET_OFFSET);
+
+  if (kernel_descriptor->kernarg_preload.length == 0) {
+    // If kernel args contain any class or structure, the length will be zero, thus need be
+    // skipped. Compiler will support any args later
+    ClPrint(amd::LOG_DEBUG, amd::LOG_AQL, "prefetch skipped: kernarg_preload_length=0");
+    return;
+  }
+
+  // The metadata can be prefected, so set all data as zeros for easy debug in CP.
+  std::memset(metadata, 0, sizeof(*metadata));
+
+  if (aql->completion_signal.handle) {
+    hsa_amd_signal_get_event_id(aql->completion_signal, &metadata->event_id);
+  }
+
+  std::memcpy(&metadata->kernel_descriptor, kernel_descriptor,
+              sizeof(metadata->kernel_descriptor));
+
+  // Fill hsa_amd_metadata_kernel_dispatch_packet->kernarg_preload_* fields
+  uint16_t kernarg_preload_length = metadata->kernel_descriptor.kernarg_preload.length;
+  const uint16_t kernarg_preload_offset = metadata->kernel_descriptor.kernarg_preload.offset;
+  constexpr uint16_t kKernarg_preload_limit =
+                                   (sizeof(metadata->kernarg_preload_0_14) +
+                                    sizeof(metadata->kernarg_preload_15_29) +
+                                    sizeof(metadata->kernarg_preload_30_31)) / sizeof(uint32_t);
+  if (kernarg_preload_length > kKernarg_preload_limit) {
+    ClPrint(amd::LOG_DEBUG, amd::LOG_AQL,
+        "prefetch partial: kernarg_preload_length=%u, kernarg_preload_offset=%u, "
+        "kKernarg_preload_limit=%u, kernargs=%p",
+        kernarg_preload_length, kernarg_preload_offset, kKernarg_preload_limit, kernargs);
+    metadata->kernel_descriptor.kernarg_preload.length = kKernarg_preload_limit;
+    kernarg_preload_length = kKernarg_preload_limit;
+  }
+
+  // Kernarg preload offset is in DWORDs
+  const uint8_t *kernarg_preload_address = kernargs + kernarg_preload_offset * sizeof(uint32_t);
+  int64_t preload_remain = kernarg_preload_length * sizeof(uint32_t);
+
+  // Copy kernarg_preload 0-14
+  int64_t to_copy = std::min(preload_remain,
+		                     static_cast<int64_t>(sizeof(metadata->kernarg_preload_0_14)));
+  std::memcpy(metadata->kernarg_preload_0_14, kernarg_preload_address, to_copy);
+  preload_remain -= to_copy;
+
+  // Copy kernarg_preload 15-29
+  if (preload_remain > 0) {
+    kernarg_preload_address += to_copy;
+    to_copy = std::min(preload_remain,
+                       static_cast<int64_t>(sizeof(metadata->kernarg_preload_15_29)));
+    std::memcpy(metadata->kernarg_preload_15_29, kernarg_preload_address, to_copy);
+    preload_remain -= to_copy;
+
+    // Copy kernarg_preload 30-31
+    if (preload_remain > 0) {
+      kernarg_preload_address += to_copy;
+      to_copy = std::min(preload_remain,
+                         static_cast<int64_t>(sizeof(metadata->kernarg_preload_30_31)));
+      std::memcpy(metadata->kernarg_preload_30_31, kernarg_preload_address, to_copy);
+    }
+  }
+  SetHeader(aql, header, metadata);
+}
+}  // End of roc namespace
