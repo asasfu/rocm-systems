@@ -643,9 +643,18 @@ HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNT
 #endif
 
 #if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 19
+HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipGetProcAddress_spt, hipGetProcAddress_spt, hipGetProcAddress_spt_fn, symbol, pfn, hipVersion, flags, symbolStatus);
+#endif
+
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 20
+HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipKernelGetParamInfo, hipKernelGetParamInfo, hipKernelGetParamInfo_fn, kernel, paramIndex, paramOffset, paramSize);
+#endif
+
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 21
 HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipOccupancyMaxPotentialClusterSize, hipOccupancyMaxPotentialClusterSize, hipOccupancyMaxPotentialClusterSize_fn, clusterSize, f, config);
 HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipOccupancyMaxActiveClusters, hipOccupancyMaxActiveClusters, hipOccupancyMaxActiveClusters_fn, numClusters, f, config);
 #endif
+
 // clang-format on
 
 #else

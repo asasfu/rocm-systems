@@ -3361,6 +3361,25 @@ typedef union rocprofiler_hip_api_args_t
 #if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 19
     struct
     {
+        const char*                      symbol;
+        void**                           pfn;
+        int                              hipVersion;
+        uint64_t                         flags;
+        hipDriverProcAddressQueryResult* symbolStatus;
+    } hipGetProcAddress_spt;
+#endif
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 20
+    struct
+    {
+        hipKernel_t kernel;
+        size_t      paramIndex;
+        size_t*     paramOffset;
+        size_t*     paramSize;
+    } hipKernelGetParamInfo;
+#endif
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 21
+    struct
+    {
         int*                     clusterSize;
         const void*              f;
         const hipLaunchConfig_t* config;

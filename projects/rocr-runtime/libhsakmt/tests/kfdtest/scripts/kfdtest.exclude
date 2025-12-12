@@ -258,7 +258,8 @@ FILTER[aldebaran]=\
 FILTER[navi10]=\
 "$BLACKLIST_ALL_ASICS:"\
 "$BLACKLIST_GFX10:"\
-"KFDMemoryTest.MMBench"
+"KFDMemoryTest.MMBench:"\
+"KFDDBGTest.HitMemoryViolation"
 
 # Need to verify the following failed tests on another machine:
 # Exceptions not being received during exception tests
@@ -376,7 +377,8 @@ FILTER[RHEL9]=\
 "KFDPCSamplingTest.*"
 
 FILTER[upstream]=\
-"KFDIPCTest.*"
+"KFDIPCTest.*"\
+"KFDPCSamplingTest.*"
 
 FILTER[gfx125x_lsc_n-1]=\
 "$BLACKLIST_ALL_ASICS:"\

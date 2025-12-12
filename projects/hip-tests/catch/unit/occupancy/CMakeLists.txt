@@ -25,6 +25,7 @@ set(TEST_SRC
   hipModuleOccupancyMaxActiveBlocksPerMultiprocessorWithFlags.cc
   hipOccupancyMaxPotentialBlockSizeVariableSMemWithFlags.cc
   hipOccupancyMaxActiveBlocksPerMultiprocessorWithFlags.cc
+  hipOccupancyAvailableDynamicSMemPerBlock.cc
 )
 
 if(HIP_PLATFORM MATCHES "amd")

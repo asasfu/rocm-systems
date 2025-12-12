@@ -796,7 +796,8 @@ void BlitSdma<useGCR, scopeFields>::UpdateWriteAndDoorbellRegister(uint64_t curr
       std::atomic_thread_fence(std::memory_order_release);
 
       *reinterpret_cast<uint64_t*>(queue_resource_.Queue_DoorBell) = new_index;
-      if (core::Runtime::runtime_singleton_->thunkLoader()->IsDXG()) {
+      if (core::Runtime::runtime_singleton_->thunkLoader()->IsDXG() ||
+          core::Runtime::runtime_singleton_->thunkLoader()->IsDTIF()) {
         HSAKMT_CALL(hsaKmtQueueRingDoorbell(queue_resource_.QueueId));
       }
 

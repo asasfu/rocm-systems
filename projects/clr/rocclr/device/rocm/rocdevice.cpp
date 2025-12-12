@@ -792,10 +792,19 @@ hsa_status_t Device::iterateGpuMemoryPoolCallback(hsa_amd_memory_pool_t pool, vo
 
           // Query the recommended granularity for this pool.
           stat = Hsa::memory_pool_get_info(pool, HSA_AMD_MEMORY_POOL_INFO_RUNTIME_ALLOC_GRANULE,
-                                           &(dev->info_.virtualMemAllocGranularity_));
+                                              &(dev->info_.virtualMemAllocGranularityMinimum_));
           if (stat != HSA_STATUS_SUCCESS) {
             LogPrintfError(
                 "Cannot query HSA_AMD_MEMORY_POOL_INFO_RUNTIME_ALLOC_GRANULE info"
+                "failed with hsa_status: %d \n",
+                stat);
+          }
+          // Query the recommended granularity for this pool.
+          stat = Hsa::memory_pool_get_info(pool, HSA_AMD_MEMORY_POOL_INFO_RUNTIME_ALLOC_REC_GRANULE,
+                                              &(dev->info_.virtualMemAllocGranularityRecommended_));
+          if (stat != HSA_STATUS_SUCCESS) {
+            LogPrintfError(
+                "Cannot query HSA_AMD_MEMORY_POOL_INFO_RUNTIME_ALLOC_REC_GRANULE info"
                 "failed with hsa_status: %d \n",
                 stat);
           }
@@ -935,7 +944,8 @@ bool Sampler::create(const amd::Sampler& owner) {
       Hsa::sampler_create(dev_.getBackendDevice(), &samplerDescriptor, &hsa_sampler);
 
   if (HSA_STATUS_SUCCESS != status) {
-    DevLogPrintfError("Sampler creation failed with status: %d \n", status);
+    ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_RESOURCE,
+             "Sampler creation failed with status: %d \n", status);
     return false;
   }
 
@@ -1970,7 +1980,7 @@ device::Memory* Device::createMemory(amd::Memory& owner) const {
 
   if (!result) {
     delete memory;
-    DevLogError("Cannot Write Image \n");
+    ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_RESOURCE, "Cannot Write Image \n");
     return nullptr;
   }
 
@@ -2102,7 +2112,8 @@ void* Device::hostLock(void* hostMem, size_t size, const MemorySegment memSegmen
           " deviceMemory = %p, memSegment = %d",
           pool, size, hostMem, deviceMemory, static_cast<int>(memSegment));
   if (status != HSA_STATUS_SUCCESS) {
-    DevLogPrintfError("Failed to lock memory to pool, failed with hsa_status: %d \n", status);
+    ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_LOCK,
+             "Failed to lock memory to pool, failed with hsa_status: %d \n", status);
     deviceMemory = nullptr;
   }
   return deviceMemory;
@@ -2191,8 +2202,9 @@ void* Device::deviceLocalAlloc(size_t size, const AllocationFlags& flags) const 
                                                              : gpuvm_segment_;
 
   if (pool.handle == 0 || gpuvm_segment_max_alloc_ == 0) {
-    DevLogPrintfError("Invalid argument, pool_handle: 0x%x , max_alloc: %u \n", pool.handle,
-                      gpuvm_segment_max_alloc_);
+    ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_MEM,
+            "Invalid argument, pool_handle: 0x%x , max_alloc: %u \n",
+            pool.handle, gpuvm_segment_max_alloc_);
     return nullptr;
   }
 
@@ -2267,7 +2279,7 @@ void* Device::svmAlloc(amd::Context& context, size_t size, size_t alignment, cl_
     if (flags & CL_MEM_USE_HOST_PTR) {
       svmPtrUsed = svmPtr;
     } else {
-      DevLogPrintfError("Cannot find svm_ptr: 0x%x \n", svmPtr);
+      ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_MEM, "Cannot find svm_ptr: 0x%x \n", svmPtr);
       return nullptr;
     }
   }
@@ -2938,7 +2950,7 @@ hsa_queue_t* Device::acquireQueue(uint32_t queue_size_hint, bool coop_queue,
   uint32_t queue_max_packets = 0;
   if (HSA_STATUS_SUCCESS !=
       Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_QUEUE_MAX_SIZE, &queue_max_packets)) {
-    DevLogError("Cannot get hsa agent info \n");
+    ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_QUEUE, "Cannot get hsa agent info \n");
     return nullptr;
   }
   auto queue_size = (queue_max_packets < queue_size_hint) ? queue_max_packets : queue_size_hint;
@@ -2960,7 +2972,8 @@ hsa_queue_t* Device::acquireQueue(uint32_t queue_size_hint, bool coop_queue,
       if (!coop_queue && (cuMask.size() == 0) && (queuePool_[qIndex].size() > 0)) {
         return getQueueFromPool(qIndex);
       }
-      DevLogError("Device::acquireQueue: hsa_queue_create failed!");
+      ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_QUEUE,
+               "Device::acquireQueue: hsa_queue_create failed!");
       return nullptr;
     }
   }
@@ -2969,7 +2982,8 @@ hsa_queue_t* Device::acquireQueue(uint32_t queue_size_hint, bool coop_queue,
   if (queue_priority != HSA_AMD_QUEUE_PRIORITY_NORMAL) {
     hsa_status_t st = Hsa::queue_set_priority(queue, queue_priority);
     if (st != HSA_STATUS_SUCCESS) {
-      DevLogError("Device::acquireQueue: hsa_amd_queue_set_priority failed!");
+      ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_QUEUE,
+               "Device::acquireQueue: hsa_amd_queue_set_priority failed!");
       Hsa::queue_destroy(queue);
       return nullptr;
     }
@@ -3044,7 +3058,8 @@ hsa_queue_t* Device::acquireQueue(uint32_t queue_size_hint, bool coop_queue,
     hsa_status_t status =
         Hsa::queue_cu_set_mask(queue, final_mask.size() * 32, final_mask.data());
     if (status != HSA_STATUS_SUCCESS) {
-      DevLogError("Device::acquireQueue: hsa_amd_queue_cu_set_mask failed!");
+      ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_QUEUE,
+               "Device::acquireQueue: hsa_amd_queue_cu_set_mask failed!");
       Hsa::queue_destroy(queue);
       return nullptr;
     }
@@ -3196,7 +3211,8 @@ bool Device::findLinkInfo(const hsa_amd_memory_pool_t& pool,
       bkendDevice_, pool, HSA_AMD_AGENT_MEMORY_POOL_INFO_NUM_LINK_HOPS, &hops);
 
   if (hsa_status != HSA_STATUS_SUCCESS) {
-    DevLogPrintfError("Cannot get hops info, hsa failed with status: %d", hsa_status);
+    ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_MEM,
+             "Cannot get hops info, hsa failed with status: %d", hsa_status);
     return false;
   }
 
@@ -3230,7 +3246,8 @@ bool Device::findLinkInfo(const hsa_amd_memory_pool_t& pool,
           break;
         }
         default: {
-          DevLogPrintfError("Invalid LinkAttribute: %d ", link_attr.first);
+          ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_MEM,
+                   "Invalid LinkAttribute: %d ", link_attr.first);
           return false;
         }
       }
@@ -3244,7 +3261,8 @@ bool Device::findLinkInfo(const hsa_amd_memory_pool_t& pool,
       bkendDevice_, pool, HSA_AMD_AGENT_MEMORY_POOL_INFO_LINK_INFO, link_info.data());
 
   if (hsa_status != HSA_STATUS_SUCCESS) {
-    DevLogPrintfError("Cannot retrieve link info, hsa failed with status: %d", hsa_status);
+    ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_MEM,
+             "Cannot retrieve link info, hsa failed with status: %d", hsa_status);
     return false;
   }
 
@@ -3281,7 +3299,8 @@ bool Device::findLinkInfo(const hsa_amd_memory_pool_t& pool,
         break;
       }
       default: {
-        DevLogPrintfError("Invalid LinkAttribute: %d ", link_attr.first);
+        ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_MEM,
+                 "Invalid LinkAttribute: %d ", link_attr.first);
         return false;
       }
     }

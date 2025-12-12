@@ -521,5 +521,7 @@ hipLibraryEnumerateKernels
 hipKernelGetLibrary
 hipKernelGetName
 hipOccupancyAvailableDynamicSMemPerBlock
+hipGetProcAddress_spt
+hipKernelGetParamInfo
 hipOccupancyMaxPotentialClusterSize
 hipOccupancyMaxActiveClusters

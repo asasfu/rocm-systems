@@ -63,7 +63,7 @@
 #define HIP_API_TABLE_STEP_VERSION 0
 #define HIP_COMPILER_API_TABLE_STEP_VERSION 0
 #define HIP_TOOLS_API_TABLE_STEP_VERSION 0
-#define HIP_RUNTIME_API_TABLE_STEP_VERSION 19
+#define HIP_RUNTIME_API_TABLE_STEP_VERSION 21
 
 // HIP API interface
 // HIP compiler dispatch functions
@@ -1115,7 +1115,11 @@ typedef hipError_t (*t_hipLibraryEnumerateKernels)(hipKernel_t* kernels, unsigne
                                                    hipLibrary_t library);
 typedef hipError_t (*t_hipKernelGetLibrary)(hipLibrary_t* library, hipKernel_t kernel);
 typedef hipError_t (*t_hipKernelGetName)(const char** name, hipKernel_t kernel);
+typedef hipError_t (*t_hipGetProcAddress_spt)(const char* symbol, void** pfn, int hipVersion, uint64_t flags,
+                                              hipDriverProcAddressQueryResult* symbolStatus);
 
+typedef hipError_t (*t_hipKernelGetParamInfo)(hipKernel_t kernel, size_t paramIndex,
+                                              size_t* paramOffset, size_t* paramSize);
 // HIP Compiler dispatch table
 struct HipCompilerDispatchTable {
   // HIP_COMPILER_API_TABLE_STEP_VERSION == 0
@@ -1702,11 +1706,17 @@ struct HipDispatchTable {
   t_hipOccupancyAvailableDynamicSMemPerBlock hipOccupancyAvailableDynamicSMemPerBlock_fn;
 
   // HIP_RUNTIME_API_TABLE_STEP_VERSION == 19
+  t_hipGetProcAddress_spt hipGetProcAddress_spt_fn;
+
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 20
+  t_hipKernelGetParamInfo hipKernelGetParamInfo_fn;
+
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 21
   t_hipOccupancyMaxPotentialClusterSize hipOccupancyMaxPotentialClusterSize_fn;
   t_hipOccupancyMaxActiveClusters hipOccupancyMaxActiveClusters_fn;
 
   // DO NOT EDIT ABOVE!
-  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 20
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 22
 
   // ******************************************************************************************* //
   //
