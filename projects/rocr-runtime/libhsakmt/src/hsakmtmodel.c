@@ -92,6 +92,7 @@ static uint64_t model_memfd_size;
 static uint64_t model_num_nodes;
 static struct model_node *model_nodes;
 static struct model_queue model_queues[MAX_MODEL_QUEUES];
+static uint64_t model_init_ts;
 
 HSAKMT_STATUS HSAKMTAPI hsaKmtModelEnabled(bool* enable)
 {
@@ -101,6 +102,9 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtModelEnabled(bool* enable)
 
 void model_init_env_vars(void)
 {
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+	model_init_ts = (uint64_t)(ts.tv_sec) * 1000000 + ts.tv_nsec / 1000;
 	/* Check whether to use a model instead of real hardware */
 	hsakmt_model_topology = getenv("HSA_MODEL_TOPOLOGY");
 	if (hsakmt_model_topology)
@@ -431,10 +435,14 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 	{
 		pr_debug("MODEL IOCTL: AMDKFD_IOC_GET_CLOCK_COUNTERS\n");
 		struct kfd_ioctl_get_clock_counters_args *args = arg;
-		args->gpu_clock_counter = 0; // TODO
-		args->cpu_clock_counter = 0;
-		args->system_clock_counter = 0;
-		args->system_clock_freq = 0;
+		struct timespec ts;
+		clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+		uint64_t current_ts = (uint64_t)(ts.tv_sec) * 1000000 + ts.tv_nsec / 1000;
+		uint64_t clocks = current_ts - model_init_ts;
+		args->gpu_clock_counter = clocks;
+		args->cpu_clock_counter = clocks;
+		args->system_clock_counter = clocks;
+		args->system_clock_freq = 4000000;
 		return 0;
 	}
 	case AMDKFD_IOC_ACQUIRE_VM:
@@ -601,7 +609,6 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 	case AMDKFD_IOC_CREATE_EVENT:
 	{
 		struct kfd_ioctl_create_event_args *args = arg;
-		pr_debug("MODEL IOCTL: AMDKFD_IOC_CREATE_EVENT: %u\n", args->event_type);
 		// Find a free slot
 		unsigned i;
 		for (i = 0; i < model_event_limit; i += 64)
@@ -624,6 +631,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		model_events[i].value = 0;
 		args->event_trigger_data = 0xbadf001; // ???
 		args->event_id = 1 + i;
+		pr_debug("MODEL IOCTL: AMDKFD_IOC_CREATE_EVENT: Type: %u ID: %u\n", args->event_type, args->event_id);
 		args->event_slot_index = ~0;
 		return 0;
 	}
@@ -631,7 +639,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 	{
 		struct kfd_ioctl_wait_events_args *args = arg;
 		struct kfd_event_data *events = (void *)args->events_ptr;
-		pr_debug("MODEL IOCTL: AMDKFD_IOC_WAIT_EVENTS: %u\n", args->num_events);
+		//pr_debug("MODEL IOCTL: AMDKFD_IOC_WAIT_EVENTS: %u\n", args->num_events);
 		bool have_timeout = args->timeout != 0xffffffffu;
 		bool hit_timeout = false;
 		struct timespec timeout;
@@ -741,6 +749,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 	case AMDKFD_IOC_DESTROY_EVENT:
 	{
 		struct kfd_ioctl_destroy_event_args *args = arg;
+		pr_debug("MODEL IOCTL: AMDKFD_IOC_DESTROY_EVENT: %u\n", args->event_id);
 		unsigned i = args->event_id - 1;
 		if (i >= model_event_limit || !(model_event_bitmap[i / 64] & ((uint64_t)1 << (i % 64))))
 		{
