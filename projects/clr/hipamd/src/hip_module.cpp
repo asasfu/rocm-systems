@@ -1359,8 +1359,8 @@ hipError_t hipDrvLaunchKernelEx(const HIP_LAUNCH_CONFIG* config, hipFunction_t f
 
   amd::HIPLaunchParams launch_params_cluster(config->gridDimX, config->gridDimY, config->gridDimZ,
                                           config->blockDimX, config->blockDimY, config->blockDimZ,
-                                          config->sharedMemBytes, clusterDim.x, clusterDim.y,
-                                          clusterDim.z);
+                                          config->sharedMemBytes, 0, 0, 0, clusterDim.x,
+                                          clusterDim.y, clusterDim.z);
 
   HIP_RETURN(ihipModuleLaunchKernel(f, launch_params_cluster, config->hStream, kernelParams, extra, nullptr,
                                     nullptr));
