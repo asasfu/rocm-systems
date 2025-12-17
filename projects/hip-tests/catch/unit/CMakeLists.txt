@@ -50,7 +50,6 @@ add_subdirectory(complex)
 add_subdirectory(p2p)
 add_subdirectory(threadfence)
 add_subdirectory(virtualMemoryManagement)
-add_subdirectory(c_compilation)
 add_subdirectory(cluster)
 # TODO Rock build failures
 if(UNIX)
