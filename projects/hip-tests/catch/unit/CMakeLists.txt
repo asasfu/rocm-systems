@@ -50,6 +50,8 @@ add_subdirectory(complex)
 add_subdirectory(p2p)
 add_subdirectory(threadfence)
 add_subdirectory(virtualMemoryManagement)
+add_subdirectory(c_compilation)
+add_subdirectory(cluster)
 # TODO Rock build failures
 if(UNIX)
     add_subdirectory(math)
@@ -64,6 +66,7 @@ if(HIP_PLATFORM STREQUAL "amd")
     # Vulkan interop APIs currently undefined for Nvidia
     add_subdirectory(vulkan_interop)
     add_subdirectory(gl_interop) # Disabled on NVIDIA due to defect - EXSWHTEC-246
+    add_subdirectory(TDM)
 endif()
 add_subdirectory(synchronization)
 add_subdirectory(launchBounds)

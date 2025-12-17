@@ -133,6 +133,7 @@ class Runtime {
     bool supports_exception_debugging;
     bool supports_event_age;
     bool supports_core_dump;
+    bool supports_metadata_prefetch;
   };
 
   /// @brief Open connection to kernel driver and increment reference count.
@@ -420,8 +421,15 @@ class Runtime {
   hsa_status_t VMemoryGetAllocPropertiesFromHandle(const hsa_amd_vmem_alloc_handle_t memoryHandle,
                                                    const core::MemoryRegion** mem_region,
                                                    hsa_amd_memory_type_t* type);
+  hsa_status_t VMemoryExportFabricHandle(hsa_fabric_handle_t *fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t handle,
+                                               const uint64_t flags);
+  hsa_status_t VMemoryImportFabricHandle(hsa_fabric_handle_t fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t* handle);
 
   hsa_status_t EnableLogging(uint8_t* flags, void* file);
+
+  hsa_status_t GetSignalEventId(hsa_signal_t signal, uint32_t *event_id);
 
   const std::vector<Agent*>& cpu_agents() { return cpu_agents_; }
 
@@ -490,6 +498,12 @@ class Runtime {
     if (thunkLoader()->IsDXG()) {
       kfd_version.supports_event_age = false;
     }
+
+    kfd_version.supports_metadata_prefetch = false;
+    if (version.KernelInterfaceMajorVersion > 1 ||
+        (version.KernelInterfaceMajorVersion == 1 &&
+        version.KernelInterfaceMinorVersion >= 19))
+      kfd_version.supports_metadata_prefetch = true;
   }
 
   void KfdVersion(bool exception_debugging, bool core_dump) {
@@ -713,14 +727,7 @@ class Runtime {
     prefetch_map_t::iterator next;
   };
 
-  // Will be created before any user could call hsa_init but also could be
-  // destroyed before incorrectly written programs call hsa_shutdown.
-  static __forceinline KernelMutex& bootstrap_lock() {
-    // This allocation is meant to last until the last thread has exited.
-    // It is intentionally not freed.
-    static KernelMutex* bootstrap_lock_ = new KernelMutex;
-    return *bootstrap_lock_;
-  }
+  static KernelMutex bootstrap_lock_;
   Runtime();
 
   Runtime(const Runtime&);
