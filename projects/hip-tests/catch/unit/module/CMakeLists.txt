@@ -213,12 +213,12 @@ add_custom_target(copyKernelGenericTargetCompressed.code
                   -o ${CMAKE_CURRENT_BINARY_DIR}/../../unit/module/copyKernelGenericTargetCompressed.code
                   -I${HIP_INCLUDE_DIR} ${HIP_PATH_OPT}
                   -I${CMAKE_CURRENT_SOURCE_DIR}/../../include)
+
 add_custom_target(anyOrderLaunch.code
-                  COMMAND ${CMAKE_CXX_COMPILER} -mcode-object-version=5 --genco ${OFFLOAD_ARCH_STR}
-                  ${CMAKE_CURRENT_SOURCE_DIR}/anyOrderLaunch.cc
+                  COMMAND ${CMAKE_HIP_COMPILER} -mcode-object-version=5 --cuda-device-only ${OFFLOAD_ARCH_LIST}
+                  -x hip ${CMAKE_CURRENT_SOURCE_DIR}/anyOrderLaunch.cc
                   -o ${CMAKE_CURRENT_BINARY_DIR}/../../unit/module/anyOrderLaunch.code
-                  -I${HIP_PATH}/include/ --rocm-path=${ROCM_PATH}
-                  -I${CMAKE_CURRENT_SOURCE_DIR}/../../include --rocm-path=${ROCM_PATH})
+                  -I${CMAKE_CURRENT_SOURCE_DIR}/../../include ${HIP_PATH_OPT})
 
 #target_link_libraries(copyKernelGenericTargetCompressed.code hip::host hip::device)
 set_property(GLOBAL APPEND PROPERTY G_INSTALL_CUSTOM_TARGETS
