@@ -21,6 +21,16 @@ SOFTWARE.
 */
 
 #pragma once
+#if defined(__gfx950__)
+#define HIP_ENABLE_GFX950_OCP_BUILTINS 1
+#else
+#define HIP_ENABLE_GFX950_OCP_BUILTINS 0
+#endif
+#if !defined(__gfx950__)
+#define HIP_ENABLE_HOST_OCP_CONVERSIONS 1
+#else
+#define HIP_ENABLE_HOST_OCP_CONVERSIONS 0
+#endif
 
 #include "amd_hip_ocp_types.h"
 #include "amd_hip_fp16.h"
@@ -53,8 +63,7 @@ __host__ __device__ static inline __amd_bf16_storage_t hipbf16_to_bf16(const __h
   return u.bf16;
 }
 
-__host__ __device__ static inline __amd_bf16x2_storage_t hipbf162_to_bf16x2(
-    const __hip_bfloat162 val) {
+__host__ __device__ static inline __amd_bf16x2_storage_t hipbf162_to_bf16x2(const __hip_bfloat162 val) {
   static_assert(sizeof(__hip_bfloat162) == sizeof(__amd_bf16x2_storage_t));
   union {
     __hip_bfloat162 hip_bf16;

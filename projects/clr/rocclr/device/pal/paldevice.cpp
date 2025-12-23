@@ -101,6 +101,7 @@ static constexpr PalDevice supportedPalDevices[] = {
     {11, 0, 3, Pal::GfxIpLevel::GfxIp11_0, "gfx1103", Pal::AsicRevision::HawkPoint2},
     {11, 5, 0, Pal::GfxIpLevel::GfxIp11_5, "gfx1150", Pal::AsicRevision::Strix1},
     {11, 5, 1, Pal::GfxIpLevel::GfxIp11_5, "gfx1151", Pal::AsicRevision::StrixHalo},
+    {11, 5, 2, Pal::GfxIpLevel::GfxIp11_5, "gfx1152", Pal::AsicRevision::Krackan1},
     {12, 0, 0, Pal::GfxIpLevel::GfxIp12, "gfx1200", Pal::AsicRevision::Navi44},
     {12, 0, 1, Pal::GfxIpLevel::GfxIp12, "gfx1201", Pal::AsicRevision::Navi48},
 #if PAL_BUILD_AT2 || PAL_BUILD_GFX13
@@ -847,7 +848,7 @@ Device::~Device() {
 extern const char* SchedulerSourceCode;
 extern const char* SchedulerSourceCode20;
 
-constexpr int TrapHandlerABIVersion = 10;
+constexpr int TrapHandlerABIVersion = 11;
 extern const char* TrapHandlerCode;
 
 // ================================================================================================

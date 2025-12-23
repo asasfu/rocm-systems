@@ -121,7 +121,7 @@ if (UNIX)
   if ( HAVE_MEMFD_CREATE )
     target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE HAVE_MEMFD_CREATE )
   endif()
-  
+
   ## Check for _GNU_SOURCE pthread extensions
   set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
   CHECK_SYMBOL_EXISTS ( "pthread_attr_setaffinity_np" "pthread.h" HAVE_PTHREAD_ATTR_SETAFFINITY_NP )
@@ -239,7 +239,7 @@ else()
   set(SRC_OS core/util/win/os_win.cpp
 	     libamdhsacode/win32/amd_core_dump.cpp)
 endif()
-         
+
 if ( BUILD_THUNK_VIRTIO )
   list(APPEND SRCS core/driver/virtio/amd_kfd_virtio_driver.cpp)
   target_compile_definitions(hsa-runtime64 PRIVATE HSAKMT_VIRTIO_ENABLED=1)

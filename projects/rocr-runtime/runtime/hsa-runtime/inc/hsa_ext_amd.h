@@ -1116,6 +1116,11 @@ typedef enum hsa_amd_agent_info_s {
    * The agent uses PM4 emulation mode.
    */
   HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA11F,
+  /**
+   * Queries for the LUID that identifies a hardware node. The LUID is only
+   * valid on Windows. The type of this attribute is LUID.
+   */
+  HSA_AMD_AGENT_INFO_LUID = 0xA120,
 } hsa_amd_agent_info_t;
 
 /**
