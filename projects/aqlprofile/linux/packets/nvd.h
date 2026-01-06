@@ -87,6 +87,8 @@
 #define	PACKET3_REG_RMW					0x21
 #define	PACKET3_COND_EXEC				0x22
 #define	PACKET3_PRED_EXEC				0x23
+#define		PACKET3_PRED_EXEC__EXEC_COUNT(x)	((((unsigned)(x)) & 0x3FFF) << 0)
+#define		PACKET3_PRED_EXEC__VIRTUAL_XCC_ID_SELECT(x)	((((unsigned)(x)) & 0xFF) << 24)
 #define	PACKET3_DRAW_INDIRECT				0x24
 #define	PACKET3_DRAW_INDEX_INDIRECT			0x25
 #define	PACKET3_INDEX_BASE				0x26
