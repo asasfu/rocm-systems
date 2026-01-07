@@ -382,7 +382,7 @@ def format_table_output(
 
     # Check if any column in df is empty
     is_empty_columns_exist = any(
-        df.replace(["", "N/A"], None).iloc[:, col_idx].isnull().all()
+        df.replace("", None).iloc[:, col_idx].isnull().all()
         for col_idx in range(len(df.columns))
     )
 
@@ -426,8 +426,7 @@ def format_table_output(
         and "Value" in df.columns
     ):
         mem_data = (
-            pd
-            .DataFrame([df["Metric"], df["Value"]])
+            pd.DataFrame([df["Metric"], df["Value"]])
             .transpose()
             .set_index("Metric")
             .to_dict()["Value"]
@@ -494,21 +493,6 @@ def show_all(
         if not csv_dir.exists():
             csv_dir.mkdir()
 
-    # Check for valid roofline data once (used to skip roofline tables in the loop)
-    has_valid_roofline = any(
-        hasattr(workload, "roofline_peaks") and not workload.roofline_peaks.empty
-        for workload in runs.values()
-    )
-    roofline_warning_shown = False
-
-    # True if roofline (block 4) is in the active filter
-    # or no filter is applied
-    roofline_in_filter = (
-        any(str(m).split(".")[0] == "4" for m in args.filter_metrics)
-        if args.filter_metrics
-        else (not filter_panel_ids or 400 in filter_panel_ids)
-    )
-
     for panel_id, panel in arch_configs.panel_configs.items():
         # Skip panels that don't support baseline comparison
         if len(args.path) > 1 and panel_id in config.HIDDEN_SECTIONS:
@@ -525,14 +509,18 @@ def show_all(
         for data_source in panel["data source"]:
             for table_type, table_config in data_source.items():
                 # Skip roofline tables (401, 402) if roofline data is invalid
-                if table_config["id"] in [401, 402] and not has_valid_roofline:
-                    if not roofline_warning_shown and roofline_in_filter:
+                if table_config["id"] in [401, 402]:
+                    has_valid_roofline = any(
+                        hasattr(workload, "roofline_peaks")
+                        and not workload.roofline_peaks.empty
+                        for workload in runs.values()
+                    )
+                    if not has_valid_roofline:
                         console_warning(
-                            "Roofline",
-                            "Not showing roofline table due to invalid roofline data",
+                            f"Not showing Roofline table {table_config['id']} "
+                            "due to invalid roofline data."
                         )
-                        roofline_warning_shown = True
-                    continue
+                        continue
 
                 # Block-filter logic:
                 # - If analysis used --filter-metrics, ignore profiling block filters

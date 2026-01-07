@@ -45,6 +45,7 @@
 namespace regex_const = ::std::regex_constants;  // NOLINT
 namespace comp        = ::tim::component;        // NOLINT
 using settings        = ::tim::settings;         // NOLINT
+using tim::demangle;                             // NOLINT
 using tim::type_list;                            // NOLINT
 
 //--------------------------------------------------------------------------------------//

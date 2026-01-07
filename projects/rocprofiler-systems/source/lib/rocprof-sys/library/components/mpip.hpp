@@ -22,7 +22,6 @@
 
 #pragma once
 
-#include "core/demangler.hpp"
 #include "core/timemory.hpp"
 
 #include <timemory/components/base.hpp>
@@ -185,8 +184,7 @@ rocprofsys::component::activate_mpip()
 
         static std::string _label = []() {
             std::stringstream ss;
-            ss << "rocprofsys-mpip-" << rocprofsys::utility::demangle<Toolset>() << "-"
-               << rocprofsys::utility::demangle<Tag>();
+            ss << "rocprofsys-mpip-" << demangle<Toolset>() << "-" << demangle<Tag>();
             return ss.str();
         }();
         ROCPROFSYS_BASIC_DEBUG_F("Adding cleanup for %s", _label.c_str());
@@ -210,8 +208,7 @@ rocprofsys::component::deactivate_mpip(uint64_t id)
     {
         static std::string _label = []() {
             std::stringstream ss;
-            ss << "rocprofsys-mpip-" << rocprofsys::utility::demangle<Toolset>() << "-"
-               << rocprofsys::utility::demangle<Tag>();
+            ss << "rocprofsys-mpip-" << demangle<Toolset>() << "-" << demangle<Tag>();
             return ss.str();
         }();
         ROCPROFSYS_BASIC_DEBUG_F("Removing cleanup for %s", _label.c_str());

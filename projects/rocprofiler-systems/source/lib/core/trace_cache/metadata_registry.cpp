@@ -29,8 +29,6 @@
 #include <fstream>
 
 #include <nlohmann/json.hpp>
-#include <string>
-#include <string_view>
 
 namespace rocprofsys
 {
@@ -414,55 +412,68 @@ from_json(metadata_registry& _registry, std::vector<std::shared_ptr<agent>>& _ag
     auto        process      = from_json_process(process_json);
     _registry.set_process(process);
 
-    auto fill_from_json = [&_json](std::string_view field, auto transform_and_add) {
-        if(_json.contains(field))
-        {
-            for(const auto& item : _json[field])
-            {
-                transform_and_add(item);
-            }
-        }
-    };
-
-    fill_from_json("pmc_infos", [&_registry](const auto& item) {
-        auto pmc = from_json_pmc(item);
+    const auto& pmc_array = _json["pmc_infos"];
+    for(const auto& pmc_json : pmc_array)
+    {
+        auto pmc = from_json_pmc(pmc_json);
         _registry.add_pmc_info(pmc);
-    });
+    }
 
-    fill_from_json("threads", [&_registry](const auto& item) {
-        auto thread = from_json_thread(item);
+    const auto& thread_array = _json["threads"];
+    for(const auto& thread_json : thread_array)
+    {
+        auto thread = from_json_thread(thread_json);
         _registry.add_thread_info(thread);
-    });
+    }
 
-    fill_from_json("tracks", [&_registry](const auto& item) {
-        auto track = from_json_track(item);
+    const auto& track_array = _json["tracks"];
+    for(const auto& track_json : track_array)
+    {
+        auto track = from_json_track(track_json);
         _registry.add_track(track);
-    });
+    }
 
-    fill_from_json("queues", [&_registry](const auto& item) {
-        auto handle = item.template get<long long>();
+    const auto& queue_array = _json["queues"];
+    for(const auto& queue_json : queue_array)
+    {
+        auto handle = queue_json.get<long long>();
         _registry.add_queue(static_cast<uint64_t>(handle));
-    });
+    }
 
-    fill_from_json("streams", [&_registry](const auto& item) {
-        auto handle = item.template get<long long>();
+    const auto& stream_array = _json["streams"];
+    for(const auto& stream_json : stream_array)
+    {
+        auto handle = stream_json.get<long long>();
         _registry.add_stream(static_cast<uint64_t>(handle));
-    });
+    }
 
-    fill_from_json("strings", [&_registry](const auto& item) {
-        _registry.add_string(item.template get<std::string>());
-    });
+    const auto& string_array = _json["strings"];
+    for(const auto& string_json : string_array)
+    {
+        auto str = string_json.get<std::string>();
+        _registry.add_string(str);
+    }
 
 #if ROCPROFSYS_USE_ROCM
-    fill_from_json("code_objects", [&_registry](const auto& item) {
-        auto code_object = from_json_code_object(item);
-        _registry.add_code_object(code_object);
-    });
+    if(_json.contains("code_objects"))
+    {
+        const auto& code_object_array = _json["code_objects"];
+        for(const auto& code_object_json : code_object_array)
+        {
+            auto code_object = from_json_code_object(code_object_json);
+            _registry.add_code_object(code_object);
+        }
+    }
 
-    fill_from_json("kernel_symbols", [&_registry](const auto& item) {
-        auto kernel_symbol = from_json_kernel_symbol(item);
-        _registry.add_kernel_symbol(kernel_symbol);
-    });
+    if(_json.contains("kernel_symbols"))
+    {
+        const auto& kernel_symbol_array = _json["kernel_symbols"];
+        for(const auto& kernel_symbol_json : kernel_symbol_array)
+        {
+            auto kernel_symbol = from_json_kernel_symbol(kernel_symbol_json);
+            _registry.add_kernel_symbol(kernel_symbol);
+        }
+    }
 #endif
 
     if(!_agents.empty())
@@ -471,10 +482,14 @@ from_json(metadata_registry& _registry, std::vector<std::shared_ptr<agent>>& _ag
         _agents.clear();
     }
 
-    fill_from_json("agents", [&_agents](const auto& item) {
-        auto agent = from_json_agent(item);
-        _agents.push_back(agent);
-    });
+    if(_json.contains("agents"))
+    {
+        const auto& agents_array = _json["agents"];
+        for(const auto& agent_json : agents_array)
+        {
+            _agents.push_back(from_json_agent(agent_json));
+        }
+    }
 }
 
 }  // namespace
@@ -546,14 +561,14 @@ metadata_registry::add_stream(const uint64_t& stream_handle)
 }
 
 void
-metadata_registry::add_string(const std::string_view string_value)
+metadata_registry::add_string(const std::string_view& string_value)
 {
     m_strings.wlock([&string_value](auto& _data) {
-        std::string str{ string_value };
-        if(_data.count(str) == 0)
+        if(_data.count(string_value) > 0)
         {
-            _data.emplace(std::move(str));
+            return;
         }
+        _data.emplace(string_value);
     });
 }
 

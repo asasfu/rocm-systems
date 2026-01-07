@@ -24,7 +24,6 @@
 #include "common/defines.h"
 #include "common/join.hpp"
 #include "common/path.hpp"
-#include "core/demangler.hpp"
 #include "dl/dl.hpp"
 #include "fwd.hpp"
 #include "internal_libs.hpp"
@@ -1452,8 +1451,8 @@ main(int argc, char** argv)
        dynamic_cast<process_t*>(addr_space) != nullptr)
     {
         errprintf(-1, "address space statisfied dynamic_cast<%s> and dynamic_cast<%s>.\n",
-                  rocprofsys::utility::demangle<binary_edit_t*>().c_str(),
-                  rocprofsys::utility::demangle<process_t*>().c_str());
+                  tim::demangle<binary_edit_t*>().c_str(),
+                  tim::demangle<process_t*>().c_str());
     }
 
     auto _rewrite = (dynamic_cast<binary_edit_t*>(addr_space) != nullptr &&

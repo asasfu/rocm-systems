@@ -198,7 +198,6 @@ setup_gotchas()
     component::mpi_gotcha::configure();
     component::exit_gotcha::configure();
     component::fork_gotcha::configure();
-    component::kill_gotcha::configure();
 }
 }  // namespace
 

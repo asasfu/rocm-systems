@@ -29,8 +29,6 @@
 #include <timemory/components/timing/wall_clock.hpp>
 #include <timemory/utility/join.hpp>
 
-#include "core/demangler.hpp"
-
 #include <algorithm>
 #include <link.h>
 #include <linux/limits.h>
@@ -895,8 +893,7 @@ process_modules(const std::vector<module_t*>& _app_modules)
 
         for(auto* fitr : symtab_data.functions.at(itr))
         {
-            symtab_data.typed_func_names[rocprofsys::utility::demangle(fitr->getName())] =
-                fitr;
+            symtab_data.typed_func_names[tim::demangle(fitr->getName())] = fitr;
 
             symtab_data.symbols.emplace(fitr, std::vector<symtab_symbol_t*>{});
             if(!fitr->getSymbols(symtab_data.symbols.at(fitr))) continue;
@@ -909,6 +906,7 @@ process_modules(const std::vector<module_t*>& _app_modules)
             }
         }
     }
+
     _pr.stop();
     _wc.stop();
     verbprintf(0, "Processing %zu modules... Done (%.3f %s, %.3f %s)\n",

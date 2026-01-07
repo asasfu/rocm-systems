@@ -2327,10 +2327,9 @@ void Runtime::PrintMemoryMapNear(void* ptr) {
 }
 
 Runtime::AsyncEventsInfo::AsyncEventsInfo(bool exceptions_)
-  : monitor_exceptions(exceptions_), events(), new_events(), control(this) {
+  : control(this), events(), new_events(), monitor_exceptions(exceptions_) {
 
   events.PushBack(control.wake, HSA_SIGNAL_CONDITION_NE, 0, NULL, NULL);
-  control.Start();
 }
 
 Runtime::AsyncEventsInfo::~AsyncEventsInfo() {
@@ -2338,20 +2337,19 @@ Runtime::AsyncEventsInfo::~AsyncEventsInfo() {
 }
 
 Runtime::AsyncEventsControl::AsyncEventsControl(AsyncEventsInfo *asyncInfo)
-  : info_(asyncInfo), exit(false) {
+  : exit(false) {
+
+  int priority = asyncInfo->monitor_exceptions ? os::OS_THREAD_PRIORITY_DEFAULT :
+                  runtime_singleton_->flag().async_events_thread_priority();
 
   auto err = HSA::hsa_signal_create(0, 0, NULL, &wake);
   if (err != HSA_STATUS_SUCCESS)
     throw AMD::hsa_exception(HSA_STATUS_ERROR, "Failed to allocate async handler signal");
-}
 
-void Runtime::AsyncEventsControl::Start() {
-  int priority = info_->monitor_exceptions ? os::OS_THREAD_PRIORITY_DEFAULT :
-                  runtime_singleton_->flag().async_events_thread_priority();
-
-  thread_ = os::CreateThread(AsyncEventsLoop, info_, 0, priority);
-  if (!thread_)
+  asyncInfo->control.thread_ = os::CreateThread(AsyncEventsLoop, asyncInfo, 0, priority);
+  if (!asyncInfo->control.thread_)
     throw AMD::hsa_exception(HSA_STATUS_ERROR, "Failed to initialize async handler thread");
+
 }
 
 Runtime::Runtime()

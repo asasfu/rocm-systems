@@ -583,16 +583,12 @@ class Runtime {
   struct AsyncEventsInfo;
   struct AsyncEventsControl {
     AsyncEventsControl(AsyncEventsInfo *asyncInfo);
-    void Start();
     void Shutdown();
 
     hsa_signal_t wake;
-    bool exit;
-
-    private:
-    AsyncEventsInfo* info_;
     os::Thread thread_;
- };
+    bool exit;
+  };
 
   struct AsyncEvents {
     void PushBack(hsa_signal_t signal, hsa_signal_condition_t cond,
@@ -700,13 +696,13 @@ class Runtime {
   };
 
   struct AsyncEventsInfo {
-    AsyncEventsInfo(bool exceptions);
-    ~AsyncEventsInfo();
-
     bool monitor_exceptions;
+    AsyncEventsControl control;
     AsyncEvents events;
     ConcurrentAsyncEvents new_events;
-    AsyncEventsControl control;
+
+    AsyncEventsInfo(bool exceptions);
+    ~AsyncEventsInfo();
   };
 
   struct PrefetchRange;

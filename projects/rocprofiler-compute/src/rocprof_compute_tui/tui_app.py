@@ -20,6 +20,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+
 ##############################################################################
 """
 ROCm Compute Profiler TUI - Main Application with Analysis Methods
@@ -32,13 +33,16 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Footer, Header
+from textual.widgets import Button, Footer, Header
+from textual_fspicker import SelectDirectory
 
 import config
 from rocprof_compute_tui.config import APP_TITLE
 from rocprof_compute_tui.views.main_view import MainView
+from rocprof_compute_tui.widgets.menu_bar.menu_bar import DropdownMenu
 from utils.specs import generate_machine_specs
 from utils.utils import get_version
 
@@ -72,7 +76,6 @@ class RocprofTUIApp(App):
         self.supported_archs = supported_archs or {}
         self.soc: dict[str, Any] = {}
         self.mspec: Optional[Any] = None
-        self.mouse = True
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -81,26 +84,14 @@ class RocprofTUIApp(App):
 
     def action_refresh(self) -> None:
         self.main_view.refresh_view()
-        self.notify("View refreshed", severity="information")
 
     def load_soc_specs(self, sysinfo: Optional[dict] = None) -> None:
-        try:
-            self.mspec = generate_machine_specs(self.args, sysinfo)
-            arch = self.mspec.gpu_arch
+        self.mspec = generate_machine_specs(self.args, sysinfo)
+        arch = self.mspec.gpu_arch
+        soc_module = importlib.import_module(f"rocprof_compute_soc.soc_{arch}")
+        soc_class = getattr(soc_module, f"{arch}_soc")
+        self.soc[arch] = soc_class(self.args, self.mspec)
 
-            soc_module = importlib.import_module(f"rocprof_compute_soc.soc_{arch}")
-            soc_class = getattr(soc_module, f"{arch}_soc")
-            self.soc[arch] = soc_class(self.args, self.mspec)
-
-            self.notify(f"Loaded system specs for {arch}", severity="information")
-
-        except Exception as e:
-            self.notify(f"Failed to load system specs: {e}", severity="error")
-            raise
-
-    # -------------------------------------------------------------------------
-    # Recent directories management
-    # -------------------------------------------------------------------------
     def _load_recent_dirs(self) -> list[str]:
         recent_file = Path.home() / ".textual_browser_recent.json"
         if recent_file.exists():
@@ -123,16 +114,14 @@ class RocprofTUIApp(App):
         self.recent_dirs = self.recent_dirs[:5]
         self._save_recent_dirs()
 
-    def on_recent_selected(self, selected_dir: Optional[str]) -> None:
-        if not selected_dir:
-            self.notify("Directory selection cancelled", severity="information")
-            return
-
-        if Path(selected_dir) != self.main_view.selected_path:
-            self.main_view.selected_path = Path(selected_dir)
-
-        self.notify(f"Selected: {selected_dir}", severity="information")
-        self.main_view.run_analysis()
+    @on(Button.Pressed, "#menu-open-workload")
+    @work
+    async def pick_directory(self) -> None:
+        if opened := await self.push_screen_wait(SelectDirectory()):
+            self.add_recent_dir(str(opened))
+            self.main_view.selected_path = opened
+            self.query_one("#file-dropdown", DropdownMenu).add_class("hidden")
+            self.main_view.run_analysis()
 
 
 def run_tui(

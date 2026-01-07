@@ -293,9 +293,10 @@ class OmniAnalyze_Base:
                             )
                             w.roofline_peaks = pd.DataFrame()
                     else:
-                        console_log(
+                        console_error(
                             "roofline",
                             f"Roofline analysis skipped: {error_msg}",
+                            exit=False,
                         )
                         w.roofline_peaks = pd.DataFrame()
                 else:
@@ -427,23 +428,6 @@ class OmniAnalyze_Base:
                 "analysis",
                 "Dispatch filtering (-d/--dispatch) cannot be used "
                 "with profiling data collected with iteration multiplexing.",
-            )
-
-        # Check if any kernel's counters are missing due to iteration multiplexing
-        if (
-            self._profiling_config.get("iteration_multiplexing") is not None
-            and self._profiling_config.get("kernels_with_missing_counters") is not None
-        ):
-            missing_kernels = self._profiling_config.get(
-                "kernels_with_missing_counters"
-            )
-            console_warning(
-                "analysis",
-                (
-                    "The following kernels have missing counter data "
-                    "due to iteration multiplexing and should be filtered out: "
-                    f"{', '.join(missing_kernels)}"
-                ),
             )
 
         # initalize runs

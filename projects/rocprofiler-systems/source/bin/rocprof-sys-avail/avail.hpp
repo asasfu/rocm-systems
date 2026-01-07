@@ -22,7 +22,6 @@
 
 #pragma once
 
-#include "core/demangler.hpp"
 #include "defines.hpp"
 
 #include <timemory/settings/macros.hpp>
@@ -274,7 +273,7 @@ TIMEMORY_CEREAL_SAVE_FUNCTION_NAME(SettingsTextArchive& ar, const NameValuePair<
     }
     else
     {
-        ar.setNextType(rocprofsys::utility::demangle<T>().c_str());
+        ar.setNextType(tim::demangle<T>().c_str());
     }
     ar(t.value);
 }

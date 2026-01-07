@@ -28,8 +28,6 @@ Main View Module
 Contains the main view layout and organization for the application.
 """
 
-import threading
-import traceback
 from pathlib import Path
 from typing import Any, Optional
 
@@ -114,155 +112,62 @@ class MainView(Horizontal):
 
     @work(thread=True)
     def run_analysis(self) -> None:
-        """
-        Run analysis in a background worker thread.
-        All UI updates are marshalled back onto the main thread.
-        """
+        self.kernel_to_df_dict = {}
+        self.top_kernel_to_df_list = []
 
-        # Capture selected path at the beginning to avoid races
-        selected = self.selected_path
-
-        # -----------------------------
-        # 1. No directory selected
-        # -----------------------------
-        if not selected:
-
-            def ui_no_directory() -> None:
-                self.app.notify(
-                    "No directory selected for analysis", severity="warning"
-                )
-                self._update_kernel_view(
-                    "No directory selected for analysis", LogLevel.ERROR
-                )
-
-            self.app.call_from_thread(ui_no_directory)
+        if not self.selected_path:
+            self._update_kernel_view(
+                "No directory selected for analysis", LogLevel.ERROR
+            )
             return
 
-        # Reset analysis results on the UI thread before starting
-        def ui_reset_before_analysis() -> None:
-            self.kernel_to_df_dict = {}
-            self.top_kernel_to_df_list = []
-            self.logger.info(f"Starting analysis on: {selected}")
+        try:
+            self.logger.info(f"Starting analysis on: {self.selected_path}")
             self.logger.info("Loading...")
-            self.app.notify(f"Running analysis on: {selected}", severity="information")
+
             self._update_kernel_view(
-                f"Running analysis on: {selected}", LogLevel.SUCCESS
+                f"Running analysis on: {self.selected_path}", LogLevel.SUCCESS
             )
 
-        self.app.call_from_thread(ui_reset_before_analysis)
-
-        try:
-            # ------------------------------------
-            # 2. Initialize analyzer
-            # ------------------------------------
+            # 1. Create and TUI analyzer
             analyzer = tui_analysis(
-                self.app.args, self.app.supported_archs, str(selected)
+                self.app.args, self.app.supported_archs, str(self.selected_path)
             )
             analyzer.sanitize()
 
-            # ------------------------------------
-            # 3. Load sysinfo
-            # ------------------------------------
-            sysinfo_path = selected / "sysinfo.csv"
+            # 2. Load and process system info and Configure SoC
+            sysinfo_path = self.selected_path / "sysinfo.csv"
             if not sysinfo_path.exists():
-                # Let the UI thread handle the error and reset state
-                error = FileNotFoundError(f"sysinfo.csv not found at {sysinfo_path}")
-                tb = traceback.format_exc()
-
-                def ui_missing_sysinfo() -> None:
-                    error_msg = f"Analysis failed: {error}"
-                    self.logger.error(f"{error_msg}\n{tb}")
-                    self.app.notify(
-                        f"sysinfo.csv not found at: {sysinfo_path}", severity="error"
-                    )
-                    self.kernel_to_df_dict = {}
-                    self.top_kernel_to_df_list = []
-                    self._update_kernel_view(error_msg, LogLevel.ERROR)
-
-                self.app.call_from_thread(ui_missing_sysinfo)
-                return
+                raise FileNotFoundError(f"sysinfo.csv not found at {sysinfo_path}")
 
             sys_info = file_io.load_sys_info(str(sysinfo_path)).iloc[0].to_dict()
             self.app.load_soc_specs(sys_info)
             analyzer.set_soc(self.app.soc)
 
-            # ------------------------------------
-            # 4. Run preprocessing
-            # ------------------------------------
+            # 3. run analysis
             analyzer.pre_processing()
+            self.kernel_to_df_dict = analyzer.run_kernel_analysis()
+            self.top_kernel_to_df_list = analyzer.run_top_kernel()
 
-            def ui_after_preprocessing() -> None:
-                self.app.notify("Profiling data loaded", severity="information")
+            if not self.kernel_to_df_dict or not self.top_kernel_to_df_list:
+                self._update_kernel_view(
+                    "Analysis completed but not all data was returned", LogLevel.WARNING
+                )
+            else:
+                self.app.call_from_thread(self.refresh_results)
+                self.logger.info("Kernel Analysis completed successfully")
 
-            self.app.call_from_thread(ui_after_preprocessing)
+        except Exception as e:
+            import traceback
 
-            # ------------------------------------
-            # 5. Kernel analysis (heavy work)
-            # ------------------------------------
-            kernel_to_df_dict = analyzer.run_kernel_analysis()
-            top_kernel_to_df_list = analyzer.run_top_kernel()
-
-            # ------------------------------------
-            # 6. Pass results to UI thread
-            # ------------------------------------
-            self.app.call_from_thread(
-                self._analysis_success,
-                kernel_to_df_dict,
-                top_kernel_to_df_list,
-            )
-
-        except Exception as e:  # noqa: BLE001
-            tb = traceback.format_exc()
             error_msg = f"Analysis failed: {str(e)}"
-
-            def ui_error_handler() -> None:
-                # Clear in-memory results
-                self.kernel_to_df_dict = {}
-                self.top_kernel_to_df_list = []
-
-                # Log, notify, and update kernel view safely
-                self.logger.error(f"{error_msg}\n{tb}")
-                self.app.notify(error_msg, severity="error")
-                self._update_kernel_view(error_msg, LogLevel.ERROR)
-
-            self.app.call_from_thread(ui_error_handler)
-
-    def _analysis_success(
-        self,
-        kernel_to_df_dict: dict[str, dict[str, Any]],
-        top_kernel_to_df_list: list[dict[str, Any]],
-    ) -> None:
-        self.kernel_to_df_dict = kernel_to_df_dict or {}
-        self.top_kernel_to_df_list = top_kernel_to_df_list or []
-
-        if not self.kernel_to_df_dict or not self.top_kernel_to_df_list:
-            self.app.notify(
-                "Analysis completed but not all data was produced",
-                severity="warning",
-            )
-            self._update_kernel_view(
-                "Analysis completed but not all data was returned", LogLevel.WARNING
-            )
-        else:
-            self.refresh_results()
-            self.logger.info("Kernel Analysis completed successfully")
-            self.app.notify("Kernel analysis completed", severity="information")
+            self.logger.error(f"{error_msg}\n{traceback.format_exc()}")
+            self._update_kernel_view(error_msg, LogLevel.ERROR)
 
     def _update_kernel_view(self, message: str, log_level: LogLevel) -> None:
-        app = self.app
-
-        # detect thread
-        in_ui_thread = threading.get_ident() == app._thread_id
-
-        def apply() -> None:
-            view = self.query_one("#kernel-view")
-            if view:
-                view.update_view(message, log_level)
-
-        if in_ui_thread:
-            apply()
-        else:
-            app.call_from_thread(apply)
+        self.app.call_from_thread(
+            lambda: self.query_one("#kernel-view").update_view(message, log_level)
+        )
 
     def refresh_results(self) -> None:
         kernel_view = self.query_one("#kernel-view")

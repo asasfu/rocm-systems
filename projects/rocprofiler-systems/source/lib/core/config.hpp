@@ -358,9 +358,6 @@ get_trace_thread_join();
 bool
 get_use_tmp_files();
 
-int
-get_kill_delay();
-
 std::string
 get_tmpdir();
 

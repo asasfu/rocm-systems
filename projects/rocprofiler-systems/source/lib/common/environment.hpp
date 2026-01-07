@@ -203,8 +203,7 @@ remove_env(std::vector<char*>& _environ, std::string_view _env_var,
     }
 
     // Remove null entries
-    _environ.erase(std::remove_if(_environ.begin(), _environ.end(),
-                                  [](const char* ptr) { return ptr == nullptr; }),
+    _environ.erase(std::remove_if(_environ.begin(), _environ.end(), match),
                    _environ.end());
 
     // Restore from original_envs if previously existed

@@ -36,7 +36,6 @@ if(
 )
     set(_annotate_environment
         "${_base_environment}"
-        "ROCPROFSYS_TRACE_LEGACY=ON"
         "ROCPROFSYS_TIMEMORY_COMPONENTS=thread_cpu_clock papi_array"
         "ROCPROFSYS_PAPI_EVENTS=perf::PERF_COUNT_SW_CPU_CLOCK"
         "ROCPROFSYS_USE_SAMPLING=OFF"
@@ -83,7 +82,6 @@ if(
 else()
     set(_annotate_environment
         "${_base_environment}"
-        "ROCPROFSYS_TRACE_LEGACY=ON"
         "ROCPROFSYS_TIMEMORY_COMPONENTS=thread_cpu_clock"
         "ROCPROFSYS_USE_SAMPLING=OFF"
     )

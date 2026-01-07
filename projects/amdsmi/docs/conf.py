@@ -52,9 +52,7 @@ suppress_warnings = ["etoc.toctree"]
 external_toc_path = "./sphinx/_toc.yml"
 
 external_projects_current_project = "amdsmi"
-extensions = ["rocm_docs", "rocm_docs.doxygen", "go_api_ref", "sphinxcontrib.mermaid"]
-
-myst_fence_as_directive = ["mermaid"]
+extensions = ["rocm_docs", "rocm_docs.doxygen", "go_api_ref"]
 
 doxygen_root = "doxygen"
 doxysphinx_enabled = True

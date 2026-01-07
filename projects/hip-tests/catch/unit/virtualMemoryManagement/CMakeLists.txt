@@ -55,7 +55,8 @@ set(TEST_SRC
     hipMemGetAllocationPropertiesFromHandle.cc
     hipMemMap.cc
     hipMemRelease.cc
-    hipMemUnmap.cc)
+    hipMemUnmap.cc
+    hipMemVmm_old.cc)
 
 hip_add_exe_to_target(NAME VirtualMemoryManagementTest
   TEST_SRC ${TEST_SRC}

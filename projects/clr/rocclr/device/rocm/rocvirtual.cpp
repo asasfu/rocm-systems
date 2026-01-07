@@ -39,15 +39,6 @@
 #include "hsa/amd_hsa_signal.h"
 #include "hsa/hsa_ext_amd.h"
 
-#include <simde/x86/avx.h>
-#include <simde/x86/sse2.h>
-#if defined(SIMDE_VERSION_MAJOR) &&                                                                \
-    ((SIMDE_VERSION_MAJOR > 0) || (SIMDE_VERSION_MAJOR == 0 && SIMDE_VERSION_MINOR >= 7))
-
-#include <simde/x86/avx512.h>
-#endif
-
-
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -56,6 +47,14 @@
 #include <vector>
 #include <atomic>
 #include <cinttypes>
+
+#if defined(__AVX__)
+#if defined(__MINGW64__)
+#include <intrin.h>
+#else
+#include <immintrin.h>
+#endif
+#endif
 
 /**
  * HSA image object size in bytes (see HSA spec)
@@ -521,7 +520,8 @@ hsa_signal_t VirtualGPU::HwQueueTracker::ActiveSignal(hsa_signal_value_t init_va
   auto temp_id = (current_id_ + 2) % signal_list_.size();
 
   // If GPU is still busy with processing, then add more signals to avoid more frequent stalls
-  if (Hsa::signal_load_relaxed(signal_list_[temp_id]->signal_) > 0) {
+  if ((Hsa::signal_load_relaxed(signal_list_[temp_id]->signal_) > 0) ||
+      (signal_list_[temp_id]->ts_ == ts)) {
     std::unique_ptr<ProfilingSignal> signal(new ProfilingSignal());
     if ((signal != nullptr) && CreateSignal(signal.get())) {
       // Find valid new index
@@ -1321,7 +1321,7 @@ bool VirtualGPU::dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& pa
   const uint32_t queueMask = queueSize - 1;
   const uint32_t sw_queue_size = queueMask;
   const size_t numPackets = packets.size();
-  const size_t kMaxBatchSize = DEBUG_HIP_GRAPH_BATCH_SIZE;
+  size_t kMaxBatchSize = DEBUG_HIP_GRAPH_BATCH_SIZE;
   const size_t kGpuLagPackets = 16;
 
   // Staggered copy pattern: powers of 2 (1, 2, 4, 8.. to DEBUG_HIP_GRAPH_BATCH_SIZE
@@ -1329,15 +1329,9 @@ bool VirtualGPU::dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& pa
   size_t batchSize = 1;
 
   // Allocate arrays once outside the loop to avoid repeated stack allocations
-#if IS_LINUX
   uint16_t validHeaders[kMaxBatchSize];
   uint16_t validSetups[kMaxBatchSize];
-#else
-  // Ensure we don't exceed reasonable stack allocation size on Windows
-  assert(kMaxBatchSize <= 1024 && "Batch size too large for stack allocation");
-  uint16_t* validHeaders = static_cast<uint16_t*>(_alloca(kMaxBatchSize * sizeof(uint16_t)));
-  uint16_t* validSetups = static_cast<uint16_t*>(_alloca(kMaxBatchSize * sizeof(uint16_t)));
-#endif
+
   while (processedPackets < numPackets) {
     uint64_t currentReadIndex = Hsa::queue_load_read_index_scacquire(gpu_queue_);
     uint64_t currentWriteIndex = Hsa::queue_load_write_index_relaxed(gpu_queue_);
@@ -3286,8 +3280,8 @@ void VirtualGPU::submitStreamOperation(amd::StreamOperationCommand& cmd) {
   } else if (type == ROCCLR_COMMAND_STREAM_WRITE_VALUE) {
     amd::Coord3D origin(offset);
     amd::Coord3D size(sizeBytes);
-    // Add system scope to the write kernel for memory ordering
-    addSystemScope();
+    // Ensure memory ordering preceding the write
+    dispatchBarrierPacket(kBarrierPacketReleaseHeader);
 
     bool result = blitMgr().streamOpsWrite(*memory, value, offset, sizeBytes);
     ClPrint(amd::LOG_DEBUG, amd::LOG_COPY, "Writing value: 0x%lx", value);
@@ -3597,44 +3591,49 @@ bool VirtualGPU::createVirtualQueue(uint deviceQueueSize) {
 #if IS_LINUX
 __attribute__((optimize("unroll-all-loops"), always_inline)) static inline void nontemporalMemcpy(
     void* __restrict dst, const void* __restrict src, size_t size) {
-#if defined(__AVX512F__) && false  // Disable until SIMDe adds support.
-  for (auto i = 0u; i != size / sizeof(simde__m512i); ++i) {
-    simde_mm512_stream_si512(reinterpret_cast<simde__m512i* __restrict&>(dst)++,
-                             *reinterpret_cast<const simde__m512i* __restrict&>(src)++);
+#if defined(ATI_ARCH_X86)
+#if defined(__AVX512F__)
+  for (auto i = 0u; i != size / sizeof(__m512i); ++i) {
+    _mm512_stream_si512(reinterpret_cast<__m512i* __restrict&>(dst)++,
+                        *reinterpret_cast<const __m512i* __restrict&>(src)++);
   }
-  size = size % sizeof(simde__m512i);
+  size = size % sizeof(__m512i);
 #endif
 
 #if defined(__AVX__)
-  for (auto i = 0u; i != size / sizeof(simde__m256i); ++i) {
-    simde_mm256_stream_si256(reinterpret_cast<simde__m256i* __restrict&>(dst)++,
-                             *reinterpret_cast<const simde__m256i* __restrict&>(src)++);
+  for (auto i = 0u; i != size / sizeof(__m256i); ++i) {
+    _mm256_stream_si256(reinterpret_cast<__m256i* __restrict&>(dst)++,
+                        *reinterpret_cast<const __m256i* __restrict&>(src)++);
   }
-  size = size % sizeof(simde__m256i);
+  size = size % sizeof(__m256i);
 #endif
-  for (auto i = 0u; i != size / sizeof(simde__m128i); ++i) {
-    simde_mm_stream_si128(reinterpret_cast<simde__m128i* __restrict&>(dst)++,
-                          *(reinterpret_cast<const simde__m128i* __restrict&>(src)++));
-  }
-  size = size % sizeof(simde__m128i);
 
-  for (auto i = 0u; i != size / sizeof(int64_t); ++i) {
-    simde_mm_stream_si64(reinterpret_cast<int64_t* __restrict&>(dst)++,
-                         *reinterpret_cast<const int64_t* __restrict&>(src)++);
+  for (auto i = 0u; i != size / sizeof(__m128i); ++i) {
+    _mm_stream_si128(reinterpret_cast<__m128i* __restrict&>(dst)++,
+                     *(reinterpret_cast<const __m128i* __restrict&>(src)++));
   }
-  size = size % sizeof(int64_t);
+  size = size % sizeof(__m128i);
 
-  for (auto i = 0u; i != size / sizeof(int32_t); ++i) {
-    simde_mm_stream_si32(reinterpret_cast<int32_t* __restrict&>(dst)++,
-                         *reinterpret_cast<const int32_t* __restrict&>(src)++);
+  for (auto i = 0u; i != size / sizeof(long long); ++i) {
+    _mm_stream_si64(reinterpret_cast<long long* __restrict&>(dst)++,
+                    *reinterpret_cast<const long long* __restrict&>(src)++);
+  }
+  size = size % sizeof(long long);
+
+  for (auto i = 0u; i != size / sizeof(int); ++i) {
+    _mm_stream_si32(reinterpret_cast<int* __restrict&>(dst)++,
+                    *reinterpret_cast<const int* __restrict&>(src)++);
   }
 
-  size = size % sizeof(int32_t);
+  size = size % sizeof(int);
   // Copy remaining bytes for unaligned size
   std::memcpy(dst, src, size);
 
   // Add memory fence
-  simde_mm_sfence();
+  _mm_sfence();
+#else
+  std::memcpy(dst, src, size);
+#endif
 }
 #else
 static inline void nontemporalMemcpy(void* __restrict dst, const void* __restrict src,
@@ -3891,9 +3890,9 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
         *dev().info().hdpMemFlushCntl = 1u;
         auto kSentinel = *reinterpret_cast<volatile int*>(dev().info().hdpMemFlushCntl);
       } else if (kernArgImpl == KernelArgImpl::DeviceKernelArgsReadback && argSize != 0) {
-        simde_mm_sfence();
+        _mm_sfence();
         *(argBuffer + argSize - 1) = *(parameters + argSize - 1);
-        simde_mm_mfence();
+        _mm_mfence();
         auto kSentinel = *reinterpret_cast<volatile unsigned char*>(argBuffer + argSize - 1);
       }
     }

@@ -24,7 +24,6 @@
 #include "platform/context.hpp"
 #include "platform/command.hpp"
 #include "platform/memory.hpp"
-#include "os/os.hpp"
 
 namespace hip {
 
@@ -311,19 +310,9 @@ hipError_t ihipMemPrefetchAsync(const void* dev_ptr, size_t count, hipMemLocatio
   const bool cpuAccess = isHost || isHostNuma || isHostCurrent;
 
   // Determine the target device index:
-  //  - for host-prefetch, use default CPU agent
-  //  - for host-current, query the current thread's NUMA node ID
+  //  - for host-prefetch and host-current, always use device 0
   //  - for host-NUMA or device-prefetch, use the provided id
-  int targetDevice;
-  if (isHost) {
-    targetDevice = hipCpuDeviceId;
-  } else if (isHostCurrent) {
-    uint32_t numa_node = amd::numa::getCurrentNumaNode();
-    targetDevice =
-        (numa_node == static_cast<uint32_t>(-1)) ? hipCpuDeviceId : static_cast<int>(numa_node);
-  } else {
-    targetDevice = location.id;
-  }
+  int targetDevice = (isHost || isHostCurrent) ? hipCpuDeviceId : location.id;
 
   amd::Device* dev = nullptr;
   if (cpuAccess == false) {
@@ -389,16 +378,10 @@ hipError_t ihipMemAdvise(const void* dev_ptr, size_t count, hipMemoryAdvise advi
       use_cpu = true;
       break;
     case hipMemLocationTypeHost:
+    case hipMemLocationTypeHostNumaCurrent:
       targetDevice = hipCpuDeviceId;
       use_cpu = true;
       break;
-    case hipMemLocationTypeHostNumaCurrent: {
-      uint32_t numa_node = amd::numa::getCurrentNumaNode();
-      targetDevice =
-          (numa_node == static_cast<uint32_t>(-1)) ? hipCpuDeviceId : static_cast<int>(numa_node);
-      use_cpu = true;
-      break;
-    }
     default:
       return hipErrorInvalidValue;
   }

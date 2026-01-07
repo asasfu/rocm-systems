@@ -331,9 +331,6 @@ find_clients()
 
     auto env = get_env_libs();
 
-    // set to true to disable elf utils optimizations
-    auto optimize_elf_parsing = common::get_env("ROCPROFILER_OPTIMIZE_FIND_CLIENTS", true);
-
     if(!env.empty())
     {
         for(const auto& itr : env)
@@ -342,7 +339,7 @@ find_clients()
 
             if(fs::exists(itr) && resolved_exists(itr))
             {
-                auto elfinfo = common::elf_utils::read(itr, optimize_elf_parsing);
+                auto elfinfo = common::elf_utils::read(itr);
                 if(!elfinfo.has_symbol([](std::string_view symname) {
                        return (symname == "rocprofiler_configure");
                    }))
@@ -414,16 +411,16 @@ find_clients()
     {
         for(const auto& itr : get_link_map())
         {
-            ROCP_INFO << "searching " << itr << " for 'rocprofiler_configure' symbol...";
+            ROCP_INFO << "searching " << itr << " for rocprofiler_configure";
 
             if(fs::exists(itr) && resolved_exists(itr))
             {
-                auto elfinfo = common::elf_utils::read(itr, optimize_elf_parsing);
+                auto elfinfo = common::elf_utils::read(itr);
                 if(!elfinfo.has_symbol([](std::string_view symname) {
                        return (symname == "rocprofiler_configure");
                    }))
                 {
-                    ROCP_TRACE << fmt::format(
+                    ROCP_INFO << fmt::format(
                         "Shared library '{}' did not contain the 'rocprofiler_configure' symbol "
                         "(search method: ELF parsing) required by rocprofiler-sdk for tools",
                         itr);
@@ -437,7 +434,7 @@ find_clients()
                 continue;
             }
 
-            ROCP_INFO << "dlopening " << itr << " for 'rocprofiler_configure' symbol...";
+            ROCP_INFO << "dlopening " << itr << " for rocprofiler_configure";
 
             void* handle = dlopen(itr.c_str(), RTLD_LAZY | RTLD_NOLOAD);
             ROCP_ERROR_IF(handle == nullptr) << "error dlopening " << itr;
