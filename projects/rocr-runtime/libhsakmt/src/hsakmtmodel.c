@@ -92,6 +92,7 @@ static uint64_t model_memfd_size;
 static uint64_t model_num_nodes;
 static struct model_node *model_nodes;
 static struct model_queue model_queues[MAX_MODEL_QUEUES];
+static uint64_t model_init_ts;
 
 HSAKMT_STATUS HSAKMTAPI hsaKmtModelEnabled(bool* enable)
 {
@@ -101,6 +102,9 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtModelEnabled(bool* enable)
 
 void model_init_env_vars(void)
 {
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+	model_init_ts = (uint64_t)(ts.tv_sec) * 1000000 + ts.tv_nsec / 1000;
 	/* Check whether to use a model instead of real hardware */
 	hsakmt_model_topology = getenv("HSA_MODEL_TOPOLOGY");
 	if (hsakmt_model_topology)
@@ -373,7 +377,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		pr_debug("MODEL IOCTL: AMDKFD_IOC_GET_VERSION\n");
 		struct kfd_ioctl_get_version_args *args = arg;
 		args->major_version = 1;
-		args->minor_version = 14;
+		args->minor_version = 15;
 		return 0;
 	}
 	case AMDKFD_IOC_GET_PROCESS_APERTURES_NEW:
@@ -383,14 +387,30 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		struct kfd_process_device_apertures *apertures =
 			(void *)args->kfd_process_device_apertures_ptr;
 		assert(args->num_of_nodes == model_num_nodes);
+		const char *gpuvm_base_str = getenv("HSA_KMT_MODEL_GPUVM_BASE");
+		const char *gpuvm_size_str = getenv("HSA_KMT_MODEL_GPUVM_SIZE");
+		unsigned long gpuvm_base, gpuvm_size, gpuvm_limit;
+
+		if (!gpuvm_base_str)
+			gpuvm_base = 0x4000llu;
+		else
+			sscanf(gpuvm_base_str, "%lx", &gpuvm_base);
+
+		if (!gpuvm_size_str) {
+			gpuvm_limit = MODEL_APERTURE_SIZE;
+		} else {
+			sscanf(gpuvm_size_str, "%lx", &gpuvm_size);
+			gpuvm_limit = gpuvm_base + gpuvm_size;
+		}
+
 		for (unsigned node_id = 0; node_id < args->num_of_nodes; ++node_id)
 		{
 			memset(&apertures[node_id], 0, sizeof(apertures[node_id]));
 			if (!model_nodes[node_id].is_gpu)
 				continue;
 			apertures[node_id].gpu_id = 1 + node_id;
-			apertures[node_id].gpuvm_base = 0x4000llu;
-			apertures[node_id].gpuvm_limit = MODEL_APERTURE_SIZE;
+			apertures[node_id].gpuvm_base = gpuvm_base;
+			apertures[node_id].gpuvm_limit = gpuvm_limit;
 			apertures[node_id].lds_base = 0x4000000000000000llu; // 0x1000000000000?
 			apertures[node_id].lds_limit = 0x40000000ffffffffllu;
 			apertures[node_id].scratch_base = 0x5000000000000000llu; // 0x2000000000000?
@@ -415,10 +435,14 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 	{
 		pr_debug("MODEL IOCTL: AMDKFD_IOC_GET_CLOCK_COUNTERS\n");
 		struct kfd_ioctl_get_clock_counters_args *args = arg;
-		args->gpu_clock_counter = 0; // TODO
-		args->cpu_clock_counter = 0;
-		args->system_clock_counter = 0;
-		args->system_clock_freq = 0;
+		struct timespec ts;
+		clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+		uint64_t current_ts = (uint64_t)(ts.tv_sec) * 1000000 + ts.tv_nsec / 1000;
+		uint64_t clocks = current_ts - model_init_ts;
+		args->gpu_clock_counter = clocks;
+		args->cpu_clock_counter = clocks;
+		args->system_clock_counter = clocks;
+		args->system_clock_freq = 4000000;
 		return 0;
 	}
 	case AMDKFD_IOC_ACQUIRE_VM:
@@ -585,7 +609,6 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 	case AMDKFD_IOC_CREATE_EVENT:
 	{
 		struct kfd_ioctl_create_event_args *args = arg;
-		pr_debug("MODEL IOCTL: AMDKFD_IOC_CREATE_EVENT: %u\n", args->event_type);
 		// Find a free slot
 		unsigned i;
 		for (i = 0; i < model_event_limit; i += 64)
@@ -608,6 +631,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		model_events[i].value = 0;
 		args->event_trigger_data = 0xbadf001; // ???
 		args->event_id = 1 + i;
+		pr_debug("MODEL IOCTL: AMDKFD_IOC_CREATE_EVENT: Type: %u ID: %u\n", args->event_type, args->event_id);
 		args->event_slot_index = ~0;
 		return 0;
 	}
@@ -615,7 +639,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 	{
 		struct kfd_ioctl_wait_events_args *args = arg;
 		struct kfd_event_data *events = (void *)args->events_ptr;
-		pr_debug("MODEL IOCTL: AMDKFD_IOC_WAIT_EVENTS: %u\n", args->num_events);
+		//pr_debug("MODEL IOCTL: AMDKFD_IOC_WAIT_EVENTS: %u\n", args->num_events);
 		bool have_timeout = args->timeout != 0xffffffffu;
 		bool hit_timeout = false;
 		struct timespec timeout;
@@ -725,6 +749,7 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 	case AMDKFD_IOC_DESTROY_EVENT:
 	{
 		struct kfd_ioctl_destroy_event_args *args = arg;
+		pr_debug("MODEL IOCTL: AMDKFD_IOC_DESTROY_EVENT: %u\n", args->event_id);
 		unsigned i = args->event_id - 1;
 		if (i >= model_event_limit || !(model_event_bitmap[i / 64] & ((uint64_t)1 << (i % 64))))
 		{
@@ -803,6 +828,14 @@ static int model_kfd_ioctl_locked(unsigned long request, void *arg)
 		fprintf(stderr, "model: Debugger runtime not implemented\n");
 		fprintf(stderr, "Fix this by clearing bit 30 of the 'capability' field in $HSA_MODEL_TOPOLOGY/%%d/properties\n");
 		abort();
+	case AMDKFD_IOC_ALLOC_QUEUE_GWS:
+	{
+		struct kfd_ioctl_alloc_queue_gws_args *args = arg;
+		pr_debug("MODEL IOCTL: AMDKFD_IOC_ALLOC_QUEUE_GWS: queue_id: %u, num_gws: %u\n", args->queue_id, args->num_gws);
+		// GWS is a GPU-side feature. We don't model it.
+		args->first_gws = 0;
+		return 0;
+	}
 	default:
 		fprintf(stderr, "model: Unimplemented KFD ioctl\n");
 		abort();

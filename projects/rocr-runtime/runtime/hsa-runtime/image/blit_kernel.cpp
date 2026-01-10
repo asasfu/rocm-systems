@@ -100,9 +100,9 @@ extern uint8_t ocl_blit_object_gfx1103[];
 extern uint8_t ocl_blit_object_gfx1150[];
 extern uint8_t ocl_blit_object_gfx1151[];
 extern uint8_t ocl_blit_object_gfx1152[];
-extern uint8_t ocl_blit_object_gfx1153[];
 extern uint8_t ocl_blit_object_gfx1200[];
 extern uint8_t ocl_blit_object_gfx1201[];
+extern uint8_t ocl_blit_object_gfx1310[];
 
 // Arguments inserted by OCL compiler, all zero here.
 struct OCLHiddenArgs {
@@ -157,7 +157,7 @@ hsa_status_t BlitKernel::Cleanup() {
   return HSA_STATUS_SUCCESS;
 }
 
-hsa_status_t BlitKernel::BuildBlitCode(
+hsa_status_t BlitKernel::BuildImageBlitCode(
     hsa_agent_t agent, std::vector<BlitCodeInfo>& blit_code_catalog) {
   // Find existing kernels in the list that have compatible ISA.
   hsa_isa_t agent_isa = {0};
@@ -165,6 +165,14 @@ hsa_status_t BlitKernel::BuildBlitCode(
   if (HSA_STATUS_SUCCESS != status) {
     return status;
   }
+
+  bool image_support = true;
+  HSA::hsa_agent_get_info(agent, (hsa_agent_info_t)HSA_EXT_AGENT_INFO_IMAGE_SUPPORT, &image_support);
+  if (HSA_STATUS_SUCCESS != status)
+    return status;
+
+  if (!image_support)
+    return HSA_STATUS_ERROR_INVALID_ARGUMENT;
 
   std::lock_guard<std::mutex> lock(lock_);
 
@@ -1050,12 +1058,12 @@ hsa_status_t BlitKernel::GetPatchedBlitObject(const char* agent_name,
     *blit_code_object = ocl_blit_object_gfx1151;
   } else if (sname == "gfx1152") {
     *blit_code_object = ocl_blit_object_gfx1152;
-  } else if (sname == "gfx1153") {
-    *blit_code_object = ocl_blit_object_gfx1153;
   } else if (sname == "gfx1200") {
     *blit_code_object = ocl_blit_object_gfx1200;
   } else if (sname == "gfx1201") {
     *blit_code_object = ocl_blit_object_gfx1201;
+  } else if (sname == "gfx1310") {
+    *blit_code_object = ocl_blit_object_gfx1310;
   } else {
     return HSA_STATUS_ERROR_INVALID_ISA_NAME;
   }
