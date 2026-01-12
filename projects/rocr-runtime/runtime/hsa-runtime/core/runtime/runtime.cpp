@@ -119,8 +119,6 @@ bool g_use_interrupt_wait;
 bool g_use_mwaitx;
 Runtime* Runtime::runtime_singleton_ = NULL;
 
-KernelMutex Runtime::bootstrap_lock_;
-
 hsa_status_t Runtime::Acquire() {
   std::lock_guard<std::mutex> boot(bootstrap_lock());
 
