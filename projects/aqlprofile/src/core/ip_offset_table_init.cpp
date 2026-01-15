@@ -64,7 +64,13 @@ class locked_ip_offset_table_cache {
         if (auto gfxip_prefix = gfxip.substr(0, 5);
             gfxip_prefix == "gfx10" || gfxip_prefix == "gfx11" || gfxip_prefix == "gfx12") {
           table = navi_ip_offset_table_discovery_sysfs(agent_info->domain, agent_info->bdf_id);
-          if (!table) table = sienna_cichlid_reg_base_init();
+          if (!table) {
+            std::string_view name(agent_info->name);
+            if (name.substr(0, 7) == "gfx1250")
+              table = soc_v1_0_reg_base_init();
+            else
+              table = sienna_cichlid_reg_base_init();
+          }
         }
       }
 
