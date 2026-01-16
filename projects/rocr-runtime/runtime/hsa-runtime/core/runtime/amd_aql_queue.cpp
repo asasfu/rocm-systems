@@ -344,6 +344,12 @@ AqlQueue::AqlQueue(core::SharedQueue* shared_queue, GpuAgent* agent, size_t req_
 
   active_ = true;
 
+  #ifdef AMD_NPI_ONLY
+  if (core::Runtime::runtime_singleton_->flag().debug_set_resource_limits()) {
+    SetResourceLimits(core::Runtime::runtime_singleton_->flag().debug_set_resource_limits());
+  }
+  #endif
+
   PM4IBGuard.Dismiss();
   RingGuard.Dismiss();
   QueueGuard.Dismiss();
@@ -1526,6 +1532,44 @@ void AqlQueue::SetProfiling(bool enabled) {
   if (enabled) agent_->CheckClockTicks();
   return;
 }
+
+#ifdef AMD_NPI_ONLY
+void AqlQueue::SetResourceLimits(uint32_t limit) {
+  if (limit > 1023) {
+     printf("ERROR: Invalid resource limit %u (valid range: 0-1023) - ignoring!\n", limit);
+    return;
+  }
+  auto isa = agent_->supported_isas()[0];
+
+  // Tested only on gfx942
+  if (!(isa->GetMajorVersion() == 9 && isa->GetMinorVersion() >= 4)) {
+      printf("ERROR: Resource limit not supported on this device - ignoring!\n");
+      return;
+  }
+
+  printf("DEBUG: Set resource limit to:%d\n", limit);
+
+  const uint32_t sh_reg_pkt_size_dw = 3;
+  uint32_t sh_reg_pkt[sh_reg_pkt_size_dw] = {};
+
+  /*
+   * COMPUTE_RESOURCE_LIMITS SH-register offset for gfx9.x:
+   * The absolute MMIO register address is defined in the kernel headers as:
+   *  mmCOMPUTE_RESOURCE_LIMITS = 0x2e15
+   * in linux/drivers/gpu/drm/amd/include/asic_reg/gc/gc_9_1_offset.h.
+   * PM4 SET_SH_REG packets, however, take a register index relative to the
+   * start of the SH register space at 0x2c00, so the offset programmed into
+   * the packet is (0x2e15 - 0x2c00) = 0x0215.
+   */
+  uint32_t mmCOMPUTE_RESOURCE_LIMITS = 0x0215;
+
+  sh_reg_pkt[0] = PM4_HDR(PM4_HDR_IT_OPCODE_SET_SH_REG, sh_reg_pkt_size_dw, isa->GetMajorVersion());
+  sh_reg_pkt[1] = PM4_SET_SH_REG_DW1_REG_OFFSET(mmCOMPUTE_RESOURCE_LIMITS);
+  sh_reg_pkt[2] = PM4_SET_SH_REG_DW2_DATA(limit);
+
+  ExecutePM4(sh_reg_pkt, sh_reg_pkt_size_dw * sizeof(uint32_t));
+}
+#endif
 
 // If in_signal is NULL then this ExecutePM4 will block and wait for PM4 commands to complete
 // If in_signal is provided, then ExecutePM4 will return and caller may wait for in_signal
