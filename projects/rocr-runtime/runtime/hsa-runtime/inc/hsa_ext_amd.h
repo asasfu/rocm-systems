@@ -67,9 +67,10 @@
  * - 1.14 - hsa_amd_ais_file_write, hsa_amd_ais_file_read
  * - 1.15 - hsa_amd_register_system_event_handler: HSA_AMD_SYSTEM_SHUTDOWN
  * - 1.16 - Metadata Prefetch
+ * - 1.17 - hsa_amd_vmem_export_fabric_handle/hsa_amd_vmem_import_fabric_handle
  */
 #define HSA_AMD_INTERFACE_VERSION_MAJOR 1
-#define HSA_AMD_INTERFACE_VERSION_MINOR 16
+#define HSA_AMD_INTERFACE_VERSION_MINOR 17
 
 #ifdef __cplusplus
 extern "C" {
