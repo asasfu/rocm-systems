@@ -39,9 +39,9 @@ typedef __hip_fp8_storage_t __hip_fp6_storage_t;
 typedef __hip_fp8x2_storage_t __hip_fp6x2_storage_t;
 typedef __hip_fp8x4_storage_t __hip_fp6x4_storage_t;
 
-static_assert(sizeof(__hip_fp6_storage_t[4]) == sizeof(uint32_t));
-static_assert(sizeof(__hip_fp6x2_storage_t[2]) == sizeof(uint32_t));
-static_assert(sizeof(__hip_fp6x4_storage_t[2]) == sizeof(uint64_t));
+static_assert(sizeof(__hip_fp6_storage_t[4]) == sizeof(uint32_t), "");
+static_assert(sizeof(__hip_fp6x2_storage_t[2]) == sizeof(uint32_t), "");
+static_assert(sizeof(__hip_fp6x4_storage_t[2]) == sizeof(uint64_t), "");
 
 enum __hip_fp6_interpretation_t {
   __HIP_E3M2 = 0, /**< FP6 E3M2 Type*/
@@ -427,7 +427,7 @@ struct __hip_fp6_e2m3 {
     return __hip_cvt_fp6_to_halfraw(__x, __HIP_E2M3);
   }
   __FP6_HOST_DEVICE__ operator __hip_bfloat16_raw() const {
-    static_assert(sizeof(__hip_bfloat16_raw) == sizeof(__amd_bf16_storage_t));
+    static_assert(sizeof(__hip_bfloat16_raw) == sizeof(__amd_bf16_storage_t), "");
     union {
       __hip_bfloat16_raw bf16_raw;
       __amd_bf16_storage_t bf16;
@@ -496,7 +496,7 @@ struct __hip_fp6_e3m2 {
     return __hip_cvt_fp6_to_halfraw(__x, __HIP_E3M2);
   }
   __FP6_HOST_DEVICE__ operator __hip_bfloat16_raw() const {
-    static_assert(sizeof(__hip_bfloat16_raw) == sizeof(__amd_bf16_storage_t));
+    static_assert(sizeof(__hip_bfloat16_raw) == sizeof(__amd_bf16_storage_t), "");
     union {
       __hip_bfloat16_raw bf16_raw;
       __amd_bf16_storage_t bf16;
@@ -548,7 +548,7 @@ struct __hip_fp6x2_e2m3 {
     return __hip_cvt_fp6x2_to_halfraw2(__x, __HIP_E2M3);
   }
   __FP6_HOST_DEVICE__ operator __hip_bfloat162_raw() const {
-    static_assert(sizeof(__hip_bfloat162_raw) == sizeof(__amd_bf16x2_storage_t));
+    static_assert(sizeof(__hip_bfloat162_raw) == sizeof(__amd_bf16x2_storage_t), "");
     union {
       __hip_bfloat162_raw bf162_raw;
       __amd_bf16x2_storage_t bf16x2;
@@ -613,7 +613,7 @@ struct __hip_fp6x2_e3m2 {
     return __hip_cvt_fp6x2_to_halfraw2(__x, __HIP_E3M2);
   }
   __FP6_HOST_DEVICE__ operator __hip_bfloat162_raw() const {
-    static_assert(sizeof(__hip_bfloat162_raw) == sizeof(__amd_bf16x2_storage_t));
+    static_assert(sizeof(__hip_bfloat162_raw) == sizeof(__amd_bf16x2_storage_t), "");
     union {
       __hip_bfloat162_raw bf162_raw;
       __amd_bf16x2_storage_t bf16x2;
