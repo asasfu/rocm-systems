@@ -308,6 +308,9 @@ class Flag {
 
     var = os::GetEnvVar("HSA_DISABLE_COREDUMP");
     disable_coredump_ = (var == "1") ? true : false;
+
+    var = os::GetEnvVar("HSA_NPI_SET_RESOURCE_LIMITS");
+    debug_set_resource_limits_ = var.empty() ? 0 : atoi(var.c_str());
 #endif
 
     var = os::GetEnvVar("HSA_COREDUMP_SHOW_PROGRESS");
@@ -467,6 +470,10 @@ class Flag {
   const std::string& core_dump_pattern() const {
                                          return core_dump_pattern_; }
 
+  [[nodiscard]]
+  const uint32_t debug_set_resource_limits() const {
+                                        return debug_set_resource_limits_; }
+
   void set_sdma(bool peer_sdma, bool sdma_gang) {
     enable_peer_sdma_ = peer_sdma ? SDMA_ENABLE : SDMA_DISABLE;
     enable_sdma_gang_ = sdma_gang ? SDMA_ENABLE : SDMA_DISABLE;
@@ -562,6 +569,8 @@ class Flag {
   bool core_dump_disable_ = false;
   bool enable_core_dump_progress_ = false;
   std::string core_dump_pattern_;
+
+  uint32_t debug_set_resource_limits_ = 0;
 
   // Map GPU index post RVD to its default cu mask.
   std::map<uint32_t, std::vector<uint32_t>> cu_mask_;

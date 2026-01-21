@@ -284,6 +284,9 @@ class AqlQueue : public core::Queue, private core::LocalSignal, public core::Doo
 
   /// @brief Fill queue properties
   void GetInfoProperties(uint8_t value[8]) const;
+  #ifdef AMD_NPI_ONLY
+  void SetResourceLimits(uint32_t limit);
+  #endif
 
   // AQL packet ring buffer
   void* ring_buf_;

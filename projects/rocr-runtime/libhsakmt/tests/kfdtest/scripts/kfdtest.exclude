@@ -133,6 +133,13 @@ BLACKLIST_GFX12=\
 "KFDGWSTest.*:"\
 "KFDMemoryTest.Acquire*"
 
+BLACKLIST_GFX13=\
+"KFDQMTest.CreateAqlCpQueue:"\
+"KFDPerfCountersTest.*:"\
+"KFDMemoryTest.FlatScratchAccess:"\
+"KFDGWSTest.*:"\
+"KFDMemoryTest.Acquire*"
+
 BLACKLIST_MGPU=\
 "KFDLocalMemoryTest.MapVramToGPUNodesTest:"\
 "KFDMemoryTest.MapUnmapToNodes:"\
@@ -368,6 +375,10 @@ FILTER[gfx1250]=\
 FILTER[gfx1251]=\
 "$BLACKLIST_ALL_ASICS:"\
 "$BLACKLIST_GFX12"
+
+FILTER[gfx1310]=\
+"$BLACKLIST_ALL_ASICS:"\
+"$BLACKLIST_GFX13"
 
 FILTER[RHEL9]=\
 "$BLACKLIST_ALL_ASICS:"\
