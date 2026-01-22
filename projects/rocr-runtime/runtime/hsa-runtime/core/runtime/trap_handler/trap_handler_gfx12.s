@@ -283,6 +283,8 @@
       s_lshl_b32    vcc_hi, vcc_hi, 14                       // Shift vcc_hi to position [21:14]
       s_and_b32     ttmp13, ttmp13, 0xFFC03FFF               // Clear bits [21:14] of ttmp13
       s_or_b32      ttmp13, ttmp13, vcc_hi                   // Store 8 VGPR MSB bits to ttmp13[21:14]
+      s_mov_b32     vcc_hi, 0                                // Clear vcc_hi to prepare for MODE register reset
+      s_setreg_b32  hwreg(HW_REG_MODE, 12, 8), vcc_hi        // Reset MODE[19:12]
   .endif
 .endm
 
