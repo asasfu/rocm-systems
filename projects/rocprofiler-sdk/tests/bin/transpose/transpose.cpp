@@ -201,8 +201,13 @@ run(int rank, int tid, int devid, int argc, char** argv)
 
     mark("begin");
 
-    constexpr unsigned int M = 4960 * 2;
-    constexpr unsigned int N = 4960 * 2;
+    hipDeviceProp_t prop{};
+    HIP_API_CALL(hipGetDeviceProperties(&prop, 0));
+    std::string_view gfxip(prop.gcnArchName);
+    auto             reduced_workload = gfxip.find("gfx1250") != std::string_view::npos;
+
+    unsigned int M = reduced_workload ? 512 : 4960 * 2;
+    unsigned int N = reduced_workload ? 512 : 4960 * 2;
 
     if(argc > 2) nitr = atoll(argv[2]);
     if(argc > 3) nsync = atoll(argv[3]);
