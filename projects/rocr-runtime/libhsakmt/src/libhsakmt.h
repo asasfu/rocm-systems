@@ -184,6 +184,7 @@ enum full_gfx_versions {
 	GFX_VERSION_GFX1201		= 0x0C0001,
 	GFX_VERSION_GFX1250		= 0x0C0500,
 	GFX_VERSION_GFX1251		= 0x0C0501,
+	GFX_VERSION_GFX1260		= 0x0C0600,
 };
 
 struct hsa_gfxip_table {
