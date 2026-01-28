@@ -275,6 +275,14 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCloseKFDCtx(void)
 			hsakmt_destroy_counter_props();
 			hsakmt_destroy_device_debugging_memory();
 			hsakmt_fmm_clear_all_aperture(&hsakmt_primary_kfd_ctx);
+
+			if (hsakmt_primary_kfd_ctx.fd >= 0) {
+				close(hsakmt_primary_kfd_ctx.fd);
+				hsakmt_kfdcontext_clear_context(&hsakmt_primary_kfd_ctx);
+				if (hsakmt_use_model) {
+					model_clear_event_page();
+				}
+			}
 		}
 
 		result = HSAKMT_STATUS_SUCCESS;

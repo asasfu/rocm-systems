@@ -279,6 +279,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
     ASICShader compute_11;
     ASICShader compute_12;
     ASICShader compute_1250;
+    ASICShader compute_1260;
     ASICShader compute_13;
   };
 
@@ -310,6 +311,8 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeTrapHandlerV2_11, sizeof(kCodeTrapHandlerV2_11), 2, 4},    // gfx11
            {kCodeTrapHandlerV2_12, sizeof(kCodeTrapHandlerV2_12), 2, 4},    // gfx12
            {kCodeTrapHandlerV2_1250, sizeof(kCodeTrapHandlerV2_1250), 2, 4},  // gfx1250
+           {kCodeTrapHandlerV2_1260, sizeof(kCodeTrapHandlerV2_1260), 2, 4},  // gfx1260
+
            {NULL, 0, 0, 0},                                                 // gfx13
        }},
       {"CopyAligned",
@@ -324,6 +327,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeCopyAligned11, sizeof(kCodeCopyAligned11), 32, 12},        // gfx11
            {kCodeCopyAligned12, sizeof(kCodeCopyAligned12), 32, 12},        // gfx12
            {kCodeCopyAligned1250, sizeof(kCodeCopyAligned1250), 32, 12},    // gfx1250
+           {kCodeCopyAligned1260, sizeof(kCodeCopyAligned1260), 32, 12},    // gfx1260
            {kCodeCopyAligned13, sizeof(kCodeCopyAligned13), 32, 12},        // gfx13
        }},
       {"CopyMisaligned",
@@ -338,6 +342,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeCopyMisaligned11, sizeof(kCodeCopyMisaligned11), 23, 10},  // gfx11
            {kCodeCopyMisaligned12, sizeof(kCodeCopyMisaligned12), 23, 10},  // gfx12
            {kCodeCopyMisaligned1250, sizeof(kCodeCopyMisaligned1250), 23, 10},  // gfx1250
+           {kCodeCopyMisaligned1260, sizeof(kCodeCopyMisaligned1260), 23, 10},  // gfx1260
            {kCodeCopyMisaligned13, sizeof(kCodeCopyMisaligned13), 23, 10},  // gfx13
        }},
       {"Fill",
@@ -352,6 +357,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeFill11, sizeof(kCodeFill11), 19, 8},                       // gfx11
            {kCodeFill12, sizeof(kCodeFill12), 19, 8},                       // gfx12
            {kCodeFill1250, sizeof(kCodeFill1250), 19, 8},                   // gfx1250
+           {kCodeFill1260, sizeof(kCodeFill1260), 19, 8},                   // gfx1260
            {kCodeFill13, sizeof(kCodeFill13), 19, 8},                       // gfx13
        }}};
 
@@ -387,8 +393,10 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
         asic_shader = &compiled_shader_it->second.compute_11;
       break;
     case 12:
-        if(isa_->GetMinorVersion() >= 5)
+        if(isa_->GetMinorVersion() == 5)
           asic_shader = &compiled_shader_it->second.compute_1250;
+        else if (isa_->GetMinorVersion() >= 6)
+          asic_shader = &compiled_shader_it->second.compute_1260;
         else
           asic_shader = &compiled_shader_it->second.compute_12;
       break;

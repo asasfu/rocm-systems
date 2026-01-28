@@ -334,6 +334,11 @@ void model_init(void)
 		model_functions->set_set_event(model_nodes[node_id].model, model_set_event, NULL);
 	}
 }
+void model_clear_mmio_page(void)
+{
+	model_mmio_page = NULL;
+}
+
 void model_set_mmio_page(void *ptr)
 {
 	assert(!model_mmio_page);
@@ -353,6 +358,17 @@ void model_set_event_page(void *ptr, unsigned event_limit)
 	model_event_bitmap = calloc(event_limit / 64, 8);
 	model_events = calloc(event_limit, sizeof(*model_events));
 }
+void model_clear_event_page(void)
+{
+	if (model_event_limit) {
+		model_event_limit = 0;
+		free(model_event_bitmap);
+		free(model_events);
+		model_event_bitmap = NULL;
+		model_events = NULL;
+	}
+}
+
 /* Model implementation of KFD ioctl. */
 
 static int model_kfd_ioctl_locked(unsigned long request, void *arg)
