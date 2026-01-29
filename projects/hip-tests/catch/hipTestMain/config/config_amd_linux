@@ -139,6 +139,8 @@
         "Unit_Device_tgammaf_Accuracy_Limited_Positive",
         "=== TODO === fail on 100% test data",
         "Unit_Device___hfma2_Accuracy_Positive",
+        "=== SWDEV-SWDEV-515087 - disabled until distributed shared memory is supported ===",
+        "Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch",
     #endif
     #if defined gfx90a || defined gfx942 || defined gfx950
         "=== SWDEV-443630 : Below test failed in stress test on 19/01/24 ===",
