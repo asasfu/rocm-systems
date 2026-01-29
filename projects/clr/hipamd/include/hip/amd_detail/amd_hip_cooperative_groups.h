@@ -216,8 +216,7 @@ class grid_group : public thread_group {
     unsigned int signal;
   };
   //! Arrive at a barrier
-  __CG_QUALIFIER__ 
-    barrier_arrive() const {
+  __CG_QUALIFIER__ arrival_token barrier_arrive() const {
     arrival_token t;
     t.signal = internal::grid::barrier_signal();
     return t;
