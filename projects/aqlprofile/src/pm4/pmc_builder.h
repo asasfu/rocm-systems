@@ -169,12 +169,11 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
 
   // start counters for rpb-block like instances
   void start_generic_mc_counters(CmdBuffer* cmd_buffer,
-                                 const std::map<uint32_t, uint64_t>& instances) {
+                                 const std::set<uint64_t>& instances) {
     // insert master XCC PRED_EXEC packet here if it is MI300
     PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, VIRTUALXCCID_SELECT,
                                                xcc_number_ > 1);
-    for (const auto& i : instances) {
-      uint64_t control_addr = i.second;
+    for (const auto& control_addr : instances) {
       // rpb instance clear
       builder.BuildWritePConfigRegPacket(cmd_buffer, control_addr, Primitives::mc_reset_value());
       // rpb instance enable
@@ -283,8 +282,8 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     std::map<uint32_t, uint64_t> umcchs;
     // RPB/ATC are per AID block like UMC above, we save its control register (for enable/disable)
     // per AID instance
-    std::map<uint32_t, uint64_t> rpbs;
-    std::map<uint32_t, uint64_t> atcs;
+    std::set<uint64_t> rpbs;
+    std::set<uint64_t> atcs;
     // Programming perf counters
     for (const auto& counter_des : counters_vec) {
       const auto* block_info = counter_des.block_info;
@@ -415,9 +414,9 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         }
         if (block_info->attr & CounterBlockRpbAttr || block_info->attr & CounterBlockAtcAttr) {
           if (block_info->attr & CounterBlockRpbAttr)
-            rpbs.insert({instance_index, control_addr});
+            rpbs.insert(control_addr);
           else
-            atcs.insert({instance_index, control_addr});
+            atcs.insert(control_addr);
           builder.BuildWritePConfigRegPacket(cmd_buffer, select_addr,
                                              block_info->select_value(counter_des));
         }

@@ -86,7 +86,11 @@ static const CounterRegInfo ChcCounterRegAddr[] = {REG_INFO_4(CHC)};
 static const CounterRegInfo CpcCounterRegAddr[] = {REG_INFO_2(CPC)};
 static const CounterRegInfo CpfCounterRegAddr[] = {REG_INFO_2(CPF)};
 static const CounterRegInfo CpgCounterRegAddr[] = {REG_INFO_2(CPG)};
+#if GFX12_VARIANT == GFX12_VARIANT_1250
+static const CounterRegInfo GcmcVmL2CounterRegAddr[] = {REG_INFO_WITH_CFG_16(GC, GCMC_VM_L2)};
+#else
 static const CounterRegInfo GcmcVmL2CounterRegAddr[] = {REG_INFO_WITH_CFG_8(GC, GCMC_VM_L2)};
+#endif
 static const CounterRegInfo GcrCounterRegAddr[] = {REG_INFO_WITH_CTRL_2(GCR, REG_32B_ADDR(GC, 0, regGCR_GENERAL_CNTL))};
 #if GFX12_VARIANT <= GFX12_VARIANT_1201
 static const CounterRegInfo RpbCounterRegAddr[] = {REG_INFO_WITH_CFG_4(ATHUB, RPB)};
