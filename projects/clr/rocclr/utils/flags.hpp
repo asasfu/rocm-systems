@@ -276,7 +276,9 @@ release(bool, HIP_VALIDATE_GFX1250_CODEOBJECT, false,                         \
 release(uint, DEBUG_CLR_BATCH_CPU_SYNC_SIZE, 8,                               \
         "Forces the minimum batch size for CPU sync")  /* clang-format on */  \
 release(bool, DEBUG_CLR_ENABLE_PREFETCH_METADATA, true,                       \
-        "Enable metadata prefetch for some Aql packats")
+        "Enable metadata prefetch for some Aql packats")                      \
+release(bool, DEBUG_CLR_GROUP_MEM_CARVEOUT_WAR, true,                         \
+        "Enable group memory carveout workaround")
 
 namespace amd {
 
