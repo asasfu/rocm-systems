@@ -1946,6 +1946,9 @@ typedef enum cudaMemLocationType hipMemLocationType;
 #define hipMemHandleTypePosixFileDescriptor cudaMemHandleTypePosixFileDescriptor
 #define hipMemHandleTypeWin32 cudaMemHandleTypeWin32
 #define hipMemHandleTypeWin32Kmt cudaMemHandleTypeWin32Kmt
+#if CUDA_VERSION >= CUDA_12040
+#define hipMemHandleTypeFabric cudaMemHandleTypeFabric
+#endif
 typedef enum cudaMemAllocationType hipMemAllocationType;
 #define hipMemAllocationTypeInvalid cudaMemAllocationTypeInvalid
 #define hipMemAllocationTypePinned cudaMemAllocationTypePinned
@@ -3000,6 +3003,11 @@ inline static hipError_t hipDeviceGetAttribute(int* pi, hipDeviceAttribute_t att
     case hipDeviceAttributeVirtualMemoryManagementSupported:
       return hipCUResultTohipError(cuDeviceGetAttribute(
           pi, CU_DEVICE_ATTRIBUTE_VIRTUAL_MEMORY_MANAGEMENT_SUPPORTED, device));
+#if CUDA_VERSION >= CUDA_12040
+    case hipDeviceAttributeHandleTypeFabricSupported:
+      return hipCUResultTohipError(cuDeviceGetAttribute(
+          pi, CU_DEVICE_ATTRIBUTE_HANDLE_TYPE_FABRIC_SUPPORTED, device));
+#endif
     case hipDeviceAttributeAccessPolicyMaxWindowSize:
       cdattr = cudaDevAttrMaxAccessPolicyWindowSize;
       break;
