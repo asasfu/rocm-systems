@@ -139,6 +139,7 @@ TEST(rocrtst, Test_Example) {
 TEST(rocrtst, DISABLED_Test_Example_InterruptDisabled) {
   rocrtst::SetEnv("HSA_ENABLE_INTERRUPT", "0");
   TestExample tst;
+  rocrtst::SetEnv("HSA_ENABLE_INTERRUPT", "0");
   RunGenericTest(&tst);
 }
 

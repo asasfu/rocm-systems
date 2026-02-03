@@ -202,9 +202,9 @@ struct HIPLaunchParams : public LaunchParams {
                   uint32_t globalX_remainder = 0, uint32_t globalY_remainder = 0,
                   uint32_t globalZ_remainder = 0, uint32_t clusterX = 1,
                   uint32_t clusterY = 1, uint32_t clusterZ = 1)
-                  : LaunchParams(static_cast<uint32_t>(gridX) * blockX + globalX_remainder,
-                                 static_cast<uint32_t>(gridY) * blockY + globalY_remainder,
-                                 static_cast<uint32_t>(gridZ) * blockZ + globalZ_remainder,
+                  : LaunchParams(static_cast<size_t>(gridX) * blockX + globalX_remainder,
+                                 static_cast<size_t>(gridY) * blockY + globalY_remainder,
+                                 static_cast<size_t>(gridZ) * blockZ + globalZ_remainder,
                                  blockX, blockY, blockZ, sharedMemBytes, clusterX, clusterY,
                                  clusterZ, gridX, gridY, gridZ, true /*hipParams*/) {}
 };
