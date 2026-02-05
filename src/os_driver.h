@@ -24,6 +24,7 @@
 #include "amd-dbgapi.h"
 #include "logging.h"
 #include "memory.h"
+#include "runtime_rdebug.h"
 #include "utils.h"
 
 #include <cstddef>
@@ -60,6 +61,8 @@ enum elf_amdgpu_machine_t : uint32_t
   EF_AMDGPU_MACH_AMDGCN_GFX1102 = 0x047,
   EF_AMDGPU_MACH_AMDGCN_GFX1150 = 0x043,
   EF_AMDGPU_MACH_AMDGCN_GFX1151 = 0x04a,
+  EF_AMDGPU_MACH_AMDGCN_GFX1152 = 0x055,
+  EF_AMDGPU_MACH_AMDGCN_GFX1153 = 0x058,
   EF_AMDGPU_MACH_AMDGCN_GFX1200 = 0x048,
   EF_AMDGPU_MACH_AMDGCN_GFX1201 = 0x04e,
   EF_AMDGPU_MACH_AMDGCN_GFX1250 = 0x049,

@@ -27,7 +27,7 @@
 #include "memory.h"
 #include "process.h"
 #include "register.h"
-#include "rocr_rdebug.h"
+#include "runtime_rdebug.h"
 #include "utils.h"
 #include "wave.h"
 
@@ -256,7 +256,7 @@ protected:
          TTMP registers are reported as initialized on a per agent/process
          basis (which is a pre-condition for this method to be called), assume
          that TTMP registers are enabled for every waves.  */
-      if (process ().rocr_rdebug_version () < 10)
+      if (process ().runtime_rdebug_version () < 10)
         return true;
 
       uint32_t ttmp6;
@@ -440,13 +440,13 @@ protected:
   is_terminating_instruction (const instruction_t &instruction) const override;
 
   bool
-  check_runtime_abi_version (rocr_rdebug_version_t r_version) const override
+  check_runtime_abi_version (runtime_rdebug_version_t r_version) const override
   {
-    return (r_version >= ROCR_RDEBUG_VERSION_MIN
-            && r_version <= ROCR_RDEBUG_VERSION_MAX);
+    return (r_version >= RUNTIME_RDEBUG_VERSION_MIN
+            && r_version <= RUNTIME_RDEBUG_VERSION_MAX);
   }
   virtual bool can_halt_at_endpgm () const = 0;
-  bool park_stopped_waves (rocr_rdebug_version_t) const override
+  bool park_stopped_waves (runtime_rdebug_version_t) const override
   {
     return !can_halt_at_endpgm ();
   }
@@ -1247,7 +1247,7 @@ amdgcn_architecture_t::simulate_trap_handler (
   wave.write_register (amdgpu_regnum_t::ttmp6, ttmp6);
 
   /* Park the wave.  */
-  if (park_stopped_waves (wave.process ().rocr_rdebug_version ()))
+  if (park_stopped_waves (wave.process ().runtime_rdebug_version ()))
     {
       save_pc_for_park (wave, pc);
       // FIXME_lmoriche: What shoudl we do for PC?
@@ -1449,7 +1449,7 @@ amdgcn_architecture_t::record_spi_ttmps_setup (const wave_t &wave,
 {
   /* The bit to store that SPI TTMPS do not contain meaningful data on a
      per-wave basis have only been introduced in ROCr ABI version 10.  */
-  if (wave.process ().rocr_rdebug_version () < 10)
+  if (wave.process ().runtime_rdebug_version () < 10)
     return;
 
   uint32_t ttmp6;
@@ -1480,7 +1480,7 @@ amdgcn_architecture_t::initialize_spi_ttmps (const wave_t &wave) const
      when halting the wave, so we can be sure that it was executed.  If this
      bit is set on a halted wave, make sure to not clear information saved by
      the trap handler.  */
-  if (wave.process ().rocr_rdebug_version () >= 10
+  if (wave.process ().runtime_rdebug_version () >= 10
       && (status & sq_wave_status_skip_export_mask) != 0)
     ttmp6 &= (ttmp6_wave_stopped_mask | ttmp6_saved_status_halt_mask
               | ttmp6_saved_trap_id_mask);
@@ -1521,7 +1521,7 @@ amdgcn_architecture_t::wave_get_state (wave_t &wave) const
      fill the stop_reason with the exceptions that have caused the wave to
      enter the trap handler.  */
 
-  if (park_stopped_waves (wave.process ().rocr_rdebug_version ()))
+  if (park_stopped_waves (wave.process ().runtime_rdebug_version ()))
     wave.write_register (amdgpu_regnum_t::pc, saved_parked_pc (wave));
 
   amd_dbgapi_wave_stop_reasons_t stop_reason
@@ -2361,7 +2361,8 @@ void
 amdgcn_architecture_t::save_pc_for_park (const wave_t &wave,
                                          agent_address_t pc) const
 {
-  dbgapi_assert (park_stopped_waves (wave.process ().rocr_rdebug_version ()));
+  dbgapi_assert (
+    park_stopped_waves (wave.process ().runtime_rdebug_version ()));
 
   uint32_t ttmp7, ttmp11;
   /* The trap handler saves PC[31:0] in ttmp7[31:0] ...  */
@@ -2378,7 +2379,8 @@ amdgcn_architecture_t::save_pc_for_park (const wave_t &wave,
 agent_address_t
 amdgcn_architecture_t::saved_parked_pc (const wave_t &wave) const
 {
-  dbgapi_assert (park_stopped_waves (wave.process ().rocr_rdebug_version ()));
+  dbgapi_assert (
+    park_stopped_waves (wave.process ().runtime_rdebug_version ()));
   /* The trap handler "parked" the wave and saved the PC in ttmp11[22:7]
      and ttmp7[31:0].  */
 
@@ -3764,7 +3766,7 @@ protected:
          TTMP registers are reported as initialized on a per agent/process
          basis (which is a pre-condition for this method to be called), assume
          that TTMP registers are enabled for every waves.  */
-      if (process ().rocr_rdebug_version () < 10)
+      if (process ().runtime_rdebug_version () < 10)
         return true;
 
       uint32_t ttmp6, ttmp11;
@@ -3957,7 +3959,7 @@ gfx9_4_architecture_t::initialize_trap_handler_ttmps (const wave_t &wave) const
   wave.read_register (amdgpu_regnum_t::status, &status);
 
   /* See amdgcn_architecture_t::initialize_spi_ttmps.  */
-  if (wave.process ().rocr_rdebug_version () >= 10
+  if (wave.process ().runtime_rdebug_version () >= 10
       && (status & sq_wave_status_skip_export_mask) != 0)
     ttmp6 &= (ttmp6_wave_stopped_mask | ttmp6_saved_status_halt_mask
               | ttmp6_saved_trap_id_mask);
@@ -5479,7 +5481,7 @@ public:
     return false;
   }
   bool
-  check_runtime_abi_version (rocr_rdebug_version_t r_version) const override
+  check_runtime_abi_version (runtime_rdebug_version_t r_version) const override
   {
     if (r_version == 8)
       {
@@ -5489,7 +5491,7 @@ public:
       }
     return gfx10_architecture_t::check_runtime_abi_version (r_version);
   }
-  bool park_stopped_waves (rocr_rdebug_version_t r_version) const override
+  bool park_stopped_waves (runtime_rdebug_version_t r_version) const override
   {
     /* Starting ABI v9, waves are parked on gfx11 to work around the fact that
        waves cannot be halted at a `s_sendmsg sendmsg(MSG_DEALLOC_VGPRS)`
@@ -6102,6 +6104,26 @@ public:
   gfx1151_t ()
     : gfx11_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX1151,
                             "amdgcn-amd-amdhsa--gfx1151")
+  {
+  }
+};
+
+class gfx1152_t final : public gfx11_architecture_t
+{
+public:
+  gfx1152_t ()
+    : gfx11_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX1152,
+                            "amdgcn-amd-amdhsa--gfx1152")
+  {
+  }
+};
+
+class gfx1153_t final : public gfx11_architecture_t
+{
+public:
+  gfx1153_t ()
+    : gfx11_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX1153,
+                            "amdgcn-amd-amdhsa--gfx1153")
   {
   }
 };
@@ -7133,7 +7155,8 @@ void
 gfx12_architecture_t::save_pc_for_park (const wave_t &wave,
                                         agent_address_t pc) const
 {
-  dbgapi_assert (park_stopped_waves (wave.process ().rocr_rdebug_version ()));
+  dbgapi_assert (
+    park_stopped_waves (wave.process ().runtime_rdebug_version ()));
 
   uint32_t ttmp10, ttmp11;
   /* The trap handler saves PC[31:0] in ttmp10[31:0] ...  */
@@ -7150,7 +7173,8 @@ gfx12_architecture_t::save_pc_for_park (const wave_t &wave,
 agent_address_t
 gfx12_architecture_t::saved_parked_pc (const wave_t &wave) const
 {
-  dbgapi_assert (park_stopped_waves (wave.process ().rocr_rdebug_version ()));
+  dbgapi_assert (
+    park_stopped_waves (wave.process ().runtime_rdebug_version ()));
   /* The trap handler "parked" the wave and saved the PC in ttmp11[22:7]
      and ttmp10[31:0].  */
 
@@ -7187,7 +7211,7 @@ gfx12_architecture_t::simulate_trap_handler (
   wave.write_register (amdgpu_regnum_t::ttmp6, ttmp6);
 
   /* Park the wave.  */
-  if (park_stopped_waves (wave.process ().rocr_rdebug_version ()))
+  if (park_stopped_waves (wave.process ().runtime_rdebug_version ()))
     {
       save_pc_for_park (wave, pc);
       // FIXME_lmoriche:
@@ -7950,7 +7974,7 @@ gfx12_5_architecture_t::simulate_trap_handler (
   wave.write_register (amdgpu_regnum_t::ttmp11, ttmp11);
 
   /* Park the wave.  */
-  if (park_stopped_waves (wave.process ().rocr_rdebug_version ()))
+  if (park_stopped_waves (wave.process ().runtime_rdebug_version ()))
     {
       save_pc_for_park (wave, pc);
       pc = wave.queue ().park_instruction_address ();
@@ -8341,6 +8365,8 @@ decltype (architecture_t::s_architecture_map)
       map.emplace (make_architecture<gfx1102_t> ());
       map.emplace (make_architecture<gfx1150_t> ());
       map.emplace (make_architecture<gfx1151_t> ());
+      map.emplace (make_architecture<gfx1152_t> ());
+      map.emplace (make_architecture<gfx1153_t> ());
       map.emplace (make_architecture<gfx12_generic_t> ());
       map.emplace (make_architecture<gfx1200_t> ());
       map.emplace (make_architecture<gfx1201_t> ());
