@@ -67,6 +67,8 @@ enum CounterBlockAttr {
   CounterBlockRpbAttr = 0x200000,
   // ATC block
   CounterBlockAtcAttr = 0x400000,
+  // Blocks controlled by GRBMA
+  CounterBlockGrbmaAttr = 0x800000,
 };
 
 

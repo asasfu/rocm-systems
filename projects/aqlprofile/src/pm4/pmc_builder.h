@@ -169,12 +169,11 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
 
   // start counters for rpb-block like instances
   void start_generic_mc_counters(CmdBuffer* cmd_buffer,
-                                 const std::map<uint32_t, uint64_t>& instances) {
+                                 const std::set<uint64_t>& instances) {
     // insert master XCC PRED_EXEC packet here if it is MI300
     PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, VIRTUALXCCID_SELECT,
                                                xcc_number_ > 1);
-    for (const auto& i : instances) {
-      uint64_t control_addr = i.second;
+    for (const auto& control_addr : instances) {
       // rpb instance clear
       builder.BuildWritePConfigRegPacket(cmd_buffer, control_addr, Primitives::mc_reset_value());
       // rpb instance enable
@@ -182,19 +181,24 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     }
   }
 
-  // 'attr' is reserved for future expansion
   void SetGrbmGfxIndex(CmdBuffer* cmd_buffer, uint32_t value, uint32_t attr = 0) {
-    builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::GRBM_GFX_INDEX_ADDR, value);
+    if (attr & CounterBlockGrbmaAttr)
+      builder.BuildWritePConfigRegPacket(cmd_buffer, Primitives::GRBMA_GFX_INDEX_ADDR, value);
+    else
+      builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::GRBM_GFX_INDEX_ADDR, value);
   }
 
-  // 'attr' is reserved for future expansion
   void SetGrbmBroadcast(CmdBuffer* cmd_buffer, uint32_t attr = 0) {
     SetGrbmGfxIndex(cmd_buffer, Primitives::grbm_broadcast_value());
+    if (attr & CounterBlockGrbmaAttr)
+      SetGrbmGfxIndex(cmd_buffer, Primitives::grbm_broadcast_value(), true);
   }
 
   void SetPerfmonCntl(CmdBuffer* cmd_buffer, uint32_t value, uint32_t attr) {
     if (attr & CounterBlockCpmonAttr)
       builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::CP_PERFMON_CNTL_ADDR, value);
+    if (attr & CounterBlockGrbmaAttr)
+      builder.BuildWritePConfigRegPacket(cmd_buffer, Primitives::AID_PERFMON_CNTL_ADDR, value);
   }
 
  public:
@@ -278,8 +282,8 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     std::map<uint32_t, uint64_t> umcchs;
     // RPB/ATC are per AID block like UMC above, we save its control register (for enable/disable)
     // per AID instance
-    std::map<uint32_t, uint64_t> rpbs;
-    std::map<uint32_t, uint64_t> atcs;
+    std::set<uint64_t> rpbs;
+    std::set<uint64_t> atcs;
     // Programming perf counters
     for (const auto& counter_des : counters_vec) {
       const auto* block_info = counter_des.block_info;
@@ -410,9 +414,9 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         }
         if (block_info->attr & CounterBlockRpbAttr || block_info->attr & CounterBlockAtcAttr) {
           if (block_info->attr & CounterBlockRpbAttr)
-            rpbs.insert({instance_index, control_addr});
+            rpbs.insert(control_addr);
           else
-            atcs.insert({instance_index, control_addr});
+            atcs.insert(control_addr);
           builder.BuildWritePConfigRegPacket(cmd_buffer, select_addr,
                                              block_info->select_value(counter_des));
         }

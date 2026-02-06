@@ -2103,6 +2103,22 @@ hipError_t hipPeekAtLastError(void) {
   return hip::GetHipDispatchTable()->hipPeekAtLastError_fn(); 
   CATCH;
 }
+
+extern "C" hipError_t hipOccupancyMaxActiveClusters(int* numClusters, const void* func,
+                                                    const hipLaunchConfig_t* launchConfig) {
+  TRY;
+  return hip::GetHipDispatchTable()->hipOccupancyMaxActiveClusters_fn(numClusters, func,
+                                                                      launchConfig);
+  CATCH;
+}
+
+extern "C" hipError_t hipOccupancyMaxPotentialClusterSize(int* clusterSize, const void* func,
+                                                          const hipLaunchConfig_t* config) {
+  TRY;  
+  return hip::GetHipDispatchTable()->hipOccupancyMaxPotentialClusterSize_fn(clusterSize, func,
+                                                                            config);
+  CATCH;
+}
 hipError_t hipPointerGetAttribute(void* data, hipPointer_attribute attribute, hipDeviceptr_t ptr) {
   TRY;
   return hip::GetHipDispatchTable()->hipPointerGetAttribute_fn(data, attribute, ptr);
@@ -3152,6 +3168,7 @@ hipError_t hipKernelGetParamInfo(hipKernel_t kernel, size_t paramIndex, size_t* 
   TRY;
   return hip::GetHipDispatchTable()->hipKernelGetParamInfo_fn(kernel, paramIndex, paramOffset,
                                                               paramSize);
+<<<<<<< HEAD
   CATCH;
 }
 hipError_t hipExtEnableLogging() {
@@ -3168,4 +3185,15 @@ hipError_t hipExtSetLoggingParams(size_t log_level, size_t log_size, size_t log_
   TRY;
   return hip::GetHipDispatchTable()->hipExtSetLoggingParams_fn(log_level, log_size, log_mask);
   CATCH;
+=======
+}
+hipError_t hipExtEnableLogging() {
+  return hip::GetHipDispatchTable()->hipExtEnableLogging_fn();
+}
+hipError_t hipExtDisableLogging() {
+  return hip::GetHipDispatchTable()->hipExtDisableLogging_fn();
+}
+hipError_t hipExtSetLoggingParams(size_t log_level, size_t log_size, size_t log_mask) {
+  return hip::GetHipDispatchTable()->hipExtSetLoggingParams_fn(log_level, log_size, log_mask);
+>>>>>>> amd-npi
 }
