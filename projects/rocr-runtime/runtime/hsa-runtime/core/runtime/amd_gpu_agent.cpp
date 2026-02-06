@@ -2385,7 +2385,7 @@ hsa_status_t GpuAgent::UpdateTrapHandlerWithPCS(pcs_sampling_data_t* pcs_hosttra
     tma_addr = trap_handler_tma_region_;
   } else if (trap_handler_tma_region_) {
     finegrain_deallocator()(trap_handler_tma_region_);
-    trap_handler_tma_region_ = NULL;
+    trap_handler_tma_region_ = nullptr;
   }
 
   // Bind the trap handler to this node.
