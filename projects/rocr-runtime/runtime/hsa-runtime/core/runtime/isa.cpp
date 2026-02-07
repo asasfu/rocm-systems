@@ -238,7 +238,8 @@ bool Isa::HasImageSupport() const {
   if ((GetMajorVersion() == 9 &&
         (GetMinorVersion() == 4 || GetMinorVersion() == 5)) ||
       (GetMajorVersion() == 12 && GetMinorVersion() == 5) ||
-      (GetMajorVersion() == 12 && GetMinorVersion() == 6))
+      (GetMajorVersion() == 12 && GetMinorVersion() == 6) ||
+      GetMajorVersion() == 13)
     return false;
 
   return true;
