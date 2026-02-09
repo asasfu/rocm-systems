@@ -78,8 +78,6 @@ const size_t BlitSdmaBase::kMaxSingleCopySize = SDMA_PKT_COPY_LINEAR::kMaxSize_;
 const size_t BlitSdmaBase::kMaxSingleFillSize = SDMA_PKT_CONSTANT_FILL::kMaxSize_;
 
 // Initialize size of various sDMA commands use by this module
-template <bool useGCR, bool scopeFields>
-const uint32_t BlitSdma<useGCR, scopeFields>::linear_copy_command_size_ = sizeof(SDMA_PKT_COPY_LINEAR);
 
 template <bool useGCR, bool scopeFields>
 const uint32_t BlitSdma<useGCR, scopeFields>::fill_command_size_ = sizeof(SDMA_PKT_CONSTANT_FILL);
@@ -108,6 +106,15 @@ uint32_t BlitSdma<useGCR, scopeFields>::gcr_command_size() {
         return sizeof(SDMA_PKT_GCR_GFX1250);
   }
   return sizeof(SDMA_PKT_GCR);
+}
+
+template <bool useGCR, bool scopeFields>
+uint32_t BlitSdma<useGCR, scopeFields>::linear_copy_command_size() {
+  if (agent_->supported_isas()[0]->GetMajorVersion() >= 13) {
+    return sizeof(SDMA_PKT_COPY_LINEAR_GFX13);
+  } else {
+    return sizeof(SDMA_PKT_COPY_LINEAR);
+  }
 }
 
 template <bool useGCR, bool scopeFields>
@@ -174,8 +181,9 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::Initialize(const core::Agent& agent,
 
   // NO-MERGE: gfx1250 is a A+A system but emulator only supports PCIe. On silicon, we expect the GPU->CPU linktype to
   // be XGMI.
-  if (agent_->supported_isas()[0]->GetMajorVersion() >= 12 &&
-      agent_->supported_isas()[0]->GetMinorVersion() == 5)
+  if ((agent_->supported_isas()[0]->GetMajorVersion() == 12 &&
+       agent_->supported_isas()[0]->GetMinorVersion() == 5) ||
+      agent_->supported_isas()[0]->GetMajorVersion() == 13)
     hdp_flush_support_ = false;
 
   // Allocate queue buffer.
@@ -617,10 +625,11 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyCommand(void* dst, c
                                kMaxSingleCopySize;
   const uint32_t num_copy_command = (size + max_copy_size - 1) / max_copy_size;
 
-  std::vector<SDMA_PKT_COPY_LINEAR> buff(num_copy_command);
+  const uint32_t packet_size_dwords = linear_copy_command_size() / 4;
+  std::vector<uint32_t> buff(num_copy_command * packet_size_dwords);
   BuildCopyCommand(reinterpret_cast<char*>(&buff[0]), num_copy_command, dst, src, size);
 
-  return SubmitBlockingCommand(&buff[0], buff.size() * sizeof(SDMA_PKT_COPY_LINEAR), size);
+  return SubmitBlockingCommand(&buff[0], buff.size() * sizeof(uint32_t), size);
 }
 
 template <bool useGCR, bool scopeFields>
@@ -634,11 +643,11 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyCommand(void* dst, c
                                kMaxSingleCopySize;
   const uint32_t num_copy_command = (size + max_copy_size - 1) / max_copy_size;
 
-  // Assemble copy packets.
-  std::vector<SDMA_PKT_COPY_LINEAR> buff(num_copy_command);
+  const uint32_t packet_size_dwords = linear_copy_command_size() / 4;
+  std::vector<uint32_t> buff(num_copy_command * packet_size_dwords);
   BuildCopyCommand(reinterpret_cast<char*>(&buff[0]), num_copy_command, dst, src, size);
 
-  return SubmitCommand(&buff[0], buff.size() * sizeof(SDMA_PKT_COPY_LINEAR), size, dep_signals,
+  return SubmitCommand(&buff[0], buff.size() * sizeof(uint32_t), size, dep_signals,
                        out_signal, gang_signals);
 }
 
@@ -906,6 +915,10 @@ void BlitSdma<useGCR, scopeFields>::BuildCopyCommand(char* cmd_addr, uint32_t nu
   size_t cur_size = 0;
   const size_t max_copy_size = max_single_linear_copy_size_ ? max_single_linear_copy_size_ :
                                                               kMaxSingleCopySize;
+
+  // GFX13 or later use a different packet format with an additional DWORD
+  const bool isGFX13Plus = (agent_->supported_isas()[0]->GetMajorVersion() >= 13);
+
   for (uint32_t i = 0; i < num_copy_command; ++i) {
     const uint32_t copy_size =
         static_cast<uint32_t>(std::min((size - cur_size), max_copy_size));
@@ -913,33 +926,61 @@ void BlitSdma<useGCR, scopeFields>::BuildCopyCommand(char* cmd_addr, uint32_t nu
     void* cur_dst = static_cast<char*>(dst) + cur_size;
     const void* cur_src = static_cast<const char*>(src) + cur_size;
 
-    SDMA_PKT_COPY_LINEAR* packet_addr =
-        reinterpret_cast<SDMA_PKT_COPY_LINEAR*>(cmd_addr);
+    if (isGFX13Plus) {
+      SDMA_PKT_COPY_LINEAR_GFX13* packet_addr =
+          reinterpret_cast<SDMA_PKT_COPY_LINEAR_GFX13*>(cmd_addr);
 
-    memset(packet_addr, 0, sizeof(SDMA_PKT_COPY_LINEAR));
+      memset(packet_addr, 0, sizeof(SDMA_PKT_COPY_LINEAR_GFX13));
 
-    packet_addr->HEADER_UNION.op = SDMA_OP_COPY;
-    packet_addr->HEADER_UNION.sub_op = SDMA_SUBOP_COPY_LINEAR;
+      packet_addr->HEADER_UNION.op = SDMA_OP_COPY;
+      packet_addr->HEADER_UNION.sub_op = SDMA_SUBOP_COPY_LINEAR;
 
-    if (scopeFields) packet_addr->HEADER_UNION.npd = 1;
+      if (scopeFields) packet_addr->HEADER_UNION.npd = 1;
 
-    if (max_copy_size == (1 << 30) -1)
-      packet_addr->COUNT_UNION.count_ext.count = copy_size - 1; /* count is 1-based */
-    else
-      packet_addr->COUNT_UNION.count.count = copy_size - 1; /* count is 1-based */
+      packet_addr->COUNT_UNION.count = copy_size - 1; /* count is 1-based */
 
-    if (scopeFields) {
-      packet_addr->PARAMETER_UNION.dst_scope = SDMA_MEMORY_SCOPE_SYS;
-      packet_addr->PARAMETER_UNION.src_scope = SDMA_MEMORY_SCOPE_SYS;
+      if (scopeFields) {
+        packet_addr->PARAMETER_UNION.dst_scope = SDMA_MEMORY_SCOPE_SYS;
+        packet_addr->PARAMETER_UNION.src_scope = SDMA_MEMORY_SCOPE_SYS;
+      }
+
+      packet_addr->SRC_ADDR_LO_UNION.src_addr_31_0 = ptrlow32(cur_src);
+      packet_addr->SRC_ADDR_HI_UNION.src_addr_63_32 = ptrhigh32(cur_src);
+
+      packet_addr->DST_ADDR_LO_UNION.dst_addr_31_0 = ptrlow32(cur_dst);
+      packet_addr->DST_ADDR_HI_UNION.dst_addr_63_32 = ptrhigh32(cur_dst);
+
+      cmd_addr += sizeof(SDMA_PKT_COPY_LINEAR_GFX13);
+    } else {
+      SDMA_PKT_COPY_LINEAR* packet_addr =
+          reinterpret_cast<SDMA_PKT_COPY_LINEAR*>(cmd_addr);
+
+      memset(packet_addr, 0, sizeof(SDMA_PKT_COPY_LINEAR));
+
+      packet_addr->HEADER_UNION.op = SDMA_OP_COPY;
+      packet_addr->HEADER_UNION.sub_op = SDMA_SUBOP_COPY_LINEAR;
+
+      if (scopeFields) packet_addr->HEADER_UNION.npd = 1;
+
+      if (max_copy_size == (1 << 30) -1)
+        packet_addr->COUNT_UNION.count_ext.count = copy_size - 1; /* count is 1-based */
+      else
+        packet_addr->COUNT_UNION.count.count = copy_size - 1; /* count is 1-based */
+
+      if (scopeFields) {
+        packet_addr->PARAMETER_UNION.dst_scope = SDMA_MEMORY_SCOPE_SYS;
+        packet_addr->PARAMETER_UNION.src_scope = SDMA_MEMORY_SCOPE_SYS;
+      }
+
+      packet_addr->SRC_ADDR_LO_UNION.src_addr_31_0 = ptrlow32(cur_src);
+      packet_addr->SRC_ADDR_HI_UNION.src_addr_63_32 = ptrhigh32(cur_src);
+
+      packet_addr->DST_ADDR_LO_UNION.dst_addr_31_0 = ptrlow32(cur_dst);
+      packet_addr->DST_ADDR_HI_UNION.dst_addr_63_32 = ptrhigh32(cur_dst);
+
+      cmd_addr += sizeof(SDMA_PKT_COPY_LINEAR);
     }
 
-    packet_addr->SRC_ADDR_LO_UNION.src_addr_31_0 = ptrlow32(cur_src);
-    packet_addr->SRC_ADDR_HI_UNION.src_addr_63_32 = ptrhigh32(cur_src);
-
-    packet_addr->DST_ADDR_LO_UNION.dst_addr_31_0 = ptrlow32(cur_dst);
-    packet_addr->DST_ADDR_HI_UNION.dst_addr_63_32 = ptrhigh32(cur_dst);
-
-    cmd_addr += linear_copy_command_size_;
     cur_size += copy_size;
   }
 

@@ -311,8 +311,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeTrapHandlerV2_12, sizeof(kCodeTrapHandlerV2_12), 2, 4},    // gfx12
            {kCodeTrapHandlerV2_1250, sizeof(kCodeTrapHandlerV2_1250), 2, 4},  // gfx1250
            {kCodeTrapHandlerV2_1260, sizeof(kCodeTrapHandlerV2_1260), 2, 4},  // gfx1260
-
-           {NULL, 0, 0, 0},                                                 // gfx13
+           {kCodeTrapHandlerV2_13, sizeof(kCodeTrapHandlerV2_13), 2, 4},    // gfx13
        }},
       {"CopyAligned",
        {
@@ -785,6 +784,10 @@ core::Blit* GpuAgent::CreateBlitSdma(bool use_xgmi, int rec_eng) {
       } else {
         sdma = static_cast<BlitSdmaBase*>(new BlitSdmaV5());
       }
+      copy_size_override = copy_size_overrides[1];
+      break;
+    case 13:
+      sdma = new BlitSdmaV6();
       copy_size_override = copy_size_overrides[1];
       break;
     default:
