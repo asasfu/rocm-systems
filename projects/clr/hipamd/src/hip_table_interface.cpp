@@ -3168,7 +3168,6 @@ hipError_t hipKernelGetParamInfo(hipKernel_t kernel, size_t paramIndex, size_t* 
   TRY;
   return hip::GetHipDispatchTable()->hipKernelGetParamInfo_fn(kernel, paramIndex, paramOffset,
                                                               paramSize);
-<<<<<<< HEAD
   CATCH;
 }
 hipError_t hipExtEnableLogging() {
@@ -3185,15 +3184,4 @@ hipError_t hipExtSetLoggingParams(size_t log_level, size_t log_size, size_t log_
   TRY;
   return hip::GetHipDispatchTable()->hipExtSetLoggingParams_fn(log_level, log_size, log_mask);
   CATCH;
-=======
-}
-hipError_t hipExtEnableLogging() {
-  return hip::GetHipDispatchTable()->hipExtEnableLogging_fn();
-}
-hipError_t hipExtDisableLogging() {
-  return hip::GetHipDispatchTable()->hipExtDisableLogging_fn();
-}
-hipError_t hipExtSetLoggingParams(size_t log_level, size_t log_size, size_t log_mask) {
-  return hip::GetHipDispatchTable()->hipExtSetLoggingParams_fn(log_level, log_size, log_mask);
->>>>>>> amd-npi
 }
