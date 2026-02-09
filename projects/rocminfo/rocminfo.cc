@@ -195,6 +195,7 @@ static const uint32_t kIndentSize = 2;
 
 static bool wsl_env = false;
 static bool dtif_env = false;
+static bool ffm_env = false;
 
 enum rocmi_int_format {
   ROCMI_INT_FORMAT_DEC = 1,
@@ -250,6 +251,15 @@ static void DetectDTIFEnvironment() {
     printf("HSA-DTIF environment detected.\n");
     dtif_env = true;
   }
+}
+
+static void DetectFFMEnvironment() {
+  char *var = getenv("HSA_MODEL_TOPOLOGY");
+  if (var == NULL)
+    return;
+
+  printf("FFM: environment detected with topology path: %s\n", var);
+  ffm_env = true;
 }
 
 static void printLabelInt(char const *l, int d, uint32_t indent_lvl = 0) {
@@ -1316,8 +1326,9 @@ int main() {
 
   DetectWSLEnvironment();
   DetectDTIFEnvironment();
+  DetectFFMEnvironment();
 
-  if (!(wsl_env || dtif_env) && CheckInitialState()) {
+  if (!(wsl_env || dtif_env || ffm_env) && CheckInitialState()) {
     return 1;
   }
   err = hsa_init();
