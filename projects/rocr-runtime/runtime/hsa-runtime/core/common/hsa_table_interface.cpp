@@ -1366,8 +1366,9 @@ hsa_status_t HSA_API hsa_amd_counted_queue_acquire(
 
 hsa_status_t HSA_API hsa_amd_counted_queue_release(hsa_queue_t* queue) {
   return amdExtTable->hsa_amd_counted_queue_release_fn(queue);
+}
 
-  hsa_status_t HSA_API hsa_amd_signal_get_event_id(hsa_signal_t signal, uint32_t *event_id) {
+hsa_status_t HSA_API hsa_amd_signal_get_event_id(hsa_signal_t signal, uint32_t *event_id) {
   return amdExtTable->hsa_amd_signal_get_event_id_fn(signal, event_id);
 }
 
