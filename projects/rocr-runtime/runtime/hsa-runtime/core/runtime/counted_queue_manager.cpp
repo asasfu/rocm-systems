@@ -79,7 +79,7 @@ core::Queue* CountedQueuePoolManager::FindOrCreateHardwareQueue(
   core::Queue* cmd_queue = nullptr;
   hsa_status_t status =
       agent_->QueueCreate(DEFAULT_QUEUE_SIZE, type, 0, callback, data, 0, 0,
-                                                false, &cmd_queue);
+                                                true, &cmd_queue);
   if (status != HSA_STATUS_SUCCESS) return nullptr;
 
   status = cmd_queue->SetPriority(priority);
