@@ -292,6 +292,12 @@ class Flag {
     var = os::GetEnvVar("HSA_ENABLE_DTIF");
     enable_dtif_ = (var == "1") ? true : false;
 
+    var = os::GetEnvVar("HSA_ENABLE_DTIF_FAST_COPY");
+    enable_dtif_fast_copy_ = (var == "1") ? true : false;
+
+    var = os::GetEnvVar("HSA_DTIF_SKIP_INV_CODE_CACHE");
+    enable_dtif_skip_inv_code_cache_ = (var == "1") ? true : false;
+
     // This allows detecting if the dxg driver is loaded.
     var = os::GetEnvVar("HSA_ENABLE_DXG_DETECTION");
     enable_dxg_detection_ = (var == "1") ? true : false;
@@ -461,6 +467,10 @@ class Flag {
 
   bool enable_dtif() const { return enable_dtif_; }
 
+  bool enable_dtif_fast_copy() const { return enable_dtif_fast_copy_; }
+
+  bool enable_dtif_skip_inv_code_cache() const { return enable_dtif_skip_inv_code_cache_; }
+
   bool enable_dxg_detection() const { return enable_dxg_detection_; }
 
   [[nodiscard]]
@@ -536,6 +546,8 @@ class Flag {
   int  async_events_thread_priority_;
   bool enable_3d_swizzle_ = false;
   bool enable_dtif_;
+  bool enable_dtif_fast_copy_;
+  bool enable_dtif_skip_inv_code_cache_;
   bool enable_dxg_detection_;
   int cacheline_size_override_ = -1;
   SDMA_OVERRIDE enable_sdma_;
