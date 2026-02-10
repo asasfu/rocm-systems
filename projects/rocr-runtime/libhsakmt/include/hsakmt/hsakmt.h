@@ -417,6 +417,12 @@ hsaKmtGetQueueInfo(
     HsaQueueInfo *QueueInfo	//IN
 );
 
+HSAKMT_STATUS
+HSAKMTAPI
+hsaKmtQueueRingDoorbell(
+    HSA_QUEUEID QueueId
+);
+
 /**
   Allows an HSA process to set/change the default and alternate memory coherency, before starting to dispatch. 
 */

@@ -92,9 +92,13 @@ Settings::Settings() {
   gwsInitSupported_ = true;
   limit_blit_wg_ = 16;
 
-  dynamic_queues_ = amd::IS_HIP ? DEBUG_HIP_DYNAMIC_QUEUES : false;
+  dynamic_queues_ = amd::IS_HIP ? DEBUG_HIP_DYNAMIC_QUEUES : 0;
   // note: OCL user events don't allow CPU blocking calls in DD mode
   blocking_blit_ = amd::IS_HIP || !AMD_DIRECT_DISPATCH;
+
+  max_hw_queues_ = GPU_MAX_HW_QUEUES;
+
+  queue_pipe_dist_ = false;
 }
 
 // ================================================================================================
@@ -154,6 +158,7 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
         (gfxStepping == 0 || gfxStepping == 1 || gfxStepping == 2)))) {
     // Enable Barrier Value packet is only for MI2XX/300
     barrier_value_packet_ = true;
+    queue_pipe_dist_ = DEBUG_HIP_DYNAMIC_QUEUES == 2 ? true : false;
   }
 
   setKernelArgImpl(isa, isXgmi, hasValidHDPFlush);
@@ -183,6 +188,10 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
     gwsInitSupported_ = false;
   }
 
+  if (GPU_MIPMAP) {
+    enableExtension(ClKhrMipMapImage);
+    enableExtension(ClKhrMipMapImageWrites);
+  }
   if (gfxipMajor == 12 && gfxipMinor >= 5) {
     ext_dispatch_packet_ = true;
     groupMemCarveout_ = true;

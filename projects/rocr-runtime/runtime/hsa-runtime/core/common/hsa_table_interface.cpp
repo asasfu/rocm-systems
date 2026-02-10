@@ -1356,6 +1356,18 @@ hsa_status_t HSA_API hsa_amd_ais_file_read(hsa_amd_ais_file_handle_t handle, voi
                                            size_copied, status);
 }
 
+hsa_status_t HSA_API hsa_amd_counted_queue_acquire(
+    hsa_agent_t agent, hsa_queue_type_t type, hsa_amd_queue_priority_t priority,
+    void (*callback)(hsa_status_t status, hsa_queue_t* source, void* data), void* data,
+    uint64_t flags, hsa_queue_t** queue) {
+  return amdExtTable->hsa_amd_counted_queue_acquire_fn(agent, type, priority, callback, data, flags,
+                                                    queue);
+}
+
+hsa_status_t HSA_API hsa_amd_counted_queue_release(hsa_queue_t* queue) {
+  return amdExtTable->hsa_amd_counted_queue_release_fn(queue);
+}
+
 hsa_status_t HSA_API hsa_amd_signal_get_event_id(hsa_signal_t signal, uint32_t *event_id) {
   return amdExtTable->hsa_amd_signal_get_event_id_fn(signal, event_id);
 }

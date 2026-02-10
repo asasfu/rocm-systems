@@ -1467,6 +1467,22 @@ typedef union rocprofiler_hsa_api_args_t
 #    if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x09
     struct
     {
+        hsa_agent_t              agent;
+        hsa_queue_type_t         type;
+        hsa_amd_queue_priority_t priority;
+        void (*callback)(hsa_status_t status, hsa_queue_t* source, void* data);
+        void*         data;
+        uint64_t      flags;
+        hsa_queue_t** queue;
+    } hsa_amd_counted_queue_acquire;
+    struct
+    {
+        hsa_queue_t* queue;
+    } hsa_amd_counted_queue_release;
+#    endif
+#    if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x10
+    struct
+    {
         hsa_fabric_handle_t*        fabric_handle;
         hsa_amd_vmem_alloc_handle_t handle;
         uint64_t                    flags;
