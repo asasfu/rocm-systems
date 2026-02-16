@@ -2673,7 +2673,7 @@ static void *map_mmio(HsaKFDContext *ctx,
 	pthread_mutex_unlock(&aperture->fmm_mutex);
 
 	if (hsakmt_use_model) {
-		model_set_mmio_page(mem);
+		/* FFM handles MMIO internally */
 		return mem;
 	}
 
@@ -2708,10 +2708,6 @@ static void release_mmio(HsaKFDContext *ctx)
 		munmap(fmm_ctx->gpu_mem[gpu_mem_id].mmio_aperture.base, PAGE_SIZE);
 		hsakmt_fmm_release(ctx, fmm_ctx->gpu_mem[gpu_mem_id].mmio_aperture.base);
 	}
-
-		if (hsakmt_use_model) {
-			model_clear_mmio_page();
-		}
 }
 
 HSAKMT_STATUS hsakmt_fmm_get_amdgpu_device_handle(HsaKFDContext *ctx,

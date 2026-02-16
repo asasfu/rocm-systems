@@ -111,7 +111,9 @@ static void clear_after_fork(HsaKFDContext *ctx)
 	int fd = ctx->fd;
 	if (fd >= 0) {
 		hsakmt_kfdcontext_clear_context(ctx);
-		close(fd);
+		/* Don't close the memfd when using model - FFM owns its lifecycle */
+		if (!hsakmt_use_model)
+			close(fd);
  	}
 	if (hsakmt_udmabuf_dev_fd > 0) {
 		close(hsakmt_udmabuf_dev_fd);
@@ -279,7 +281,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCloseKFDCtx(void)
 			if (hsakmt_use_model && hsakmt_primary_kfd_ctx.fd >= 0) {
 				close(hsakmt_primary_kfd_ctx.fd);
 				hsakmt_kfdcontext_clear_context(&hsakmt_primary_kfd_ctx);
-				model_clear_event_page();
+
 			}
 		}
 
