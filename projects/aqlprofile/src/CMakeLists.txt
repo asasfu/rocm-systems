@@ -20,10 +20,12 @@ set ( LIB_SRC
   ${LIB_DIR}/core/gfx11_factory.cpp
   ${LIB_DIR}/core/gfx115x_factory.cpp
   ${LIB_DIR}/core/gfx12_factory.cpp
+  ${LIB_DIR}/core/gfx1250_factory.cpp
   ${LIB_DIR}/core/vega20_reg_init.cpp
   ${LIB_DIR}/core/parse_ip_discovery.cpp
   ${LIB_DIR}/core/navi_reg_init.cpp
   ${LIB_DIR}/core/ip_offset_table_init.cpp
+  ${LIB_DIR}/core/soc_v1_0_reg_init.cpp
   ${LIB_DIR}/util/hsa_rsrc_factory.cpp
 )
 

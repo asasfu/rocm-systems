@@ -193,6 +193,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtDestroyEventCtx(HsaKFDContext *ctx,
 		return HSAKMT_STATUS_ERROR;
 
 	free(Event);
+
 	return HSAKMT_STATUS_SUCCESS;
 }
 
