@@ -951,7 +951,7 @@
   v_writelane_b32   v2, ttmp6, 0                            // Store wave_in_group in v2
 
   // Write wave_in_group and chiplet (0 on gfx12.0)
-  global_store_b32  v[0:1], v2, off, offset:SAMPLE_OFF_WAVE_IN_GROUP_CHIPLET, scope:SCOPE_SYS
+  global_store_b32  v[0:1], v2, off, offset:SAMPLE_OFF_BITFIELD, scope:SCOPE_SYS
 
   // The following is still true as we get ready to jump to correlation ID check
   // v[0:1] = &buffer[local_entry]
