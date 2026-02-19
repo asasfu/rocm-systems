@@ -84,6 +84,9 @@
 
 .set TRAP_ID_ABORT                                 , 2
 .set TRAP_ID_DEBUGTRAP                             , 3
+.if .amdgcn.gfx_generation_minor == 0
+  .set TTMP1_SCHED_MODE_MASK                       , 0xC000000
+.endif
 
 .set TTMP6_SAVED_STATUS_HALT_MASK                  , (1 << TTMP6_SAVED_STATUS_HALT_SHIFT)
 .set TTMP6_SAVED_STATUS_HALT_SHIFT                 , 29
@@ -97,6 +100,12 @@
 .set TTMP8_DEBUG_FLAG_SHIFT                        , 31
 
 .set TTMP11_DEBUG_ENABLED_SHIFT                    , 23
+.if .amdgcn.gfx_generation_minor == 0
+  .set TTMP11_SCHED_MODE_SHIFT                     , 26
+  .set TTMP11_SCHED_MODE_SIZE                      , 2
+  .set TTMP11_SCHED_MODE_MASK                      , 0xC000000
+  .set TTMP11_SCHED_MODE_BFE                       , (TTMP11_SCHED_MODE_SHIFT | (TTMP11_SCHED_MODE_SIZE << 16))
+.endif
 .if .amdgcn.gfx_generation_minor == 5
   .set TTMP11_SAVED_TRAP_ID_SHIFT                  , 28
   .set TTMP11_SAVED_TRAP_ID_SIZE                   , 4
@@ -415,42 +424,23 @@
   global_store_b32  v[0:1], v2, off, offset:SAMPLE_OFF_HW_ID, scope:SCOPE_SYS
 .endm
 
-// ABI between first and second level trap handler:
-//
-//   gfx12
-//     { ttmp1, ttmp0 } = TrapID[3:0], zeros, PC[47:0]
-//     ttmp11 = 0[7:0], DebugEnabled[0], 0[15:0], NoScratch[0], 0[5:0]
-//   gfx12.5
-//     { ttmp1, ttmp0 } = TrapID[3:0], 0[2:0], PC[56:0]
-//     ttmp11 = 0[7:0], DebugEnabled[0], SQ_WAVE_XNACK_STATE_PRIV[18],
-//              SQ_WAVE_XNACK_STATE_PRIV[16], SQ_WAVE_STATE_PRIV[6:0], 0[13:0]
-//
-//     ttmp12 = SQ_WAVE_STATE_PRIV (Private wave state register value).
-//     ttmp14 = TMA[31:0] - TMA_LO (Trap Memory Argument Low - base address for trap handler data, low 32 bits).
-//     ttmp15 = TTMA[63:32] - TMA_HI (Trap Memory Argument High - base address for trap handler data, high 32 bits).
-//
-// Restricted register list:
-//   gfx12:
-//     ttmp[0:1] - Must be preserved for RFE
-//     ttmp[7:9] - Contain workgroup information, must be preserved
-//     ttmp12    - Contains SQ_WAVE_STATE_PRIV, must be preserved
-//     ttmp[14:15] - Contain TMA address, must be preserved
-//
-//   gfx12.5:
-//     ttmp[0:1] - Must be preserved for RFE
-//     ttmp6    -  Contains workgroup info if clusters enabled, only bits [31:28] can be modified
-//     ttmp[7:9] - Contain workgroup information, must be preserved
-//     ttmp11      - Only bits [13:0] and [31:28] can be modified, bits [27:14] contain XNACK/debugger state
-//     ttmp12    - Contains SQ_WAVE_STATE_PRIV, must be preserved
-//     ttmp[14:15] - Contain TMA address, must be preserved
-//
-// Safe to use as scratch:
-//   gfx12: ttmp[2:6], ttmp10, ttmp13
-//   gfx12.5: ttmp[2:5], ttmp10, ttmp13 (bits [21:0] used for XNACK/MODE), exec_hi, vcc_hi
-
+// ABI (Application Binary Interface) between first and second-level trap handler:
+//   ttmp0: PC_LO[31:0] (Program Counter Low)
+//   ttmp1: TrapID[3:0], SCHED_MODE[1:0], 0[9:0], PC_HI[15:0] (Program Counter High)
+//   ttmp11: ?[7:0], DebugEnabled[0], PRESERVED[15:0], ?[6:0]
+//   ttmp12: SQ_WAVE_STATE_PRIV (Private wave state register value).
+//   ttmp14: TMA[31:0] - TMA_LO (Trap Memory Argument Low - base address for trap handler data, low 32 bits).
+//   ttmp15: TTMA[63:32] - TMA_HI (Trap Memory Argument High - base address for trap handler data, high 32 bits).
+//   For PC Sampling, this points to pcs_hosttrap_data_ or pcs_stochastic_data_
  trap_entry:
-  s_mov_b32         ttmp3, 0                                 // Clear ttmp3 as it will contain the exception code
-  s_mov_b32         ttmp13, 0
+ .if .amdgcn.gfx_generation_minor == 0
+    // Save SCHED_MODE from ttmp1[27:26] into ttmp11[27:26]. We will restore it on exit
+    s_andn2_b32         ttmp11, ttmp11, TTMP11_SCHED_MODE_MASK
+    s_and_b32           ttmp2,  ttmp1, TTMP1_SCHED_MODE_MASK
+    s_or_b32            ttmp11, ttmp2, TTMP1_SCHED_MODE_MASK
+  .endif
+  s_mov_b32           ttmp3, 0
+
 .check_hosttrap:
 
   // ttmp[14:15] points to TMA.
@@ -472,7 +462,7 @@
   s_getreg_b32      ttmp2, hwreg(HW_REG_EXCP_FLAG_PRIV)     // EXCP_FLAG_PRIV.b10=stochastic_sample_trap
   s_bitcmp1_b32     ttmp2, SQ_WAVE_EXCP_FLAG_PRIV_PERF_SNAPSHOT_SHIFT // Test Performance Snapshot bit.
 
-  s_cbranch_scc0    .handle_sw_trap                       // If not Stochastic, continue to check trap ID
+  s_cbranch_scc0    .handle_sw_trap                         // If not Stochastic, continue to check trap ID
 
   s_load_b64        ttmp[14:15], ttmp[14:15], 0x8, scope:SCOPE_CU  // ttmp[14:15]=*stoch_trap_buf
   s_wait_kmcnt      0
@@ -631,12 +621,12 @@
   // Register layout before parking the wave:
   //
   // ttmp10: ?[31:0]
-  // ttmp11: 1st_level_ttmp11[31:23] 0[15:0] 1st_level_ttmp11[6:0]
+  // ttmp11: 1st_level_ttmp11[31:28] SCHED_MODE[1:0] 1st_level_ttmp11[25:23] 0[15:0] 1st_level_ttmp11[6:0]
   //
   // After parking the wave:
   //
   // ttmp10: pc_lo[31:0]
-  // ttmp11: 1st_level_ttmp11[31:23] pc_hi[15:0] 1st_level_ttmp11[6:0]
+  // ttmp11: 1st_level_ttmp11[31:28] SCHED_MODE[1:0] 1st_level_ttmp11[25:23] pc_hi[15:0] 1st_level_ttmp11[6:0]
   //
   // Save the PC
   s_mov_b32         ttmp10, ttmp0
@@ -942,6 +932,27 @@
   STORE_HW_ID ttmp6
 .endif
 
+  // The following is still true
+  // v[0:1] = &buffer[local_entry]
+  // v[2:3] = free
+  // ttmp[2:3] holds backup of original shader's v[0:1]
+  // ttmp[4:5] holds backup of original shader's v[2:3]
+  // ttmp6 = free
+  // ttmp[10:11] holds original shader's [exec_lo,exec_hi]
+  // ttmp[14:15]=tma, ttmp13.b31 = buf_to_use
+  // EXEC is 0x1
+
+  // Store wave_in_group and chiplet information in the following format:
+  // Bits [5:0]   = wave_in_wg (5 bits from ttmp8[29:25])
+  // bits [10:8]  = chiplet (zero on gfx12.0)
+  // Bits [7:6] and [31:11] = reserved and must be zero
+
+  s_bfe_u32         ttmp6, ttmp8, (WAVE_ID_WG_BIT_POSITION | (5 << 16)) // Extract 5 bits
+  v_writelane_b32   v2, ttmp6, 0                            // Store wave_in_group in v2
+
+  // Write wave_in_group and chiplet (0 on gfx12.0)
+  global_store_b32  v[0:1], v2, off, offset:SAMPLE_OFF_BITFIELD, scope:SCOPE_SYS
+
   // The following is still true as we get ready to jump to correlation ID check
   // v[0:1] = &buffer[local_entry]
   // v[2:3] = free
@@ -973,7 +984,6 @@
   // ttmp[10:11] holds original shader's [exec_lo,exec_hi]
   // ttmp[14:15]=tma, ttmp13.b31 = buf_to_use
   // EXEC is 0x1
-  //
   s_branch          .ret_from_fill_sample
 
 .fill_sample_stoch:
@@ -1292,6 +1302,12 @@
 .endif
 
 .exit_trap:
+
+.if .amdgcn.gfx_generation_minor == 0
+    // Restore ttmp11[27:26] into SCHED_MODE[0:1]
+    s_bfe_u32         ttmp2, ttmp11, TTMP11_SCHED_MODE_BFE
+    s_setreg_b32      hwreg(HW_REG_WAVE_SCHED_MODE, 0, 2), ttmp2
+.endif
 
 .if .amdgcn.gfx_generation_minor == 5
  // VGPR MSB Fixup Function for GFX12.5

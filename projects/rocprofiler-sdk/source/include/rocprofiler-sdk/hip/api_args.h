@@ -3400,6 +3400,20 @@ typedef union rocprofiler_hip_api_args_t
 #if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 22
     struct
     {
+        hipMemLocation*      location;
+        hipMemAllocationType type;
+        hipMemPool_t         pool;
+    } hipMemSetMemPool;
+    struct
+    {
+        hipMemPool_t*        pool;
+        hipMemLocation*      location;
+        hipMemAllocationType type;
+    } hipMemGetMemPool;
+#endif
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 23
+    struct
+    {
         int*                     clusterSize;
         const void*              f;
         const hipLaunchConfig_t* config;
