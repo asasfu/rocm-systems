@@ -61,7 +61,7 @@ __FP4_HOST_DEVICE_STATIC__ __hip_fp4_storage_t __hip_cvt_bfloat16raw_to_fp4(
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk_fp4_bf16(
       u.ui32, internal::hipbf162_to_bf16x2(__hip_bfloat162{x, 0}), 1.0f /* scale */, 0);
   return u.fp4[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_bf16x8_storage_t bf16x8{
       internal::hipbf16_to_bf16(__hip_bfloat16(x)), internal::hipbf16_to_bf16(__hip_bfloat16(x)),
       internal::hipbf16_to_bf16(__hip_bfloat16(x)), internal::hipbf16_to_bf16(__hip_bfloat16(x)),
@@ -87,7 +87,7 @@ __FP4_HOST_DEVICE_STATIC__ __hip_fp4x2_storage_t __hip_cvt_bfloat16raw2_to_fp4x2
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk_fp4_bf16(u.ui32, internal::hipbf162_to_bf16x2(x),
                                                      1.0f /* scale */, 0);
   return u.fp4x2[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   auto bf16x2 = internal::hipbf162_to_bf16x2(x);
   __amd_bf16x8_storage_t bf16x8{bf16x2[0], bf16x2[1], bf16x2[0], bf16x2[1],
                                 bf16x2[0], bf16x2[1], bf16x2[0], bf16x2[1]};
@@ -114,7 +114,7 @@ __hip_cvt_double_to_fp4(const double x, const __hip_fp4_interpretation_t /* fp4_
 #if __gfx950__
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk_fp4_f32(u.ui32, float(x), 0.0f, 1.0f /* scale */, 0);
   return u.fp4[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_floatx8_storage_t fpx8{x, x, x, x, x, x, x, x};
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk8_fp4_f32(fpx8, 1.0f /* scale */);
   return u.fp4[0] >> 4;
@@ -135,7 +135,7 @@ __FP4_HOST_DEVICE_STATIC__ __hip_fp4x2_storage_t __hip_cvt_double2_to_fp4x2(
   u.ui32 =
       __builtin_amdgcn_cvt_scalef32_pk_fp4_f32(u.ui32, float(x.x), float(x.y), 1.0f /* scale */, 0);
   return u.fp4x2[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_floatx8_storage_t fpx8{x.x, x.y, x.x, x.y, x.x, x.y, x.x, x.y};
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk8_fp4_f32(fpx8, 1.0f /* scale */);
   return u.fp4x2[0];
@@ -157,7 +157,7 @@ __hip_cvt_float_to_fp4(const float x, const __hip_fp4_interpretation_t /* fp4_in
 #if __gfx950__
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk_fp4_f32(u.ui32, x, 0.0f, 1.0f /* scale */, 0);
   return u.fp4[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_floatx8_storage_t fpx8{x, x, x, x, x, x, x, x};
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk8_fp4_f32(fpx8, 1.0f /* scale */);
   return u.fp4[0] & 0xFu;
@@ -177,7 +177,7 @@ __hip_cvt_float2_to_fp4x2(const float2 x, const __hip_fp4_interpretation_t /* fp
 #if __gfx950__
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk_fp4_f32(u.ui32, x.x, x.y, 1.0f /* scale */, 0);
   return u.fp4x2[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_floatx8_storage_t fpx8{x.x, x.y, x.x, x.y, x.x, x.y, x.x, x.y};
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk8_fp4_f32(fpx8, 1.0f /* scale */);
   return u.fp4x2[0];
@@ -194,7 +194,7 @@ __FP4_HOST_DEVICE_STATIC__ __half_raw __hip_cvt_fp4_to_halfraw(
   __half2_raw ret;
 #if __gfx950__
   ret.data = __amd_fp16x2_storage_t{__builtin_amdgcn_cvt_scalef32_pk_f16_fp4(x, 0, 0)};
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   unsigned int scale = 127u;  // gfx1250 expects scale in E8M0 type and its packedx4
   auto fp16x8 = __builtin_amdgcn_cvt_scale_pk8_f16_fp4(unsigned(x), scale, 0);
   ret.data = fp16x8[0];
@@ -212,7 +212,7 @@ __FP4_HOST_DEVICE_STATIC__ __half2_raw __hip_cvt_fp4x2_to_halfraw2(
   __half2_raw ret;
 #if __gfx950__
   ret.data = __amd_fp16x2_storage_t{__builtin_amdgcn_cvt_scalef32_pk_f16_fp4(x, 0, 0)};
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   unsigned int scale = 127u;
   auto fp16x8 = __builtin_amdgcn_cvt_scale_pk8_f16_fp4(unsigned(x), scale, 0);
   ret.data = __amd_fp16x2_storage_t{fp16x8[0], fp16x8[1]};
@@ -236,7 +236,7 @@ __FP4_HOST_DEVICE_STATIC__ __hip_fp4_storage_t __hip_cvt_halfraw_to_fp4(
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk_fp4_f16(u.ui32, internal::half2_to_f16x2(__half2{x, 0}),
                                                     1.0f /* scale */, 0);
   return u.fp4[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_fp16x8_storage_t fp16x2{internal::half_to_f16(x), internal::half_to_f16(x),
                                 internal::half_to_f16(x), internal::half_to_f16(x),
                                 internal::half_to_f16(x), internal::half_to_f16(x),
@@ -261,7 +261,7 @@ __FP4_HOST_DEVICE_STATIC__ __hip_fp4x2_storage_t __hip_cvt_halfraw2_to_fp4x2(
   u.ui32 = __builtin_amdgcn_cvt_scalef32_pk_fp4_f16(u.ui32, internal::half2_to_f16x2(x),
                                                     1.0f /* scale */, 0);
   return u.fp4x2[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_fp16x8_storage_t fp16x2{internal::half_to_f16(x.x), internal::half_to_f16(x.y),
                                 internal::half_to_f16(x.x), internal::half_to_f16(x.y),
                                 internal::half_to_f16(x.x), internal::half_to_f16(x.y),
@@ -337,7 +337,7 @@ struct __hip_fp4_e2m1 {
     } u;
 #if __gfx950__
     u.bf16x2 = __builtin_amdgcn_cvt_scalef32_pk_bf16_fp4(__x, 1.0f /* scale */, 0);
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
     auto bf16x8 = __builtin_amdgcn_cvt_scale_pk8_bf16_fp4(__x, 127u /* scale */, 0);
     u.bf16x2 = __amd_bf16x2_storage_t{bf16x8[0], bf16x8[1]};
 #else
@@ -352,7 +352,7 @@ struct __hip_fp4_e2m1 {
   __FP4_HOST_DEVICE__ operator float() const {
 #if __gfx950__
     auto ret = __builtin_amdgcn_cvt_scalef32_pk_f32_fp4(__x, 1.0f /* scale */, 0);
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
     constexpr unsigned int scale = 127u;
     auto ret = __builtin_amdgcn_cvt_scale_pk8_f32_fp4(unsigned(__x), scale, 0);
 #else
@@ -401,7 +401,7 @@ struct __hip_fp4x2_e2m1 {
     } u;
 #if __gfx950__
     u.bf16x2 = __builtin_amdgcn_cvt_scalef32_pk_bf16_fp4(__x, 1.0f /* scale */, 0);
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
     auto bf16x8 = __builtin_amdgcn_cvt_scale_pk8_bf16_fp4(__x, 127u, 0);
     u.bf16x2 = __amd_bf16x2_storage_t{bf16x8[0], bf16x8[1]};
 #else
@@ -416,7 +416,7 @@ struct __hip_fp4x2_e2m1 {
   __FP4_HOST_DEVICE__ operator float2() const {
 #if __gfx950__
     auto fp32 = __builtin_amdgcn_cvt_scalef32_pk_f32_fp4(__x, 1.0f /* scale */, 0);
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
     constexpr unsigned int scale = 127u;
     auto fp32 = __builtin_amdgcn_cvt_scale_pk8_f32_fp4(__x, scale, 0);
 #else
@@ -430,7 +430,7 @@ struct __hip_fp4x2_e2m1 {
   __FP4_HOST_DEVICE__ operator double2() const {
 #if __gfx950__
     auto fp32 = __builtin_amdgcn_cvt_scalef32_pk_f32_fp4(__x, 1.0f /* scale */, 0);
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
     constexpr unsigned int scale = 127u;
     auto fp32 = __builtin_amdgcn_cvt_scale_pk8_f32_fp4(__x, scale, 0);
 #else
@@ -473,7 +473,7 @@ struct __hip_fp4x4_e2m1 {
 #if __gfx950__
     auto fp32x2_1 = __builtin_amdgcn_cvt_scalef32_pk_f32_fp4(__x & 0xFFu, 1.0f /* scale */, 0);
     auto fp32x2_2 = __builtin_amdgcn_cvt_scalef32_pk_f32_fp4(__x >> 8, 1.0f /* scale */, 0);
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
     constexpr unsigned int scale = 127u;
     auto fp32 = __builtin_amdgcn_cvt_scale_pk8_f32_fp4(unsigned(__x), scale, 0);
     __amd_floatx8_storage_t fp32x2_1{fp32[0], fp32[1]}, fp32x2_2{fp32[2], fp32[3]};

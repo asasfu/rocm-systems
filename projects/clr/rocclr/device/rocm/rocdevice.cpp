@@ -1055,7 +1055,7 @@ bool Device::populateOCLDeviceConstants() {
 
   // Currently KFD returns cache line size as 128. override cache line size to 256 for gfx1250,
   // as it is used for kern arg alignment.
-  if ((isa().versionMajor() == 12 && isa().versionMinor() == 5 && isa().versionStepping() == 0)
+  if ((isa().versionMajor() == 12 && (isa().versionMinor() == 5 || isa().versionMinor() == 6) && isa().versionStepping() == 0)
 		  && (info_.globalMemCacheLineSize_ < 256)) {
     info_.globalMemCacheLineSize_ = 256;
   }

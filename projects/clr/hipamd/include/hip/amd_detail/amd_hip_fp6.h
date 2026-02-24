@@ -68,7 +68,7 @@ __FP6_HOST_DEVICE_STATIC__ __hip_fp6_storage_t __hip_cvt_bfloat16raw_to_fp6(
     out = __builtin_amdgcn_cvt_scalef32_pk32_bf6_bf16(in, 1.0f /* scale */);
   u.ui32 = out[0];
   return u.fp6[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   typedef unsigned int __attribute__((ext_vector_type(3))) uintx3;
   __amd_bf16x16_storage_t in;
   uintx3 out;
@@ -121,7 +121,7 @@ __hip_cvt_double_to_fp6(const double x, const __hip_fp6_interpretation_t fp6_int
     out = __builtin_amdgcn_cvt_scalef32_2xpk16_bf6_f32(in1, in2, 1.0f /* scale */);
   u.ui32 = out[0];
   return u.fp6[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_floatx16_storage_t in{0.0f};
   typedef unsigned int __attribute__((ext_vector_type(3))) uintx3;
   uintx3 out;
@@ -160,7 +160,7 @@ __hip_cvt_float_to_fp6(const float x, const __hip_fp6_interpretation_t fp6_inter
     out = __builtin_amdgcn_cvt_scalef32_2xpk16_bf6_f32(in1, in2, 1.0f /* scale */);
   u.ui32 = out[0];
   return u.fp6[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_floatx16_storage_t in;
   typedef unsigned int __attribute__((ext_vector_type(3))) uintx3;
   uintx3 out;
@@ -200,7 +200,7 @@ __hip_cvt_float2_to_fp6x2(const float2 x, const __hip_fp6_interpretation_t fp6_i
   u.ui32 = out[0] & 0x3Fu;
   u.ui32 |= ((out[0] & 0xFC0u) << 2);
   return u.fp6x2[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   __amd_floatx16_storage_t in{0.0f};
   typedef unsigned int __attribute__((ext_vector_type(3))) uintx3;
   uintx3 out;
@@ -246,7 +246,7 @@ __FP6_HOST_DEVICE_STATIC__ __half_raw __hip_cvt_fp6_to_halfraw(
   else if (fp6_interpretation_t == __HIP_E3M2)
     out = __builtin_amdgcn_cvt_scalef32_pk32_f16_bf6(in, 1.0f);
   ret.data = out[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   typedef unsigned int __attribute__((ext_vector_type(3))) uintx3;
   __amd_fp16x16_storage_t out;
   uintx3 in;
@@ -279,7 +279,7 @@ __FP6_HOST_DEVICE_STATIC__ __half2_raw __hip_cvt_fp6x2_to_halfraw2(
   else if (fp6_interpretation_t == __HIP_E3M2)
     out = __builtin_amdgcn_cvt_scalef32_pk32_f16_bf6(in, 1.0f);
   ret.data = {out[0], out[1]};
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   typedef unsigned int __attribute__((ext_vector_type(3))) uintx3;
   __amd_fp16x16_storage_t out;
   uintx3 in;
@@ -321,7 +321,7 @@ __hip_cvt_halfraw_to_fp6(const __half_raw x, const __hip_fp6_interpretation_t fp
     out = __builtin_amdgcn_cvt_scalef32_pk32_bf6_f16(in, 1.0f);
   u.ui32 = out[0];
   return u.fp6[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   typedef unsigned int __attribute__((ext_vector_type(3))) uintx3;
   __amd_fp16x16_storage_t in;
   uintx3 out;
@@ -362,7 +362,7 @@ __FP6_HOST_DEVICE_STATIC__ __hip_fp6x2_storage_t __hip_cvt_halfraw2_to_fp6x2(
   u.ui32 = out[0] & 0x3Fu;
   u.ui32 |= ((out[0] & 0xFC0u) << 2);
   return u.fp6x2[0];
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
   typedef unsigned int __attribute__((ext_vector_type(3))) uintx3;
   __amd_fp16x16_storage_t in;
   uintx3 out;
@@ -575,7 +575,7 @@ struct __hip_fp6x2_e2m3 {
     in[0] = __x & 0x3Fu;            // first 6 bits
     in[0] |= (__x & 0xFC00u) >> 2;  // next 6 bits
     auto fp32x2 = __builtin_amdgcn_cvt_scalef32_pk32_f32_fp6(in, 1.0f /* scale */);
-#elif __gfx1250__
+#elif (defined(__gfx1250__) || defined(__gfx1260__))
     typedef unsigned int __attribute__((ext_vector_type(3))) uintx3;
     uintx3 in{0};
     in[0] = __x & 0x3Fu;  // first 6 bits

@@ -791,7 +791,7 @@ __device__ inline __attribute__((convergent)) int __syncthreads_or(int predicate
 #define XCC_ID_XCC_ID_OFFSET 0
 #endif
 
-#if defined(__gfx1250__) || defined(__gfx1251__)
+#if defined(__gfx1250__) || defined(__gfx1251__) || defined(__gfx1260__)
   #define __gfx125plus_clr__
   #define SE_HW_ID_XCC_ID_SIZE     4
   #define SE_HW_ID_XCC_ID_OFFSET   16
