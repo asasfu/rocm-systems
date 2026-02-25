@@ -196,6 +196,19 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
 
   max_wave_scratch_ = (isa_->GetMajorVersion() >= 12) ? MAX_WAVE_SCRATCH_GFX12 : MAX_WAVE_SCRATCH;
 
+  if (isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5) {
+    extended_aql_dispatch_supported_ = true;
+    workgroup_clusters_supported_ = true;
+  }
+
+  if (isa_->GetMajorVersion() >= 12)
+    kern_cluster_max_dim_ = { UINT32_MAX, UINT16_MAX, UINT16_MAX };
+
+  if (workgroup_clusters_supported_) {
+    const uint64_t num_cu_per_se = properties_.NumArrays * properties_.NumCUPerArray;
+    cluster_max_dim_ = { num_cu_per_se, num_cu_per_se, num_cu_per_se };
+  }
+
   current_coherency_type((profile_ == HSA_PROFILE_FULL)
                              ? HSA_AMD_COHERENCY_TYPE_COHERENT
                              : HSA_AMD_COHERENCY_TYPE_NONCOHERENT);
