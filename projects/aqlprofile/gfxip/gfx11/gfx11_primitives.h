@@ -561,7 +561,7 @@ class gfx11_cntx_prim {
 
   // Indicate the different TT messages/tokens that should be enabled/logged
   // Indicate the different TT tokens that specify register operations to be logged
-  static uint32_t sqtt_token_mask_on_value() {
+  static uint32_t sqtt_token_mask_on_value(bool) {
 #if SQTT_PRIM_ENABLED
     uint32_t sq_thread_trace_token_mask =
         SET_REG_FIELD_BITS(SQ_THREAD_TRACE_TOKEN_MASK, REG_EXCLUDE, 0x3) |

@@ -587,7 +587,7 @@ class gfx9_cntx_prim {
   static const uint32_t SQTT_TOKEN_ISSUE = 1 << 13;
   static const uint32_t SQTT_TOKEN_REG_CS_PRIV = 1 << 15;
 
-  static uint32_t sqtt_token_mask_on_value() {
+  static uint32_t sqtt_token_mask_on_value(bool) {
     uint32_t sq_thread_trace_token_mask;
     uint32_t sq_thread_trace_token_mask_token_mask =
         SQTT_TOKEN_MISC | SQTT_TOKEN_TIME | SQTT_TOKEN_REG | SQTT_TOKEN_WAVE_START |

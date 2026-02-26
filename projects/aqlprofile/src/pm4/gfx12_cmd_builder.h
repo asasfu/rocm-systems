@@ -366,7 +366,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
   }
 
   void BuildPredExecPacket(CmdBuffer* cmdbuf, uint32_t xcc_select = 0, uint32_t exec_count = 0) {
-#if GFX12_VARIANT >= GFX12_VARIANT_1250
+//#if GFX12_VARIANT >= GFX12_VARIANT_1250
     uint32_t header = MakePacket3Header(PACKET3_PRED_EXEC, 2 * sizeof(uint32_t));
     uint32_t virtualxccid_select = 1 << xcc_select;
     uint32_t dword2 = PACKET3_PRED_EXEC__EXEC_COUNT(exec_count) |
@@ -375,7 +375,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
     // build the pm4_mec_pred_exec command which has 2 Dwords
     uint32_t pm4_mec_pred_exec_cmd[2] = {header, dword2};
     APPEND_COMMAND_WRAPPER(cmdbuf, pm4_mec_pred_exec_cmd);
-#endif
+//#endif
   }
 
   void BuildMutexAcquirePacket(CmdBuffer* cmdbuf, size_t addr) override {
