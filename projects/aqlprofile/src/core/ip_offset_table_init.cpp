@@ -58,7 +58,9 @@ class locked_ip_offset_table_cache {
       std::unique_lock lock{mutex};
       const reg_base_offset_table* table = nullptr;
 
-      if (auto gfxip_prefix = gfxip.substr(0, 4); gfxip_prefix == "gfx9")
+      if (std::string_view(agent_info->name).substr(0, 6) == "gfx125")
+        table = soc_v1_0_reg_base_init();
+      else if (auto gfxip_prefix = gfxip.substr(0, 4); gfxip_prefix == "gfx9")
         table = vega20_reg_base_init();
       else {
         if (auto gfxip_prefix = gfxip.substr(0, 5);
