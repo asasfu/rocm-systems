@@ -104,8 +104,8 @@ static constexpr PalDevice supportedPalDevices[] = {
     {11, 5, 2, Pal::GfxIpLevel::GfxIp11_5, "gfx1152", Pal::AsicRevision::Krackan1},
     {12, 0, 0, Pal::GfxIpLevel::GfxIp12, "gfx1200", Pal::AsicRevision::Navi44},
     {12, 0, 1, Pal::GfxIpLevel::GfxIp12, "gfx1201", Pal::AsicRevision::Navi48},
-#if PAL_BUILD_AT2 || PAL_BUILD_GFX13
-    {13, 1, 0,  Pal::GfxIpLevel::GfxIp13, "gfx1310", Pal::AsicRevision::AlphaTrion2},
+#if PAL_BUILD_ALPHA_TRION2
+    {13, 1, 0,  Pal::GfxIpLevel::GfxIp13_1, "gfx1310", Pal::AsicRevision::AlphaTrion2},
 #endif
 };
 
@@ -241,7 +241,7 @@ bool NullDevice::create(const char* palName, const amd::Isa& isa, Pal::GfxIpLeve
   properties.revision = asicRevision;
   properties.gfxLevel = ipLevel;
   properties.gfxTriple.major = isa.versionMajor();
-  properties.gfxTriple.major = isa.versionMinor();
+  properties.gfxTriple.minor = isa.versionMinor();
   properties.gfxTriple.stepping = isa.versionStepping();
   properties.gfxipProperties.shaderCore.ldsSizePerCu = 64 * Ki;
   uint subtarget = 0;

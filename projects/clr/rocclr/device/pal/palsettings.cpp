@@ -154,19 +154,17 @@ bool Settings::create(const Pal::DeviceProperties& palProp,
   amd::Os::getAppPathAndFileName(appName, appPathAndName);
 
   switch (palProp.revision) {
-#if PAL_BUILD_AT1 || PAL_BUILD_GFX13
+#if PAL_BUILD_ALPHA_TRION1
     case Pal::AsicRevision::AlphaTrion1:
 #endif
-/* #if PAL_BUILD_AT2
-    case Pal::AsicRevision::AT2:
+#if PAL_BUILD_ALPHA_TRION2
+    case Pal::AsicRevision::AlphaTrion2:
 #endif
-#if PAL_BUILD_AT3
+/* #if PAL_BUILD_ALPHA_TRION3
     case Pal::AsicRevision::AT3:
 #endif */
-#ifdef PAL_BUILD_NAVI44
     case Pal::AsicRevision::Navi44:
     case Pal::AsicRevision::Navi48:
-#endif
     // Fall through for Navi3x ...
     case Pal::AsicRevision::Navi33:
     case Pal::AsicRevision::Navi32:
