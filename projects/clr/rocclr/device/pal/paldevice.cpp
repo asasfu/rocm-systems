@@ -105,6 +105,9 @@ static constexpr PalDevice supportedPalDevices[] = {
     {11, 5, 3, Pal::GfxIpLevel::GfxIp11_5, "gfx1153", Pal::AsicRevision::Krackan2},
     {12, 0, 0, Pal::GfxIpLevel::GfxIp12, "gfx1200", Pal::AsicRevision::Navi44},
     {12, 0, 1, Pal::GfxIpLevel::GfxIp12, "gfx1201", Pal::AsicRevision::Navi48},
+#if PAL_BUILD_ALPHA_TRION2
+    {13, 1, 0,  Pal::GfxIpLevel::GfxIp13_1, "gfx1310", Pal::AsicRevision::AlphaTrion2},
+#endif
 };
 
 static std::tuple<const amd::Isa*, const char*> findIsa(uint32_t gfxipMajor, uint32_t gfxipMinor,
@@ -239,8 +242,9 @@ bool NullDevice::create(const char* palName, const amd::Isa& isa, Pal::GfxIpLeve
   properties.revision = asicRevision;
   properties.gfxLevel = ipLevel;
   properties.gfxTriple.major = isa.versionMajor();
-  properties.gfxTriple.major = isa.versionMinor();
+  properties.gfxTriple.minor = isa.versionMinor();
   properties.gfxTriple.stepping = isa.versionStepping();
+  properties.gfxipProperties.shaderCore.ldsSizePerCu = 64 * Ki;
   uint subtarget = 0;
 
   pal::Settings* palSettings = new pal::Settings();
@@ -314,7 +318,7 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
                                ? palProp.gfxipProperties.shaderCore.numAvailableCus / 2
                                : palProp.gfxipProperties.shaderCore.numAvailableCus;
   info_.maxPhysicalComputeUnits_ = info_.maxComputeUnits_;
-  info_.numberOfShaderEngines = palProp.gfxipProperties.shaderCore.numShaderEngines;
+  info_.numberOfShaderEngines_ = palProp.gfxipProperties.shaderCore.numShaderEngines;
 
   // SI parts are scalar.  Also, reads don't need to be 128-bits to get peak rates.
   // For example, float4 is not faster than float as long as all threads fetch the same
@@ -515,7 +519,7 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
   info_.preferredWorkGroupSize_ = settings().preferredWorkGroupSize_;
 
   info_.localMemType_ = CL_LOCAL;
-  info_.localMemSize_ = settings().hwLDSSize_;
+  info_.localMemSize_ = palProp.gfxipProperties.shaderCore.ldsSizePerCu;
   info_.extensions_ = getExtensionString();
 
   // OpenCL1.2 device info fields
@@ -631,6 +635,7 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
     info_.largeBar_ = false;
 #endif  // _WIN64
   }
+  info_.shareLocalMemInWGP_ = isa().versionMajor() >= 13;
   info_.virtualMemoryManagement_ = true;
   info_.virtualMemAllocGranularityMinimum_ =
       static_cast<size_t>(palProp.gpuMemoryProperties.virtualMemAllocGranularity);
