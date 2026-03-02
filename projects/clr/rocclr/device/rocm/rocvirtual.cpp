@@ -1024,6 +1024,7 @@ uint64_t VirtualGPU::getQueueID() {
   if (!dedicated_queue_ && gpu_queue_ == nullptr) {
     amd::ScopedLock lock(execution());
     gpu_queue_ = roc_device_.AcquireActiveQueue(priority_);
+    metadata_preloader_.Attach(gpu_queue_);
   }
   return gpu_queue_->id;
 }
@@ -1183,6 +1184,7 @@ bool VirtualGPU::dispatchGenericAqlPacket(AqlPacket* packet, uint16_t header, ui
 
   AqlPacket* aql_loc = &((AqlPacket*)(gpu_queue_->base_address))[index & queueMask];
   *aql_loc = *packet;
+  metadata_preloader_.Set(aql_loc, header, index & queueMask);
   if (header != 0) {
     packet_store_release(reinterpret_cast<uint32_t*>(aql_loc), header, rest);
   }
@@ -1447,6 +1449,7 @@ bool VirtualGPU::dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& pa
       // Restore the packet header
       packet->header = savedHeader;
 
+      metadata_preloader_.Set(aql_loc, packet->header, index & queueMask);
       // Print kernel name for kernel dispatch packets
       if (kernelNames && packetIndex < kernelNames->size()) {
         uint16_t headerForPrint = validHeaders[i];
@@ -1626,6 +1629,7 @@ void VirtualGPU::dispatchBarrierPacket(uint16_t packetHeader, bool skipSignal,
   hsa_barrier_and_packet_t* aql_loc =
       &(reinterpret_cast<hsa_barrier_and_packet_t*>(gpu_queue_->base_address))[index & queueMask];
   *aql_loc = barrier_packet_;
+  metadata_preloader_.Set(aql_loc, packetHeader, index & queueMask);
   packet_store_release(reinterpret_cast<uint32_t*>(aql_loc), packetHeader, 0);
 
   Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, index);
@@ -1715,6 +1719,7 @@ void VirtualGPU::dispatchBarrierValuePacket(uint16_t packetHeader, bool resolveD
   hsa_amd_barrier_value_packet_t* aql_loc = &(reinterpret_cast<hsa_amd_barrier_value_packet_t*>(
       gpu_queue_->base_address))[index & queueMask];
   *aql_loc = barrier_value_packet_;
+  metadata_preloader_.Set(aql_loc, packetHeader, index & queueMask);
   packet_store_release(reinterpret_cast<uint32_t*>(aql_loc), packetHeader, rest);
 
   Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, index);
@@ -1851,6 +1856,7 @@ VirtualGPU::~VirtualGPU() {
   ClearAssignedSdmaEngine();
 
   delete blitMgr_;
+  metadata_preloader_.Detach();
 
   if (tracking_created_) {
     amd::ScopedLock l(execution());
@@ -1906,6 +1912,7 @@ bool VirtualGPU::create() {
   gpu_queue_ = roc_device_.acquireQueue(queue_size, cooperative_, cuMask_, priority_, false,
                                          dedicated_queue_);
   if (!gpu_queue_) return false;
+  metadata_preloader_.Attach(gpu_queue_);
 
   if (!managed_kernarg_buffer_.Create(Device::MemorySegment::kKernArg)) {
     LogError("Couldn't allocate arguments/signals for the queue");
@@ -2105,6 +2112,7 @@ void VirtualGPU::ReleaseHwQueue() {
       if (gpu_queue_ != nullptr) {
         if (IsQueueIdle()) {
           if (roc_device_.ReleaseActiveQueue(gpu_queue_, priority_)) {
+            metadata_preloader_.Detach();
             gpu_queue_ = nullptr;
           }
         }
@@ -2123,6 +2131,7 @@ void VirtualGPU::profilingBegin(amd::Command& command, bool sdmaProfiling) {
   // Dedicated queues keep their HW queue, never acquire from pool
   if (!dedicated_queue_ && gpu_queue_ == nullptr) {
     gpu_queue_ = roc_device_.AcquireActiveQueue(priority_);
+    metadata_preloader_.Attach(gpu_queue_);
   }
   // Track the current command
   command_ = &command;
@@ -3967,8 +3976,10 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
       command_->SetKernelName(gpuKernel.getDemangledName());
     } else {
       ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_KERN,
+              "Kernel name = %s, argSize = %zu, "
               "KernargSegmentByteSize = %lu "
               "KernargSegmentAlignment = %lu",
+              gpuKernel.getDemangledName().c_str(), argSize,
               gpuKernel.KernargSegmentByteSize(), gpuKernel.KernargSegmentAlignment());
       argBuffer = reinterpret_cast<address>(
           allocKernArg(gpuKernel.KernargSegmentByteSize(), gpuKernel.KernargSegmentAlignment()));
