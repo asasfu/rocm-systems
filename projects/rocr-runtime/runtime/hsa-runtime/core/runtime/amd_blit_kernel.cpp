@@ -652,8 +652,16 @@ hsa_status_t BlitKernel::SubmitLinearCopyCommand(
     std::vector<core::Signal*>& dep_signals, core::Signal& out_signal,
     std::vector<core::Signal*>& gang_signals) {
 
-  if (core::Runtime::runtime_singleton_->flag().enable_dtif_fast_copy() && dep_signals.empty()) {
+  if (core::Runtime::runtime_singleton_->flag().enable_dtif_fast_copy()) {
     LogPrint(HSA_AMD_LOG_FLAG_BLIT_KERNEL_PKTS, "[ROCDTIF blit kernel] src = %p, dst = %p, size = 0x%lx", src, dst, size);
+    // Wait for dependency signals before memcpy when present.
+    for (size_t i = 0; i < dep_signals.size(); ++i) {
+      hsa_signal_t sig = core::Signal::Convert(dep_signals[i]);
+      if (sig.handle) {
+        HSA::hsa_signal_wait_scacquire(sig, HSA_SIGNAL_CONDITION_LT, 1, uint64_t(-1),
+                                       HSA_WAIT_STATE_ACTIVE);
+      }
+    }
     memcpy(dst, src, size);
     LogPrint(HSA_AMD_LOG_FLAG_BLIT_KERNEL_PKTS, "[ROCDTIF blit kernel] Fast copy success");
 
