@@ -660,14 +660,18 @@ HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNT
 HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipMemSetMemPool, hipMemSetMemPool, hipMemSetMemPool_fn, location, type, pool);
 HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipMemGetMemPool, hipMemGetMemPool, hipMemGetMemPool_fn, pool, location, type);
 #endif
-
+ 
 #if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 23
 HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipOccupancyMaxPotentialClusterSize, hipOccupancyMaxPotentialClusterSize, hipOccupancyMaxPotentialClusterSize_fn, clusterSize, f, config);
 HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipOccupancyMaxActiveClusters, hipOccupancyMaxActiveClusters, hipOccupancyMaxActiveClusters_fn, numClusters, f, config);
 #endif
-
+ 
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 24
+HIP_API_INFO_DEFINITION_V(ROCPROFILER_HIP_TABLE_ID_Runtime, ROCPROFILER_HIP_RUNTIME_API_ID_hipMipmappedArrayGetMemoryRequirements, hipMipmappedArrayGetMemoryRequirements, hipMipmappedArrayGetMemoryRequirements_fn, memoryRequirements, mipmap, device);
+#endif
+ 
 // clang-format on
-
-#else
+ 
+#else  
 #    error "Do not compile this file directly. It is included by lib/rocprofiler-sdk/hip/hip.cpp"
 #endif

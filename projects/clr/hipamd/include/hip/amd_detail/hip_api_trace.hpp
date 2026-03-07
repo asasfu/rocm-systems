@@ -63,7 +63,7 @@
 #define HIP_API_TABLE_STEP_VERSION 0
 #define HIP_COMPILER_API_TABLE_STEP_VERSION 0
 #define HIP_TOOLS_API_TABLE_STEP_VERSION 0
-#define HIP_RUNTIME_API_TABLE_STEP_VERSION 23
+#define HIP_RUNTIME_API_TABLE_STEP_VERSION 24
 
 // HIP API interface
 // HIP compiler dispatch functions
@@ -1127,6 +1127,8 @@ typedef hipError_t (*t_hipMemSetMemPool)(hipMemLocation* location, hipMemAllocat
                                          hipMemPool_t pool);
 typedef hipError_t (*t_hipMemGetMemPool)(hipMemPool_t* pool, hipMemLocation* location,
                                          hipMemAllocationType type);
+typedef hipError_t (*t_hipMipmappedArrayGetMemoryRequirements)(
+    hipArrayMemoryRequirements* memoryRequirements, hipMipmappedArray_t mipmap, hipDevice_t device);
 // HIP Compiler dispatch table
 struct HipCompilerDispatchTable {
   // HIP_COMPILER_API_TABLE_STEP_VERSION == 0
@@ -1730,9 +1732,12 @@ struct HipDispatchTable {
   // HIP_RUNTIME_API_TABLE_STEP_VERSION == 23
   t_hipOccupancyMaxPotentialClusterSize hipOccupancyMaxPotentialClusterSize_fn;
   t_hipOccupancyMaxActiveClusters hipOccupancyMaxActiveClusters_fn;
+  
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 24
+  t_hipMipmappedArrayGetMemoryRequirements hipMipmappedArrayGetMemoryRequirements_fn;
 
   // DO NOT EDIT ABOVE!
-  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 24
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 25
 
   // ******************************************************************************************* //
   //

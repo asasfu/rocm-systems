@@ -1020,9 +1020,9 @@ bool VirtualGPU::processMemObjects(const amd::Kernel& kernel, const_address para
 
 // ================================================================================================
 uint64_t VirtualGPU::getQueueID() {
+  amd::ScopedLock lock(execution());
   // Dedicated queues keep their HW queue, never acquire from pool
   if (!dedicated_queue_ && gpu_queue_ == nullptr) {
-    amd::ScopedLock lock(execution());
     gpu_queue_ = roc_device_.AcquireActiveQueue(priority_);
     metadata_preloader_.Attach(gpu_queue_);
   }
@@ -1368,8 +1368,9 @@ bool VirtualGPU::dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& pa
     // Now reserve space for the batch
     uint64_t startIndex = Hsa::queue_add_write_index_screlease(gpu_queue_, batchSize);
 
-    // Make sure the slot is free for usage
-    while ((startIndex - Hsa::queue_load_read_index_scacquire(gpu_queue_)) >= sw_queue_size) {
+    // Make sure the slots for the batch are free for usage
+    while (((startIndex + batchSize - 1) - Hsa::queue_load_read_index_scacquire(gpu_queue_)) >
+           sw_queue_size) {
       amd::Os::yield();
     }
 
@@ -1504,7 +1505,7 @@ bool VirtualGPU::dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& pa
                          validSetups[0]);
 
     // Ring doorbell for this batch
-    Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, startIndex);
+    Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, startIndex + batchSize - 1);
 
     processedPackets += batchSize;
 
@@ -2922,7 +2923,7 @@ void VirtualGPU::submitBatchCopyMemory(amd::BatchCopyMemoryCommand& cmd) {
 
   profilingBegin(cmd, true);
 
-  const auto& copyOps = cmd.copyOps();
+  auto& copyOps = cmd.copyOps();
   if (copyOps.empty()) {
     profilingEnd();
     return;
@@ -2934,7 +2935,7 @@ void VirtualGPU::submitBatchCopyMemory(amd::BatchCopyMemoryCommand& cmd) {
   device::Memory::SyncFlags syncFlags;
   syncFlags.skipEntire_ = false;
 
-  for (const auto& op : copyOps) {
+  for (auto& op : copyOps) {
     Memory* srcDevMem = dev().getRocMemory(op.srcMemory);
     Memory* dstDevMem = dev().getRocMemory(op.dstMemory);
 
