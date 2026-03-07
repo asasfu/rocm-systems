@@ -83,25 +83,23 @@ void model_init_env_vars(void)
 			abort();
 		}
 		model_functions = getter();
-		fprintf(stderr, "[MODEL] Version check: Model library reports %u.%u, ROCr expects %u.%u (from %s)\n",
-				model_functions->version_major, model_functions->version_minor,
-				HSAKMT_MODEL_INTERFACE_VERSION_MAJOR, HSAKMT_MODEL_INTERFACE_VERSION_MINOR, libname);
-		if (model_functions->version_major != HSAKMT_MODEL_INTERFACE_VERSION_MAJOR ||
-			model_functions->version_minor < HSAKMT_MODEL_INTERFACE_VERSION_MINOR)
+		const uint32_t expected_version_major = (uint32_t)HSAKMT_MODEL_INTERFACE_VERSION_MAJOR;
+		const uint32_t expected_version_minor = (uint32_t)HSAKMT_MODEL_INTERFACE_VERSION_MINOR;
+
+		if (model_functions->version_major != expected_version_major ||
+			model_functions->version_minor < expected_version_minor)
 		{
 			fprintf(stderr, "[MODEL] FATAL: Version mismatch!\n");
 			fprintf(stderr, "[MODEL]   Model file: %s\n", libname);
 			fprintf(stderr, "[MODEL]   Model version: %u.%u\n", model_functions->version_major, model_functions->version_minor);
-			fprintf(stderr, "[MODEL]   Expected version: %u.%u or higher\n", HSAKMT_MODEL_INTERFACE_VERSION_MAJOR, HSAKMT_MODEL_INTERFACE_VERSION_MINOR);
-			if (model_functions->version_major != HSAKMT_MODEL_INTERFACE_VERSION_MAJOR) {
+			fprintf(stderr, "[MODEL]   Expected version: %u.%u or higher\n", expected_version_major, expected_version_minor);
+			if (model_functions->version_major != expected_version_major) {
 				fprintf(stderr, "[MODEL]   MAJOR version mismatch (breaking API change)\n");
 			} else {
 				fprintf(stderr, "[MODEL]   Minor version too old (missing required features)\n");
 			}
 			abort();
 		}
-		fprintf(stderr, "[MODEL] Version check PASSED: %u.%u\n",
-				model_functions->version_major, model_functions->version_minor);
 
 		/* Let FFM create the memfd - it owns sizing and lifecycle.
 		 *
@@ -132,31 +130,23 @@ void model_init(void)
 
 /* Model implementation of KFD ioctl. */
 
-static int model_kfd_ioctl_locked(unsigned long request, void *arg)
+static int model_kfd_ioctl_dispatch(unsigned long request, void *arg)
 {
 	assert(_IOC_TYPE(request) == AMDKFD_IOCTL_BASE);
-	if (_IOC_NR(request) == 0x20)
-	{
-		// This is AMDKFD_IOC_SVM. It is defined / used in an unusual way.
-		struct kfd_ioctl_svm_args *args = arg;
-		if (args->op == KFD_IOCTL_SVM_OP_SET_ATTR)
-		{
-			// todo?
-			return 0;
-		}
-		fprintf(stderr, "model: Unimplemented SVM op\n");
-		abort();
-	}
-	
-	// Delegate all IOCTL handling to FFM
+
+	/* Delegate all KFD IOCTL handling to the model backend, including
+	 * AMDKFD_IOC_SVM requests with variable encoded sizes. */
 	return model_functions->handle_ioctl(request, arg);
+}
+
+static bool is_wait_events_ioctl(unsigned long request)
+{
+	return (_IOC_TYPE(request) == AMDKFD_IOCTL_BASE) &&
+	       (_IOC_NR(request) == _IOC_NR(AMDKFD_IOC_WAIT_EVENTS));
 }
 
 int model_kfd_ioctl(unsigned long request, void *arg)
 {
-	const bool is_wait_events = (_IOC_TYPE(request) == AMDKFD_IOCTL_BASE) &&
-				  (_IOC_NR(request) == _IOC_NR(AMDKFD_IOC_WAIT_EVENTS));
-
 	/* WAIT_EVENTS can block for long periods. Holding the global model IOCTL
 	 * mutex across a blocking wait prevents other threads from issuing IOCTLs
 	 * like SET_EVENT that are required to wake the wait, which can deadlock
@@ -164,17 +154,17 @@ int model_kfd_ioctl(unsigned long request, void *arg)
 	 *
 	 * Keep the conservative serialization for all other IOCTLs.
 	 */
-	if (is_wait_events)
-		return model_kfd_ioctl_locked(request, arg);
+	if (is_wait_events_ioctl(request))
+		return model_kfd_ioctl_dispatch(request, arg);
 
-	/* Use a very simle locking strategy for correctness. IOCTLs should
+	/* Use a very simple locking strategy for correctness. IOCTLs should
 	 * be rare anyway and not contended considering the cost of running
 	 * the model itself.
 	 *
 	 * The bulk of model execution happens in a separate thread *without*
 	 * holding the IOCTL mutex. */
 	pthread_mutex_lock(&model_ioctl_mutex);
-	int ret = model_kfd_ioctl_locked(request, arg);
+	int ret = model_kfd_ioctl_dispatch(request, arg);
 	pthread_mutex_unlock(&model_ioctl_mutex);
 	return ret;
 }
