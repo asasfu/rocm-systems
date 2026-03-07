@@ -2144,11 +2144,11 @@ HIP_ENFORCE_ABI(HipDispatchTable, hipExtSetLoggingParams_fn, 510);
 HIP_ENFORCE_ABI(HipDispatchTable, hipMemSetMemPool_fn, 511);
 HIP_ENFORCE_ABI(HipDispatchTable, hipMemGetMemPool_fn, 512);
 // HIP_RUNTIME_API_TABLE_STEP_VERSION == 23
-HIP_ENFORCE_ABI(HipDispatchTable, hipMipmappedArrayGetMemoryRequirements_fn, 513);
+HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxPotentialClusterSize_fn, 513);
+HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxActiveClusters_fn, 514);
 
 // HIP_RUNTIME_API_TABLE_STEP_VERSION == 24
-HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxPotentialClusterSize_fn, 514);
-HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxActiveClusters_fn, 515);
+HIP_ENFORCE_ABI(HipDispatchTable, hipMipmappedArrayGetMemoryRequirements_fn, 515);
 
 // if HIP_ENFORCE_ABI entries are added for each new function pointer in the table, the number below
 // will be +1 of the number in the last HIP_ENFORCE_ABI line. E.g.:
