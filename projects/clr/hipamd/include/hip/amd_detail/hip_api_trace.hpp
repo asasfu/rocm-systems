@@ -1730,11 +1730,11 @@ struct HipDispatchTable {
   t_hipMemGetMemPool hipMemGetMemPool_fn;
 
   // HIP_RUNTIME_API_TABLE_STEP_VERSION == 23
-  t_hipMipmappedArrayGetMemoryRequirements hipMipmappedArrayGetMemoryRequirements_fn;
-  
-  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 24
   t_hipOccupancyMaxPotentialClusterSize hipOccupancyMaxPotentialClusterSize_fn;
   t_hipOccupancyMaxActiveClusters hipOccupancyMaxActiveClusters_fn;
+  
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 24
+  t_hipMipmappedArrayGetMemoryRequirements hipMipmappedArrayGetMemoryRequirements_fn;
 
   // DO NOT EDIT ABOVE!
   // HIP_RUNTIME_API_TABLE_STEP_VERSION == 25
