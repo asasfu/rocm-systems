@@ -442,7 +442,11 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
     amd_kernel_code_t* header = reinterpret_cast<amd_kernel_code_t*>(code_buf);
 
     int gran_sgprs = std::max(0, (int(asic_shader->num_sgprs) - 1) / 8);
-    int gran_vgprs = std::max(0, (int(asic_shader->num_vgprs) - 1) / 4);
+    const int vgpr_gran = (isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5) ? 16
+                        : (isa_->GetMajorVersion() >= 10 ||
+                           (isa_->GetMajorVersion() == 9 && isa_->GetMinorVersion() >= 4)) ? 8
+                        : 4;
+    int gran_vgprs = std::max(0, (asic_shader->num_vgprs + vgpr_gran - 1) / vgpr_gran - 1);
 
     header->kernel_code_entry_byte_offset = sizeof(amd_kernel_code_t);
     AMD_HSA_BITS_SET(header->kernel_code_properties,
