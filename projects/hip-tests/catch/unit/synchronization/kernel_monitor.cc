@@ -27,7 +27,8 @@ THE SOFTWARE.
 #if defined(__gfx1250__) || defined(__gfx1251__)
 #define __mem_based_sync_support__ 1
 __device__ constexpr int hint_and_scope = 2 << 3;  // temporal + Device
-__device__ constexpr short duration = static_cast<short>(1 << 15); // forever
+// HW uses first 7 bits to apply wait.
+__device__ constexpr short duration = static_cast<short>(0x7f);
 #endif
 
 __global__ void
