@@ -459,6 +459,9 @@ hipError_t hipDeviceGetAttribute(int* pi, hipDeviceAttribute_t attr, int device)
     case hipDeviceAttributeDmaBufSupported:
       *pi = static_cast<int>(g_devices[device]->devices()[0]->info().dmabufSupported_);
       break;
+    case hipDeviceAttributeHandleTypeFabricSupported:
+      *pi = static_cast<int>(g_devices[device]->devices()[0]->info().fabric_handle_);
+      break;
     case hipDeviceAttributeExpertSchedMode:
       *pi = static_cast<int>(g_devices[device]->devices()[0]->info().hasExpertSchedMode_);
       break;
@@ -609,6 +612,7 @@ hipError_t hipDeviceSetCacheConfig(hipFuncCache_t cacheConfig) {
 
   // No way to set cache config yet.
 
+  hip::getCurrentDevice()->devices()[0]->UpdateGroupMemCarveout(cacheConfig);
   HIP_RETURN(hipSuccess);
 }
 

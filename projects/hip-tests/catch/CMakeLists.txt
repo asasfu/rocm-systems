@@ -226,6 +226,10 @@ if(HIP_PLATFORM STREQUAL "amd")
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
         add_compile_options(-O3)
     endif()
+    add_compile_options(${HIP_PATH_OPT} -std=c++17 -x hip -Wall -Wextra -Wvla -Wno-deprecated -Wno-option-ignored -Wno-unused-parameter ${win_disable_warnings}) # -Werror)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        add_compile_options(-O3)
+    endif()
 endif()
 
 # Turn off CMAKE_HIP_ARCHITECTURES Feature if cmake version is 3.21+
