@@ -123,6 +123,9 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
   // XCC number on the GPU
   uint32_t xcc_number_;
   Builder builder;
+  // TODO: Temporary patch for gfx1250's asymmetric CU design, will remove
+  //       after CU mask support is added to agent_info
+  bool asymmetric_cu_patch;
 
   void DebugTrace(uint32_t value) {
     CmdBuffer cmd_buffer;
@@ -210,9 +213,11 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         sarrays_per_se(agent_info->shader_arrays_per_se) {
     this->wgp_per_sa =
         (agent_info->cu_num / 2 + sarrays_per_se * se_number_ - 1) / (se_number_ * sarrays_per_se);
+    this->wgp_per_sa /= agent_info->xcc_num;
     // Due to MI300 CP firmware issue we need to use mem_mapped_register mode to patch for GCEA
     // hang. Otherwise both perfcounters mode and mem_mapped_register mode should work.
     builder.bUsePerfCounterMode = (xcc_number_ > 1) ? false : true;
+    this->asymmetric_cu_patch = strncmp(agent_info->name, "gfx1250", 7) ? false : true;
   }
 
   int GetNumWGPs() override {
@@ -613,6 +618,17 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
               }
             } else if (bIsWGPcounter12) {
               for (int wgp = 0; wgp < wgp_per_sa; wgp++) {
+                // TODO: This patch is needed to avoid soft-hang for some WGP
+                //       blocks, will remove after CU mask support is added to
+                //       agent_info
+                if (asymmetric_cu_patch && sarray == 1 && wgp == 8) {
+                  if (data_buffer) {
+                    *(reinterpret_cast<uint32_t*>(data_buffer) + read_counter) = 0;
+                    *(reinterpret_cast<uint32_t*>(data_buffer) + read_counter + 1) = 0;
+                  }
+                  read_counter += 2;
+                  continue;
+                }
                 if (block_info->instance_count > 1)
                   grbm_value = Primitives::grbm_inst_se_sh_wgp_index_value(block_des.index,
                                                                            se_index, sarray, wgp);
