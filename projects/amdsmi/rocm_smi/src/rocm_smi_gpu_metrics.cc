@@ -292,6 +292,11 @@ const AMDGpuMetricsUnitTypeTranslationTbl_t amdgpu_metrics_unit_type_translation
   {AMDGpuMetricsUnitType_t::kMetricGfxBelowHostLimitTotalAcc, "GfxBelowHostLimitTotalAcc"},         /* v1.8 */
   {AMDGpuMetricsUnitType_t::kMetricGfxBelowHostLimitPptAcc, "GfxBelowHostLimitPptAcc"},             /* v1.8 */
   {AMDGpuMetricsUnitType_t::kMetricGfxBelowHostLimitThmAcc, "GfxBelowHostLimitThmAcc"},             /* v1.8 */
+
+  // New temperature unit types (v1.9+)
+  {AMDGpuMetricsUnitType_t::kMetricTempMid, "TempMid"},                                         /* v1.9+ */
+  {AMDGpuMetricsUnitType_t::kMetricTempAid, "TempAid"},                                         /* v1.9+ */
+  {AMDGpuMetricsUnitType_t::kMetricTempXcd, "TempXcd"},                                         /* v1.9+ */
 };
 
 
@@ -731,6 +736,18 @@ rsmi_status_t GpuMetricsBaseDynamic_t::populate_metrics_dynamic_tbl() {
         emit(AMDGpuMetricsClassId_t::kGpuMetricThrottleResidency, AMDGpuMetricsUnitType_t::kMetricHBMThmResidencyAccumulator,
              "hbm_thm_residency_acc", r);
         break;
+      case details::AMDGpuMetricAttributeId_t::TEMPERATURE_HBM:
+        emit(AMDGpuMetricsClassId_t::kGpuMetricTemperature, AMDGpuMetricsUnitType_t::kMetricTempHbm,
+             "temperature_hbm", r);
+        break;
+      case details::AMDGpuMetricAttributeId_t::TEMPERATURE_MID:
+        emit(AMDGpuMetricsClassId_t::kGpuMetricTemperature, AMDGpuMetricsUnitType_t::kMetricTempMid,
+             "temperature_mid", r);
+        break;
+      case details::AMDGpuMetricAttributeId_t::TEMPERATURE_AID:
+        emit(AMDGpuMetricsClassId_t::kGpuMetricTemperature, AMDGpuMetricsUnitType_t::kMetricTempAid,
+             "temperature_aid", r);
+        break;
 
       // XCP stats
       case details::AMDGpuMetricAttributeId_t::GFX_BUSY_INST:
@@ -764,6 +781,10 @@ rsmi_status_t GpuMetricsBaseDynamic_t::populate_metrics_dynamic_tbl() {
       case details::AMDGpuMetricAttributeId_t::GFX_BELOW_HOST_LIMIT_TOTAL_ACC:
         emit(AMDGpuMetricsClassId_t::kGpuMetricXcpStats, AMDGpuMetricsUnitType_t::kMetricGfxBelowHostLimitTotalAcc,
              "xcp_stats->gfx_below_host_limit_total_acc", r);
+        break;
+      case details::AMDGpuMetricAttributeId_t::TEMPERATURE_XCD:
+        emit(AMDGpuMetricsClassId_t::kGpuMetricTemperature, AMDGpuMetricsUnitType_t::kMetricTempXcd,
+             "xcp_stats->temperature_xcd", r);
         break;
 
       default:
@@ -1002,6 +1023,12 @@ rsmi_status_t GpuMetricsBase_v18_t::populate_metrics_dynamic_tbl() {
       m_gpu_metrics_tbl.m_xcp_stats->gfx_low_utilization_acc,
       "xcp_stats->gfx_low_utilization_acc");
 
+    // GPU metrics v1.9 xcp_stats info
+    populate_metrics_table(AMDGpuMetricsClassId_t::kGpuMetricXcpStats,
+      AMDGpuMetricsUnitType_t::kMetricTempXcd,
+      m_gpu_metrics_tbl.m_xcp_stats->temperature_xcd,
+      "xcp_stats->temperature_xcd");
+
     // PCIE other end recovery counter info
     populate_metrics_table(AMDGpuMetricsClassId_t::kGpuMetricLinkWidthSpeed,
       AMDGpuMetricsUnitType_t::kMetricPcieLCPerfOtherEndRecov,
@@ -1063,6 +1090,11 @@ rsmi_status_t GpuMetricsBase_v18_t::populate_metrics_dynamic_tbl() {
       AMDGpuMetricsUnitType_t::kMetricGfxLowUtilitizationAcc,
       m_gpu_metrics_partition_tbl.m_gfx_low_utilization_acc,
       "[partition 1.0] gfx_low_utilization_acc");
+    // v1.9
+    populate_metrics_table(AMDGpuMetricsClassId_t::kGpuMetricXcpStats,
+      AMDGpuMetricsUnitType_t::kMetricTempXcd,
+      m_gpu_metrics_partition_tbl.m_temperature_xcd,
+      "xcp_stats->temperature_xcd");
   }
 
   ss << __PRETTY_FUNCTION__ << " | ======= end ======= "
@@ -2081,6 +2113,25 @@ rsmi_status_t init_max_public_gpu_matrics(AMGpuMetricsPublicLatest_t& rsmi_gpu_m
             std::end(rsmi_gpu_metrics.xgmi_link_status),
             init_max_uint_types<std::uint16_t>());
 
+  std::fill(std::begin(rsmi_gpu_metrics.temperature_hbm_stacks),
+            std::end(rsmi_gpu_metrics.temperature_hbm_stacks),
+            init_max_uint_types<std::uint16_t>());
+
+  std::fill(std::begin(rsmi_gpu_metrics.temperature_mid),
+            std::end(rsmi_gpu_metrics.temperature_mid),
+            init_max_uint_types<std::uint16_t>());
+
+  std::fill(std::begin(rsmi_gpu_metrics.temperature_aid),
+            std::end(rsmi_gpu_metrics.temperature_aid),
+            init_max_uint_types<std::uint16_t>());
+
+  std::fill(std::begin(rsmi_gpu_metrics.current_uclk_aid),
+            std::end(rsmi_gpu_metrics.current_uclk_aid),
+            init_max_uint_types<std::uint16_t>());
+
+  std::fill(std::begin(rsmi_gpu_metrics.current_socclks_mid),
+            std::end(rsmi_gpu_metrics.current_socclks_mid),
+            init_max_uint_types<std::uint16_t>());
 
   std::fill(std::begin(rsmi_gpu_metrics.temperature_hbm),
             std::end(rsmi_gpu_metrics.temperature_hbm),
@@ -2168,6 +2219,8 @@ rsmi_status_t init_max_public_gpu_matrics(AMGpuMetricsPublicLatest_t& rsmi_gpu_m
               init_max_uint_types<std::uint64_t>());
     std::fill(std::begin(row.gfx_below_host_limit_total_acc), std::end(row.gfx_below_host_limit_total_acc),
               init_max_uint_types<std::uint64_t>());
+    std::fill(std::begin(row.temperature_xcd), std::end(row.temperature_xcd),
+              init_max_uint_types<std::uint16_t>());
   }
 
   ss << __PRETTY_FUNCTION__
@@ -2211,6 +2264,7 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBaseDynamic_t::copy_internal_to_externa
     using Dst = std::remove_reference_t<decltype(dst)>;
     using T = std::remove_cv_t<std::remove_extent_t<Dst>>;
     auto v = std::get_if<std::vector<T>>(&r.m_value);
+    if (!v) return;  // Not a vector type, skip
     const std::size_t n = std::min<std::size_t>(v->size(), cap);
     std::copy_n(v->data(), n, dst);
   };
@@ -2302,11 +2356,29 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBaseDynamic_t::copy_internal_to_externa
         assign_vector(out.xgmi_link_status, r, RSMI_MAX_NUM_XGMI_LINKS); break;
       }
 
+      case details::AMDGpuMetricAttributeId_t::TEMPERATURE_HBM: {
+        assign_vector(out.temperature_hbm_stacks, r, RSMI_MAX_NUM_HBM_STACKS);
+        break;
+      }
+      case details::AMDGpuMetricAttributeId_t::TEMPERATURE_MID: {
+        assign_vector(out.temperature_mid, r, RSMI_MAX_NUM_MID);
+        break;
+      }
+      case details::AMDGpuMetricAttributeId_t::TEMPERATURE_AID: {
+        assign_vector(out.temperature_aid, r, RSMI_MAX_NUM_AID);
+        break;
+      }
+
       // Current clocks (arrays) + uclk (scalar)
       case details::AMDGpuMetricAttributeId_t::CURRENT_GFXCLK: {
         assign_vector(out.current_gfxclks, r, RSMI_MAX_NUM_GFX_CLKS); break;
       }
       case details::AMDGpuMetricAttributeId_t::CURRENT_SOCCLK: {
+        auto socclks = std::get_if<std::vector<std::uint16_t>>(&r.m_value);
+        if (socclks && socclks->size() == RSMI_MAX_NUM_CLKS_PER_MID) {
+          assign_vector(out.current_socclks_mid, r, RSMI_MAX_NUM_CLKS_PER_MID);
+          break;
+        }
         assign_vector(out.current_socclks, r, RSMI_MAX_NUM_CLKS); break;
       }
       case details::AMDGpuMetricAttributeId_t::CURRENT_VCLK0: {
@@ -2316,8 +2388,19 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBaseDynamic_t::copy_internal_to_externa
         assign_vector(out.current_dclk0s, r, RSMI_MAX_NUM_CLKS); break;
       }
 
-      case details::AMDGpuMetricAttributeId_t::CURRENT_UCLK:
-        assign_by_type(out.current_uclk, r); break;
+      case details::AMDGpuMetricAttributeId_t::CURRENT_UCLK: {
+        auto uclk = std::get_if<std::vector<std::uint16_t>>(&r.m_value);
+        if (uclk && uclk->size() == RSMI_MAX_NUM_CLKS_PER_AID) {
+          assign_vector(out.current_uclk_aid, r, RSMI_MAX_NUM_CLKS_PER_AID);
+          break;
+        }
+        if (uclk && !uclk->empty()) {
+          out.current_uclk = (*uclk)[0];
+          break;
+        }
+        assign_by_type(out.current_uclk, r);
+        break;
+      }
 
       case details::AMDGpuMetricAttributeId_t::PCIE_LC_PERF_OTHER_END_RECOVERY:
         assign_by_type(out.pcie_lc_perf_other_end_recovery, r); break;
@@ -2347,6 +2430,10 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBaseDynamic_t::copy_internal_to_externa
       }
       case details::AMDGpuMetricAttributeId_t::GFX_BELOW_HOST_LIMIT_TOTAL_ACC: {
         assign_vector(out.xcp_stats[0].gfx_below_host_limit_total_acc, r, RSMI_MAX_NUM_XCC); break;
+      }
+      case details::AMDGpuMetricAttributeId_t::TEMPERATURE_XCD: {
+        assign_vector(out.xcp_stats[0].temperature_xcd, r, RSMI_MAX_NUM_XCC);
+        break;
       }
 
       default: break;
@@ -2552,6 +2639,8 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v18_t::copy_internal_to_external_m
                     pub_it->gfx_low_utilization_acc);
         std::copy_n(std::begin(priv_it->gfx_below_host_limit_total_acc), RSMI_MAX_NUM_XCC,
                     pub_it->gfx_below_host_limit_total_acc);
+        std::copy_n(std::begin(priv_it->temperature_xcd), RSMI_MAX_NUM_XCC,
+                    pub_it->temperature_xcd);
       }
     } else {
       // Partition Data: /sys/class/drm/renderDXXX/device/xcp/xcp_metrics
@@ -2625,6 +2714,8 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v18_t::copy_internal_to_external_m
                       RSMI_MAX_NUM_XCC, it->gfx_low_utilization_acc);
           std::copy_n(std::begin(m_gpu_metrics_partition_tbl.m_gfx_below_host_limit_total_acc),
                       RSMI_MAX_NUM_XCC, it->gfx_below_host_limit_total_acc);
+          std::copy_n(std::begin(m_gpu_metrics_partition_tbl.m_temperature_xcd),
+                      RSMI_MAX_NUM_XCC, it->temperature_xcd);
         } else {
           break;  // No need to copy for other rows
         }
