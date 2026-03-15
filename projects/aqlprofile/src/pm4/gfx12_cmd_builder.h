@@ -29,9 +29,33 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <optional>
 
 #include "pm4/cmd_builder.h"
 #include "def/gfx12_def.h"
+
+// Will find a home for these later
+#define   PACKET3_COPY_DATA__RRMT_MODE(x) ((((unsigned)(x)) & 0x3) << 6)
+#define   PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE(x) ((((unsigned)(x)) & 0x1) << 17)
+#define 	PACKET3_COPY_DATA__MID_DIE_ID(x) ((((unsigned)(x)) & 0x3) << 18)
+#define 	PACKET3_COPY_DATA__XCD_DIE_ID(x) ((((unsigned)(x)) & 0x7) << 21)
+#define   PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD 0
+#define   PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID 1
+#define   PACKET3_COPY_DATA__RRMT_MODE__REMOTE_XCD 2
+#define   PACKET3_COPY_DATA__RRMT_MODE__REMOTE_MID 3
+#define   PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE__SRC_IS_REMOTE 0
+#define   PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE__DST_IS_REMOTE 1
+#define   PACKET3_COPY_DATA__MID_DIE_ID__MID0 0
+#define   PACKET3_COPY_DATA__MID_DIE_ID__MID1 1
+#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD0 0
+#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD1 1
+#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD2 2
+#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD3 3
+#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD4 4
+#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD5 5
+#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD6 6
+#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD7 7
+
 namespace pm4_builder {
 
 /// @brief class Gfx12CmdBuilder implements the virtual class CmdBuilder
@@ -44,6 +68,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
     uint32_t header = PACKET3(opcode, count);
     return header;
   }
+  static const bool enable_pm4_rrmt_ = true;
 
  public:
   Gfx12CmdBuilder(const reg_base_offset_table* _table) : CmdBuilder(_table){};
@@ -194,11 +219,103 @@ class Gfx12CmdBuilder : public CmdBuilder {
     APPEND_COMMAND_WRAPPER(cmdbuf, pm4mec_set_uconfig_reg_cmd);
   }
 
-  void BuildWritePConfigRegPacket(CmdBuffer* cmdbuf, uint32_t addr, uint32_t value) {
-    // Initialize the command header
+  void GetChipletIdRRMTInfo(ChipletId chiplet_id, bool is_aid_chiplet, uint32_t& rrmt_mode,
+      uint32_t& die_id) {
+    switch (chiplet_id) {
+      case CHIPLET_MID0:
+        rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__REMOTE_MID);
+        die_id = PACKET3_COPY_DATA__MID_DIE_ID(PACKET3_COPY_DATA__MID_DIE_ID__MID0);
+        break;
+      case CHIPLET_MID1:
+        rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__REMOTE_MID);
+        die_id = PACKET3_COPY_DATA__MID_DIE_ID(PACKET3_COPY_DATA__MID_DIE_ID__MID1);
+        break;
+      case CHIPLET_AID0:
+        rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID);
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD0);
+        break;
+      case CHIPLET_AID1:
+        rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID);
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD4);
+        break;
+      case CHIPLET_XCD0:
+        if (is_aid_chiplet) {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID);
+        } else {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+        }
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD0);
+        break;
+      case CHIPLET_XCD1:
+        if (is_aid_chiplet) {
+          return;
+        } else {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+        }
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD1);
+        break;
+      case CHIPLET_XCD2:
+        if (is_aid_chiplet) {
+          return;
+        } else {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+        }
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD2);
+        break;
+      case CHIPLET_XCD3:
+        if (is_aid_chiplet) {
+          return;
+        } else {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+        }
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD3);
+        break;
+      case CHIPLET_XCD4:
+        if (is_aid_chiplet) {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID);
+        } else {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+        }
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD4);
+        break;
+      case CHIPLET_XCD5:
+        if (is_aid_chiplet) {
+          return;
+        } else {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+        }
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD5);
+        break;
+      case CHIPLET_XCD6:
+        if (is_aid_chiplet) {
+          return;
+        } else {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+        }
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD6);
+        break;
+      case CHIPLET_XCD7:
+        if (is_aid_chiplet) {
+          return;
+        } else {
+          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+        }
+        die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD7);
+        break;
+      default:
+        break;
+    }
+  }
+
+  void _buildWritePConfigRegPacket(CmdBuffer* cmdbuf, uint32_t addr, uint32_t value,
+                                   std::optional<ChipletId> chiplet = std::nullopt,
+                                   std::optional<bool> write_to_aid = std::nullopt) {
+    uint32_t dword2 = 0;
+    uint32_t dword6 = 0;
+
     uint32_t header = MakePacket3Header(PACKET3_COPY_DATA, 6 * sizeof(uint32_t));
 
-    uint32_t dword2 =
+    dword2 |=
         PACKET3_COPY_DATA__SRC_SEL(PACKET3_COPY_DATA__SRC_SEL__IMMEDIATE_DATA) |
         PACKET3_COPY_DATA__SRC_TEMPORAL(PACKET3_COPY_DATA__SRC_TEMPORAL__LU) |
         (IsPrivilegedConfigReg(addr)
@@ -209,15 +326,24 @@ class Gfx12CmdBuilder : public CmdBuilder {
         PACKET3_COPY_DATA__COUNT_SEL(PACKET3_COPY_DATA__COUNT_SEL__32_BITS_OF_DATA);
 
     uint32_t dword3 = PACKET3_COPY_DATA__IMM_DATA(value);
-
     uint32_t dword5 = PACKET3_COPY_DATA__DST_REG_OFFSET(addr);
-    uint32_t dword6 = 0;
-    // This logic will be removed when we switch to use RRMT
-    if (addr < 0x7000) {
-      // bit32 1 = Remote DIE
-      dword5 |= 0x40000000;
-      // bit34-39 1 = AID0. Temporary hack. Won't work for AID1.
-      dword6 = 1;
+
+    if (chiplet.has_value()) {
+      ChipletId chiplet_id = chiplet.value();
+      bool is_aid_chiplet = write_to_aid.value_or(false);
+      uint32_t rrmt_mode = 0;
+      uint32_t die_id = 0;
+      if (enable_pm4_rrmt_) {
+        GetChipletIdRRMTInfo(chiplet_id, is_aid_chiplet, rrmt_mode, die_id);
+        dword2 |= rrmt_mode | die_id |
+          PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE(PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE__DST_IS_REMOTE);
+      } else if (is_aid_chiplet)
+        if (chiplet_id == CHIPLET_XCD0 || chiplet_id == CHIPLET_XCD4) {
+          // bit32: 1 = Remote DIE
+          dword5 |= 0x40000000;
+          // bit34-39: 1 = AID0; 2 = AID1
+          dword6 = chiplet_id == CHIPLET_XCD0 ? 1 : 2;
+        }
     }
 
     // build the pm4mec_copy_data command which has 6 Dwords
@@ -227,17 +353,35 @@ class Gfx12CmdBuilder : public CmdBuilder {
     APPEND_COMMAND_WRAPPER(cmdbuf, pm4mec_copy_data_cmd);
   }
 
+  void BuildWritePConfigRegPacket(CmdBuffer* cmdbuf, uint32_t addr, uint32_t value) {
+    return _buildWritePConfigRegPacket(cmdbuf, addr, value, std::nullopt, std::nullopt);
+  }
+
+  void BuildWritePConfigRegPacketToChiplet(CmdBuffer* cmdbuf, uint32_t addr, uint32_t value,
+                                           ChipletId chiplet, bool write_to_aid = true) override {
+    return _buildWritePConfigRegPacket(cmdbuf, addr, value, chiplet, write_to_aid);
+  }
+
+  void BuildWritePConfigRegPacketToChiplet(CmdBuffer* cmdbuf, const Register& reg, uint32_t value,
+                                           ChipletId chiplet, bool write_to_aid = true) override {
+    return _buildWritePConfigRegPacket(cmdbuf, get_addr(reg), value, chiplet, write_to_aid);
+  }
+
   void BuildWriteConfigRegPacket(CmdBuffer* cmdbuf, uint32_t addr, uint32_t value) {
     return IsPrivilegedConfigReg(addr) ? BuildWritePConfigRegPacket(cmdbuf, addr, value)
                                        : BuildWriteUConfigRegPacket(cmdbuf, addr, value);
   }
 
-  void BuildCopyRegDataPacket(CmdBuffer* cmdbuf, uint32_t src_reg_addr, const void* dst_addr,
-                              uint32_t size, bool wait) {
+  void _buildCopyRegDataPacket(CmdBuffer* cmdbuf, uint32_t src_reg_addr, const void* dst_addr,
+                               uint32_t size, bool wait, std::optional<ChipletId> chiplet = std::nullopt,
+                              std::optional<bool> copy_from_aid = std::nullopt) {
+    uint32_t dword2 = 0;
+    uint32_t dword4 = 0;
+
     // Initialize the command header
     uint32_t header = MakePacket3Header(PACKET3_COPY_DATA, 6 * sizeof(uint32_t));
 
-    uint32_t dword2 =
+    dword2 |=
         (IsPrivilegedConfigReg(src_reg_addr)
              ? PACKET3_COPY_DATA__SRC_SEL(PACKET3_COPY_DATA__SRC_SEL__PERFCOUNTERS)
              : PACKET3_COPY_DATA__SRC_SEL(PACKET3_COPY_DATA__SRC_SEL__MEM_MAPPED_REGISTER)) |
@@ -252,17 +396,6 @@ class Gfx12CmdBuilder : public CmdBuilder {
 
     // Specify the source register offset
     uint32_t dword3 = PACKET3_COPY_DATA__SRC_REG_OFFSET(src_reg_addr);
-    uint32_t dword4 = 0;
-    // This logic will be removed when we switch to use RRMT
-    if (src_reg_addr < 0x7000) {
-      // bit32 1 = Remote DIE
-      dword3 |= 0x40000000;
-      // bit34-39 1 = AID0. Temporary hack. Won't work for AID1.
-      dword4 = 1;
-    }
-
-    // Specify the destination memory address
-    uint32_t dword6 = PACKET3_COPY_DATA__DST_ADDR_HI(PtrHigh32(dst_addr));
 
     uint32_t dword5 = 0;
     if (size == 0) {
@@ -271,10 +404,36 @@ class Gfx12CmdBuilder : public CmdBuilder {
       dword5 |= PACKET3_COPY_DATA__DST_64B_ADDR_LO((PtrLow32(dst_addr) >> 3));
     }
 
+    // Specify the destination memory address
+    uint32_t dword6 = PACKET3_COPY_DATA__DST_ADDR_HI(PtrHigh32(dst_addr));
+
+    if (chiplet.has_value()) {
+      ChipletId chiplet_id = chiplet.value();
+      bool is_aid_chiplet = copy_from_aid.value_or(false);
+      uint32_t rrmt_mode = 0;
+      uint32_t die_id = 0;
+      if (enable_pm4_rrmt_) {
+        GetChipletIdRRMTInfo(chiplet_id, is_aid_chiplet, rrmt_mode, die_id);
+        dword2 |= rrmt_mode | die_id |
+          PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE(PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE__SRC_IS_REMOTE);
+      } else if (is_aid_chiplet)
+        if (chiplet_id == CHIPLET_XCD0 || chiplet_id == CHIPLET_XCD4) {
+          // bit32: 1 = Remote DIE
+          dword3 |= 0x40000000;
+          // bit34-39: 1 = AID0; 2 = AID1
+          dword4 = chiplet_id == CHIPLET_XCD0 ? 1 : 2;
+        }
+    }
+
     // build the pm4mec_copy_data command which has 6 Dwords
     uint32_t pm4mec_copy_data_cmd[6] = {header, dword2, dword3, dword4, dword5, dword6};
     // Append the built command into output Command Buffer
     APPEND_COMMAND_WRAPPER(cmdbuf, pm4mec_copy_data_cmd);
+  }
+
+  void BuildCopyRegDataPacket(CmdBuffer* cmdbuf, uint32_t src_reg_addr, const void* dst_addr,
+                              uint32_t size, bool wait) override {
+    _buildCopyRegDataPacket(cmdbuf, src_reg_addr, dst_addr, size, false, std::nullopt, std::nullopt);
   }
 
   uint32_t BuildCopyCounterDataPacket(CmdBuffer* cmdbuf, uint32_t src_reg_addr_lo,
@@ -289,6 +448,24 @@ class Gfx12CmdBuilder : public CmdBuilder {
     if (dw_mask & 0x2) {
       BuildCopyRegDataPacket(cmdbuf, src_reg_addr_hi, (uint32_t*)dst_addr + read_counter,
                              PACKET3_COPY_DATA__COUNT_SEL__32_BITS_OF_DATA, false);
+      ++read_counter;
+    }
+    return read_counter;
+  }
+
+  uint32_t BuildCopyCounterDataPacketFromChiplet(CmdBuffer* cmdbuf, const Register& reg_lo,
+                                                 const Register& reg_hi, const void* dst_addr,
+                                                 uint32_t dw_mask, ChipletId chiplet,
+                                                 bool copy_from_aid = true) override {
+    uint32_t read_counter = 0;
+    if (dw_mask & 0x1) {
+      _buildCopyRegDataPacket(cmdbuf, get_addr(reg_lo), (uint32_t*)dst_addr + read_counter,
+                              PACKET3_COPY_DATA__COUNT_SEL__32_BITS_OF_DATA, false, chiplet, copy_from_aid);
+      ++read_counter;
+    }
+    if (dw_mask & 0x2) {
+      _buildCopyRegDataPacket(cmdbuf, get_addr(reg_hi), (uint32_t*)dst_addr + read_counter,
+                              PACKET3_COPY_DATA__COUNT_SEL__32_BITS_OF_DATA, false, chiplet, copy_from_aid);
       ++read_counter;
     }
     return read_counter;
