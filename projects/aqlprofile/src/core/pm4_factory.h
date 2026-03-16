@@ -154,6 +154,8 @@ class Pm4Factory {
   virtual bool IsGFX12() const { return false; }
   // Return number of XCC on the GPU
   uint32_t GetXccNumber() const { return agent_info_->xcc_num; }
+  // Return number of XCC per AID
+  uint32_t GetXccPerAid() const { return agent_info_->xcc_per_aid; }
 
   // SPM specific
   virtual uint32_t GetSpmSampleDelayMax() { return 0; }

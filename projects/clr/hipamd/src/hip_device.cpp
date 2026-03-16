@@ -490,10 +490,9 @@ hipError_t ihipGetDeviceProperties(hipDeviceProp_tR0600* props, int device) {
 
   constexpr auto pixel_size_max = 16;
   constexpr auto int32_max = static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
-  constexpr auto uint16_max = static_cast<uint64_t>(std::numeric_limits<uint16_t>::max()) + 1;
+  const auto& info = deviceHandle->info();
   hipDeviceProp_tR0600 deviceProps = {0};
 
-  const auto& info = deviceHandle->info();
   const auto& isa = deviceHandle->isa();
   ::strncpy(deviceProps.name, info.boardName_, sizeof(info.boardName_));
   memcpy(deviceProps.uuid.bytes, info.uuid_, sizeof(info.uuid_));
@@ -506,9 +505,9 @@ hipError_t ihipGetDeviceProperties(hipDeviceProp_tR0600* props, int device) {
   deviceProps.maxThreadsDim[0] = info.maxWorkItemSizes_[0];
   deviceProps.maxThreadsDim[1] = info.maxWorkItemSizes_[1];
   deviceProps.maxThreadsDim[2] = info.maxWorkItemSizes_[2];
-  deviceProps.maxGridSize[0] = int32_max;
-  deviceProps.maxGridSize[1] = uint16_max;
-  deviceProps.maxGridSize[2] = uint16_max;
+  deviceProps.maxGridSize[0] = std::min(static_cast<uint64_t>(info.maxGridDim_[0]), int32_max);
+  deviceProps.maxGridSize[1] = std::min(static_cast<uint64_t>(info.maxGridDim_[1]), int32_max);
+  deviceProps.maxGridSize[2] = std::min(static_cast<uint64_t>(info.maxGridDim_[2]), int32_max);
   deviceProps.clockRate = info.maxEngineClockFrequency_ * 1000;
   deviceProps.memoryClockRate = info.maxMemoryClockFrequency_ * 1000;
   deviceProps.memoryBusWidth = info.vramBusBitWidth_;
@@ -692,10 +691,9 @@ hipError_t hipGetDevicePropertiesR0000(hipDeviceProp_tR0000* prop, int device) {
   auto* deviceHandle = g_devices[device]->devices()[0];
 
   constexpr auto int32_max = static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
-  constexpr auto uint16_max = static_cast<uint64_t>(std::numeric_limits<uint16_t>::max()) + 1;
+  const auto& info = deviceHandle->info();
   hipDeviceProp_tR0000 deviceProps = {0};
 
-  const auto& info = deviceHandle->info();
   const auto& isa = deviceHandle->isa();
   ::strncpy(deviceProps.name, info.boardName_, 128);
   deviceProps.totalGlobalMem = info.globalMemSize_;
@@ -706,9 +704,9 @@ hipError_t hipGetDevicePropertiesR0000(hipDeviceProp_tR0000* prop, int device) {
   deviceProps.maxThreadsDim[0] = info.maxWorkItemSizes_[0];
   deviceProps.maxThreadsDim[1] = info.maxWorkItemSizes_[1];
   deviceProps.maxThreadsDim[2] = info.maxWorkItemSizes_[2];
-  deviceProps.maxGridSize[0] = int32_max;
-  deviceProps.maxGridSize[1] = uint16_max;
-  deviceProps.maxGridSize[2] = uint16_max;
+  deviceProps.maxGridSize[0] = std::min(static_cast<uint64_t>(info.maxGridDim_[0]), int32_max);
+  deviceProps.maxGridSize[1] = std::min(static_cast<uint64_t>(info.maxGridDim_[1]), int32_max);
+  deviceProps.maxGridSize[2] = std::min(static_cast<uint64_t>(info.maxGridDim_[2]), int32_max);
   deviceProps.clockRate = info.maxEngineClockFrequency_ * 1000;
   deviceProps.memoryClockRate = info.maxMemoryClockFrequency_ * 1000;
   deviceProps.memoryBusWidth = info.vramBusBitWidth_;

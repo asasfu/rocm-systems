@@ -236,7 +236,7 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
   hsa_status_t status = driver().IsModelEnabled(&model_enabled);
   assert(status == HSA_STATUS_SUCCESS && "IsModelEnabled failed");
   if (model_enabled) {
-    wallclock_frequency_ = 0;
+    wallclock_frequency_ = 1000*1000*1000; // The model has a 1GHz refclk
   } else {
     // Prefer cached node properties when available (in KHz)
     if (properties_.WallClockKHz != 0) {

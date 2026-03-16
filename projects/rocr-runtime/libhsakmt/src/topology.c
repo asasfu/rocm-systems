@@ -1075,6 +1075,9 @@ static int topology_get_node_props_from_drm(HsaNodeProperties *props)
 	if (props == NULL)
 		return -1;
 
+	if (hsakmt_use_model)
+		return 0;
+
 	drm_fd = drmOpenRender(props->DrmRenderMinor);
 	if (drm_fd < 0)
 		return -1;

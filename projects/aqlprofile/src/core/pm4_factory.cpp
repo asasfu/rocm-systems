@@ -75,6 +75,12 @@ aqlprofile_agent_handle_t RegisterAgent(const aqlprofile_agent_info_v1_t* agent_
   //       Patch it to be WGP = 2CU to reuse profiler logic
   if (!strncmp(int_agent_info.name, "gfx1250", 7)) {
     int_agent_info.cu_num = agent_info->se_num * agent_info->shader_arrays_per_se * 9 * 2;
+    int_agent_info.xcc_per_aid = 4;
+  } else if (!strncmp(int_agent_info.name, "gfx94", 5) ||
+             !strncmp(int_agent_info.name, "gfx95", 5)) {
+    int_agent_info.xcc_per_aid = 2;
+  } else {
+    int_agent_info.xcc_per_aid = 1;
   }
 
   get_cache().add(agent_id.handle, int_agent_info);

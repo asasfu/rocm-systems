@@ -4266,6 +4266,7 @@
         "Unit_hipGraphClone_Test_hipGraphEventRecordNodeSetEvent_and_Exec",
         "Unit_hipEvent",
         "Unit_hipGraphAddNodeTypeEventRecord_Positive_Basic",
+        "Unit_hipGraphAddEventRecordNode_Functional_Simple",
     #endif
     #if defined gfx1250
         "=== FFM non-passed tests only on mi450 (gfx1250) vs at2 ===",
