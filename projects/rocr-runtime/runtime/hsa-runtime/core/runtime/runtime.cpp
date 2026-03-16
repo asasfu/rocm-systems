@@ -255,7 +255,6 @@ void Runtime::RegisterDriver(std::unique_ptr<Driver> driver) {
 
 void Runtime::DestroyAgents() {
   agents_by_node_.clear();
-
   std::for_each(gpu_agents_.begin(), gpu_agents_.end(), DeleteObject());
   gpu_agents_.clear();
 
@@ -271,9 +270,6 @@ void Runtime::DestroyAgents() {
   aie_agents_.clear();
 
   region_gpu_ = NULL;
-
-  system_regions_fine_.clear();
-  system_regions_coarse_.clear();
 }
 
 void Runtime::DestroyDrivers() {
@@ -378,7 +374,6 @@ hsa_status_t Runtime::FreeMemory(void* ptr) {
     //track the exporter BO to clear meta data via set_metadata
     //clear the set metadata here if possible if theres an existing ldrm_bo
     if (it->second.thunk_bo) {
-#if defined(__linux__)
       if (!thunkLoader()->IsDXG()) {
         //clear metadata
         HSAKMT_STATUS status = HSAKMT_CALL(hsaKmtMemHandleFree(it->second.thunk_bo));
@@ -386,9 +381,6 @@ hsa_status_t Runtime::FreeMemory(void* ptr) {
           return HSA_STATUS_ERROR;
         }
       }
-#else
-      assert(!"Unimplemented!");
-#endif
     }
 
     allocation_map_.erase(it);
@@ -1428,7 +1420,7 @@ hsa_status_t Runtime::IPCCreate(void* ptr, size_t len, hsa_amd_ipc_memory_t* han
 
       HsaExternalHandleDesc desc;
       desc.device_handle = agent_->libThunkDev();
-      desc.fd = reinterpret_cast<HSAint32>(dmabuf_fd);
+      desc.fd = static_cast<HSAint32>(dmabuf_fd);
       desc.type = HSA_EXTERNAL_HANDLE_DMA_BUF;
       desc.metadata = handle->handle[7];
       HsaHandleImportFlags hflags;
@@ -1453,6 +1445,13 @@ hsa_status_t Runtime::IPCCreate(void* ptr, size_t len, hsa_amd_ipc_memory_t* han
   std::lock_guard<std::mutex> lock(ipc_sock_server_lock_);
 #if defined(__linux__)
   if (!ipc_sock_server_conns_.size()) { // create new runtime socket server
+    // Ensure any previous IPC server thread handle is released before starting a new one.
+    if (ipc_sock_server_thread_) {
+      os::WaitForThread(ipc_sock_server_thread_);
+      os::CloseThread(ipc_sock_server_thread_);
+      ipc_sock_server_thread_ = nullptr;
+    }
+
     struct sockaddr_un address;
     ipc_sock_server_fd_ = socket(AF_UNIX, SOCK_STREAM, 0);
     assert(ipc_sock_server_fd_ > -1 && "DMA buffer could not be exported for IPC!");
@@ -1472,15 +1471,29 @@ hsa_status_t Runtime::IPCCreate(void* ptr, size_t len, hsa_amd_ipc_memory_t* han
     address.sun_path[0] = 0; // first NULL char creates unlisted abstract socket
     int err = bind(ipc_sock_server_fd_, (struct sockaddr *)&address, sizeof(struct sockaddr_un));
     assert(!err && "Connection to export DMA buffer not made!");
-    if (err) return HSA_STATUS_ERROR;
+    if (err) {
+      close(ipc_sock_server_fd_);
+      ipc_sock_server_fd_ = -1;
+      return HSA_STATUS_ERROR;
+    }
     err = listen(ipc_sock_server_fd_, 1);
     assert(!err && "Connection to export DMA buffer not made!");
-    if (err) return HSA_STATUS_ERROR;
+    if (err) {
+      close(ipc_sock_server_fd_);
+      ipc_sock_server_fd_ = -1;
+      return HSA_STATUS_ERROR;
+    }
 
     // Spin server client acceptance into a socket server thread.
     // Socket server needs to last for the lifetime of the runtime instance
     // as the attach life cycle is unknown.
-    os::CreateThread(AsyncIPCSockServerConnLoop, NULL);
+    ipc_sock_server_thread_ = os::CreateThread(AsyncIPCSockServerConnLoop, NULL);
+    if (!ipc_sock_server_thread_) {
+      ipc_sock_server_conns_.clear();
+      close(ipc_sock_server_fd_);
+      ipc_sock_server_fd_ = -1;
+      return HSA_STATUS_ERROR;
+    }
   }
 #else
   assert(!"Unimplemented! Do we really need this?");
@@ -1558,9 +1571,9 @@ int Runtime::IPCClientImport(uint32_t conn_handle, uint64_t dmabuf_fd_handle,
 
       HsaExternalHandleDesc desc;
       desc.device_handle = agent->libThunkDev();
-      desc.fd = reinterpret_cast<HSAint32>(dmabuf_fd);
+      desc.fd = static_cast<HSAint32>(dmabuf_fd);
       desc.type = HSA_EXTERNAL_HANDLE_DMA_BUF;
-      desc.metadata = reinterpret_cast<HSAuint32>(shared_handle);
+      desc.metadata = static_cast<HSAuint32>(shared_handle);
       HsaHandleImportFlags hflags;
       hflags.ui32.IPCHandle = 1;
       hflags.ui32.SysMem = isDmabufSysmem;
@@ -1688,7 +1701,7 @@ hsa_status_t Runtime::IPCAttach(const hsa_amd_ipc_memory_t* handle, size_t len, 
     if (status != HSAKMT_STATUS_SUCCESS) {
       return errCleanup(bo);
     }
-    status = HSAKMT_CALL(hsaKmtMemoryVaMap(bo, 0, reinterpret_cast<HSAuint64>(importSize),
+    status = HSAKMT_CALL(hsaKmtMemoryVaMap(bo, 0, static_cast<HSAuint64>(importSize),
                                            reinterpret_cast<HSAuint64>(cpuPtr), HSA_MEMORY_ACCESS_NONE));
     if (status != HSAKMT_STATUS_SUCCESS) {
       return errCleanup(bo);
@@ -1732,7 +1745,7 @@ hsa_status_t Runtime::IPCDetach(void* ptr) {
 #if defined(__linux__)
       if (it->second.thunk_bo) {
         HSAKMT_STATUS status = HSAKMT_CALL(hsaKmtMemoryVaUnmap(it->second.thunk_bo, 0,
-                                                               reinterpret_cast<HSAuint64>(it->second.size),
+                                                               static_cast<HSAuint64>(it->second.size),
                                                                reinterpret_cast<HSAuint64>(ptr)));
         if (status != HSAKMT_STATUS_SUCCESS) {
           return HSA_STATUS_ERROR_INVALID_ARGUMENT;
@@ -2377,8 +2390,8 @@ Runtime::Runtime()
       internal_queue_create_notifier_user_data_(nullptr),
       ref_count_(0),
       kfd_version{},
-      ipc_sock_server_fd_(0) {
-
+      ipc_sock_server_fd_(0),
+      ipc_sock_server_thread_(nullptr) {
   virtual_mem_api_supported_ = false;
   ipc_dmabuf_supported_ = false;
   xnack_enabled_ = false;
@@ -2468,6 +2481,12 @@ void Runtime::Unload() {
     IPCClientImport(getpid(), IPC_SOCK_SERVER_CONN_CLOSE_HANDLE,
                     0, nullptr, nullptr, nullptr, false, 0);
 
+  if (ipc_sock_server_thread_) {
+    os::WaitForThread(ipc_sock_server_thread_);
+    os::CloseThread(ipc_sock_server_thread_);
+    ipc_sock_server_thread_ = nullptr;
+  }
+
   svm_profile_.reset(nullptr);
 
   UnloadTools();
@@ -2504,6 +2523,11 @@ void Runtime::Unload() {
   // contain allocations from memory regions owned by agents.
   SharedSignalPool.clear();
   EventPool.clear();
+
+  // Clear system regions before destroying agents to prevent use-after-free
+  // when agent destructors access region memory.
+  system_regions_fine_.clear();
+  system_regions_coarse_.clear();
 
   DestroyAgents();
 

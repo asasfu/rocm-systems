@@ -529,5 +529,8 @@ hipExtSetLoggingParams
 hipMemSetMemPool
 hipMemGetMemPool
 hipMipmappedArrayGetMemoryRequirements
+hipKernelGetAttribute
+hipKernelSetAttribute
+hipKernelGetFunction
 hipOccupancyMaxPotentialClusterSize
 hipOccupancyMaxActiveClusters

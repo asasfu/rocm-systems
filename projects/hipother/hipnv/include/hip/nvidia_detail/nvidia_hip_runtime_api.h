@@ -3009,6 +3009,9 @@ inline static hipError_t hipDeviceGetAttribute(int* pi, hipDeviceAttribute_t att
     case hipDeviceAttributeVirtualMemoryManagementSupported:
       return hipCUResultTohipError(cuDeviceGetAttribute(
           pi, CU_DEVICE_ATTRIBUTE_VIRTUAL_MEMORY_MANAGEMENT_SUPPORTED, device));
+    case hipDeviceAttributeDmaBufSupported:
+      return hipCUResultTohipError(cuDeviceGetAttribute(
+          pi, CU_DEVICE_ATTRIBUTE_DMA_BUF_SUPPORTED, device));
 #if CUDA_VERSION >= CUDA_12040
     case hipDeviceAttributeHandleTypeFabricSupported:
       return hipCUResultTohipError(cuDeviceGetAttribute(
@@ -3791,6 +3794,18 @@ inline static hipError_t hipKernelGetName(const char** name, hipKernel_t kernel)
 inline static hipError_t hipKernelGetParamInfo(hipKernel_t kernel, size_t paramIndex, size_t* paramOffset,
                                                size_t* paramSize) {
   return hipCUResultTohipError(cuKernelGetParamInfo(kernel, paramIndex, paramOffset, paramSize));
+}
+inline static hipError_t hipKernelSetAttribute(hipFunction_attribute attrib, int value, hipKernel_t kernel, hipDevice_t dev) {
+  return hipCUResultTohipError(cuKernelSetAttribute(attrib, value, kernel, dev));
+}
+
+inline static hipError_t hipKernelGetFunction(hipFunction_t* pFunc, hipKernel_t kernel) {
+  return hipCUResultTohipError(cuKernelGetFunction(pFunc, kernel));
+}
+
+inline static hipError_t hipKernelGetAttribute(int* pi, hipFunction_attribute attrib, hipKernel_t kernel,
+                                               hipDevice_t dev) {
+  return hipCUResultTohipError(cuKernelGetAttribute(pi, attrib, kernel, dev));
 }
 
 inline static hipError_t hipLaunchKernel(const void* function_address, dim3 numBlocks,

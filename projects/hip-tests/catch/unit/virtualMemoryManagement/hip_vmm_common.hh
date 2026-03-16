@@ -46,6 +46,16 @@ THE SOFTWARE.
     }                                                                                              \
   }
 
+#define checkDmaBufSupported(device)                                                               \
+  {                                                                                                \
+    int value = 0;                                                                                 \
+    hipDeviceAttribute_t attr = hipDeviceAttributeDmaBufSupported;                                 \
+    HIP_CHECK(hipDeviceGetAttribute(&value, attr, device));                                        \
+    if (value == 0) {                                                                              \
+      HipTest::HIP_SKIP_TEST("Device Doesn't support Dma Bufd. Skipping Test..");                  \
+      return;                                                                                      \
+    }                                                                                              \
+  }
 #define checkFabricHandleSupported(device)                                                         \
   {                                                                                                \
     int value = 0;                                                                                 \
@@ -187,14 +197,14 @@ public:
   // method to receive shareable handle via socket
   int recvShareableHdl(hipShareableHdl *shHandle) {
     int dummy_data;
-    struct msghdr msg;
+    struct msghdr msg = {};
     struct iovec iov[1];
 
     // Union to guarantee alignment requirements for control array
     union {
       struct cmsghdr cm;
       char control[CMSG_SPACE(sizeof(int))];
-    } control_un;
+    } control_un = {};
 
     struct cmsghdr *cmptr;
     ssize_t n;
@@ -227,13 +237,13 @@ public:
   }
   // method to send shareable handle via sockets
   int sendShareableHdl(hipShareableHdl shareableHdl, Process process) {
-    struct msghdr msg;
+    struct msghdr msg = {};
     struct iovec iov[1];
     int dummy_data = 0;
     union {
       struct cmsghdr cm;
       char control[CMSG_SPACE(sizeof(int))];
-    } control_un;
+    } control_un = {};
 
     struct cmsghdr *cmptr;
     struct sockaddr_un cliaddr;

@@ -1703,13 +1703,16 @@ bool Device::populateOCLDeviceConstants() {
   }
   HIP_MEM_POOL_USE_VM &= info_.virtualMemoryManagement_;
 
+  // Check Support for Buffer sharing with dma_buf
+  std::ignore = Hsa::system_get_info(
+                    static_cast<hsa_system_info_t>(HSA_AMD_SYSTEM_INFO_DMABUF_SUPPORTED),
+                    &info_.dmabufSupported_);
   // devices with no cluster support; max size is 0
   info_.clusterMaxSize_ = 0;
 
-  hsa_status_t hsaStatus = hsa_agent_get_info(
+  hsa_status_t hsaStatus = Hsa::agent_get_info(
       bkendDevice_, static_cast<hsa_agent_info_t>(HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE),
       &info_.clusterMaxSize_);
-
 
   // this is required for clustered kernel launches; but it might not be supported in older rocr,
   // so invalid argument might no be necessarily an error
@@ -3603,6 +3606,13 @@ amd::Memory* Device::GetArenaMemObj(const void* ptr, size_t& offset, size_t size
 void Device::ReleaseGlobalSignal(void* signal) const {
   if (signal != nullptr) {
     reinterpret_cast<ProfilingSignal*>(signal)->release();
+  }
+}
+
+// ================================================================================================
+void Device::RetainGlobalSignal(void* signal) const {
+  if (signal != nullptr) {
+    reinterpret_cast<ProfilingSignal*>(signal)->retain();
   }
 }
 
