@@ -126,8 +126,8 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
   typedef uint32_t reg_addr_t;
   // Shader Engines number on the GPU
   uint32_t se_number_;
-  uint32_t wgp_per_sa;
-  uint32_t sarrays_per_se;
+  uint32_t wgp_per_sa_;
+  uint32_t sarrays_per_se_;
   // XCC number on the GPU
   uint32_t xcc_number_;
   uint32_t xcc_per_aid_;
@@ -201,14 +201,14 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
       for (xcc_id = 0; xcc_id < xcc_number_; xcc_id += xcc_per_aid_) {
         PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_id, xcc_number_ > 1);
         builder.BuildWritePConfigRegPacketToChiplet(cmd_buffer, Primitives::GRBMA_GFX_INDEX_ADDR,
-                                                    value, (ChipletId)xcc_id);
+                                                    value, static_cast<ChipletId>(xcc_id));
       }
     }
     if (gc_mode & GC_MODE_AID_WITH_XCD_INDEX) {
       xcc_id = gc_mode & GC_MODE_XCD_ID_MASK;
       // We don't need PrecExec for this case because the caller will program PrecExec
       builder.BuildWritePConfigRegPacketToChiplet(cmd_buffer, Primitives::GRBMA_GFX_INDEX_ADDR,
-                                                  value, (ChipletId)xcc_id);
+                                                  value, static_cast<ChipletId>(xcc_id));
     }
   }
 
@@ -223,7 +223,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
       for (uint32_t xcc_id = 0; xcc_id < xcc_number_; xcc_id += xcc_per_aid_) {
         PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_id, xcc_number_ > 1);
         builder.BuildWritePConfigRegPacketToChiplet(cmd_buffer, Primitives::AID_PERFMON_CNTL_ADDR,
-                                                    value, (ChipletId)xcc_id);
+                                                    value, static_cast<ChipletId>(xcc_id));
       }
     }
   }
@@ -235,10 +235,10 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         se_number_(agent_info->se_num / agent_info->xcc_num),
         xcc_number_(agent_info->xcc_num),
         xcc_per_aid_(agent_info->xcc_per_aid),
-        sarrays_per_se(agent_info->shader_arrays_per_se) {
-    this->wgp_per_sa =
-        (agent_info->cu_num / 2 + sarrays_per_se * se_number_ - 1) / (se_number_ * sarrays_per_se);
-    this->wgp_per_sa /= agent_info->xcc_num;
+        sarrays_per_se_(agent_info->shader_arrays_per_se) {
+    this->wgp_per_sa_ =
+        (agent_info->cu_num / 2 + sarrays_per_se_ * se_number_ - 1) / (se_number_ * sarrays_per_se_);
+    this->wgp_per_sa_ /= agent_info->xcc_num;
     // Due to MI300 CP firmware issue we need to use mem_mapped_register mode to patch for GCEA
     // hang. Otherwise both perfcounters mode and mem_mapped_register mode should work.
     builder.bUsePerfCounterMode = (xcc_number_ > 1) ? false : true;
@@ -246,7 +246,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
   }
 
   int GetNumWGPs() override {
-    if (Primitives::GFXIP_LEVEL >= 11) return wgp_per_sa;
+    if (Primitives::GFXIP_LEVEL >= 11) return wgp_per_sa_;
     return 1;
   };
 
@@ -362,14 +362,14 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         auto select_addr = reg_info.select_addr;
         auto value = block_info->select_value(counter_des);
         if (block_info->attr & CounterBlockGrbmaAttr) {
-          for (uint32_t xcc_id_ = 0; xcc_id_ < xcc_number_; xcc_id_ += xcc_per_aid_) {
-            PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_id_,
+          for (uint32_t xcc_id = 0; xcc_id < xcc_number_; xcc_id += xcc_per_aid_) {
+            PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_id,
                                                        xcc_number_ > 1);
             builder.BuildWritePConfigRegPacketToChiplet(cmd_buffer, select_addr, value,
-                                                        (ChipletId)xcc_id_);
+                                                        static_cast<ChipletId>(xcc_id));
           }
         } else {
-          builder.BuildWriteConfigRegPacket(cmd_buffer, select_addr,  value);
+          builder.BuildWriteConfigRegPacket(cmd_buffer, select_addr, value);
         }
       }
       if (block_info->attr & CounterBlockSdmaAttr) {
@@ -573,9 +573,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
 
       // Skip UMC/SDMA/ATC/RPB counters
       if (block_info->attr & CounterBlockAidAttr) continue;
-      if ((block_info->attr & CounterBlockGrbmaAttr) && !(gc_mode & GC_MODE_AID_WITH_XCD_INDEX))
-        continue;
-      if (!(block_info->attr & CounterBlockGrbmaAttr) && (gc_mode & GC_MODE_AID_WITH_XCD_INDEX))
+      if (bool(block_info->attr & CounterBlockGrbmaAttr) != bool(gc_mode & GC_MODE_AID_WITH_XCD_INDEX))
         continue;
 
       if (SPISkip(block_info->attr, counter_des.id)) {
@@ -628,7 +626,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         // skip
       } else {
         const uint32_t se_end_index = (block_info->attr & CounterBlockSeAttr) ? se_number_ : 1;
-        const uint32_t sa_end_index = (block_info->attr & CounterBlockSaAttr) ? sarrays_per_se : 1;
+        const uint32_t sa_end_index = (block_info->attr & CounterBlockSaAttr) ? sarrays_per_se_ : 1;
         for (uint32_t se_index = 0; se_index < se_end_index; ++se_index)
           for (uint32_t sarray = 0; sarray < sa_end_index; ++sarray) {
             uint32_t grbm_value = Primitives::grbm_broadcast_value();
@@ -650,7 +648,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
                 Primitives::GFXIP_LEVEL >= 12 && (block_info->attr & CounterBlockWgpAttr);
 
             if (bIsWGPcounter11) {
-              for (int wgp = 0; wgp < wgp_per_sa; wgp++) {
+              for (int wgp = 0; wgp < wgp_per_sa_; wgp++) {
                 grbm_value = Primitives::grbm_se_sh_wgp_index_value(se_index, sarray, wgp);
                 SetGrbmGfxIndex(cmd_buffer, grbm_value);
                 builder.BuildCopyCounterDataPacket(
@@ -659,7 +657,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
                 read_counter += 2;
               }
             } else if (bIsWGPcounter12) {
-              for (int wgp = 0; wgp < wgp_per_sa; wgp++) {
+              for (int wgp = 0; wgp < wgp_per_sa_; wgp++) {
                 // TODO: This patch is needed to avoid soft-hang for some WGP
                 //       blocks, will remove after CU mask support is added to
                 //       agent_info
@@ -690,7 +688,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
               if (block_info->attr & CounterBlockGrbmaAttr)
                 builder.BuildCopyCounterDataPacketFromChiplet(
                     cmd_buffer, reg_info.register_addr_lo, reg_info.register_addr_hi,
-                    reinterpret_cast<uint32_t*>(data_buffer) + read_counter, 3, (ChipletId)xcc_id);
+                    reinterpret_cast<uint32_t*>(data_buffer) + read_counter, 3, static_cast<ChipletId>(xcc_id));
               else
                 builder.BuildCopyCounterDataPacket(
                     cmd_buffer, reg_info.register_addr_lo, reg_info.register_addr_hi,
