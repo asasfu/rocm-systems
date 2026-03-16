@@ -203,9 +203,9 @@ inline hipError_t GetDeviceKernel(const void* func, device::Kernel** d_kernel) {
   hipFunction_t h_func = nullptr;
   const hip::DeviceFunc* function = nullptr;
 
-  hipError_t err = PlatformState::instance().getStatFunc(&h_func, func, ihipGetDevice());
+  hipError_t err = PlatformState::Instance().StatCO().GetFunc(&h_func, func, ihipGetDevice());
   if (h_func == nullptr) {
-    if (PlatformState::instance().isValidDynFunc((func))) {
+    if (PlatformState::Instance().IsValidDynFunc(func)) {
       function = reinterpret_cast<const hip::DeviceFunc*>(func);
     } else {
       return hipErrorInvalidDeviceFunction;
