@@ -4050,8 +4050,8 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
         sizes.dimensions() > 2 ? (sizes.global()[2] / (local[2] * sizes.cluster()[2])) : 1;
 
     // Extended packet: grid Y/Z (work-items) must not exceed ROCr HSA_AGENT_INFO_GRID_MAX_DIM
-    if (sizes.global()[1] > dev().info().maxGridDim_[1] ||
-        sizes.global()[2] > dev().info().maxGridDim_[2]) {
+    if ((sizes.dimensions() > 1 && sizes.global()[1] > dev().info().maxGridDim_[1]) ||
+        (sizes.dimensions() > 2 && sizes.global()[2] > dev().info().maxGridDim_[2])) {
       LogError("Grid dimension Y/Z exceeds maximum for extended dispatch packet");
       return false;
     }
