@@ -85,6 +85,7 @@
 // Size of scratch (private) segment pre-allocated per thread, in bytes.
 #define DEFAULT_SCRATCH_BYTES_PER_THREAD 2048
 #define MAX_WAVE_SCRATCH 8387584  // See COMPUTE_TMPRING_SIZE.WAVESIZE
+#define MAX_WAVE_SCRATCH_GFX12 67106816 // 2MB stack size per wave
 #define MAX_NUM_DOORBELLS 0x400
 
 namespace rocr {
@@ -118,7 +119,11 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
       pcs_hosttrap_data_(),
       pcs_stochastic_data_(),
       xgmi_cpu_gpu_(false),
-      large_bar_enabled_(false){
+      large_bar_enabled_(false),
+      extended_aql_dispatch_supported_(false),
+      workgroup_clusters_supported_(false),
+      kern_cluster_max_dim_({ UINT32_MAX, UINT32_MAX, UINT32_MAX }),
+      cluster_max_dim_({ 1, 1, 1 }) {
   const bool is_apu_node = (properties_.NumCPUCores > 0);
   profile_ = (is_apu_node) ? HSA_PROFILE_FULL : HSA_PROFILE_BASE;
 
@@ -189,6 +194,21 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
     supported_isas_.push_back(core::IsaRegistry::GetIsa(isa_->GetIsaGeneric()));
   }
 
+  max_wave_scratch_ = (isa_->GetMajorVersion() >= 12) ? MAX_WAVE_SCRATCH_GFX12 : MAX_WAVE_SCRATCH;
+
+  if (isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5) {
+    extended_aql_dispatch_supported_ = true;
+    workgroup_clusters_supported_ = true;
+  }
+
+  if (isa_->GetMajorVersion() >= 12)
+    kern_cluster_max_dim_ = { UINT32_MAX, UINT16_MAX, UINT16_MAX };
+
+  if (workgroup_clusters_supported_) {
+    const uint64_t num_cu_per_se = properties_.NumArrays * properties_.NumCUPerArray;
+    cluster_max_dim_ = { num_cu_per_se, num_cu_per_se, num_cu_per_se };
+  }
+
   current_coherency_type((profile_ == HSA_PROFILE_FULL)
                              ? HSA_AMD_COHERENCY_TYPE_COHERENT
                              : HSA_AMD_COHERENCY_TYPE_NONCOHERENT);
@@ -216,7 +236,7 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
   hsa_status_t status = driver().IsModelEnabled(&model_enabled);
   assert(status == HSA_STATUS_SUCCESS && "IsModelEnabled failed");
   if (model_enabled) {
-    wallclock_frequency_ = 0;
+    wallclock_frequency_ = 1000*1000*1000; // The model has a 1GHz refclk
   } else {
     // Prefer cached node properties when available (in KHz)
     if (properties_.WallClockKHz != 0) {
@@ -275,6 +295,9 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
     ASICShader compute_10;
     ASICShader compute_11;
     ASICShader compute_12;
+    ASICShader compute_1250;
+    ASICShader compute_1260;
+    ASICShader compute_13;
   };
 
   std::map<std::string, CompiledShader> compiled_shaders = {
@@ -291,6 +314,7 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            // GFX12_TODO: Using one for GFX10 for now.
            //             If NULL is used (like GFX11), get an assert.
            {kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4},          // gfx12
+           {NULL, 0, 0, 0},                                                 // gfx13
        }},
       {"TrapHandlerKfdExceptions",
        {
@@ -303,6 +327,9 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeTrapHandlerV2_10, sizeof(kCodeTrapHandlerV2_10), 2, 4},    // gfx10
            {kCodeTrapHandlerV2_11, sizeof(kCodeTrapHandlerV2_11), 2, 4},    // gfx11
            {kCodeTrapHandlerV2_12, sizeof(kCodeTrapHandlerV2_12), 2, 4},    // gfx12
+           {kCodeTrapHandlerV2_1250, sizeof(kCodeTrapHandlerV2_1250), 2, 4},  // gfx1250
+           {kCodeTrapHandlerV2_1260, sizeof(kCodeTrapHandlerV2_1260), 2, 4},  // gfx1260
+           {kCodeTrapHandlerV2_13, sizeof(kCodeTrapHandlerV2_13), 2, 4},    // gfx13
        }},
       {"CopyAligned",
        {
@@ -315,6 +342,9 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeCopyAligned10, sizeof(kCodeCopyAligned10), 32, 12},        // gfx10
            {kCodeCopyAligned11, sizeof(kCodeCopyAligned11), 32, 12},        // gfx11
            {kCodeCopyAligned12, sizeof(kCodeCopyAligned12), 32, 12},        // gfx12
+           {kCodeCopyAligned1250, sizeof(kCodeCopyAligned1250), 32, 12},    // gfx1250
+           {kCodeCopyAligned1260, sizeof(kCodeCopyAligned1260), 32, 12},    // gfx1260
+           {kCodeCopyAligned13, sizeof(kCodeCopyAligned13), 32, 12},        // gfx13
        }},
       {"CopyMisaligned",
        {
@@ -327,6 +357,9 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeCopyMisaligned10, sizeof(kCodeCopyMisaligned10), 23, 10},  // gfx10
            {kCodeCopyMisaligned11, sizeof(kCodeCopyMisaligned11), 23, 10},  // gfx11
            {kCodeCopyMisaligned12, sizeof(kCodeCopyMisaligned12), 23, 10},  // gfx12
+           {kCodeCopyMisaligned1250, sizeof(kCodeCopyMisaligned1250), 23, 10},  // gfx1250
+           {kCodeCopyMisaligned1260, sizeof(kCodeCopyMisaligned1260), 23, 10},  // gfx1260
+           {kCodeCopyMisaligned13, sizeof(kCodeCopyMisaligned13), 23, 10},  // gfx13
        }},
       {"Fill",
        {
@@ -339,6 +372,9 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
            {kCodeFill10, sizeof(kCodeFill10), 19, 8},                       // gfx10
            {kCodeFill11, sizeof(kCodeFill11), 19, 8},                       // gfx11
            {kCodeFill12, sizeof(kCodeFill12), 19, 8},                       // gfx12
+           {kCodeFill1250, sizeof(kCodeFill1250), 19, 8},                   // gfx1250
+           {kCodeFill1260, sizeof(kCodeFill1260), 19, 8},                   // gfx1260
+           {kCodeFill13, sizeof(kCodeFill13), 19, 8},                       // gfx13
        }}};
 
   auto compiled_shader_it = compiled_shaders.find(func_name);
@@ -373,11 +409,22 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
         asic_shader = &compiled_shader_it->second.compute_11;
       break;
     case 12:
-        asic_shader = &compiled_shader_it->second.compute_12;
+        if(isa_->GetMinorVersion() == 5)
+          asic_shader = &compiled_shader_it->second.compute_1250;
+        else if (isa_->GetMinorVersion() >= 6)
+          asic_shader = &compiled_shader_it->second.compute_1260;
+        else
+          asic_shader = &compiled_shader_it->second.compute_12;
+      break;
+    case 13:
+      asic_shader = &compiled_shader_it->second.compute_13;
       break;
     default:
       assert(false && "Precompiled shader unavailable for target");
   }
+
+  assert((asic_shader->code && asic_shader->size && asic_shader->num_sgprs && asic_shader->num_vgprs)
+          && "Invalid shader");
 
   // Allocate a GPU-visible buffer for the shader.
   size_t header_size =
@@ -395,12 +442,19 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
     amd_kernel_code_t* header = reinterpret_cast<amd_kernel_code_t*>(code_buf);
 
     int gran_sgprs = std::max(0, (int(asic_shader->num_sgprs) - 1) / 8);
-    int gran_vgprs = std::max(0, (int(asic_shader->num_vgprs) - 1) / 4);
+    const int vgpr_gran = (isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5) ? 16
+                        : (isa_->GetMajorVersion() >= 10 ||
+                           (isa_->GetMajorVersion() == 9 && isa_->GetMinorVersion() >= 4)) ? 8
+                        : 4;
+    int gran_vgprs = std::max(0, (asic_shader->num_vgprs + vgpr_gran - 1) / vgpr_gran - 1);
 
     header->kernel_code_entry_byte_offset = sizeof(amd_kernel_code_t);
     AMD_HSA_BITS_SET(header->kernel_code_properties,
                      AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR,
                      1);
+    AMD_HSA_BITS_SET(header->kernel_code_properties,
+                      AMD_KERNEL_CODE_PROPERTIES_ENABLE_WAVEFRONT_SIZE32,
+                      (isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5) ? 1 : 0);
     AMD_HSA_BITS_SET(header->compute_pgm_rsrc1,
                      AMD_COMPUTE_PGM_RSRC_ONE_GRANULATED_WAVEFRONT_SGPR_COUNT,
                      gran_sgprs);
@@ -425,6 +479,8 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
       int gran_accvgprs = ((gran_vgprs + 1) * 8) / 4 - 1;
       header->max_scratch_backing_memory_byte_size = uint64_t(gran_accvgprs) << 32;
     }
+    header->wavefront_size = isa_->GetMajorVersion() >= 10 ? AMD_POWERTWO_32 : AMD_POWERTWO_64;
+    header->workitem_vgpr_count = asic_shader->num_vgprs;
   }
 
   // Copy shader code into the GPU-visible buffer.
@@ -706,14 +762,14 @@ hsa_status_t GpuAgent::VisitRegion(
 
 core::Queue* GpuAgent::CreateInterceptibleQueue(void (*callback)(hsa_status_t status,
                                                                  hsa_queue_t* source, void* data),
-                                                void* data, const uint32_t in_size) {
+                                                void* data, bool metadata_prefetch, const uint32_t in_size) {
   // Disabled intercept of internal queues pending tools updates.
   core::Queue* queue = nullptr;
   uint32_t size = std::max(in_size, minAqlSize_);
   size = std::min(size, maxAqlSize_);
 
   QueueCreate(size, HSA_QUEUE_TYPE_MULTI, HSA_AMD_QUEUE_CREATE_SYSTEM_MEM, callback, data, 0, 0,
-              &queue);
+              metadata_prefetch, &queue);
   if (queue != nullptr)
     core::Runtime::runtime_singleton_->InternalQueueCreateNotify(core::Queue::Convert(queue),
                                                                  this->public_handle());
@@ -745,7 +801,17 @@ core::Blit* GpuAgent::CreateBlitSdma(bool use_xgmi, int rec_eng) {
       break;
     case 11:
     case 12:
-      sdma = (isDXG ? static_cast<BlitSdmaBase*>(new BlitSdmaV4()) : static_cast<BlitSdmaBase*>(new BlitSdmaV5()));
+      if (isDXG) {
+        sdma = static_cast<BlitSdmaBase*>(new BlitSdmaV4());
+      } else if (isa_->GetMinorVersion() >= 5) {
+        sdma = static_cast<BlitSdmaBase*>(new BlitSdmaV6());
+      } else {
+        sdma = static_cast<BlitSdmaBase*>(new BlitSdmaV5());
+      }
+      copy_size_override = copy_size_overrides[1];
+      break;
+    case 13:
+      sdma = new BlitSdmaV6();
       copy_size_override = copy_size_overrides[1];
       break;
     default:
@@ -783,7 +849,7 @@ core::Blit* GpuAgent::CreateBlitKernel(core::Queue* queue) {
 void GpuAgent::InitDma() {
   // Setup lazy init pointers on queues and blits.
   auto queue_lambda = [this](HSA::hsa_amd_queue_priority_internal_t priority = HSA::HSA_AMD_QUEUE_PRIORITY_NORMAL) {
-    auto queue = CreateInterceptibleQueue();
+    auto queue = CreateInterceptibleQueue(false);
     if (queue == nullptr)
       throw AMD::hsa_exception(HSA_STATUS_ERROR_OUT_OF_RESOURCES,
                                "Internal queue creation failed.");
@@ -903,7 +969,7 @@ void GpuAgent::InitGWS() {
   gws_queue_.queue_.reset([this]() {
     if (properties_.NumGws == 0) return (core::Queue*)nullptr;
     const uint32_t defaultGWSQueueSize = 0x4000; // 16KB
-    std::unique_ptr<core::Queue> queue(CreateInterceptibleQueue(defaultGWSQueueSize));
+    std::unique_ptr<core::Queue> queue(CreateInterceptibleQueue(true, defaultGWSQueueSize));
     if (queue == nullptr)
       throw AMD::hsa_exception(HSA_STATUS_ERROR_OUT_OF_RESOURCES,
                                "Internal queue creation failed.");
@@ -1550,15 +1616,26 @@ void GpuAgent::GetInfoMemoryProperties(uint8_t value[8]) const {
       setFlag(HSA_AMD_MEMORY_PROPERTY_AGENT_IS_APU);
 }
 
+void GpuAgent::GetAqlInfoProperties(uint8_t value[8]) const {
+  auto setFlag = [&](uint32_t bit) {
+    assert(bit < 8 * 8 && "Flag value exceeds input parameter size");
+
+    uint index = bit / 8;
+    uint subBit = bit % 8;
+    ((uint8_t*)value)[index] |= 1 << subBit;
+  };
+
+  // Fill the HSA_AMD_AQL_PROPERTY_EXT_DISPATCH
+  if (extended_aql_dispatch_supported_)
+      setFlag(HSA_AMD_AQL_PROPERTY_EXT_DISPATCH);
+}
+
+
 hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
   // agent, and vendor name size limit
   const size_t attribute_u = static_cast<size_t>(attribute);
   // agent, and vendor name length limit excluding terminating nul character.
   constexpr size_t hsa_name_size = 63;
-
-  const bool isa_has_image_support =
-      (isa_->GetMajorVersion() == 9 &&
-      (isa_->GetMinorVersion() == 4 || isa_->GetMinorVersion() == 5)) ? false : true;
 
   switch (attribute_u) {
     case HSA_AGENT_INFO_NAME: {
@@ -1611,11 +1688,24 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       *((uint32_t*)value) = 1024;
       break;
     case HSA_AGENT_INFO_GRID_MAX_DIM: {
-      const hsa_dim3_t grid_size = {INT32_MAX, UINT16_MAX, UINT16_MAX};
-      std::memcpy(value, &grid_size, sizeof(hsa_dim3_t));
+      /*
+       * This query is marked as deprecated but we still return some valid
+       * values when possible.
+       */
+      hsa_dim3_t* dim3 = reinterpret_cast<hsa_dim3_t*>(value);
+
+      dim3->x = static_cast<uint32_t>(std::min(kern_cluster_max_dim_.x,
+        static_cast<uint64_t>(UINT32_MAX)));
+
+      dim3->y = static_cast<uint32_t>(std::min(kern_cluster_max_dim_.y,
+        static_cast<uint64_t>(UINT16_MAX)));
+
+      dim3->z = static_cast<uint32_t>(std::min(kern_cluster_max_dim_.z,
+        static_cast<uint64_t>(UINT16_MAX)));
     } break;
     case HSA_AGENT_INFO_GRID_MAX_SIZE:
-      *((uint32_t*)value) = UINT32_MAX;
+      *((uint32_t*)value) = static_cast<uint32_t>(std::min(kern_cluster_max_dim_.x,
+        static_cast<uint64_t>(UINT32_MAX)));
       break;
     case HSA_AGENT_INFO_FBARRIER_MAX_SIZE:
       // TODO: to confirm
@@ -1642,7 +1732,7 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       break;
     case HSA_AGENT_INFO_CACHE_SIZE: {
       std::memset(value, 0, sizeof(uint32_t) * 4);
-      assert(cache_props_.size() > 0 && "GPU cache info missing.");
+      /* assert(cache_props_.size() > 0 && "GPU cache info missing."); */
       const size_t num_cache = cache_props_.size();
       for (size_t i = 0; i < num_cache; ++i) {
         const uint32_t line_level = cache_props_[i].CacheLevel;
@@ -1706,25 +1796,33 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
     case HSA_EXT_AGENT_INFO_IMAGE_2DADEPTH_MAX_ELEMENTS:
     case HSA_EXT_AGENT_INFO_IMAGE_3D_MAX_ELEMENTS:
     case HSA_EXT_AGENT_INFO_IMAGE_ARRAY_MAX_LAYERS:
-      if (!isa_has_image_support)
+      if (!isa_->HasImageSupport())
         *((uint32_t*)value) = 0;
       else
         return hsa_amd_image_get_info_max_dim(public_handle(), attribute, value);
       break;
     case HSA_EXT_AGENT_INFO_MAX_IMAGE_RD_HANDLES:
       // TODO: hardcode based on OCL constants.
-      *((uint32_t*)value) = isa_has_image_support ? 128 : 0;
+      *((uint32_t*)value) = isa_->HasImageSupport() ? 128 : 0;
       break;
     case HSA_EXT_AGENT_INFO_MAX_IMAGE_RORW_HANDLES:
-      *((uint32_t*)value) = isa_has_image_support ? 64 : 0;
+      *((uint32_t*)value) = isa_->HasImageSupport() ? 64 : 0;
       break;
     case HSA_EXT_AGENT_INFO_MAX_SAMPLER_HANDLERS:
-      *((uint32_t*)value) = isa_has_image_support ? 16 : 0;
+      *((uint32_t*)value) = isa_->HasImageSupport() ? 16 : 0;
+      break;
+    case HSA_EXT_AGENT_INFO_IMAGE_SUPPORT:
+      *((uint32_t*)value) = isa_->HasImageSupport();
       break;
     case HSA_AMD_AGENT_INFO_CHIP_ID:
       *((uint32_t*)value) = properties_.DeviceId;
       break;
     case HSA_AMD_AGENT_INFO_CACHELINE_SIZE:
+      if (core::Runtime::runtime_singleton_->flag().cacheline_size_override() >= 0) {
+        *((uint32_t*)value) =
+            core::Runtime::runtime_singleton_->flag().cacheline_size_override();
+        return HSA_STATUS_SUCCESS;
+      }
       for (auto& cache : cache_props_) {
         if ((cache.CacheLevel == 2) && (cache.CacheLineSize != 0)) {
           *((uint32_t*)value) = cache.CacheLineSize;
@@ -1889,7 +1987,7 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       break;
     case HSA_AMD_AGENT_INFO_AQL_EXTENSIONS:
       memset(value, 0, sizeof(uint8_t) * 8);
-      /* Not yet implemented */
+      GetAqlInfoProperties((uint8_t*)value);
       break;
     case HSA_AMD_AGENT_INFO_SCRATCH_LIMIT_MAX:
       *((uint64_t*)value) = MaxScratchDevice();
@@ -1911,6 +2009,20 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       }
       return HSA_STATUS_ERROR;
     }
+    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_DIM:
+    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM:
+      memcpy(value, &kern_cluster_max_dim_, sizeof(kern_cluster_max_dim_));
+      break;
+    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_SIZE:
+    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_SIZE:
+      *((uint64_t*)value) = kern_cluster_max_dim_.x * kern_cluster_max_dim_.y * kern_cluster_max_dim_.z;
+      break;
+    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_DIM:
+      memcpy(value, &cluster_max_dim_, sizeof(cluster_max_dim_));
+      break;
+    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE:
+      *((uint64_t*)value) = cluster_max_dim_.x;
+      break;
     case HSA_AMD_AGENT_INFO_PM4_EMULATION:
       *((bool*)value) = properties_.Capability2.ui32.AqlEmulationPm4_;
       break;
@@ -1937,7 +2049,7 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
 hsa_status_t GpuAgent::QueueCreate(size_t size, hsa_queue_type32_t queue_type, uint64_t flags,
                                    core::HsaEventCallback event_callback, void* data,
                                    uint32_t private_segment_size, uint32_t group_segment_size,
-                                   core::Queue** queue) {
+                                   bool metadata_queue, core::Queue** queue) {
   // Handle GWS queues.
   if (queue_type == HSA_QUEUE_TYPE_COOPERATIVE) {
     std::lock_guard<std::mutex> lock(gws_queue_.lock_);
@@ -2039,8 +2151,7 @@ hsa_status_t GpuAgent::QueueCreate(size_t size, hsa_queue_type32_t queue_type, u
   }
 
   auto aql_queue = new AqlQueue(shared_queue, this, size, node_id(), scratch, event_callback, data,
-                                flags);
-
+                                metadata_queue, flags);
   *queue = aql_queue;
   aql_queues_.push_back(aql_queue);
 
@@ -2068,7 +2179,7 @@ void GpuAgent::AcquireQueueMainScratch(ScratchInfo& scratch) {
 
   // Fail scratch allocation if per wave limits are exceeded.
   uint64_t size_per_wave = AlignUp(scratch.main_size_per_thread * properties_.WaveFrontSize, 1024);
-  if (size_per_wave > MAX_WAVE_SCRATCH) return;
+  if (size_per_wave > max_wave_scratch_) return;
 
   /*
   Determine size class needed.
@@ -2253,7 +2364,7 @@ void GpuAgent::AcquireQueueAltScratch(ScratchInfo& scratch) {
 
   // Fail scratch allocation if per wave limits are exceeded.
   uint64_t size_per_wave = AlignUp(scratch.alt_size_per_thread * properties_.WaveFrontSize, 1024);
-  if (size_per_wave > MAX_WAVE_SCRATCH) return;
+  if (size_per_wave > max_wave_scratch_) return;
 
   std::lock_guard<std::mutex> lock(scratch_lock_);
 
@@ -2500,7 +2611,7 @@ hsa_status_t GpuAgent::UpdateTrapHandlerWithPCS(pcs_sampling_data_t* pcs_hosttra
     tma_addr = trap_handler_tma_region_;
   } else if (trap_handler_tma_region_) {
     finegrain_deallocator()(trap_handler_tma_region_);
-    trap_handler_tma_region_ = NULL;
+    trap_handler_tma_region_ = nullptr;
   }
 
   // Bind the trap handler to this node.
@@ -2563,8 +2674,13 @@ void GpuAgent::InvalidateCodeCaches(void *ptr, size_t size) {
       // Microcode is handling code cache invalidation.
       return;
     }
-  } else if (isa_->GetMajorVersion() > 12) {
+  } else if (isa_->GetMajorVersion() > 13) {
     assert(false && "Code cache invalidation not implemented for this agent");
+  }
+
+  if (core::Runtime::runtime_singleton_->flag().enable_dtif() &&
+      core::Runtime::runtime_singleton_->flag().enable_dtif_skip_inv_code_cache()) {
+    return;
   }
 
   // Invalidate caches which may hold lines of code object allocation.
@@ -2830,6 +2946,10 @@ hsa_status_t GpuAgent::PcSamplingIterateConfig(hsa_ven_amd_pcs_iterate_configura
   if (ret != HSAKMT_STATUS_SUCCESS) return HSA_STATUS_ERROR;
 
   for (uint32_t i = 0; i < size; i++) {
+    if ((isa_->GetMajorVersion() == 12 && (isa_->GetMinorVersion() == 0)) &&
+        sampleInfoList[i].method == HSA_PC_SAMPLING_METHOD_KIND_STOCHASTIC_V1) {
+      continue;
+    }
     hsa_ven_amd_pcs_configuration_t hsaPcSampling;
     if (ConvertHsaKmtPcSamplingInfoToHsa(&sampleInfoList[i], &hsaPcSampling) == HSA_STATUS_SUCCESS
         && cb(&hsaPcSampling, cb_data) == HSA_STATUS_INFO_BREAK)
@@ -2876,6 +2996,10 @@ hsa_status_t GpuAgent::PcSamplingCreateFromId(HsaPcSamplingTraceId ioctlId,
   if (sampling_method == HSA_VEN_AMD_PCS_METHOD_HOSTTRAP_V1) {
     pcs_data = &pcs_hosttrap_data_;
   } else if (sampling_method == HSA_VEN_AMD_PCS_METHOD_STOCHASTIC_V1) {
+    if (isa_->GetMajorVersion() == 12 && (isa_->GetMinorVersion() == 0)) {
+      return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+    }
+
     pcs_data = &pcs_stochastic_data_;
   } else {
     // Unsupported sampling method
@@ -3488,9 +3612,11 @@ hsa_status_t GpuAgent::PcSamplingFlushDeviceBuffers(
   cmd_data[i++] = PM4_WAIT_REG_MEM_DW6(PM4_WAIT_REG_MEM_POLL_INTERVAL(4) |
                                        PM4_WAIT_REG_MEM_OPTIMIZE_ACE_OFFLOAD_MODE);
 
-  // For GFX1200 and GFX1201 only - add an ACQUIRE_MEM packet to flush L2 cache before DMA.
+  // For GFX1200 and GFX1201 - add an ACQUIRE_MEM packet to flush L2 cache before DMA.
   // This ensures that any data written by the trap handler is visible to the DMA engine.
-  if ((isa_->GetMajorVersion() == 12) && (isa_->GetMinorVersion() == 0)) {
+  // On GFX1250 - The flush is needed only until we can enable MTYPE_RW.
+  if (isa_->GetMajorVersion() == 12 &&
+      (isa_->GetMinorVersion() == 0 || isa_->GetMinorVersion() == 5)) {
     cmd_data[i++] =
         PM4_HDR(PM4_HDR_IT_OPCODE_ACQUIRE_MEM, acquire_mem_cmd_sz, isa_->GetMajorVersion());
     cmd_data[i++] = 0;                                // DW1: COHER_CNTL

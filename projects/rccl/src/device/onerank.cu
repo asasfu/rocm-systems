@@ -71,7 +71,9 @@ ncclResult_t ncclLaunchOneRank(void* dst, void const* src, size_t nElts, struct 
   case ncclUint32:   kernel = (void const*)&oneRankReduce<FuncPreMulSum<uint32_t>>; break;
   case ncclInt64:    kernel = (void const*)&oneRankReduce<FuncPreMulSum<int64_t>>; break;
   case ncclUint64:   kernel = (void const*)&oneRankReduce<FuncPreMulSum<uint64_t>>; break;
-#if defined(RCCL_FLOAT8)
+#if defined(RCCL_FLOAT8) && \
+    (!__HIP_DEVICE_COMPILE__ || defined(__gfx942__) || defined(__gfx950__) || \
+     defined(__gfx1200__) || defined(__gfx1201__) || defined(__gfx1250__))
   case ncclFloat8e4m3: kernel = (void const*)&oneRankReduce<FuncPreMulSum<rccl_float8>>; break;
   case ncclFloat8e5m2: kernel = (void const*)&oneRankReduce<FuncPreMulSum<rccl_bfloat8>>; break;
 #endif

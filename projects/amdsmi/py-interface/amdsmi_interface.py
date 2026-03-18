@@ -958,7 +958,13 @@ def _NA_amdsmi_get_gpu_metrics_info() -> Dict[str, str]:
         "xcp_stats.gfx_below_host_limit_total_acc": "N/A",
         "pcie_lc_perf_other_end_recovery": "N/A",
         "vram_max_bandwidth": "N/A",
-        "xgmi_link_status": "N/A"
+        "xgmi_link_status": "N/A",
+        "temperature_hbm_stacks": "N/A",
+        "temperature_mid": "N/A",
+        "temperature_aid": "N/A",
+        "current_uclk_aid": "N/A",
+        "current_socclks_mid": "N/A",
+        "xcp_stats.temperature_xcd": "N/A"
     }
     return na_gpu_metrics_info
 
@@ -6271,9 +6277,15 @@ def amdsmi_get_gpu_metrics_info(
         "xcp_stats.gfx_below_host_limit_thm_acc": list(gpu_metrics.xcp_stats),
         "xcp_stats.gfx_low_utilization_acc": list(gpu_metrics.xcp_stats),
         "xcp_stats.gfx_below_host_limit_total_acc": list(gpu_metrics.xcp_stats),
+        "xcp_stats.temperature_xcd": list(gpu_metrics.xcp_stats),
         "pcie_lc_perf_other_end_recovery": _validate_if_max_uint(gpu_metrics.pcie_lc_perf_other_end_recovery, MaxUIntegerTypes.UINT32_T),
         "vram_max_bandwidth": _validate_if_max_uint(gpu_metrics.vram_max_bandwidth, MaxUIntegerTypes.UINT64_T),
         "xgmi_link_status": _validate_if_max_uint(list(gpu_metrics.xgmi_link_status), MaxUIntegerTypes.UINT16_T),
+        "temperature_hbm_stacks": _validate_if_max_uint(list(gpu_metrics.temperature_hbm_stacks), MaxUIntegerTypes.UINT16_T),
+        "temperature_mid": _validate_if_max_uint(list(gpu_metrics.temperature_mid), MaxUIntegerTypes.UINT16_T),
+        "temperature_aid": _validate_if_max_uint(list(gpu_metrics.temperature_aid), MaxUIntegerTypes.UINT16_T),
+        "current_uclk_aid": _validate_if_max_uint(list(gpu_metrics.current_uclk_aid), MaxUIntegerTypes.UINT16_T),
+        "current_socclks_mid": _validate_if_max_uint(list(gpu_metrics.current_socclks_mid), MaxUIntegerTypes.UINT16_T),
     }
 
     # Create 2d array with each XCD's stats
@@ -6336,6 +6348,13 @@ def amdsmi_get_gpu_metrics_info(
             for val in xcp_metrics.gfx_below_host_limit_total_acc:
                 xcp_detail.append(_validate_if_max_uint(val, MaxUIntegerTypes.UINT64_T))
             gpu_metrics_output['xcp_stats.gfx_below_host_limit_total_acc'][xcp_index] = xcp_detail
+
+    if 'xcp_stats.temperature_xcd' in gpu_metrics_output:
+        for xcp_index, xcp_metrics in enumerate(gpu_metrics_output['xcp_stats.temperature_xcd']):
+            xcp_detail = []
+            for val in xcp_metrics.temperature_xcd:
+                xcp_detail.append(_validate_if_max_uint(val, MaxUIntegerTypes.UINT16_T))
+            gpu_metrics_output['xcp_stats.temperature_xcd'][xcp_index] = xcp_detail
     return gpu_metrics_output
 
 def amdsmi_get_gpu_partition_metrics_info(
@@ -6430,9 +6449,15 @@ def amdsmi_get_gpu_partition_metrics_info(
         "xcp_stats.gfx_below_host_limit_thm_acc": list(gpu_metrics.xcp_stats),
         "xcp_stats.gfx_low_utilization_acc": list(gpu_metrics.xcp_stats),
         "xcp_stats.gfx_below_host_limit_total_acc": list(gpu_metrics.xcp_stats),
+        "xcp_stats.temperature_xcd": list(gpu_metrics.xcp_stats),
         "pcie_lc_perf_other_end_recovery": _validate_if_max_uint(gpu_metrics.pcie_lc_perf_other_end_recovery, MaxUIntegerTypes.UINT32_T),
         "vram_max_bandwidth": _validate_if_max_uint(gpu_metrics.vram_max_bandwidth, MaxUIntegerTypes.UINT64_T),
         "xgmi_link_status": _validate_if_max_uint(list(gpu_metrics.xgmi_link_status), MaxUIntegerTypes.UINT16_T),
+        "temperature_hbm_stacks": _validate_if_max_uint(list(gpu_metrics.temperature_hbm_stacks), MaxUIntegerTypes.UINT16_T),
+        "temperature_mid": _validate_if_max_uint(list(gpu_metrics.temperature_mid), MaxUIntegerTypes.UINT16_T),
+        "temperature_aid": _validate_if_max_uint(list(gpu_metrics.temperature_aid), MaxUIntegerTypes.UINT16_T),
+        "current_uclk_aid": _validate_if_max_uint(list(gpu_metrics.current_uclk_aid), MaxUIntegerTypes.UINT16_T),
+        "current_socclks_mid": _validate_if_max_uint(list(gpu_metrics.current_socclks_mid), MaxUIntegerTypes.UINT16_T),
     }
 
     # Create 2d array with each XCD's stats
@@ -6495,6 +6520,13 @@ def amdsmi_get_gpu_partition_metrics_info(
             for val in xcp_metrics.gfx_below_host_limit_total_acc:
                 xcp_detail.append(_validate_if_max_uint(val, MaxUIntegerTypes.UINT64_T))
             gpu_metrics_output['xcp_stats.gfx_below_host_limit_total_acc'][xcp_index] = xcp_detail
+
+    if 'xcp_stats.temperature_xcd' in gpu_metrics_output:
+        for xcp_index, xcp_metrics in enumerate(gpu_metrics_output['xcp_stats.temperature_xcd']):
+            xcp_detail = []
+            for val in xcp_metrics.temperature_xcd:
+                xcp_detail.append(_validate_if_max_uint(val, MaxUIntegerTypes.UINT16_T))
+            gpu_metrics_output['xcp_stats.temperature_xcd'][xcp_index] = xcp_detail
     return gpu_metrics_output
 
 def amdsmi_get_nic_metrics_info(

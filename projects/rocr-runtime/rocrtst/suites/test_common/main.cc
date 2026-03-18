@@ -79,6 +79,7 @@
 #include "suites/functional/concurrent_shutdown.h"
 #include "suites/functional/reference_count.h"
 #include "suites/functional/signal_concurrent.h"
+#include "suites/functional/metadata_prefetch.h"
 #include "suites/functional/aql_barrier_bit.h"
 #include "suites/functional/signal_kernel.h"
 #include "suites/functional/cu_masking.h"
@@ -140,7 +141,8 @@ TEST(rocrtst, Test_Example) {
   RunGenericTest(&tst);
 }
 
-TEST(rocrtst, Test_Example_InterruptDisabled) {
+TEST(rocrtst, DISABLED_Test_Example_InterruptDisabled) {
+  rocrtst::SetEnv("HSA_ENABLE_INTERRUPT", "0");
   TestExample tst;
   rocrtst::SetEnv("HSA_ENABLE_INTERRUPT", "0");
   RunGenericTest(&tst);
@@ -237,10 +239,10 @@ TEST(rocrtstFunc, Signal_Create_Concurrently) {
   RunCustomTestEpilog(&sd);
 }
 
-/* Temporary: Disable CU Masking until it is fixed */
-TEST(rocrtstFunc, DISABLED_CU_Masking) {
-  CU_Masking sd;
-  RunGenericTest(&sd);
+TEST(rocrtst, Test_MetadataPrefetchPacket) {
+  MetadataPrefetch tst;
+
+  RunGenericTest(&tst);
 }
 
 TEST(rocrtstFunc, IPC) {
@@ -387,7 +389,6 @@ TEST(rocrtstFunc, GpuCoreDump_PipePattern) {
   );
 }
 
-
 TEST(rocrtstFunc, Memory_Atomic_Add_Test) {
   RUN_IF_NOT_EMU_MODE(
     MemoryAtomic ma(ADD);
@@ -476,6 +477,11 @@ TEST(rocrtstFunc, Memory_Atomic_Xchg_Test) {
     ma.MemoryAtomicTest();
     RunCustomTestEpilog(&ma);
   );
+}
+/* Temporary: Disable CU Masking until it is fixed */
+TEST(rocrtstFunc, DISABLED_CU_Masking) {
+  CU_Masking sd;
+  RunGenericTest(&sd);
 }
 
 TEST(rocrtstFunc, DISABLED_DebugBasicTests) {

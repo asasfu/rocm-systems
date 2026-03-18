@@ -49,6 +49,14 @@ inline bool SPISkip(size_t block, size_t id) {
   return (block & CounterBlockSPIAttr) != 0 && id >= SPI_SPECIAL_CNT;
 }
 
+enum GCMode {
+  GC_MODE_XCD_ID_MASK = 0xFF,
+  GC_MODE_XCD = 0x100,
+  GC_MODE_AID = 0x200,
+  GC_MODE_AID_WITH_XCD_INDEX = 0x400,
+  GC_MODE_ALL = GC_MODE_XCD | GC_MODE_AID,
+};
+
 class CmdBuffer;
 class CmdBuilder;
 
@@ -118,11 +126,15 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
   typedef uint32_t reg_addr_t;
   // Shader Engines number on the GPU
   uint32_t se_number_;
-  uint32_t wgp_per_sa;
-  uint32_t sarrays_per_se;
+  uint32_t wgp_per_sa_;
+  uint32_t sarrays_per_se_;
   // XCC number on the GPU
   uint32_t xcc_number_;
+  uint32_t xcc_per_aid_;
   Builder builder;
+  // TODO: Temporary patch for gfx1250's asymmetric CU design, will remove
+  //       after CU mask support is added to agent_info
+  bool asymmetric_cu_patch;
 
   void DebugTrace(uint32_t value) {
     CmdBuffer cmd_buffer;
@@ -169,12 +181,11 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
 
   // start counters for rpb-block like instances
   void start_generic_mc_counters(CmdBuffer* cmd_buffer,
-                                 const std::map<uint32_t, uint64_t>& instances) {
+                                 const std::set<uint64_t>& instances) {
     // insert master XCC PRED_EXEC packet here if it is MI300
     PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, VIRTUALXCCID_SELECT,
                                                xcc_number_ > 1);
-    for (const auto& i : instances) {
-      uint64_t control_addr = i.second;
+    for (const auto& control_addr : instances) {
       // rpb instance clear
       builder.BuildWritePConfigRegPacket(cmd_buffer, control_addr, Primitives::mc_reset_value());
       // rpb instance enable
@@ -182,19 +193,39 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     }
   }
 
-  // 'attr' is reserved for future expansion
-  void SetGrbmGfxIndex(CmdBuffer* cmd_buffer, uint32_t value, uint32_t attr = 0) {
-    builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::GRBM_GFX_INDEX_ADDR, value);
+  void SetGrbmGfxIndex(CmdBuffer* cmd_buffer, uint32_t value, GCMode gc_mode = GC_MODE_XCD) {
+    uint32_t xcc_id;
+    if (gc_mode & GC_MODE_XCD)
+      builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::GRBM_GFX_INDEX_ADDR, value);
+    if (gc_mode & GC_MODE_AID) {
+      for (xcc_id = 0; xcc_id < xcc_number_; xcc_id += xcc_per_aid_) {
+        PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_id, xcc_number_ > 1);
+        builder.BuildWritePConfigRegPacketToChiplet(cmd_buffer, Primitives::GRBMA_GFX_INDEX_ADDR,
+                                                    value, static_cast<ChipletId>(xcc_id));
+      }
+    }
+    if (gc_mode & GC_MODE_AID_WITH_XCD_INDEX) {
+      xcc_id = gc_mode & GC_MODE_XCD_ID_MASK;
+      // We don't need PrecExec for this case because the caller will program PrecExec
+      builder.BuildWritePConfigRegPacketToChiplet(cmd_buffer, Primitives::GRBMA_GFX_INDEX_ADDR,
+                                                  value, static_cast<ChipletId>(xcc_id));
+    }
   }
 
-  // 'attr' is reserved for future expansion
-  void SetGrbmBroadcast(CmdBuffer* cmd_buffer, uint32_t attr = 0) {
-    SetGrbmGfxIndex(cmd_buffer, Primitives::grbm_broadcast_value());
+  void SetGrbmBroadcast(CmdBuffer* cmd_buffer, GCMode gc_mode) {
+    SetGrbmGfxIndex(cmd_buffer, Primitives::grbm_broadcast_value(), gc_mode);
   }
 
   void SetPerfmonCntl(CmdBuffer* cmd_buffer, uint32_t value, uint32_t attr) {
     if (attr & CounterBlockCpmonAttr)
       builder.BuildWriteUConfigRegPacket(cmd_buffer, Primitives::CP_PERFMON_CNTL_ADDR, value);
+    if (attr & CounterBlockGrbmaAttr) {
+      for (uint32_t xcc_id = 0; xcc_id < xcc_number_; xcc_id += xcc_per_aid_) {
+        PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_id, xcc_number_ > 1);
+        builder.BuildWritePConfigRegPacketToChiplet(cmd_buffer, Primitives::AID_PERFMON_CNTL_ADDR,
+                                                    value, static_cast<ChipletId>(xcc_id));
+      }
+    }
   }
 
  public:
@@ -203,16 +234,19 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         builder(acquire_ip_offset_table(agent_info)),
         se_number_(agent_info->se_num / agent_info->xcc_num),
         xcc_number_(agent_info->xcc_num),
-        sarrays_per_se(agent_info->shader_arrays_per_se) {
-    this->wgp_per_sa =
-        (agent_info->cu_num / 2 + sarrays_per_se * se_number_ - 1) / (se_number_ * sarrays_per_se);
+        xcc_per_aid_(agent_info->xcc_per_aid),
+        sarrays_per_se_(agent_info->shader_arrays_per_se) {
+    this->wgp_per_sa_ =
+        (agent_info->cu_num / 2 + sarrays_per_se_ * se_number_ - 1) / (se_number_ * sarrays_per_se_);
+    this->wgp_per_sa_ /= agent_info->xcc_num;
     // Due to MI300 CP firmware issue we need to use mem_mapped_register mode to patch for GCEA
     // hang. Otherwise both perfcounters mode and mem_mapped_register mode should work.
     builder.bUsePerfCounterMode = (xcc_number_ > 1) ? false : true;
+    this->asymmetric_cu_patch = strncmp(agent_info->name, "gfx1250", 7) ? false : true;
   }
 
   int GetNumWGPs() override {
-    if (Primitives::GFXIP_LEVEL >= 11) return wgp_per_sa;
+    if (Primitives::GFXIP_LEVEL >= 11) return wgp_per_sa_;
     return 1;
   };
 
@@ -238,8 +272,9 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
   void Start(CmdBuffer* cmd_buffer, const counters_vector& counters_vec) override {
     // Issue barrier command
     if (!concurrent) builder.BuildWriteWaitIdlePacket(cmd_buffer);
+    GCMode gc_mode_global = (counters_vec.get_attr() & CounterBlockGrbmaAttr) ? GC_MODE_ALL : GC_MODE_XCD;
     // Reset Grbm to its default state - broadcast
-    SetGrbmBroadcast(cmd_buffer, counters_vec.get_attr());
+    SetGrbmBroadcast(cmd_buffer, gc_mode_global);
     // Disable RLC Perfmon Clock Gating
     // On Vega this is needed to collect Perf Cntrs
     if (Primitives::GFXIP_LEVEL == 9)
@@ -278,8 +313,8 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     std::map<uint32_t, uint64_t> umcchs;
     // RPB/ATC are per AID block like UMC above, we save its control register (for enable/disable)
     // per AID instance
-    std::map<uint32_t, uint64_t> rpbs;
-    std::map<uint32_t, uint64_t> atcs;
+    std::set<uint64_t> rpbs;
+    std::set<uint64_t> atcs;
     // Programming perf counters
     for (const auto& counter_des : counters_vec) {
       const auto* block_info = counter_des.block_info;
@@ -305,7 +340,8 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
           (block_info->instance_count > 1 && !(block_info->attr & CounterBlockWgpAttr))
               ? Primitives::grbm_inst_index_value(block_des.index)
               : Primitives::grbm_broadcast_value();
-      SetGrbmGfxIndex(cmd_buffer, grbm_value, block_info->attr);
+      GCMode gc_mode = (block_info->attr & CounterBlockGrbmaAttr) ? GC_MODE_ALL : GC_MODE_XCD;
+      SetGrbmGfxIndex(cmd_buffer, grbm_value, gc_mode);
       // Reset counters
       if (block_info->attr & CounterBlockMcAttr) {
         builder.BuildWritePConfigRegPacket(cmd_buffer, reg_info.control_addr,
@@ -323,8 +359,18 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
       // Setup counters
       if (block_info->select_value != NULL && !(block_info->attr & CounterBlockRpbAttr) &&
           !(block_info->attr & CounterBlockAtcAttr)) {
-        builder.BuildWriteConfigRegPacket(cmd_buffer, reg_info.select_addr,
-                                          block_info->select_value(counter_des));
+        auto select_addr = reg_info.select_addr;
+        auto value = block_info->select_value(counter_des);
+        if (block_info->attr & CounterBlockGrbmaAttr) {
+          for (uint32_t xcc_id = 0; xcc_id < xcc_number_; xcc_id += xcc_per_aid_) {
+            PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_id,
+                                                       xcc_number_ > 1);
+            builder.BuildWritePConfigRegPacketToChiplet(cmd_buffer, select_addr, value,
+                                                        static_cast<ChipletId>(xcc_id));
+          }
+        } else {
+          builder.BuildWriteConfigRegPacket(cmd_buffer, select_addr, value);
+        }
       }
       if (block_info->attr & CounterBlockSdmaAttr) {
         const auto sdma_index = counter_des.block_des.index;
@@ -410,9 +456,9 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         }
         if (block_info->attr & CounterBlockRpbAttr || block_info->attr & CounterBlockAtcAttr) {
           if (block_info->attr & CounterBlockRpbAttr)
-            rpbs.insert({instance_index, control_addr});
+            rpbs.insert(control_addr);
           else
-            atcs.insert({instance_index, control_addr});
+            atcs.insert(control_addr);
           builder.BuildWritePConfigRegPacket(cmd_buffer, select_addr,
                                              block_info->select_value(counter_des));
         }
@@ -477,7 +523,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     if (!atcs.empty()) start_generic_mc_counters(cmd_buffer, atcs);
 
     // Reset Grbm to its default state - broadcast
-    SetGrbmBroadcast(cmd_buffer, counters_vec.get_attr());
+    SetGrbmBroadcast(cmd_buffer, gc_mode_global);
     // Program Compute Perfcount Enable register to support perf counting
     builder.BuildWriteShRegPacket(cmd_buffer, Primitives::COMPUTE_PERFCOUNT_ENABLE_ADDR,
                                   Primitives::cp_perfcount_enable_value());
@@ -491,9 +537,10 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
 
   // Build PMC read PM4 packets
   uint32_t ReadXccPackets(CmdBuffer* cmd_buffer, const counters_vector& counters_vec,
-                          void* data_buffer, uint32_t& read_counter) {
+                          void* data_buffer, uint32_t& read_counter, GCMode gc_mode = GC_MODE_XCD) {
+    uint32_t xcc_id = gc_mode & GC_MODE_XCD_ID_MASK;
     // Reset Grbm to its default state - broadcast
-    SetGrbmBroadcast(cmd_buffer, counters_vec.get_attr());
+    SetGrbmBroadcast(cmd_buffer, gc_mode);
 
     if (Primitives::GFXIP_LEVEL == 10) {
       for (auto& elem : counters_vec) {
@@ -526,6 +573,8 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
 
       // Skip UMC/SDMA/ATC/RPB counters
       if (block_info->attr & CounterBlockAidAttr) continue;
+      if (bool(block_info->attr & CounterBlockGrbmaAttr) != bool(gc_mode & GC_MODE_AID_WITH_XCD_INDEX))
+        continue;
 
       if (SPISkip(block_info->attr, counter_des.id)) {
         read_counter += 2 * se_number_;  // Skip two 64-bit SPI counters per SE
@@ -533,7 +582,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
       }
 
       // Reset Grbm to its default state - broadcast
-      SetGrbmBroadcast(cmd_buffer, counters_vec.get_attr());
+      SetGrbmBroadcast(cmd_buffer, gc_mode);
 
       if (block_info->attr & CounterBlockMcAttr) {
         const uint32_t grbm_value = (block_info->instance_count > 1)
@@ -577,7 +626,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         // skip
       } else {
         const uint32_t se_end_index = (block_info->attr & CounterBlockSeAttr) ? se_number_ : 1;
-        const uint32_t sa_end_index = (block_info->attr & CounterBlockSaAttr) ? sarrays_per_se : 1;
+        const uint32_t sa_end_index = (block_info->attr & CounterBlockSaAttr) ? sarrays_per_se_ : 1;
         for (uint32_t se_index = 0; se_index < se_end_index; ++se_index)
           for (uint32_t sarray = 0; sarray < sa_end_index; ++sarray) {
             uint32_t grbm_value = Primitives::grbm_broadcast_value();
@@ -599,7 +648,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
                 Primitives::GFXIP_LEVEL >= 12 && (block_info->attr & CounterBlockWgpAttr);
 
             if (bIsWGPcounter11) {
-              for (int wgp = 0; wgp < wgp_per_sa; wgp++) {
+              for (int wgp = 0; wgp < wgp_per_sa_; wgp++) {
                 grbm_value = Primitives::grbm_se_sh_wgp_index_value(se_index, sarray, wgp);
                 SetGrbmGfxIndex(cmd_buffer, grbm_value);
                 builder.BuildCopyCounterDataPacket(
@@ -608,7 +657,18 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
                 read_counter += 2;
               }
             } else if (bIsWGPcounter12) {
-              for (int wgp = 0; wgp < wgp_per_sa; wgp++) {
+              for (int wgp = 0; wgp < wgp_per_sa_; wgp++) {
+                // TODO: This patch is needed to avoid soft-hang for some WGP
+                //       blocks, will remove after CU mask support is added to
+                //       agent_info
+                if (asymmetric_cu_patch && sarray == 1 && wgp == 8) {
+                  if (data_buffer) {
+                    *(reinterpret_cast<uint32_t*>(data_buffer) + read_counter) = 0;
+                    *(reinterpret_cast<uint32_t*>(data_buffer) + read_counter + 1) = 0;
+                  }
+                  read_counter += 2;
+                  continue;
+                }
                 if (block_info->instance_count > 1)
                   grbm_value = Primitives::grbm_inst_se_sh_wgp_index_value(block_des.index,
                                                                            se_index, sarray, wgp);
@@ -624,25 +684,31 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
                 read_counter += 2;
               }
             } else {
-              SetGrbmGfxIndex(cmd_buffer, grbm_value, block_info->attr);
-              builder.BuildCopyCounterDataPacket(
-                  cmd_buffer, reg_info.register_addr_lo, reg_info.register_addr_hi,
-                  reinterpret_cast<uint32_t*>(data_buffer) + read_counter, 3);
+              SetGrbmGfxIndex(cmd_buffer, grbm_value, gc_mode);
+              if (block_info->attr & CounterBlockGrbmaAttr)
+                builder.BuildCopyCounterDataPacketFromChiplet(
+                    cmd_buffer, reg_info.register_addr_lo, reg_info.register_addr_hi,
+                    reinterpret_cast<uint32_t*>(data_buffer) + read_counter, 3, static_cast<ChipletId>(xcc_id));
+              else
+                builder.BuildCopyCounterDataPacket(
+                    cmd_buffer, reg_info.register_addr_lo, reg_info.register_addr_hi,
+                    reinterpret_cast<uint32_t*>(data_buffer) + read_counter, 3);
               read_counter += 2;
             }
           }
       }
     }
     // Reset Grbm to its default state - broadcast
-    SetGrbmBroadcast(cmd_buffer, counters_vec.get_attr());
+    SetGrbmBroadcast(cmd_buffer, gc_mode);
     // Return amount of data to read
     return read_counter * sizeof(uint32_t);
   }
 
   // Build PMC stop PM4 comands
   void Stop(CmdBuffer* cmd_buffer, const counters_vector& counters_vec) override {
+    GCMode gc_mode = (counters_vec.get_attr() & CounterBlockGrbmaAttr) ? GC_MODE_ALL : GC_MODE_XCD;
     // Reset Grbm to its default state - broadcast
-    SetGrbmBroadcast(cmd_buffer, counters_vec.get_attr());
+    SetGrbmBroadcast(cmd_buffer, gc_mode);
 
     uint32_t sdma_mask = 0;
     if (counters_vec.get_attr() & CounterBlockAidAttr) {
@@ -768,10 +834,19 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         }
       }
     }
-    for (size_t xcc_selected = 0; xcc_selected < xcc_number_; ++xcc_selected) {
+    for (uint32_t xcc_selected = 0; xcc_selected < xcc_number_; ++xcc_selected) {
       PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_selected,
                                                  xcc_number_ > 1);
       ReadXccPackets(cmd_buffer, counters_vec, data_buffer, read_counter);
+    }
+    // AIGC blocks
+    if (counters_vec.get_attr() & CounterBlockGrbmaAttr) {
+      for (uint32_t xcc_selected = 0; xcc_selected < xcc_number_; xcc_selected += xcc_per_aid_) {
+        PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_selected,
+                                                   xcc_number_ > 1);
+        GCMode gc_mode = (GCMode)(GC_MODE_AID_WITH_XCD_INDEX | xcc_selected);
+        ReadXccPackets(cmd_buffer, counters_vec, data_buffer, read_counter, gc_mode);
+      }
     }
 
     builder.BuildCacheFlushPacket(cmd_buffer, size_t(data_buffer), read_counter * sizeof(uint32_t));

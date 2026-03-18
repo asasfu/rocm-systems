@@ -245,13 +245,20 @@ if(WIN32)
 endif()
 
 if(HIP_PLATFORM STREQUAL "amd")
-  if(WIN32)
-    set(win_disable_warnings ${win_disable_warnings} -Wno-ignored-attributes -Wno-microsoft-cast)
-    # Windows for some reason does not honor the `CMAKE_CXX_STANDARD` we set initially in the file
-    # Which results in errors about missing headers etc
-    set(win_cxx_standard -std=c++17)
-  endif()
-  add_compile_options(${HIP_PATH_OPT} ${win_cxx_standard} -x hip -Wall -Wextra -Wvla -Wno-deprecated -Wno-option-ignored -Wno-unused-parameter ${win_disable_warnings})
+    if(WIN32)
+        set(win_disable_warnings ${win_disable_warnings} -Wno-ignored-attributes -Wno-microsoft-cast)
+        # Windows for some reason does not honor the `CMAKE_CXX_STANDARD` we set initially in the file
+        # Which results in errors about missing headers etc
+        set(win_cxx_standard -std=c++17)
+    endif()
+    add_compile_options(${HIP_PATH_OPT} ${win_cxx_standard} -x hip -Wall -Wextra -Wvla -Wno-deprecated -Wno-option-ignored -Wno-unused-parameter ${win_disable_warnings})
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        add_compile_options(-O3)
+    endif()
+    add_compile_options(${HIP_PATH_OPT} -std=c++17 -x hip -Wall -Wextra -Wvla -Wno-deprecated -Wno-option-ignored -Wno-unused-parameter ${win_disable_warnings}) # -Werror)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        add_compile_options(-O3)
+    endif()
 endif()
 
 # Turn off CMAKE_HIP_ARCHITECTURES Feature if cmake version is 3.21+

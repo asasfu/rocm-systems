@@ -3020,6 +3020,7 @@ bool check_trapping_math_disabled(const char** Combination_CO, int Combination_C
 std::string checking_IR(const char* kername, const char** extra_CO_IRadded,
                         int extra_CO_IRadded_size, const char** Combination_CO,
                         int Combination_CO_size) {
+  setenv("AMD_COMGR_CACHE", "0", 1);
   float *A_d, *B_d, *C_d;
   float *A_h, *B_h, *C_h, *result;
   float Nbytes = sizeof(float);

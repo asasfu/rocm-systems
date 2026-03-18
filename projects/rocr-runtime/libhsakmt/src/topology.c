@@ -1075,6 +1075,9 @@ static int topology_get_node_props_from_drm(HsaNodeProperties *props)
 	if (props == NULL)
 		return -1;
 
+	if (hsakmt_use_model)
+		return 0;
+
 	drm_fd = drmOpenRender(props->DrmRenderMinor);
 	if (drm_fd < 0)
 		return -1;
@@ -1311,12 +1314,37 @@ static HSAKMT_STATUS topology_sysfs_get_node_props(HsaKFDContext *ctx,
 
 		/* Is dGPU Node, not APU
 		 * Retrieve the marketing name of the node.
+		 * Skip under the HSA model -- the DRM render node belongs
+		 * to the physical GPU, not the modelled one, so querying
+		 * it would report the wrong MarketingName, FamilyID, etc.
+		 * Instead, read the name from the model topology directory.
 		 */
-		if (topology_get_node_props_from_drm(props))
+		if (hsakmt_use_model) {
+			FILE *name_fd;
+			char name_buf[HSA_PUBLIC_NAME_SIZE] = {0};
+
+			snprintf(path, sizeof(path), KFD_SYSFS_PATH_NODES "/%d/name",
+				 get_topology_dir(), sys_node_id);
+			name_fd = fopen(path, "r");
+			if (name_fd) {
+				if (fgets(name_buf, sizeof(name_buf), name_fd)) {
+					int i;
+					for (i = 0; name_buf[i] && name_buf[i] != '\n'; i++)
+						;
+					name_buf[i] = '\0';
+
+					for (i = 0; name_buf[i] && i < HSA_PUBLIC_NAME_SIZE - 1; i++)
+						props->MarketingName[i] = (HSAuint16)name_buf[i];
+					props->MarketingName[i] = '\0';
+				}
+				fclose(name_fd);
+			}
+		} else if (topology_get_node_props_from_drm(props)) {
 			pr_info("failed to get marketing name for device ID 0x%x\n", props->DeviceId);
+		}
 
 		/* Get VGPR/SGPR size in byte per CU */
-		props->SGPRSizePerCU = SGPR_SIZE_PER_CU;
+		props->SGPRSizePerCU = hsakmt_get_sgpr_size_per_cu(HSA_GET_GFX_VERSION_FULL(props->EngineId.ui32));
 		props->VGPRSizePerCU = hsakmt_get_vgpr_size_per_cu(HSA_GET_GFX_VERSION_FULL(props->EngineId.ui32));
 
 	} else if (props->DeviceId)
