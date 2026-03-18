@@ -5820,14 +5820,6 @@ rocprofiler-sdk:
       - gfx1250
       block: SQ
       event: 237
-  - name: SQ_VALU_WMMA_FLOP_FP64
-    description: DGEMM flop, only report 1 per issue cycle, it stands for 64 Ops per SIMD32. {emulated, windowed, deterministic}
-    properties: []
-    definitions:
-    - architectures:
-      - gfx1250
-      block: SQ
-      event: 289
   - name: SQ_VALU_WMMA_FLOP_FP32
     description: SGEMM flop, only report 1 per issue cycle, it stands for 128 Ops per SIMD32. {emulated, windowed, deterministic}
     properties: []
