@@ -99,8 +99,8 @@ class EventAttribDimension {
       num_aid = 4;
     }
     if (num_xccs > 1 && HasAttr(CounterBlockGrbmaAttr)) {
-      num_xccs = 1;
       num_aid = (num_xccs + pm4_factory->GetXccPerAid() - 1) / pm4_factory->GetXccPerAid();
+      num_xccs = 1;
     }
     shader_engine = HasAttr(CounterBlockSeAttr);
     shader_array = HasAttr(CounterBlockSaAttr);

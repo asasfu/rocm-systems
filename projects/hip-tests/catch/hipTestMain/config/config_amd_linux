@@ -4229,6 +4229,9 @@
         "Unit_hipEvent",
         "Unit_hipGraphAddNodeTypeEventRecord_Positive_Basic",
         "Unit_hipGraphAddEventRecordNode_Functional_Simple",
+        "Unit_hipStreamValue_Wait_Blocking - uint32_t",
+        "Unit_hipStreamValue_Wait_Blocking - uint64_t",
+        "Unit_hipMemVmm_Basic",
     #endif
     #if defined gfx1250
         "=== FFM non-passed tests only on mi450 (gfx1250) vs at2 ===",
