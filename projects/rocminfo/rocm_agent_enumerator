@@ -255,7 +255,7 @@ def readFromKFD():
   return target_list
 
 def main():
-  if len(sys.argv) == 2 and sys.argv[1] == '-name' :
+  if (len(sys.argv) == 2 and sys.argv[1] == '-name') or ("HSA_MODEL_TOPOLOGY" in os.environ):
     """ Prints the list of available AMD GCN target names extracted from rocminfo, a tool
         shipped with this script to enumerate GPU agents available on a working ROCm stack."""
     target_list = readFromROCMINFO(True)
