@@ -138,6 +138,63 @@ else()
     ROCR_BUILD_ID="${PACKAGE_VERSION_STRING}-${VERSION_JOB}-${VERSION_HASH}")
 endif()
 
+## Generate preprocessor directives for GPU targets.
+# Determine which GPU targets to build for.
+set(ENABLED_GPU_TARGETS "")
+if(DEFINED TARGET_DEVICES AND NOT TARGET_DEVICES STREQUAL "")
+  set(ENABLED_GPU_TARGETS ${TARGET_DEVICES})
+elseif(DEFINED GPU_TARGETS AND NOT GPU_TARGETS STREQUAL "")
+  set(ENABLED_GPU_TARGETS ${GPU_TARGETS})
+elseif(DEFINED AMDGPU_TARGETS AND NOT AMDGPU_TARGETS STREQUAL "")
+  set(ENABLED_GPU_TARGETS ${AMDGPU_TARGETS})
+endif()
+
+# Generate preprocessor definitions for each detected GPU target
+if(ENABLED_GPU_TARGETS)
+  foreach(target ${ENABLED_GPU_TARGETS})
+    # gfx7
+    if("${target}" MATCHES "^gfx7")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX7)
+    # gfx8 
+    elseif("${target}" MATCHES "^gfx8")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX8)
+    # gfx90a
+    elseif("${target}" STREQUAL "gfx90a")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX90A)
+    # gfx942
+    elseif("${target}" STREQUAL "gfx942")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX942)
+    # gfx950
+    elseif("${target}" STREQUAL "gfx950")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX950)
+    # other gfx9
+    elseif("${target}" MATCHES "^gfx9")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX9)
+    # gfx1010
+    elseif("${target}" STREQUAL "gfx1010")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX1010)
+    # other gfx10
+    elseif("${target}" MATCHES "^gfx10")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX10)
+    # gfx11
+    elseif("${target}" MATCHES "^gfx11")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX11)
+    # gfx1250
+    elseif("${target}" STREQUAL "gfx1250")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX1250)
+    # gfx1260
+    elseif("${target}" STREQUAL "gfx1260")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX1260)
+    # other gfx12
+    elseif("${target}" MATCHES "^gfx12")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX12)
+    # gfx13
+    elseif("${target}" MATCHES "^gfx13")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX13)
+    endif()
+  endforeach()
+endif()
+
 ## Set include directories for ROCr runtime
 target_include_directories( ${CORE_RUNTIME_TARGET}
   PUBLIC
