@@ -135,6 +135,7 @@ deviceLib:
   Unit_hipTestClock: *level_2
   Unit_kernel_trigger: *level_2
   Unit_ToAndFroMemCpyToDevice: *level_2
+  Unit_device_memcpy_async: *level_2
   Unit_TestIncludeMathPreciseFloat: *level_2
   Unit_hipTestDotFunctions: *level_2
   Unit_hipMemcpyToSymbolAsync_ToNFrom: *level_2

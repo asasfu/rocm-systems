@@ -34,6 +34,7 @@ graph:
   Unit_hipGraphAddEventWaitNode_Negative: *level_2
   Unit_hipGraph_BasicFunctional: *level_2
   Unit_hipGraph_SimpleGraphWithKernel: *level_2
+  Unit_hipGraph_SimpleGraphWithKernel_kernel_arg_prefetch: *level_2
   Unit_hipGraphAddMemcpyNode_Positive_Basic: *level_2
   Unit_hipGraphAddMemcpyNode_Negative_Parameters:
     <<: *level_2

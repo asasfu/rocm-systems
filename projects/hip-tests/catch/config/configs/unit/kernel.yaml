@@ -13,6 +13,9 @@ kernel:
   Unit_hipLanguageExtensions: *level_2
   Unit_hipLaunchParm: *level_2
   Unit_hipLaunchParmFunctor: *level_2
+  Unit_hipLaunchParmFunctor_kernel_arg_prefetch: *level_2
+  Unit_KernelStackSize: *level_2
+  Unit_Validate_User_Sgpr_Count: *level_2
   Unit_kernel_chkConstantViaKernel: *level_2
   Unit_kernel_chkGlobalArrAndGlobalVaribleViaKernelFn: *level_2
   Unit_kernel_MemoryOperationsViaKernels: *level_2
