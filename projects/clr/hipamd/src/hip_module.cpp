@@ -329,12 +329,6 @@ hipError_t ihipLaunchKernel_validate(hipFunction_t f, const amd::LaunchParams& l
   if (launch_params.local_.product() > info.maxWorkGroupSize_) {
     return hipErrorInvalidConfiguration;
   }
-  // Grid dimension Y/Z (work-items) must not exceed device max from ROCr (HSA_AGENT_INFO_GRID_MAX_DIM)
-  if (launch_params.global_[0] > info.maxGridDim_[0] ||
-      launch_params.global_[1] > info.maxGridDim_[1] ||
-      launch_params.global_[2] > info.maxGridDim_[2]) {
-    return hipErrorInvalidConfiguration;
-  }
   hip::DeviceFunc* function = hip::DeviceFunc::asFunction(f);
   amd::Kernel* kernel = function->kernel();
   if (!kernel) {

@@ -297,9 +297,6 @@ struct Info : public amd::EmbeddedObject {
   //  using the data-parallel execution model.
   size_t maxWorkGroupSize_;
 
-  //! Maximum grid dimensions (from HSA_AGENT_INFO_GRID_MAX_DIM). Number of work-items per dimension.
-  uint32_t maxGridDim_[3];
-
   //! Preferred number of work-items in a work-group executing a kernel
   //  using the data-parallel execution model.
   size_t preferredWorkGroupSize_;
