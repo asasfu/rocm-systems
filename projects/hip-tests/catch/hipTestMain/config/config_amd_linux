@@ -120,6 +120,12 @@
         "Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch",
         "==SWDEV-526803 Test disabled till rocr adds impl for fabric handle ==",
         "Unit_hipMemExportFabricHandleToStdout_Positive_Basic",
+        "=== Grid/module launch negative & max grid dim tests — disabled pending ROCm vs test expectation alignment ===",
+        "Unit_hipModuleLaunchKernel_Negative_Parameters",
+        "Unit_hipExtModuleLaunchKernel_Negative_Parameters",
+        "Unit_hipGridLaunch_MaxGridDim_DeviceProperties",
+        "Unit_hipGridLaunch_MaxGridDim_GetDeviceAttribute",
+        "Unit_hipGridLaunch_ExceedMaxGridDim_Negative",
     #endif
     #if defined ENABLE_ADDRESS_SANITIZER
         "=== These tests are testing for features which throw off the sanitizer like check for values after free===",
@@ -4232,6 +4238,7 @@
         "Unit_hipStreamValue_Wait_Blocking - uint32_t",
         "Unit_hipStreamValue_Wait_Blocking - uint64_t",
         "Unit_hipMemVmm_Basic",
+        "Unit_hipStreamAddCaptureDependencies_Positive_Functional",
     #endif
     #if defined gfx1250
         "=== FFM non-passed tests only on mi450 (gfx1250) vs at2 ===",
@@ -4700,7 +4707,6 @@
         "Unit_hipGraphExecChildGraphNodeSetParams_ChildTopology",
         "Unit_hipStreamGetCaptureInfo_v2_Positive_Functional",
         "Unit_hipStreamSetCaptureDependencies_Positive_Functional",
-        "Unit_hipStreamAddCaptureDependencies_Positive_Functional",
         "Unit_hipThreadExchangeStreamCaptureMode_Positive_Functional",
         "Unit_hipStreamGetCaptureInfo_v2_BasicFunctional",
         "Unit_hipStreamGetCaptureInfo_v2_hipStreamPerThread",

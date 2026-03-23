@@ -301,9 +301,7 @@ __CG_STATIC_QUALIFIER__ void barrier_arrive() {
     __has_builtin(__builtin_amdgcn_s_barrier_wait)
   bool should_signal;
 #if defined(__GFX12__)
-  // GFX12 (MI400/Arcadia): s_barrier_signal_isfirst explicitly writes SCC=0 when
-  // !inWG, breaking workgroup-barrier election for single-wave workgroups.
-  // Read the hardware IN_WG bit to bypass it.
+  // s_barrier_signal_isfirst writes SCC=0 when !inWG, use IN_WG to bypass.
   unsigned in_wg = __builtin_amdgcn_s_getreg(__CG_GETREG_IN_WG);
 
   if (in_wg) {

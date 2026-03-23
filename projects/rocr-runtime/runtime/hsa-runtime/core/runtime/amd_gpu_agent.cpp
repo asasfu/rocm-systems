@@ -300,82 +300,197 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
     ASICShader compute_13;
   };
 
-  std::map<std::string, CompiledShader> compiled_shaders = {
-      {"TrapHandler",
-       {
-           {NULL, 0, 0, 0},                                                 // gfx7
-           {kCodeTrapHandler8, sizeof(kCodeTrapHandler8), 2, 4},            // gfx8
-           {kCodeTrapHandler9, sizeof(kCodeTrapHandler9), 2, 4},            // gfx9
-           {kCodeTrapHandler90a, sizeof(kCodeTrapHandler90a), 2, 4},        // gfx90a
-           {NULL, 0, 0, 0},                                                 // gfx942
-           {kCodeTrapHandler1010, sizeof(kCodeTrapHandler1010), 2, 4},      // gfx1010
-           {kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4},          // gfx10
-           {NULL, 0, 0, 0},                                                 // gfx11
-           // GFX12_TODO: Using one for GFX10 for now.
-           //             If NULL is used (like GFX11), get an assert.
-           {kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4},          // gfx12
-           {NULL, 0, 0, 0},                                                 // gfx13
-       }},
-      {"TrapHandlerKfdExceptions",
-       {
-           {NULL, 0, 0, 0},                                                 // gfx7
-           {kCodeTrapHandler8, sizeof(kCodeTrapHandler8), 2, 4},            // gfx8
-           {kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4},      // gfx9
-           {kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4},      // gfx90a
-           {kCodeTrapHandlerV2_942, sizeof(kCodeTrapHandlerV2_942), 2, 4},  // gfx942
-           {kCodeTrapHandlerV2_1010, sizeof(kCodeTrapHandlerV2_1010), 2, 4},// gfx1010
-           {kCodeTrapHandlerV2_10, sizeof(kCodeTrapHandlerV2_10), 2, 4},    // gfx10
-           {kCodeTrapHandlerV2_11, sizeof(kCodeTrapHandlerV2_11), 2, 4},    // gfx11
-           {kCodeTrapHandlerV2_12, sizeof(kCodeTrapHandlerV2_12), 2, 4},    // gfx12
-           {kCodeTrapHandlerV2_1250, sizeof(kCodeTrapHandlerV2_1250), 2, 4},  // gfx1250
-           {kCodeTrapHandlerV2_1260, sizeof(kCodeTrapHandlerV2_1260), 2, 4},  // gfx1260
-           {kCodeTrapHandlerV2_13, sizeof(kCodeTrapHandlerV2_13), 2, 4},    // gfx13
-       }},
-      {"CopyAligned",
-       {
-           {kCodeCopyAligned7, sizeof(kCodeCopyAligned7), 32, 12},          // gfx7
-           {kCodeCopyAligned8, sizeof(kCodeCopyAligned8), 32, 12},          // gfx8
-           {kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12},          // gfx9
-           {kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12},          // gfx90a
-           {kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12},          // gfx942
-           {kCodeCopyAligned10, sizeof(kCodeCopyAligned10), 32, 12},        // gfx1010
-           {kCodeCopyAligned10, sizeof(kCodeCopyAligned10), 32, 12},        // gfx10
-           {kCodeCopyAligned11, sizeof(kCodeCopyAligned11), 32, 12},        // gfx11
-           {kCodeCopyAligned12, sizeof(kCodeCopyAligned12), 32, 12},        // gfx12
-           {kCodeCopyAligned1250, sizeof(kCodeCopyAligned1250), 32, 12},    // gfx1250
-           {kCodeCopyAligned1260, sizeof(kCodeCopyAligned1260), 32, 12},    // gfx1260
-           {kCodeCopyAligned13, sizeof(kCodeCopyAligned13), 32, 12},        // gfx13
-       }},
-      {"CopyMisaligned",
-       {
-           {kCodeCopyMisaligned7, sizeof(kCodeCopyMisaligned7), 23, 10},    // gfx7
-           {kCodeCopyMisaligned8, sizeof(kCodeCopyMisaligned8), 23, 10},    // gfx8
-           {kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10},    // gfx9
-           {kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10},    // gfx90a
-           {kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10},    // gfx942
-           {kCodeCopyMisaligned10, sizeof(kCodeCopyMisaligned10), 23, 10},  // gfx1010
-           {kCodeCopyMisaligned10, sizeof(kCodeCopyMisaligned10), 23, 10},  // gfx10
-           {kCodeCopyMisaligned11, sizeof(kCodeCopyMisaligned11), 23, 10},  // gfx11
-           {kCodeCopyMisaligned12, sizeof(kCodeCopyMisaligned12), 23, 10},  // gfx12
-           {kCodeCopyMisaligned1250, sizeof(kCodeCopyMisaligned1250), 23, 10},  // gfx1250
-           {kCodeCopyMisaligned1260, sizeof(kCodeCopyMisaligned1260), 23, 10},  // gfx1260
-           {kCodeCopyMisaligned13, sizeof(kCodeCopyMisaligned13), 23, 10},  // gfx13
-       }},
-      {"Fill",
-       {
-           {kCodeFill7, sizeof(kCodeFill7), 19, 8},                         // gfx7
-           {kCodeFill8, sizeof(kCodeFill8), 19, 8},                         // gfx8
-           {kCodeFill9, sizeof(kCodeFill9), 19, 8},                         // gfx9
-           {kCodeFill9, sizeof(kCodeFill9), 19, 8},                         // gfx90a
-           {kCodeFill9, sizeof(kCodeFill9), 19, 8},                         // gfx942
-           {kCodeFill10, sizeof(kCodeFill10), 19, 8},                       // gfx1010
-           {kCodeFill10, sizeof(kCodeFill10), 19, 8},                       // gfx10
-           {kCodeFill11, sizeof(kCodeFill11), 19, 8},                       // gfx11
-           {kCodeFill12, sizeof(kCodeFill12), 19, 8},                       // gfx12
-           {kCodeFill1250, sizeof(kCodeFill1250), 19, 8},                   // gfx1250
-           {kCodeFill1260, sizeof(kCodeFill1260), 19, 8},                   // gfx1260
-           {kCodeFill13, sizeof(kCodeFill13), 19, 8},                       // gfx13
-       }}};
+  std::map<std::string, CompiledShader> compiled_shaders;
+  
+  auto make_shader = [](const void* code, size_t size, int sgprs, int vgprs) {
+    return ASICShader{code, size, sgprs, vgprs};
+  };
+
+  // Trap Handler
+  {
+    CompiledShader shader = {};
+    shader.compute_8 = make_shader(kCodeTrapHandler8, sizeof(kCodeTrapHandler8), 2, 4);
+    shader.compute_9   = make_shader(kCodeTrapHandler9, sizeof(kCodeTrapHandler9), 2, 4);
+    shader.compute_90a = make_shader(kCodeTrapHandler90a, sizeof(kCodeTrapHandler90a), 2, 4);
+    shader.compute_1010 = make_shader(kCodeTrapHandler1010, sizeof(kCodeTrapHandler1010), 2, 4);
+    shader.compute_10 = make_shader(kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4);
+    shader.compute_12 = make_shader(kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4);
+    compiled_shaders["TrapHandler"] = shader;
+  }
+
+  // TrapHandlerKfdExceptions
+  {
+    CompiledShader shader = {};
+#ifdef TARGET_DEVICE_GFX9
+    shader.compute_9 = make_shader(kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4);
+    shader.compute_90a = make_shader(kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX942
+    shader.compute_942 = make_shader(kCodeTrapHandlerV2_942, sizeof(kCodeTrapHandlerV2_942), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX1010
+    shader.compute_1010 = make_shader(kCodeTrapHandlerV2_1010, sizeof(kCodeTrapHandlerV2_1010), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX10
+    shader.compute_10 = make_shader(kCodeTrapHandlerV2_10, sizeof(kCodeTrapHandlerV2_10), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX11
+    shader.compute_11 = make_shader(kCodeTrapHandlerV2_11, sizeof(kCodeTrapHandlerV2_11), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX12
+    shader.compute_12 = make_shader(kCodeTrapHandlerV2_12, sizeof(kCodeTrapHandlerV2_12), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX1250
+    shader.compute_1250 = make_shader(kCodeTrapHandlerV2_1250, sizeof(kCodeTrapHandlerV2_1250), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX1260
+    shader.compute_1260 = make_shader(kCodeTrapHandlerV2_1260, sizeof(kCodeTrapHandlerV2_1260), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX13
+    shader.compute_13 = make_shader(kCodeTrapHandlerV2_13, sizeof(kCodeTrapHandlerV2_13), 2, 4);
+#endif
+
+    compiled_shaders["TrapHandlerKfdExceptions"] = shader;
+  }
+
+  // CopyAligned Shaders
+  {
+    CompiledShader shader = {};
+
+#ifdef TARGET_DEVICE_GFX7
+    shader.compute_7 = make_shader(kCodeCopyAligned7, sizeof(kCodeCopyAligned7), 32, 12);
+#endif
+#ifdef TARGET_DEVICE_GFX8
+    shader.compute_8 = make_shader(kCodeCopyAligned8, sizeof(kCodeCopyAligned8), 32, 12);
+#endif
+#ifdef defined(TARGET_DEVICE_GFX9) || defined(TARGET_DEVICE_GFX942)
+    shader.compute_9 = make_shader(kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12);
+    shader.compute_90a = make_shader(kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12);
+    shader.compute_942 = make_shader(kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1010
+    shader.compute_1010 = make_shader(kCodeCopyAligned1010, sizeof(kCodeCopyAligned1010), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX10
+    shader.compute_10 = make_shader(kCodeCopyAligned10, sizeof(kCodeCopyAligned10), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX11
+    shader.compute_11 = make_shader(kCodeCopyAligned11, sizeof(kCodeCopyAligned11), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX12
+    shader.compute_12 = make_shader(kCodeCopyAligned12, sizeof(kCodeCopyAligned12), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1250
+    shader.compute_1250 = make_shader(kCodeCopyAligned1250, sizeof(kCodeCopyAligned1250), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1260
+    shader.compute_1260 = make_shader(kCodeCopyAligned1260, sizeof(kCodeCopyAligned1260), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX13
+    shader.compute_13 = make_shader(kCodeCopyAligned13, sizeof(kCodeCopyAligned13), 32, 12);
+#endif
+
+    compiled_shaders["CopyAligned"] = shader;
+  }
+
+  // CopyMisaligned Shaders 
+  {
+    CompiledShader shader = {};
+
+#ifdef TARGET_DEVICE_GFX7
+    shader.compute_7 = make_shader(kCodeCopyMisaligned7, sizeof(kCodeCopyMisaligned7), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX8
+    shader.compute_8 = make_shader(kCodeCopyMisaligned8, sizeof(kCodeCopyMisaligned8), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX9
+    shader.compute_9 = make_shader(kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10);
+    shader.compute_90a = make_shader(kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10);
+    shader.compute_942 = make_shader(kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1010
+    shader.compute_1010 = make_shader(kCodeCopyMisaligned1010, sizeof(kCodeCopyMisaligned1010), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX10
+    shader.compute_10 = make_shader(kCodeCopyMisaligned10, sizeof(kCodeCopyMisaligned10), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX11
+    shader.compute_11 = make_shader(kCodeCopyMisaligned11, sizeof(kCodeCopyMisaligned11), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX12
+    shader.compute_12 = make_shader(kCodeCopyMisaligned12, sizeof(kCodeCopyMisaligned12), 23, 10);
+#endif
+#ifdef TARGET_DEVICE_GFX1250
+    shader.compute_1250 = make_shader(kCodeCopyMisaligned1250, sizeof(kCodeCopyMisaligned1250), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1260
+    shader.compute_1260 = make_shader(kCodeCopyMisaligned1260, sizeof(kCodeCopyMisaligned1260), 23, 10);
+#endif
+#ifdef TARGET_DEVICE_GFX13
+    shader.compute_13 = make_shader(kCodeCopyMisaligned13, sizeof(kCodeCopyMisaligned13), 23, 10);
+#endif
+    compiled_shaders["CopyMisaligned"] = shader;
+  }
+
+  // Fill Shaders
+  {
+    CompiledShader shader = {};
+
+#ifdef TARGET_DEVICE_GFX7
+    shader.compute_7 = make_shader(kCodeFill7, sizeof(kCodeFill7), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX8
+    shader.compute_8 = make_shader(kCodeFill8, sizeof(kCodeFill8), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX9
+    shader.compute_9 = make_shader(kCodeFill9, sizeof(kCodeFill9), 19, 8);
+    shader.compute_90a = make_shader(kCodeFill9, sizeof(kCodeFill9), 19, 8);
+    shader.compute_942 = make_shader(kCodeFill9, sizeof(kCodeFill9), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1010
+    shader.compute_1010 = make_shader(kCodeFill1010, sizeof(kCodeFill1010), 19, 8);
+#endif  
+
+#ifdef TARGET_DEVICE_GFX10
+    shader.compute_10 = make_shader(kCodeFill10, sizeof(kCodeFill10), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX11
+    shader.compute_11 = make_shader(kCodeFill11, sizeof(kCodeFill11), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX12
+    shader.compute_12 = make_shader(kCodeFill12, sizeof(kCodeFill12), 19, 8);
+#endif
+#ifdef TARGET_DEVICE_GFX1250
+    shader.compute_1250 = make_shader(kCodeFill1250, sizeof(kCodeFill1250), 19, 8);
+#endif
+#ifdef TARGET_DEVICE_GFX1260
+    shader.compute_1260 = make_shader(kCodeFill1260, sizeof(kCodeFill1260), 19, 8);
+#endif
+#ifdef TARGET_DEVICE_GFX13
+    shader.compute_13 = make_shader(kCodeFill13, sizeof(kCodeFill13), 19, 8);
+#endif
+
+    compiled_shaders["Fill"] = shader;
+  }
 
   auto compiled_shader_it = compiled_shaders.find(func_name);
   assert(compiled_shader_it != compiled_shaders.end() &&
@@ -384,41 +499,83 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
   ASICShader* asic_shader = NULL;
 
   switch (isa_->GetMajorVersion()) {
+#ifdef TARGET_DEVICE_GFX7
     case 7:
       asic_shader = &compiled_shader_it->second.compute_7;
       break;
+#endif
+#ifdef TARGET_DEVICE_GFX8
     case 8:
       asic_shader = &compiled_shader_it->second.compute_8;
       break;
+#endif
+#if defined(TARGET_DEVICE_GFX9) || defined(TARGET_DEVICE_GFX942)
     case 9:
+#ifdef TARGET_DEVICE_GFX9
       if((isa_->GetMinorVersion() == 0) && (isa_->GetStepping() == 10)) {
         asic_shader = &compiled_shader_it->second.compute_90a;
-      } else if(isa_->GetMinorVersion() == 4 || isa_->GetMinorVersion() == 5) {
+      } else
+#endif
+#ifdef TARGET_DEVICE_GFX942
+      if(isa_->GetMinorVersion() == 4 || isa_->GetMinorVersion() == 5) {
         asic_shader = &compiled_shader_it->second.compute_942;
-      } else {
+      } else
+#endif
+#ifdef TARGET_DEVICE_GFX9
+      {
         asic_shader = &compiled_shader_it->second.compute_9;
       }
+#else
+      {
+        assert(false && "Precompiled shader unavailable for gfx9 variant");
+      }
+#endif
       break;
+#endif
+#if defined(TARGET_DEVICE_GFX1010) || defined(TARGET_DEVICE_GFX10)
     case 10:
+#ifdef TARGET_DEVICE_GFX1010
       if(isa_->GetMinorVersion() == 1)
         asic_shader = &compiled_shader_it->second.compute_1010;
       else
+#endif
+#ifdef TARGET_DEVICE_GFX10
         asic_shader = &compiled_shader_it->second.compute_10;
+#else
+        assert(false && "Precompiled shader unavailable for gfx10 variant");
+#endif
       break;
+#endif
+#ifdef TARGET_DEVICE_GFX11
     case 11:
         asic_shader = &compiled_shader_it->second.compute_11;
       break;
+#endif
+#if defined(TARGET_DEVICE_GFX12) || defined(TARGET_DEVICE_GFX1250) || defined(TARGET_DEVICE_GFX1260)
     case 12:
-        if(isa_->GetMinorVersion() == 5)
+#ifdef TARGET_DEVICE_GFX1250
+        if(isa_->GetMinorVersion() == 5) {
           asic_shader = &compiled_shader_it->second.compute_1250;
-        else if (isa_->GetMinorVersion() >= 6)
+        }
+        else
+#endif
+#ifdef TARGET_DEVICE_GFX1260
+        if (isa_->GetMinorVersion() >= 6)
           asic_shader = &compiled_shader_it->second.compute_1260;
         else
+#endif
+#ifdef TARGET_DEVICE_GFX12
           asic_shader = &compiled_shader_it->second.compute_12;
+#else
+          assert(false && "Precompiled shader unavailable for gfx12 variant");
+#endif
       break;
+#endif
+#ifdef TARGET_DEVICE_GFX13
     case 13:
       asic_shader = &compiled_shader_it->second.compute_13;
       break;
+#endif
     default:
       assert(false && "Precompiled shader unavailable for target");
   }

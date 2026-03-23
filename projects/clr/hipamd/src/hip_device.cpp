@@ -493,9 +493,9 @@ hipError_t ihipGetDeviceProperties(hipDeviceProp_tR0600* props, int device) {
 
   constexpr auto pixel_size_max = 16;
   constexpr auto int32_max = static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
-  const auto& info = deviceHandle->info();
   hipDeviceProp_tR0600 deviceProps = {0};
 
+  const auto& info = deviceHandle->info();
   const auto& isa = deviceHandle->isa();
   ::strncpy(deviceProps.name, info.boardName_, sizeof(info.boardName_));
   memcpy(deviceProps.uuid.bytes, info.uuid_, sizeof(info.uuid_));
@@ -694,9 +694,9 @@ hipError_t hipGetDevicePropertiesR0000(hipDeviceProp_tR0000* prop, int device) {
   auto* deviceHandle = g_devices[device]->devices()[0];
 
   constexpr auto int32_max = static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
-  const auto& info = deviceHandle->info();
   hipDeviceProp_tR0000 deviceProps = {0};
 
+  const auto& info = deviceHandle->info();
   const auto& isa = deviceHandle->isa();
   ::strncpy(deviceProps.name, info.boardName_, 128);
   deviceProps.totalGlobalMem = info.globalMemSize_;

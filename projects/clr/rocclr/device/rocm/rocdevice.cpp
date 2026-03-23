@@ -1292,8 +1292,12 @@ bool Device::populateOCLDeviceConstants() {
   info_.maxWorkItemSizes_[2] = std::min(max_workgroup_size[2], max_work_item_size);
   info_.preferredWorkGroupSize_ = settings().preferredWorkGroupSize_;
 
-  hsa_dim3_t grid_max_dim = {UINT32_MAX, UINT16_MAX, UINT16_MAX};
-  (void)Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_GRID_MAX_DIM, &grid_max_dim);
+  hsa_dim3_t grid_max_dim = {0, 0, 0};
+  if (HSA_STATUS_SUCCESS !=
+      Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_GRID_MAX_DIM, &grid_max_dim)) {
+    return false;
+  }
+  assert(grid_max_dim.x != 0 && grid_max_dim.y != 0 && grid_max_dim.z != 0);
   info_.maxGridDim_[0] = grid_max_dim.x;
   info_.maxGridDim_[1] = grid_max_dim.y;
   info_.maxGridDim_[2] = grid_max_dim.z;

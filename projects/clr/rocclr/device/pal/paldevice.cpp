@@ -51,6 +51,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <limits>
 #include <ctype.h>
 #include <fstream>
 #include <iostream>
@@ -102,6 +103,7 @@ static constexpr PalDevice supportedPalDevices[] = {
     {11, 5, 1, "gfx1151", Pal::AsicRevision::StrixHalo},
     {11, 5, 2, "gfx1152", Pal::AsicRevision::Krackan1},
     {11, 5, 3, "gfx1153", Pal::AsicRevision::Krackan2},
+    {11, 5, 14, "gfx115E", Pal::AsicRevision::Medusa1_A0},
     {12, 0, 0, "gfx1200", Pal::AsicRevision::Navi44},
     {12, 0, 1, "gfx1201", Pal::AsicRevision::Navi48},
 #if PAL_BUILD_ALPHA_TRION2
@@ -511,6 +513,10 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
   info_.maxWorkItemSizes_[1] = info_.maxWorkGroupSize_;
   info_.maxWorkItemSizes_[2] = info_.maxWorkGroupSize_;
   info_.preferredWorkGroupSize_ = settings().preferredWorkGroupSize_;
+
+  info_.maxGridDim_[0] = std::numeric_limits<uint32_t>::max();
+  info_.maxGridDim_[1] = std::numeric_limits<uint32_t>::max();
+  info_.maxGridDim_[2] = std::numeric_limits<uint32_t>::max();
 
   info_.localMemType_ = CL_LOCAL;
   info_.localMemSize_ = palProp.gfxipProperties.shaderCore.ldsSizePerCu;
