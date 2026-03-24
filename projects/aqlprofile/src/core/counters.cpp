@@ -150,8 +150,9 @@ hsa_status_t _internal_aqlprofile_pmc_iterate_data(aqlprofile_handle_t handle,
       if (!(pm4_factory->GetBlockInfo(event.block_name)->attr & CounterBlockUmcAttr)) continue;
 
 #if DEBUG_TRACE == 2
-      printf("DATA: id(%lu) bloc id(%u) index(%u) counter id(%u) res(%lu)\n", umc_sample_id,
-             event.block_name, event.block_index, event.event_id, *samples);
+      std::clog << std::dec << "DATA: id(" << umc_sample_id << ") block id(" << event.block_name
+                << ") index(" << event.block_index << ") counter id(" << event.event_id << ") res("
+                << *samples << ")" << std::endl;
 #endif
 
       hsa_status_t status = callback(event, event.block_index, *samples, userdata);
@@ -176,8 +177,10 @@ hsa_status_t _internal_aqlprofile_pmc_iterate_data(aqlprofile_handle_t handle,
       size_t xcc_sample_count = attrib.get_num_instances() * block_samples_count;
       for (uint32_t blk = 0; blk < block_samples_count; ++blk) {
 #if DEBUG_TRACE == 2
-        printf("DATA: xcc(%u) blk(%u) bloc id(%u) index(%u) counter id(%u) res(%lu)\n", xcc_index,
-               blk, event.block_name, event.block_index, event.event_id, *samples);
+        std::clog << std::dec << "DATA: xcc(" << xcc_index << ") id(" << blk << ") block id("
+                  << event.block_name << ") index(" << event.block_index << ") counter id("
+                  << event.event_id << ") res(" << *samples << ")" << " @(" << samples << ")"
+                  << std::endl;
 #endif
         size_t xcc_sample_id = xcc_sample_count * xcc_index +
                                static_cast<size_t>(event.block_index) * block_samples_count + blk;
@@ -210,8 +213,10 @@ hsa_status_t _internal_aqlprofile_pmc_iterate_data(aqlprofile_handle_t handle,
       size_t aid_sample_count = attrib.get_num_instances() * block_samples_count;
       for (uint32_t blk = 0; blk < block_samples_count; ++blk) {
 #if DEBUG_TRACE == 2
-        printf("DATA: xcc(%u) blk(%u) bloc id(%u) index(%u) counter id(%u) res(%lu)\n", xcc_index,
-               blk, event.block_name, event.block_index, event.event_id, *samples);
+        std::clog << std::dec << "DATA: xcc(" << xcc_index << ") id(" << blk << ") block id("
+                  << event.block_name << ") index(" << event.block_index << ") counter id("
+                  << event.event_id << ") res(" << *samples << ")" << " @(" << samples << ")"
+                  << std::endl;
 #endif
         size_t aid_sample_id = aid_sample_count * aid_index +
                                static_cast<size_t>(event.block_index) * block_samples_count + blk;

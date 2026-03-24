@@ -620,9 +620,9 @@ hsa_ven_amd_aqlprofile_iterate_data(const hsa_ven_amd_aqlprofile_profile_t* prof
         sample_info.pmc_data.event = *p;
         sample_info.pmc_data.result = *samples;
 #if DEBUG_TRACE == 2
-        printf(
-            "DATA: sample id(%u) bloc id(%u) index(%u) counter id(%u) res(%lu)\n",
-            sample_id, p->block_name, p->block_index, p->counter_id, *samples);
+        std::clog << "DATA: sample id(" << sample_id << ") block id(" << p->block_name << ") index("
+                  << p->block_index << ") counter id(" << p->counter_id << ") res(" << *samples
+                  << ")" << std::endl;
 #endif
 
         status = callback(HSA_VEN_AMD_AQLPROFILE_INFO_PMC_DATA, &sample_info, data);
@@ -658,8 +658,10 @@ hsa_ven_amd_aqlprofile_iterate_data(const hsa_ven_amd_aqlprofile_profile_t* prof
             sample_info.sample_id = blk;
             sample_info.pmc_data.event = *p;
 #if DEBUG_TRACE == 2
-            printf("DATA: xcc(%u) id(%u) bloc id(%u) index(%u) counter id(%u) res(%lu)(%p)\n",
-                   xcc_index, blk, p->block_name, p->block_index, p->counter_id, *samples, samples);
+            std::clog << "DATA: xcc(" << xcc_index << ") id(" << blk << ") block id("
+                      << p->block_name << ") index(" << p->block_index << ") counter id("
+                      << p->counter_id << ") res(" << *samples << ")" << " @(" << samples << ")"
+                      << std::endl;
 #endif
             sample_info.pmc_data.result = *samples;
             status = callback(HSA_VEN_AMD_AQLPROFILE_INFO_PMC_DATA, &sample_info, data);
@@ -689,8 +691,10 @@ hsa_ven_amd_aqlprofile_iterate_data(const hsa_ven_amd_aqlprofile_profile_t* prof
             sample_info.sample_id = blk;
             sample_info.pmc_data.event = *p;
 #if DEBUG_TRACE == 2
-            printf("DATA: xcc(%u) id(%u) bloc id(%u) index(%u) counter id(%u) res(%lu)(%p)\n",
-                   xcc_index, blk, p->block_name, p->block_index, p->counter_id, *samples, samples);
+            std::clog << "DATA: xcc(" << xcc_index << ") id(" << blk << ") block id("
+                      << p->block_name << ") index(" << p->block_index << ") counter id("
+                      << p->counter_id << ") res(" << *samples << ")" << " @(" << samples << ")"
+                      << std::endl;
 #endif
             sample_info.pmc_data.result = *samples;
             status = callback(HSA_VEN_AMD_AQLPROFILE_INFO_PMC_DATA, &sample_info, data);

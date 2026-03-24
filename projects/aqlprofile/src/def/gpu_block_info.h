@@ -69,6 +69,13 @@ enum CounterBlockAttr {
   CounterBlockAtcAttr = 0x400000,
   // Blocks controlled by GRBMA
   CounterBlockGrbmaAttr = 0x800000,
+  // Blocks belongs to UTCL2
+  CounterBlockUtcl2Attr = 0x1000000,
+  // Blocks using PerfCnt instead of Perfmon logic
+  // Difference between Perfmon and PerfCnt:
+  //   Perfmon uses PERFCOUNTER_SELECT
+  //   PerfCnt uses PERFCOUNTER_CFG + PERFCOUNTER_RSLT_CNTL
+  CounterBlockPerfCntAttr = CounterBlockRpbAttr | CounterBlockAtcAttr | CounterBlockUtcl2Attr,
 };
 
 
