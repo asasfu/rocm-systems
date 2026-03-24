@@ -208,7 +208,7 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfo(
             // Overwrite these parameters if we have a valid format
         }
 
-        if (localIn.bpp != 0)
+        if (localIn.bpp >= 8)
         {
             localIn.width  = Max(localIn.width, 1u);
             localIn.height = Max(localIn.height, 1u);
@@ -505,6 +505,11 @@ ADDR_E_RETURNCODE Lib::CopyMemToSurface(
         {
             returnCode = ADDR_INVALIDPARAMS;
         }
+        else if (pIn->copyFlags.blockMemcpy && pIn->copyFlags.hybridMemcpy)
+        {
+            // Invalid to specify conflicting copy modes.
+            returnCode = ADDR_INVALIDPARAMS;
+        }
         else
         {
             UINT_32 baseSlice = pRegions[0].slice;
@@ -572,6 +577,11 @@ ADDR_E_RETURNCODE Lib::CopySurfaceToMem(
     {
         if (pIn->size  != sizeof(ADDR2_COPY_MEMSURFACE_INPUT))
         {
+            returnCode = ADDR_INVALIDPARAMS;
+        }
+        else if (pIn->copyFlags.blockMemcpy && pIn->copyFlags.hybridMemcpy)
+        {
+            // Invalid to specify conflicting copy modes.
             returnCode = ADDR_INVALIDPARAMS;
         }
         else

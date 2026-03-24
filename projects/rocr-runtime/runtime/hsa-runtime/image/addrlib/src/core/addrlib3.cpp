@@ -1,7 +1,7 @@
 /*
 ************************************************************************************************************************
 *
-*  Copyright (C) 2007-2024 Advanced Micro Devices, Inc. All rights reserved.
+*  Copyright (C) 2007-2025 Advanced Micro Devices, Inc. All rights reserved.
 *  SPDX-License-Identifier: MIT
 *
 ***********************************************************************************************************************/
@@ -40,8 +40,6 @@ namespace V3
 Lib::Lib()
     :
     Addr::Lib(),
-    m_pipesLog2(0),
-    m_pipeInterleaveLog2(0),
     m_numEquations(0)
 {
     Init();
@@ -60,8 +58,6 @@ Lib::Lib(
     const Client* pClient)
     :
     Addr::Lib(pClient),
-    m_pipesLog2(0),
-    m_pipeInterleaveLog2(0),
     m_numEquations(0)
 {
     Init();
@@ -176,10 +172,12 @@ UINT_32  Lib::GetBlockSizeLog2(
             break;
         case ADDR3_64KB_2D:
         case ADDR3_64KB_3D:
+        case ADDR3_64KB_2D_Z:
             blockSize = 16;
             break;
         case ADDR3_256KB_2D:
         case ADDR3_256KB_3D:
+        case ADDR3_256KB_2D_Z:
             blockSize = 18;
             break;
         case ADDR3_LINEAR:
@@ -266,7 +264,7 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfo(
             // Overwrite these parameters if we have a valid format
         }
 
-        if (localIn.bpp != 0)
+        if (localIn.bpp >= 8)
         {
             localIn.width  = Max(localIn.width, 1u);
             localIn.height = Max(localIn.height, 1u);
@@ -612,6 +610,11 @@ ADDR_E_RETURNCODE Lib::CopyMemToSurface(
         {
             returnCode = ADDR_INVALIDPARAMS;
         }
+        else if (pIn->copyFlags.blockMemcpy && pIn->copyFlags.hybridMemcpy)
+        {
+            // Invalid to specify conflicting copy modes.
+            returnCode = ADDR_INVALIDPARAMS;
+        }
         else
         {
             UINT_32 baseSlice    = pRegions[0].slice;
@@ -681,6 +684,11 @@ ADDR_E_RETURNCODE Lib::CopySurfaceToMem(
         {
             returnCode = ADDR_INVALIDPARAMS;
         }
+        else if (pIn->copyFlags.blockMemcpy && pIn->copyFlags.hybridMemcpy)
+        {
+            // Invalid to specify conflicting copy modes.
+            returnCode = ADDR_INVALIDPARAMS;
+        }
         else
         {
             UINT_32 baseSlice    = pRegions[0].slice;
@@ -737,7 +745,7 @@ ADDR_E_RETURNCODE Lib::ComputePipeBankXor(
     const ADDR3_COMPUTE_PIPEBANKXOR_INPUT* pIn,
     ADDR3_COMPUTE_PIPEBANKXOR_OUTPUT*      pOut)
 {
-    ADDR_E_RETURNCODE returnCode;
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
     if ((GetFillSizeFieldsFlags() == TRUE) &&
         ((pIn->size  != sizeof(ADDR3_COMPUTE_PIPEBANKXOR_INPUT)) ||
@@ -747,7 +755,23 @@ ADDR_E_RETURNCODE Lib::ComputePipeBankXor(
     }
     else
     {
-        returnCode = HwlComputePipeBankXor(pIn, pOut);
+        // The swizzle mode determines how many unused bits there are in the address.  We never (ok, rarely...) program
+        // the low eight bits of the address, so the "numSwizzleBits" effectively represents the number of "guaranteed
+        // zero" programmed bits in the address.
+        const UINT_32  numSwizzleBits = GetBlockSizeLog2(pIn->swizzleMode, FALSE) - 8;
+
+        // make sure this configuration supports swizzling
+        if (numSwizzleBits != 0) 
+        {
+            // These cases should have been excluded with the "numSwizzleBits" calculation above, but make sure here.
+            ADDR_ASSERT((IsLinear(pIn->swizzleMode) == FALSE) && (IsBlock256b(pIn->swizzleMode) == FALSE));
+
+            pOut->pipeBankXor = pIn->surfIndex % (1 << numSwizzleBits);
+        }
+        else
+        {
+            pOut->pipeBankXor = 0;
+        }
     }
 
     return returnCode;
@@ -1166,6 +1190,125 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfoSanityCheck(
     localIn.numSamples   = pIn->numSamples;
 
     return HwlValidateNonSwModeParams(&localIn) ? ADDR_OK : ADDR_INVALIDPARAMS;
+}
+
+/**
+************************************************************************************************************************
+*   Lib::ComputeHtileInfo
+*
+*   @brief
+*       Interface function stub of AddrComputeHtilenfo
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::ComputeHtileInfo(
+    const ADDR3_COMPUTE_HTILE_INFO_INPUT* pIn,    ///< [in] input structure
+    ADDR3_COMPUTE_HTILE_INFO_OUTPUT*      pOut    ///< [out] output structure
+    ) const
+{
+    ADDR_E_RETURNCODE returnCode;
+
+    if ((GetFillSizeFieldsFlags() == TRUE) &&
+        ((pIn->size != sizeof(ADDR3_COMPUTE_HTILE_INFO_INPUT)) ||
+         (pOut->size != sizeof(ADDR3_COMPUTE_HTILE_INFO_OUTPUT))))
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+    else
+    {
+        returnCode = HwlComputeHtileInfo(pIn, pOut);
+        if (returnCode == ADDR_OK)
+        {
+            ValidMetaBaseAlignments(pOut->baseAlign);
+
+            ValidateMipSizes(pIn, pOut);
+        }
+    }
+
+    return returnCode;
+}
+
+/**
+************************************************************************************************************************
+*   Lib::ValidateMipSizes
+*
+*   @brief
+*       Sanity checks the offset and sizes associated with the output "pMipInfo" structure against the overall
+*       surface size parameters.  This function only asserts and thus will not affect release builds.
+*
+*   @return
+*       None.
+************************************************************************************************************************
+*/
+VOID Lib::ValidateMipSizes(
+    const ADDR3_COMPUTE_HTILE_INFO_INPUT*   pIn,
+    const ADDR3_COMPUTE_HTILE_INFO_OUTPUT*  pOut
+    ) const
+{
+#if DEBUG
+    if (pOut->pMipInfo != nullptr)
+    {
+        UINT_64  totalImageSize = 0;
+        for (UINT_32  mipIdx = 0; mipIdx < pIn->numMipLevels; mipIdx++)
+        {
+            const ADDR3_META_MIP_INFO&  mipInfo = pOut->pMipInfo[mipIdx];
+
+            totalImageSize += mipInfo.sliceSize;
+
+            // The size of all the mips combined should be less than the size of one slice.
+            ADDR_ASSERT(totalImageSize <= pOut->sliceSize);
+
+            // The offset of any given mip should be smaller than the slice.
+            ADDR_ASSERT(mipInfo.offset < pOut->sliceSize);
+        }
+    }
+#endif
+}
+
+/**
+************************************************************************************************************************
+*   Lib::ComputeFmaskInfo
+*
+*   @brief
+*       Interface function stub of ComputeFmaskInfo.
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::ComputeFmaskInfo(
+    const ADDR3_COMPUTE_FMASK_INFO_INPUT*    pIn,    ///< [in] input structure
+    ADDR3_COMPUTE_FMASK_INFO_OUTPUT*         pOut    ///< [out] output structure
+    ) const
+{
+    ADDR_E_RETURNCODE returnCode;
+
+    BOOL_32 valid = (pIn->numSamples > 0);
+
+    if (valid)
+    {
+        if (GetFillSizeFieldsFlags())
+        {
+            if ((pIn->size != sizeof(ADDR3_COMPUTE_FMASK_INFO_INPUT)) ||
+                (pOut->size != sizeof(ADDR3_COMPUTE_FMASK_INFO_OUTPUT)))
+            {
+                valid = FALSE;
+            }
+        }
+    }
+
+    if (valid == FALSE)
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+    else
+    {
+        returnCode = HwlComputeFmaskInfo(pIn, pOut);
+    }
+
+    return returnCode;
 }
 
 

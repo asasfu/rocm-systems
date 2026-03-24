@@ -1,7 +1,7 @@
 /*
 ************************************************************************************************************************
 *
-*  Copyright (C) 2007-2024 Advanced Micro Devices, Inc. All rights reserved.
+*  Copyright (C) 2007-2025 Advanced Micro Devices, Inc. All rights reserved.
 *  SPDX-License-Identifier: MIT
 *
 ***********************************************************************************************************************/
@@ -51,7 +51,6 @@ ADDR_E_RETURNCODE ADDR_API AddrCreate(
 }
 
 
-
 /**
 ****************************************************************************************************
 *   AddrDestroy
@@ -82,6 +81,34 @@ ADDR_E_RETURNCODE ADDR_API AddrDestroy(
     return returnCode;
 }
 
+/**
+****************************************************************************************************
+*   AddrFormatProperties
+*
+*   @brief
+*       Retreives properties of the specified format.
+*
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API AddrFormatProperties(
+    ADDR_HANDLE                       hLib,
+    const ADDR_FORMAT_PROPERTIES_IN&  in,
+    ADDR_FORMAT_PROPERTIES_OUT*       pOut)
+{
+    ADDR_E_RETURNCODE  retCode = ADDR_INVALIDPARAMS;
+
+    if (hLib)
+    {
+        Lib* pLib = Lib::GetLib(hLib);
+
+        if (pLib != NULL)
+        {
+            retCode = pLib->GetFormatProperties(in, pOut);
+        }
+    }
+
+    return retCode;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                    Surface functions
@@ -2383,4 +2410,74 @@ ADDR_E_RETURNCODE ADDR_API Addr3ComputeSlicePipeBankXor(
     ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//                             Htile and fmask functions only for GFX13
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+****************************************************************************************************
+*   Addr3ComputeHtileInfo
+*
+*   @brief
+*       Compute Htile pitch, height, base alignment and size in bytes
+*
+*   @return
+*       ADDR_OK if successful, otherwise an error code of ADDR_E_RETURNCODE
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr3ComputeHtileInfo(
+    ADDR_HANDLE                           hLib, ///< address lib handle
+    const ADDR3_COMPUTE_HTILE_INFO_INPUT* pIn,  ///< [in] Htile information
+    ADDR3_COMPUTE_HTILE_INFO_OUTPUT*      pOut) ///< [out] Htile pitch, height and size in bytes
+{
+    V3::Lib* pLib = V3::Lib::GetLib(hLib);
+
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pLib != NULL)
+    {
+        returnCode = pLib->ComputeHtileInfo(pIn, pOut);
+    }
+    else
+    {
+        returnCode = ADDR_ERROR;
+    }
+
+    ADDR_RESET_DEBUG_PRINTERS();
+    return returnCode;
+}
+/**
+****************************************************************************************************
+*   Addr3ComputeFmaskInfo
+*
+*   @brief
+*       Compute Fmask pitch/height/depth/alignments and size in bytes
+*
+*   @return
+*       ADDR_OK if successful, otherwise an error code of ADDR_E_RETURNCODE
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr3ComputeFmaskInfo(
+    ADDR_HANDLE                              hLib, ///< address lib handle
+    const ADDR3_COMPUTE_FMASK_INFO_INPUT*    pIn,  ///< [in] Fmask information
+    ADDR3_COMPUTE_FMASK_INFO_OUTPUT*         pOut) ///< [out] Fmask pitch and height
+{
+    V3::Lib* pLib = V3::Lib::GetLib(hLib);
+
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pLib != NULL)
+    {
+        returnCode = pLib->ComputeFmaskInfo(pIn, pOut);
+    }
+    else
+    {
+        returnCode = ADDR_ERROR;
+    }
+
+    ADDR_RESET_DEBUG_PRINTERS();
+    return returnCode;
+}
+
 } //namespace rocr

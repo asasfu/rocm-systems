@@ -1,7 +1,7 @@
 /*
 ************************************************************************************************************************
 *
-*  Copyright (C) 2007-2024 Advanced Micro Devices, Inc. All rights reserved.
+*  Copyright (C) 2007-2025 Advanced Micro Devices, Inc. All rights reserved.
 *  SPDX-License-Identifier: MIT
 *
 ***********************************************************************************************************************/
@@ -292,6 +292,8 @@ typedef enum _Addr3SwizzleMode
     ADDR3_4KB_3D     = 5,
     ADDR3_64KB_3D    = 6,
     ADDR3_256KB_3D   = 7,
+    ADDR3_64KB_2D_Z  = 8,
+    ADDR3_256KB_2D_Z = 9,
     ADDR3_MAX_TYPE,
 } Addr3SwizzleMode;
 

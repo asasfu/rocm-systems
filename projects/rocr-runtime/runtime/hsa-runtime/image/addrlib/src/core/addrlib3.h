@@ -1,7 +1,7 @@
 /*
 ************************************************************************************************************************
 *
-*  Copyright (C) 2022-2024 Advanced Micro Devices, Inc. All rights reserved.
+*  Copyright (C) 2022-2025 Advanced Micro Devices, Inc. All rights reserved.
 *  SPDX-License-Identifier: MIT
 *
 ***********************************************************************************************************************/
@@ -29,7 +29,7 @@ constexpr UINT_32 Size256  = 256u;
 constexpr UINT_32 Size4K   = 4 * 1024;
 constexpr UINT_32 Size64K  = 64 * 1024;
 constexpr UINT_32 Size256K = 256 * 1024;
-constexpr UINT_32 Addr3MaxMipLevels = 16; // Max Mip Levels across all addr3 chips
+constexpr UINT_32 Addr3MaxMipLevels = 17; // Max Mip Levels across all addr3 chips
 
 struct ADDR3_COORD
 {
@@ -125,6 +125,16 @@ public:
         const ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pIn,
         ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*      pOut) const;
 
+    // For HTile
+    ADDR_E_RETURNCODE ComputeHtileInfo(
+        const ADDR3_COMPUTE_HTILE_INFO_INPUT* pIn,
+        ADDR3_COMPUTE_HTILE_INFO_OUTPUT*      pOut) const;
+
+    // For FMask
+    ADDR_E_RETURNCODE ComputeFmaskInfo(
+        const ADDR3_COMPUTE_FMASK_INFO_INPUT* pIn,
+        ADDR3_COMPUTE_FMASK_INFO_OUTPUT*      pOut) const;
+
     ADDR_E_RETURNCODE CopyMemToSurface(
         const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
         const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
@@ -156,13 +166,15 @@ protected:
     Lib();  // Constructor is protected
     Lib(const Client* pClient);
 
-    UINT_32 m_pipesLog2;                ///< Number of pipe per shader engine Log2
-    UINT_32 m_pipeInterleaveLog2;       ///< Log2 of pipe interleave bytes
-
     SwizzleModeFlags m_swizzleModeTable[ADDR3_MAX_TYPE];  ///< Swizzle mode table
 
     // Number of unique MSAA sample rates (1/2/4/8)
     static const UINT_32 MaxNumMsaaRates     = 4;
+
+    //# These fields exist in the GB_ADDR_CONFIG register; however, the HW does not care about them.
+    //# The HW acts as if the log2(pipes)==5 and log2(pi) == 8, always.
+    static const UINT_32  NumPipesLog2       = 5;
+    static const UINT_32  PipeInterleaveLog2 = 8;
 
     // Number of equation entries in the table
     UINT_32              m_numEquations;
@@ -430,6 +442,39 @@ protected:
 
     ADDR_E_RETURNCODE ComputeSurfaceInfoSanityCheck(const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
 
+    virtual ADDR_E_RETURNCODE HwlComputeHtileInfo(
+        const ADDR3_COMPUTE_HTILE_INFO_INPUT* pIn,
+        ADDR3_COMPUTE_HTILE_INFO_OUTPUT* pOut) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
+    virtual ADDR_E_RETURNCODE HwlComputeFmaskInfo(
+        const ADDR3_COMPUTE_FMASK_INFO_INPUT* pIn,
+        ADDR3_COMPUTE_FMASK_INFO_OUTPUT*      pOut) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
+    // This returns bits-per-pixel instead of bytes-per-pixel
+    static UINT_32 GetFmaskBpp(UINT_32 sample)
+    {
+        sample = (sample == 0) ? 1 : sample;
+
+        UINT_32 fmaskBpp = QLog2(sample);
+
+        if (fmaskBpp == 3)
+        {
+            fmaskBpp = 4;
+        }
+
+        fmaskBpp = Max(8u, fmaskBpp * sample);
+
+        return fmaskBpp;
+    }
+
 private:
     // Disallow the copy constructor
     Lib(const Lib& a);
@@ -440,10 +485,13 @@ private:
     void Init();
 
     VOID ComputeQbStereoInfo(ADDR3_COMPUTE_SURFACE_INFO_OUTPUT* pOut) const;
+
+    VOID ValidateMipSizes(
+        const ADDR3_COMPUTE_HTILE_INFO_INPUT*   pIn,
+        const ADDR3_COMPUTE_HTILE_INFO_OUTPUT*  pOut) const;
 };
 
 } // V3
 } // Addr
 } // namespace rocr
-
 #endif
