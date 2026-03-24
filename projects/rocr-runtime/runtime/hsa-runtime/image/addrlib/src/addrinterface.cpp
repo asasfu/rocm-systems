@@ -1,7 +1,7 @@
 /*
 ************************************************************************************************************************
 *
-*  Copyright (C) 2007-2022 Advanced Micro Devices, Inc.  All rights reserved.
+*  Copyright (C) 2007-2024 Advanced Micro Devices, Inc. All rights reserved.
 *  SPDX-License-Identifier: MIT
 *
 ***********************************************************************************************************************/
@@ -46,6 +46,7 @@ ADDR_E_RETURNCODE ADDR_API AddrCreate(
         returnCode = Lib::Create(pAddrCreateIn, pAddrCreateOut);
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -77,9 +78,9 @@ ADDR_E_RETURNCODE ADDR_API AddrDestroy(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
-
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,6 +116,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeSurfaceInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -149,6 +151,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeSurfaceAddrFromCoord(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -181,6 +184,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeSurfaceCoordFromAddr(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -219,6 +223,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeHtileInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -251,6 +256,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeHtileAddrFromCoord(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -284,6 +290,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeHtileCoordFromAddr(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -323,6 +330,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeCmaskInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -355,6 +363,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeCmaskAddrFromCoord(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -388,6 +397,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeCmaskCoordFromAddr(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -426,6 +436,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeFmaskInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -458,6 +469,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeFmaskAddrFromCoord(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -490,6 +502,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeFmaskCoordFromAddr(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -526,9 +539,9 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeDccInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
-
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -557,6 +570,33 @@ UINT_32 ADDR_API AddrGetVersion(ADDR_HANDLE hLib)
         version = pLib->GetVersion();
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
+    return version;
+}
+
+/**
+****************************************************************************************************
+*   AddrGetInterfaceVersion
+*
+*   @brief
+*       Get AddrLib interface version number. Client may use this to know what AddrN functions to
+*       use.
+****************************************************************************************************
+*/
+UINT_32 ADDR_API AddrGetInterfaceVersion(ADDR_HANDLE hLib)
+{
+    UINT_32 version = 0;
+
+    Addr::Lib* pLib = Lib::GetLib(hLib);
+
+    ADDR_ASSERT(pLib != NULL);
+
+    if (pLib)
+    {
+        version = pLib->GetInterfaceVersion();
+    }
+
+    ADDR_RESET_DEBUG_PRINTERS();
     return version;
 }
 
@@ -581,6 +621,7 @@ BOOL_32 ADDR_API AddrUseTileIndex(ADDR_HANDLE hLib)
         useTileIndex = pLib->UseTileIndex(0);
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return useTileIndex;
 }
 
@@ -605,6 +646,7 @@ BOOL_32 ADDR_API AddrUseCombinedSwizzle(ADDR_HANDLE hLib)
         useCombinedSwizzle = pLib->UseCombinedSwizzle();
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return useCombinedSwizzle;
 }
 
@@ -636,6 +678,7 @@ ADDR_E_RETURNCODE ADDR_API AddrExtractBankPipeSwizzle(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -667,6 +710,7 @@ ADDR_E_RETURNCODE ADDR_API AddrCombineBankPipeSwizzle(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -698,6 +742,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeSliceSwizzle(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -729,6 +774,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeBaseSwizzle(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -762,6 +808,7 @@ ADDR_E_RETURNCODE ADDR_API ElemFlt32ToDepthPixel(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -795,6 +842,7 @@ ADDR_E_RETURNCODE ADDR_API ElemFlt32ToColorPixel(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -830,6 +878,7 @@ BOOL_32 ADDR_API ElemGetExportNorm(
 
     ADDR_ASSERT(returnCode == ADDR_OK);
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return enabled;
 }
 
@@ -858,6 +907,7 @@ UINT_32 ADDR_API ElemSize(
         bpe = pLib->GetBpe(format);
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return bpe;
 }
 
@@ -890,6 +940,7 @@ ADDR_E_RETURNCODE ADDR_API AddrConvertTileInfoToHW(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -922,6 +973,7 @@ ADDR_E_RETURNCODE ADDR_API AddrConvertTileIndex(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -954,6 +1006,7 @@ ADDR_E_RETURNCODE ADDR_API AddrGetMacroModeIndex(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -986,6 +1039,7 @@ ADDR_E_RETURNCODE ADDR_API AddrConvertTileIndex1(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1021,6 +1075,7 @@ ADDR_E_RETURNCODE ADDR_API AddrGetTileIndex(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1051,6 +1106,7 @@ ADDR_E_RETURNCODE ADDR_API AddrComputePrtInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1082,6 +1138,7 @@ ADDR_E_RETURNCODE ADDR_API AddrGetMaxAlignments(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1113,6 +1170,7 @@ ADDR_E_RETURNCODE ADDR_API AddrGetMaxMetaAlignments(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1150,6 +1208,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSurfaceInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1177,6 +1236,73 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSurfaceAddrFromCoord(
     if (pLib != NULL)
     {
         returnCode = pLib->ComputeSurfaceAddrFromCoord(pIn, pOut);
+    }
+    else
+    {
+        returnCode = ADDR_ERROR;
+    }
+
+    ADDR_RESET_DEBUG_PRINTERS();
+    return returnCode;
+}
+
+/**
+****************************************************************************************************
+*   Addr2CopyMemToSurface
+*
+*   @brief
+*       Copy an image region from memory to an uncompressed CPU-mapped surface
+*
+*   @return
+*       ADDR_OK if successful, otherwise an error code of ADDR_E_RETURNCODE
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2CopyMemToSurface(
+    ADDR_HANDLE                         hLib,        ///< address lib handle
+    const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,         ///< [in] description of image and mapping
+    const ADDR2_COPY_MEMSURFACE_REGION* pRegions,    ///< [in] list of copy regions
+    UINT_32                             regionCount) ///< [in] count of copy regions in list
+{
+    V2::Lib* pLib = V2::Lib::GetLib(hLib);
+
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pLib != NULL)
+    {
+        returnCode = pLib->CopyMemToSurface(pIn, pRegions, regionCount);
+    }
+    else
+    {
+        returnCode = ADDR_ERROR;
+    }
+
+    return returnCode;
+}
+
+/**
+****************************************************************************************************
+*   Addr2CopySurfaceToMem
+*
+*   @brief
+*       Copy an image region from an uncompressed CPU-mapped surface to memory
+*
+*   @return
+*       ADDR_OK if successful, otherwise an error code of ADDR_E_RETURNCODE
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2CopySurfaceToMem(
+    ADDR_HANDLE                         hLib,        ///< address lib handle
+    const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,         ///< [in] description of image and mapping
+    const ADDR2_COPY_MEMSURFACE_REGION* pRegions,    ///< [in] list of copy regions
+    UINT_32                             regionCount) ///< [in] count of copy regions in list
+{
+    V2::Lib* pLib = V2::Lib::GetLib(hLib);
+
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pLib != NULL)
+    {
+        returnCode = pLib->CopySurfaceToMem(pIn, pRegions, regionCount);
     }
     else
     {
@@ -1216,6 +1342,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSurfaceCoordFromAddr(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1254,6 +1381,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeHtileInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1287,6 +1415,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeHtileAddrFromCoord(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1321,6 +1450,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeHtileCoordFromAddr(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1360,6 +1490,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeCmaskInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1393,6 +1524,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeCmaskAddrFromCoord(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1427,6 +1559,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeCmaskCoordFromAddr(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1465,6 +1598,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeFmaskInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1498,6 +1632,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeFmaskAddrFromCoord(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1531,6 +1666,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeFmaskCoordFromAddr(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1567,6 +1703,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeDccInfo(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1599,6 +1736,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeDccAddrFromCoord(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1628,6 +1766,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputePipeBankXor(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1657,6 +1796,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSlicePipeBankXor(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1686,6 +1826,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSubResourceOffsetForSwizzlePattern(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1715,6 +1856,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeNonBlockCompressedView(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1744,6 +1886,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetPreferredSurfaceSetting(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1772,7 +1915,12 @@ ADDR_E_RETURNCODE ADDR_API Addr2IsValidDisplaySwizzleMode(
         in.swizzleMode  = swizzleMode;
         in.bpp          = bpp;
 
-        *pResult   = pLib->IsValidDisplaySwizzleMode(&in);
+        BOOL_32 result = pLib->IsValidDisplaySwizzleMode(&in);
+        if (pResult != NULL)
+        {
+            *pResult   = result;
+        }
+
         returnCode = ADDR_OK;
     }
     else
@@ -1780,6 +1928,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2IsValidDisplaySwizzleMode(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1810,6 +1959,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetPossibleSwizzleModes(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 /**
@@ -1839,6 +1989,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetAllowedBlockSet(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1868,6 +2019,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetAllowedSwSet(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -1894,6 +2046,7 @@ BOOL_32 Addr2IsBlockTypeAvailable(
         avail = blockSet.value & (1 << (static_cast<UINT_32>(blockType) - 1)) ? TRUE : FALSE;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return avail;
 }
 
@@ -1951,6 +2104,7 @@ BOOL_32 Addr2BlockTypeWithinMemoryBudget(
         }
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return accept;
 }
 
@@ -1983,6 +2137,7 @@ ADDR_E_RETURNCODE ADDR_API Addr3ComputeSurfaceInfo(
         returnCode = pLib->ComputeSurfaceInfo(pIn, pOut);
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -2011,6 +2166,7 @@ ADDR_E_RETURNCODE ADDR_API Addr3GetPossibleSwizzleModes(
         returnCode = pLib->GetPossibleSwizzleModes(pIn, pOut);
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -2037,6 +2193,73 @@ ADDR_E_RETURNCODE ADDR_API Addr3ComputeSurfaceAddrFromCoord(
     if (pLib != NULL)
     {
         returnCode = pLib->ComputeSurfaceAddrFromCoord(pIn, pOut);
+    }
+    else
+    {
+        returnCode = ADDR_ERROR;
+    }
+
+    ADDR_RESET_DEBUG_PRINTERS();
+    return returnCode;
+}
+
+/**
+****************************************************************************************************
+*   Addr3CopyMemToSurface
+*
+*   @brief
+*       Copy an image region from memory to an uncompressed CPU-mapped surface
+*
+*   @return
+*       ADDR_OK if successful, otherwise an error code of ADDR_E_RETURNCODE
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr3CopyMemToSurface(
+    ADDR_HANDLE                         hLib,        ///< address lib handle
+    const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,         ///< [in] description of image and mapping
+    const ADDR3_COPY_MEMSURFACE_REGION* pRegions,    ///< [in] list of copy regions
+    UINT_32                             regionCount) ///< [in] count of copy regions in list
+{
+    V3::Lib* pLib = V3::Lib::GetLib(hLib);
+
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pLib != NULL)
+    {
+        returnCode = pLib->CopyMemToSurface(pIn, pRegions, regionCount);
+    }
+    else
+    {
+        returnCode = ADDR_ERROR;
+    }
+
+    return returnCode;
+}
+
+/**
+****************************************************************************************************
+*   Addr3CopySurfaceToMem
+*
+*   @brief
+*       Copy an image region from an uncompressed CPU-mapped surface to memory
+*
+*   @return
+*       ADDR_OK if successful, otherwise an error code of ADDR_E_RETURNCODE
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr3CopySurfaceToMem(
+    ADDR_HANDLE                         hLib,        ///< address lib handle
+    const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,         ///< [in] description of image and mapping
+    const ADDR3_COPY_MEMSURFACE_REGION* pRegions,    ///< [in] list of copy regions
+    UINT_32                             regionCount) ///< [in] count of copy regions in list
+{
+    V3::Lib* pLib = V3::Lib::GetLib(hLib);
+
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pLib != NULL)
+    {
+        returnCode = pLib->CopySurfaceToMem(pIn, pRegions, regionCount);
     }
     else
     {
@@ -2072,6 +2295,7 @@ ADDR_E_RETURNCODE ADDR_API Addr3ComputePipeBankXor(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -2101,6 +2325,7 @@ ADDR_E_RETURNCODE ADDR_API Addr3ComputeNonBlockCompressedView(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 
@@ -2112,17 +2337,21 @@ ADDR_E_RETURNCODE ADDR_API Addr3ComputeNonBlockCompressedView(
 *       Calculate sub resource offset for swizzle pattern.
 ****************************************************************************************************
 */
-VOID ADDR_API Addr3ComputeSubResourceOffsetForSwizzlePattern(
+ADDR_E_RETURNCODE ADDR_API Addr3ComputeSubResourceOffsetForSwizzlePattern(
     ADDR_HANDLE                                                     hLib, ///< handle of addrlib
     const ADDR3_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_INPUT* pIn,  ///< [in] input
     ADDR3_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_OUTPUT*      pOut) ///< [out] output
 {
-    V3::Lib* pLib = V3::Lib::GetLib(hLib);
+    ADDR_E_RETURNCODE returnCode = ADDR_ERROR;
+    V3::Lib*          pLib       = V3::Lib::GetLib(hLib);
 
     if (pLib != NULL)
     {
-        pLib->ComputeSubResourceOffsetForSwizzlePattern(pIn, pOut);
+        returnCode = pLib->ComputeSubResourceOffsetForSwizzlePattern(pIn, pOut);
     }
+    ADDR_RESET_DEBUG_PRINTERS();
+
+    return returnCode;
 }
 
 /**
@@ -2151,6 +2380,7 @@ ADDR_E_RETURNCODE ADDR_API Addr3ComputeSlicePipeBankXor(
         returnCode = ADDR_ERROR;
     }
 
+    ADDR_RESET_DEBUG_PRINTERS();
     return returnCode;
 }
 } //namespace rocr
