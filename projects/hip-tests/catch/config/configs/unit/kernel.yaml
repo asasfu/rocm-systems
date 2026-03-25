@@ -10,6 +10,9 @@ kernel:
   Unit_hipDynamicShared2: *level_2
   Unit_hipEmptyKernel: *level_2
   Unit_hipGridLaunch: *level_2
+  Unit_hipGridLaunch_MaxGridDim_DeviceProperties: *level_2
+  Unit_hipGridLaunch_MaxGridDim_GetDeviceAttribute: *level_2
+  Unit_hipGridLaunch_ExceedMaxGridDim_Negative: *level_2
   Unit_hipLanguageExtensions: *level_2
   Unit_hipLaunchParm: *level_2
   Unit_hipLaunchParmFunctor: *level_2
