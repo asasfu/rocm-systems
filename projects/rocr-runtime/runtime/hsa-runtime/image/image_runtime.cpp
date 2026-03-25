@@ -59,6 +59,7 @@
 #include "image_manager_nv.h"
 #include "image_manager_gfx11.h"
 #include "image_manager_gfx12.h"
+#include "image_manager_gfx13.h"
 #include "device_info.h"
 
 
@@ -199,6 +200,9 @@ hsa_status_t ImageRuntime::CreateImageManager(hsa_agent_t agent, void* data) {
     ImageManager* image_manager;
 
     switch (major_ver) {
+    case 13:
+      image_manager = new ImageManagerGfx13();
+      break;
     case 12:
       image_manager = new ImageManagerGfx12();
       break;
