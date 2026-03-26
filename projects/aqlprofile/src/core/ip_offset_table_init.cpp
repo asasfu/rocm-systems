@@ -58,20 +58,14 @@ class locked_ip_offset_table_cache {
       std::unique_lock lock{mutex};
       const reg_base_offset_table* table = nullptr;
 
-      if (std::string_view(agent_info->name).substr(0, 6) == "gfx125")
-        table = soc_v1_0_reg_base_init();
-      else if (auto gfxip_prefix = gfxip.substr(0, 4); gfxip_prefix == "gfx9")
+      if (auto gfxip_prefix = gfxip.substr(0, 4); gfxip_prefix == "gfx9")
         table = vega20_reg_base_init();
       else {
         if (auto gfxip_prefix = gfxip.substr(0, 5);
             gfxip_prefix == "gfx10" || gfxip_prefix == "gfx11" || gfxip_prefix == "gfx12") {
           table = navi_ip_offset_table_discovery_sysfs(agent_info->domain, agent_info->bdf_id);
           if (!table) {
-            std::string_view name(agent_info->name);
-            if (name.substr(0, 7) == "gfx1250")
-              table = soc_v1_0_reg_base_init();
-            else
-              table = sienna_cichlid_reg_base_init();
+            table = sienna_cichlid_reg_base_init();
           }
         }
       }
