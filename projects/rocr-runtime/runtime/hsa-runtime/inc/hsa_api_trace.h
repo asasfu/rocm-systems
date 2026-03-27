@@ -275,6 +275,7 @@ struct AmdExtTable {
   decltype(hsa_amd_ais_file_read)* hsa_amd_ais_file_read_fn;
   decltype(hsa_amd_counted_queue_acquire)* hsa_amd_counted_queue_acquire_fn;
   decltype(hsa_amd_counted_queue_release)* hsa_amd_counted_queue_release_fn;
+  decltype(hsa_amd_memory_async_batch_copy)* hsa_amd_memory_async_batch_copy_fn;
   decltype(hsa_amd_vmem_export_fabric_handle)* hsa_amd_vmem_export_fabric_handle_fn;
   decltype(hsa_amd_vmem_import_fabric_handle)* hsa_amd_vmem_import_fabric_handle_fn;
   decltype(hsa_amd_signal_get_event_id)* hsa_amd_signal_get_event_id_fn;

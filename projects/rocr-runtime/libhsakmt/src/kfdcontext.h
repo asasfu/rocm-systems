@@ -8,6 +8,7 @@
 #define _KFDCONTEXT_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct hsa_kfd_topology_context;
 struct hsa_kfd_queue_context;
@@ -35,6 +36,14 @@ typedef struct _HsaKFDContext
 {
     /* File descriptor for the KFD device */
     int fd;
+    /*
+     * Primary kfd context flag.
+     * There is only one primary context per-process.
+     */
+    bool hsakmt_is_primary_ctx;
+
+    /* whether to check all dGPUs in the topology support SVM API */
+    bool hsakmt_is_svm_api_supported;
 
     /* Topology context for managing system topology information */
     struct hsa_kfd_topology_context *topology_context;

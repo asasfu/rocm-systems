@@ -75,6 +75,30 @@ class BlitSdmaBase : public core::Blit {
   virtual hsa_status_t SubmitCommand(const void* cmds, size_t cmd_size, uint64_t size,
                                      const std::vector<core::Signal*>& dep_signals,
                                      core::Signal& out_signal, std::vector<core::Signal*>& gang_signals) = 0;
+
+  virtual hsa_status_t SubmitLinearCopyBroadcastCommand(
+      const std::vector<void*>& dsts, const void* src, size_t size,
+      std::vector<core::Signal*>& dep_signals,
+      core::Signal& out_signal) = 0;
+
+  virtual bool BroadcastSupported() const = 0;
+  virtual bool PlatformAtomicSupport() const = 0;
+
+  virtual hsa_status_t SubmitPrologue(const std::vector<core::Signal*>& dep_signals,
+                                      core::Signal& out_signal,
+                                      core::Signal& prologue_signal) = 0;
+
+  virtual hsa_status_t SubmitBody(const void* cmd, size_t cmd_size, uint64_t size,
+                                  core::Signal& prologue_signal,
+                                  core::Signal& body_signal) = 0;
+
+  virtual hsa_status_t SubmitEpilogue(core::Signal& out_signal,
+                                      hsa_signal_value_t body_complete_value,
+                                      const std::vector<core::Signal*>& body_signals = {}) = 0;
+
+  virtual hsa_status_t SubmitLinearCopyBody(void* dst, const void* src, size_t size,
+                                            core::Signal& prologue_signal,
+                                            core::Signal& body_signal) = 0;
 };
 
 template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
@@ -132,6 +156,11 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
                                              std::vector<core::Signal*>& dep_signals,
                                              core::Signal& out_signal) override;
 
+  hsa_status_t SubmitLinearCopyBroadcastCommand(
+      const std::vector<void*>& dsts, const void* src, size_t size,
+      std::vector<core::Signal*>& dep_signals,
+      core::Signal& out_signal) override;
+
   /// @brief Submit a linear fill command to the queue buffer
   ///
   /// @param ptr Memory address of the fill destination.
@@ -145,6 +174,24 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
   virtual uint64_t PendingBytes() override;
   virtual void GangLeader(bool gang_leader) override { gang_leader_ = gang_leader; }
   virtual bool GangLeader() const override { return gang_leader_; }
+  bool BroadcastSupported() const override { return broadcast_supported_; }
+  bool PlatformAtomicSupport() const override { return platform_atomic_support_; }
+
+  hsa_status_t SubmitPrologue(const std::vector<core::Signal*>& dep_signals,
+                              core::Signal& out_signal,
+                              core::Signal& prologue_signal) override;
+
+  hsa_status_t SubmitBody(const void* cmd, size_t cmd_size, uint64_t size,
+                          core::Signal& prologue_signal,
+                          core::Signal& body_signal) override;
+
+  hsa_status_t SubmitEpilogue(core::Signal& out_signal,
+                              hsa_signal_value_t body_complete_value,
+                              const std::vector<core::Signal*>& body_signals = {}) override;
+
+  hsa_status_t SubmitLinearCopyBody(void* dst, const void* src, size_t size,
+                                    core::Signal& prologue_signal,
+                                    core::Signal& body_signal) override;
 
  private:
   /// @brief Acquires the address into queue buffer where a new command
@@ -196,6 +243,9 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
 
   void BuildCopyCommand(char* cmd_addr, uint32_t num_copy_command, void* dst,
                         const void* src, size_t size);
+
+  void BuildBroadcastCopyCommand(char* cmd_addr, uint32_t num_copy_command,
+                                 void* dst1, void* dst2, const void* src, size_t size);
 
   void BuildCopyRectCommand(const std::function<void*(size_t)>& append,
                             const hsa_pitched_ptr_t* dst, const hsa_dim3_t* dst_offset,
@@ -266,6 +316,8 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
   uint64_t cached_reserve_index_;
   uint64_t cached_commit_index_;
 
+  static const uint32_t broadcast_copy_command_size_;
+
   static const uint32_t fill_command_size_;
 
   static const uint32_t fence_command_size_;
@@ -309,6 +361,22 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
 
   /// Minimum submission size in bytes.
   size_t min_submission_size_;
+
+  /// Cached at init to avoid pointer chasing in the hot path.
+  bool needs_kmt_doorbell_;
+  bool sdma_wait_idle_;
+  bool is_dxg_;
+  bool enable_sdma_hdp_flush_;
+  bool sw_poll_workaround_;
+  volatile uint64_t* queue_wptr_;
+  volatile uint64_t* queue_rptr_;
+  volatile uint64_t* queue_doorbell_;
+
+  /// True if SDMA supports broadcast linear copy (one src -> two dst).
+  bool broadcast_supported_;
+
+  /// True if SDMA supports multicast copy (one src -> multiple dst).
+  bool multicast_supported_;
 };
 
 

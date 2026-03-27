@@ -68,7 +68,7 @@ TEST_CASE("Unit_hipManagedKeyword_SingleGpu") {
   }
 }
 
-TEST_CASE("Unit_hipManagedKeyword_MultiGpu") {
+TEST_CASE(Unit_hipManagedKeyword_MultiGpu) {
   int numDevices = 0;
   HIP_CHECK(hipGetDeviceCount(&numDevices));
 
