@@ -29,7 +29,7 @@
 
 #include "windows/kmddbg.h"
 
-#include <hsa/amd_hsa_queue.h>
+#include "hsa/amd_hsa_queue.h"
 
 #include <algorithm>
 #include <cinttypes>
