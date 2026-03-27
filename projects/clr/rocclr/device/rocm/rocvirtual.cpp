@@ -1459,7 +1459,7 @@ bool VirtualGPU::dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& pa
              packetType == HSA_PACKET_TYPE_VENDOR_SPECIFIC);
         if (isKernelDispatch) {
           ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_KERN2, "Graph ShaderName : %s, device id : %u",
-                  (*kernelNames)[packetIndex].c_str(), dev().index());
+                  (*kernelNames)[packetIndex]->c_str(), dev().index());
           const uint64_t rptr = Hsa::queue_load_read_index_scacquire(gpu_queue_);
           if (dev().settings().ext_dispatch_packet_) {
             logAqlDispatchExtended(
