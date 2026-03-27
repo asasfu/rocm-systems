@@ -22,6 +22,7 @@ THE SOFTWARE.
 #include <hip/hip_cooperative_groups.h>
 
 #include <array>
+#ifdef CLUSTER_SUPPORT
 
 struct cluster_output {
   dim3 block_index;
@@ -96,3 +97,4 @@ TEST_CASE("Unit_cluster_coop_group_class") {
     }
   }
 }
+#endif

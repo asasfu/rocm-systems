@@ -23,6 +23,7 @@ Testcase Scenarios :
 #include "occupancy_common.hh"
 #include "distributed_shared_memory.hh"
 #include "resource_guards.hh"
+#ifdef CLUSTER_SUPPORT
 
 static __global__ void f1(float* a) { *a = 1.0; }
 static void host_f1(float* a) { *a = 1.0; }
@@ -176,3 +177,4 @@ TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters") {
     REQUIRE(clusterSize == 0);
   }
 }
+#endif
