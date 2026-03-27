@@ -22,6 +22,7 @@ THE SOFTWARE.
 #include <hip/hip_ext.h>
 
 #include "ClusterHelper.hpp"
+#ifdef CLUSTER_SUPPORT
 
 /**
  * @addtogroup cluster
@@ -122,3 +123,4 @@ TEST_CASE("Unit_hipClusterLaunch_CompilerDirective_Basic") {
  * End doxygen group ClusterTest.
  * @}
  */
+#endif
