@@ -4036,8 +4036,8 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
     } else {
       ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_KERN,
               "Kernel name = %s, argSize = %zu, "
-              "KernargSegmentByteSize = %lu "
-              "KernargSegmentAlignment = %lu",
+              "KernargSegmentByteSize = %u "
+              "KernargSegmentAlignment = %u",
               gpuKernel.getDemangledName().c_str(), argSize,
               gpuKernel.KernargSegmentByteSize(), gpuKernel.KernargSegmentAlignment());
       argBuffer = reinterpret_cast<address>(
