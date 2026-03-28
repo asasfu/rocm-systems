@@ -4239,6 +4239,7 @@
         "Unit_hipStreamValue_Wait_Blocking - uint64_t",
         "Unit_hipMemVmm_Basic",
         "Unit_hipStreamAddCaptureDependencies_Positive_Functional",
+        "Unit_hipMalloc_Allocate90PercentOfDeviceMemory",
     #endif
     #if defined gfx1250
         "=== FFM non-passed tests only on mi450 (gfx1250) vs at2 ===",
@@ -4767,7 +4768,6 @@
         "Unit_hipMemcpyDtoH_Positive_Basic",
         "Unit_hipMemcpyDtoD_Positive_Basic",
         "Unit_hipMemcpyAsync_Positive_Basic",
-        "Unit_hipMalloc_Allocate90PercentOfDeviceMemory",
         "Unit_hipMemcpyParam2DAsync_Positive_Basic",
         "Unit_hipHostRegister_ReferenceFromKernelandhipMemset - int",
         "Unit_hipHostRegister_ReferenceFromKernelandhipMemset - float",
