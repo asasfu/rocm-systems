@@ -120,12 +120,6 @@
         "Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch",
         "==SWDEV-526803 Test disabled till rocr adds impl for fabric handle ==",
         "Unit_hipMemExportFabricHandleToStdout_Positive_Basic",
-        "=== Grid/module launch negative & max grid dim tests — disabled pending ROCm vs test expectation alignment ===",
-        "Unit_hipModuleLaunchKernel_Negative_Parameters",
-        "Unit_hipExtModuleLaunchKernel_Negative_Parameters",
-        "Unit_hipGridLaunch_MaxGridDim_DeviceProperties",
-        "Unit_hipGridLaunch_MaxGridDim_GetDeviceAttribute",
-        "Unit_hipGridLaunch_ExceedMaxGridDim_Negative",
     #endif
     #if defined ENABLE_ADDRESS_SANITIZER
         "=== These tests are testing for features which throw off the sanitizer like check for values after free===",
