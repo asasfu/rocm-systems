@@ -181,8 +181,8 @@ if(ENABLED_GPU_TARGETS)
     # gfx11
     elseif("${target}" MATCHES "^gfx11")
       target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX11)
-    # gfx1250
-    elseif("${target}" STREQUAL "gfx1250")
+    # gfx1250/gfx1251
+    elseif("${target}" MATCHES "^gfx125")
       target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX1250)
     # gfx1260
     elseif("${target}" STREQUAL "gfx1260")
