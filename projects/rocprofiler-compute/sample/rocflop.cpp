@@ -20,9 +20,9 @@ template<typename T> using vec4 = vecT<T, 4>;
 template<typename T> using vec8 = vecT<T, 8>;
 
 // __builtin_amdgcn_mfma_* (e.g. mfma_f32_16x16x16f16) must not be compiled for these AMDGPU targets:
-// gfx906 or client gfx1250/gfx1260/gfx1310/gfx1370 — list each __gfx*__ macro here explicitly.
-#if !defined(__gfx906__) && !defined(__gfx1250__) && !defined(__gfx1260__) && !defined(__gfx1310__) \
-    && !defined(__gfx1370__)
+// gfx906 or client gfx1250/gfx1251/gfx1252/gfx1260/gfx1310/gfx1370 — list each __gfx*__ macro here explicitly.
+#if !defined(__gfx906__) && !defined(__gfx1250__) && !defined(__gfx1251__) && !defined(__gfx1252__) \
+    && !defined(__gfx1260__) && !defined(__gfx1310__) && !defined(__gfx1370__)
 #define ROC_FLOP_COMPILE_MFMA_KERNELS 1
 #else
 #define ROC_FLOP_COMPILE_MFMA_KERNELS 0
@@ -41,6 +41,8 @@ static inline bool rocflop_gfx_bypass_cdna_matrix_kernels(int gfx_id_hex)
 {
     switch(static_cast<unsigned>(gfx_id_hex)) {
     case 0x1250:
+    case 0x1251:
+    case 0x1252:
     case 0x1260:
     case 0x1310:
     case 0x1370:
@@ -745,5 +747,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-
-
