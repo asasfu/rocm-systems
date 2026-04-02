@@ -365,4 +365,3 @@ rocprofiler_add_integration_validate_test(
     FIXTURES_REQUIRED rocprofv3-test-att-shaderdata
     ARGS --att-shaderdata-out-dir ${SHADERDATA_OUT_DIR}
     FAIL_REGULAR_EXPRESSION "AssertionError")
-

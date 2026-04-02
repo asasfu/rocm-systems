@@ -245,6 +245,11 @@ SDMAFillDataPacket::SDMAFillDataPacket(unsigned int familyId, void *dst, unsigne
             pSDMA->COUNT_UNION.count = SDMA_COUNT(copy_size);
         }
 
+        pSDMA->COUNT_UNION.count = SDMA_COUNT(copy_size);
+        // In GFX12, for DW fill, the total data size is 4 bytes more than the count, so we need to subtract 3 from the count-1 which SDMA_COUNT returns
+        if (2 == pSDMA->HEADER_UNION.fillsize && m_FamilyId >= FAMILY_GFX12) 
+            pSDMA->COUNT_UNION.count = pSDMA->COUNT_UNION.count - 3;
+        
         if (familyId >= FAMILY_GFX13)
             /* override IO space mtype to uc */
             pSDMA->COUNT_UNION.reserved_0 = uc_sel_override_io_space;

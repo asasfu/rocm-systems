@@ -1211,13 +1211,17 @@ const char *TrapHandlerIsa =
             s_and_b32 exec_lo, exec_lo, 0xfff
             s_mov_b32 ttmp3, exec_lo
             s_mov_b32 exec_lo, ttmp2
-        .else
+        .elseif (.amdgcn.gfx_generation_number < 12)
             s_sendmsg_rtn_b32 ttmp3, sendmsg(MSG_RTN_GET_DOORBELL)
             .if (.amdgcn.gfx_generation_number >= 12)
                 s_wait_idle
             .else
                 s_waitcnt lgkmcnt(0)
             .endif
+            s_and_b32 ttmp3, ttmp3, 0x3ff
+        .else
+            s_sendmsg_rtn_b32 ttmp3, sendmsg(MSG_RTN_GET_DOORBELL)
+            s_wait_kmcnt 0
             s_and_b32 ttmp3, ttmp3, 0x3ff
         .endif
         s_mov_b32 ttmp2, m0

@@ -44,7 +44,7 @@ if(HIP_PLATFORM MATCHES "amd")
     message(STATUS "No cluster support; clusters tests were not added")
   endif()
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/simple_kernel.code
-                     COMMAND ${CMAKE_HIP_COMPILER} --cuda-device-only ${OFFLOAD_ARCH_LIST}
+                     COMMAND ${CMAKE_HIP_COMPILER} ${HIP_DEVICE_BUILD_FLAGS_NO_ARCH} ${OFFLOAD_ARCH_LIST} --cuda-device-only
                      -x hip ${CMAKE_CURRENT_SOURCE_DIR}/simple_kernel.cc
                      -o simple_kernel.code
                      -I${HIP_INCLUDE_DIR} ${HIP_PATH_OPT}

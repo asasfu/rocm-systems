@@ -53,7 +53,7 @@ set(PAL_BUILD_KRACKAN1      ON)
 set(PAL_BUILD_GFX13         ON)
 
 set(PAL_BRANCHDEFS          ON)
-if (AMD_COMPUTE_WIN)
+if (AMD_COMPUTE_WIN AND NOT LIB_SRC_BUILD)
   find_package(AMD_PAL_LIB)
 else()
   find_package(AMD_PAL)

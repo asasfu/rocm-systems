@@ -120,6 +120,13 @@ uint32_t BlitSdma<useGCR, scopeFields>::linear_copy_command_size() {
   }
 }
 
+// Max size in bytes for packets considering all GPU arch
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define SDMA_PKT_CONSTANT_FILL_MAX_DWORDS \
+  (MAX(sizeof(SDMA_PKT_CONSTANT_FILL), sizeof(SDMA_PKT_CONSTANT_FILL_GFX13)) / sizeof(uint32_t))
+#define SDMA_PKT_COPY_LINEAR_MAX_DWORDS \
+  (MAX(sizeof(SDMA_PKT_COPY_LINEAR), sizeof(SDMA_PKT_COPY_LINEAR_GFX13)) / sizeof(uint32_t))
+
 template <bool useGCR, bool scopeFields>
 BlitSdma<useGCR, scopeFields>::BlitSdma()
     : agent_(NULL),
@@ -1018,12 +1025,16 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyCommand(void* dst, c
   const size_t max_copy_size = max_single_linear_copy_size_ ? max_single_linear_copy_size_ :
                                kMaxSingleCopySize;
   const uint32_t num_copy_command = (size + max_copy_size - 1) / max_copy_size;
-
   const uint32_t packet_size_dwords = linear_copy_command_size() / 4;
-  std::vector<uint32_t> buff(num_copy_command * packet_size_dwords);
-  BuildCopyCommand(reinterpret_cast<char*>(&buff[0]), num_copy_command, dst, src, size);
 
-  return SubmitBlockingCommand(&buff[0], buff.size() * sizeof(uint32_t), size);
+  // Avoid heap allocation for common single-packet case.
+  uint32_t stack_buff[SDMA_PKT_COPY_LINEAR_MAX_DWORDS];
+  std::vector<uint32_t> heap_buff(num_copy_command > 1 ? num_copy_command * packet_size_dwords : 0);
+  auto* buff = num_copy_command <= 1 ? stack_buff : heap_buff.data();
+
+  BuildCopyCommand(reinterpret_cast<char*>(buff), num_copy_command, dst, src, size);
+
+  return SubmitBlockingCommand(buff, num_copy_command * linear_copy_command_size(), size);
 }
 
 template <bool useGCR, bool scopeFields>
@@ -1050,12 +1061,16 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyCommand(void* dst, c
   const size_t max_copy_size = max_single_linear_copy_size_ ? max_single_linear_copy_size_ :
                                kMaxSingleCopySize;
   const uint32_t num_copy_command = (size + max_copy_size - 1) / max_copy_size;
-
   const uint32_t packet_size_dwords = linear_copy_command_size() / 4;
-  std::vector<uint32_t> buff(num_copy_command * packet_size_dwords);
-  BuildCopyCommand(reinterpret_cast<char*>(&buff[0]), num_copy_command, dst, src, size);
 
-  return SubmitCommand(&buff[0], buff.size() * sizeof(uint32_t), size, dep_signals,
+  // Avoid heap allocation for common single-packet case.
+  uint32_t stack_buff[SDMA_PKT_COPY_LINEAR_MAX_DWORDS];
+  std::vector<uint32_t> heap_buff(num_copy_command > 1 ? num_copy_command * packet_size_dwords : 0);
+  auto* buff = num_copy_command <= 1 ? stack_buff : heap_buff.data();
+
+  BuildCopyCommand(reinterpret_cast<char*>(buff), num_copy_command, dst, src, size);
+
+  return SubmitCommand(buff, num_copy_command * linear_copy_command_size(), size, dep_signals,
                        out_signal, gang_signals);
 }
 
@@ -1197,11 +1212,14 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearFillCommand(void* ptr, u
   const uint32_t packet_size_dwords = (isGFX13Plus ? sizeof(SDMA_PKT_CONSTANT_FILL_GFX13) :
                                                      sizeof(SDMA_PKT_CONSTANT_FILL)) / 4;
 
-  // Use dword buffer to accommodate different packet sizes
-  std::vector<uint32_t> buff(num_fill_command * packet_size_dwords);
-  BuildFillCommand(reinterpret_cast<char*>(&buff[0]), num_fill_command, ptr, value, count);
+  // Avoid heap allocation for common single-packet case.
+  uint32_t stack_buff[SDMA_PKT_CONSTANT_FILL_MAX_DWORDS];
+  std::vector<uint32_t> heap_buff(num_fill_command > 1 ? num_fill_command * packet_size_dwords : 0);
+  auto* buff = num_fill_command <= 1 ? stack_buff : heap_buff.data();
 
-  return SubmitBlockingCommand(&buff[0], buff.size() * sizeof(uint32_t), size);
+  BuildFillCommand(reinterpret_cast<char*>(buff), num_fill_command, ptr, value, count);
+
+  return SubmitBlockingCommand(buff, num_fill_command * packet_size_dwords * sizeof(uint32_t), size);
 }
 
 template <bool useGCR, bool scopeFields> hsa_status_t BlitSdma<useGCR, scopeFields>::EnableProfiling(bool enable) {

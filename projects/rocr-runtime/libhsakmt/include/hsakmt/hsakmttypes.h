@@ -1571,6 +1571,12 @@ typedef struct _HsaHandleImportFlags {
     } ui32;
 } HsaHandleImportFlags;
 
+typedef struct _HsaStructureSizes {
+  HSAuint16 StructureSizes;           // sizeof(HsaStructureSizes) used for check overflow
+  HSAuint16 SizeOfHsaNodeProperties;  // sizeof(HsaNodeProperties)
+  HSAuint16 Reserved[6];
+} HsaStructureSizes;
+
 #pragma pack(pop, hsakmttypes_h)
 
 
