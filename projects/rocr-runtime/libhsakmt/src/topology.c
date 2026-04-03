@@ -1075,27 +1075,24 @@ static int topology_get_node_props_from_drm(HsaNodeProperties *props)
 	if (props == NULL)
 		return -1;
 
-	if (hsakmt_use_model)
-		return 0;
-
-	drm_fd = drmOpenRender(props->DrmRenderMinor);
+	drm_fd = hsakmt_drm_open_render(props->DrmRenderMinor);
 	if (drm_fd < 0)
 		return -1;
 
-	if (amdgpu_device_initialize(drm_fd,
+	if (hsakmt_amdgpu_device_initialize(drm_fd,
 		&major_version, &minor_version, &device_handle) < 0) {
 		ret = -1;
 		goto err_device_initialize;
 	}
 
-	name = amdgpu_get_marketing_name(device_handle);
+	name = hsakmt_amdgpu_get_marketing_name(device_handle);
 	if (name != NULL) {
 		for (i = 0; name[i] != 0 && i < HSA_PUBLIC_NAME_SIZE - 1; i++)
 			props->MarketingName[i] = name[i];
 		props->MarketingName[i] = '\0';
 	}
 
-	if (amdgpu_query_gpu_info(device_handle, &gpu_info)) {
+	if (hsakmt_amdgpu_query_gpu_info(device_handle, &gpu_info)) {
 		ret = -1;
 		goto err_query_gpu_info;
 	}
@@ -1105,9 +1102,9 @@ static int topology_get_node_props_from_drm(HsaNodeProperties *props)
 	props->WallClockKHz = gpu_info.gpu_counter_freq;
 
 err_query_gpu_info:
-	amdgpu_device_deinitialize(device_handle);
+	hsakmt_amdgpu_device_deinitialize(device_handle);
 err_device_initialize:
-	drmClose(drm_fd);
+	hsakmt_drm_close(drm_fd);
 	return ret;
 }
 
