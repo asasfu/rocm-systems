@@ -49,7 +49,7 @@ find_package(Clang REQUIRED HINTS ${CMAKE_PREFIX_PATH}/llvm PATHS /opt/rocm/llvm
 find_package(LLVM REQUIRED HINTS ${CMAKE_PREFIX_PATH}/llvm PATHS /opt/rocm/llvm )
 
 # Set the target devices
-set (TARGET_DEVICES_DEFAULT "gfx900;gfx1010;gfx1030;gfx1100;gfx1200;gfx1250;gfx1260;gfx1310")
+set (TARGET_DEVICES_DEFAULT "gfx900;gfx1010;gfx1030;gfx1100;gfx1200;gfx1250;gfx1260;gfx1310;gfx131F")
 
 # Determine the target devices if not specified
 if (NOT DEFINED TARGET_DEVICES OR TARGET_DEVICES STREQUAL "")
@@ -148,6 +148,8 @@ function(build_kernels_for_devices SHADER_NAMES SHADER_FILES)
 				set(postfix "1250")
 			elseif(${target_device} STREQUAL "gfx1260")
 				set(postfix "1260")
+			elseif(${target_device} STREQUAL "gfx131F")
+				set(postfix "131F")
 			elseif(${target_device} MATCHES "^gfx13")
 				set(postfix "13")
 			else()

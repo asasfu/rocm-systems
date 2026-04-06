@@ -108,6 +108,7 @@ static constexpr PalDevice supportedPalDevices[] = {
     {12, 0, 1, "gfx1201", Pal::AsicRevision::Navi48},
 #if PAL_BUILD_ALPHA_TRION2
     {13, 1, 0, "gfx1310", Pal::AsicRevision::AlphaTrion2},
+    {13, 1, 15, "gfx131F", Pal::AsicRevision::AlphaTrion2},
 #endif
 };
 

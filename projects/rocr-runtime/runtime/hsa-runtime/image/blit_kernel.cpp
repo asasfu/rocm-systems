@@ -122,6 +122,7 @@ extern uint8_t ocl_blit_object_gfx1201[];
 
 #ifdef TARGET_DEVICE_GFX13
 extern uint8_t ocl_blit_object_gfx1310[];
+extern uint8_t ocl_blit_object_gfx131F[];
 extern uint8_t ocl_blit_object_gfx1370[];
 #endif
 
@@ -1122,6 +1123,8 @@ hsa_status_t BlitKernel::GetPatchedBlitObject(const char* agent_name,
 #ifdef TARGET_DEVICE_GFX13
   if (sname == "gfx1310") {
     *blit_code_object = ocl_blit_object_gfx1310;
+  } else if (sname == "gfx131F") {
+    *blit_code_object = ocl_blit_object_gfx131F;
   } else if (sname == "gfx1370") {
     *blit_code_object = ocl_blit_object_gfx1370;
   } else {
