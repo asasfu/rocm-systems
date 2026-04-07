@@ -271,8 +271,9 @@ release(uint, DEBUG_CLR_BATCH_CPU_SYNC_SIZE, 8,                               \
 release(bool, DEBUG_CLR_ENABLE_PREFETCH_METADATA, true,                       \
         "Enable metadata prefetch for some Aql packats")                      \
 release(bool, DEBUG_CLR_GROUP_MEM_CARVEOUT_WAR, true,                         \
-        "Enable group memory carveout workaround")
-
+        "Enable group memory carveout workaround")                            \
+release(bool, HIP_DISABLE_EXT_PACKET, false,                                  \
+        "Disable extended packet support even if the device supports it")
 namespace amd {
 
 extern bool IS_HIP;

@@ -4159,7 +4159,7 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
     dispatchPacket.grid_size_z = sizes.dimensions() > 2 ? sizes.global()[2] : 1;
   }
 
-  if (dev().settings().groupMemCarveout_) {
+  if (extDispatchPacket && dev().settings().groupMemCarveout_) {
     uint8_t percent;
     percent = devKernel->workGroupInfo()->groupMemCarveout_
                   ? devKernel->workGroupInfo()->groupMemCarveout_
@@ -4167,7 +4167,8 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
     auto& dispatchPacketExt = dispatchPacketUnion.extKernelDispatch;
 
     // Encodings [1, 127] represent a range from 0% (no group memory) to 100% (maximum group memory)
-    if (dev().isa().versionMajor() == 12 && dev().isa().versionMinor() == 5
+    if ((dev().isa().versionMajor() == 12 && dev().isa().versionMinor() == 5
+        || dev().isa().versionMajor() >= 13)
         && DEBUG_CLR_GROUP_MEM_CARVEOUT_WAR) {
       dispatchPacketExt.perf_hint.group_mem_carveout = 127;
     } else {
