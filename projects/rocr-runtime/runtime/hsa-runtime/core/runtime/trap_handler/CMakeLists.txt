@@ -129,6 +129,7 @@ endfunction(build_kernel)
 function(build_kernel_for_devices TRAP_HANDLER_NAME)
 
   set(HSACO_TARG_LIST "")
+  set(BUILT_OUTPUTS "")
 
   foreach(dev ${TARGET_DEVICES})
     # Determine source file suffix based on gfx architecture
@@ -139,10 +140,8 @@ function(build_kernel_for_devices TRAP_HANDLER_NAME)
     endif()
 
     # Determine postfix based on gfx architecture
-    if(${dev} STREQUAL "gfx942")
+    if(${dev} MATCHES "^gfx9[45]")
       set(POSTFIX "942")
-    elseif(${dev} STREQUAL "gfx950")
-      set(POSTFIX "950")
     elseif("${dev}" MATCHES "^gfx9")
       set(POSTFIX "9")
     elseif(${dev} STREQUAL "gfx1010")
@@ -151,18 +150,27 @@ function(build_kernel_for_devices TRAP_HANDLER_NAME)
       set(POSTFIX "10")
     elseif(${dev} MATCHES "^gfx11")
       set(POSTFIX "11")
-    elseif(${dev} STREQUAL "gfx1200")
-      set(POSTFIX "12")
     elseif(${dev} MATCHES "^gfx125")
       set(POSTFIX "1250")
     elseif(${dev} STREQUAL "gfx1260")
       set(POSTFIX "1260")
+    elseif(${dev} MATCHES "^gfx12")
+      set(POSTFIX "12")
     elseif(${dev} MATCHES "^gfx13")
       set(POSTFIX "13")
     else()
       message(WARNING "Unknown target device: ${dev}. Skipping trap handler generation.")
       continue()
     endif()
+
+    # Temporary check to prevent regenerating trap handlers for devices that share 
+    # them (e.g., gfx942 and gfx950) when building ROCR for all default targets.
+    # TODO: Remove when architecture family grouping is implemented.
+    list(FIND BUILT_OUTPUTS "${POSTFIX}" idx)
+    if(NOT idx EQUAL -1)
+      continue()
+    endif()
+    list(APPEND BUILT_OUTPUTS "${POSTFIX}")
 
     if (${CMAKE_VERBOSE_MAKEFILE})      
       message("\n  Generating: ${dev} ...")

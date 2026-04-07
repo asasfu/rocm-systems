@@ -147,7 +147,7 @@ endif()
 
 ## Generate preprocessor directives for GPU targets.
 # Determine which GPU targets to build for.
-set(ENABLED_GPU_TARGETS "")
+set(ENABLED_GPU_TARGETS "gfx7;gfx8;gfx90a;gfx942;gfx950;gfx9;gfx1010;gfx10;gfx11;gfx1250;gfx1260;gfx13") # default targets
 if (DEFINED THEROCK_DIST_AMDGPU_TARGETS AND NOT THEROCK_DIST_AMDGPU_TARGETS STREQUAL "")
   set(ENABLED_GPU_TARGETS ${THEROCK_DIST_AMDGPU_TARGETS})
 elseif(DEFINED TARGET_DEVICES AND NOT TARGET_DEVICES STREQUAL "")

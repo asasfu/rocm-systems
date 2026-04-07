@@ -324,9 +324,11 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
     CompiledShader shader = {};
 #ifdef TARGET_DEVICE_GFX9
     shader.compute_9 = make_shader(kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX90A
     shader.compute_90a = make_shader(kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4);
 #endif
-#ifdef TARGET_DEVICE_GFX942
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)
     shader.compute_942 = make_shader(kCodeTrapHandlerV2_942, sizeof(kCodeTrapHandlerV2_942), 2, 4);
 #endif
 #ifdef TARGET_DEVICE_GFX1010
@@ -364,9 +366,13 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
 #ifdef TARGET_DEVICE_GFX8
     shader.compute_8 = make_shader(kCodeCopyAligned8, sizeof(kCodeCopyAligned8), 32, 12);
 #endif
-#ifdef defined(TARGET_DEVICE_GFX9) || defined(TARGET_DEVICE_GFX942)
+#if defined(TARGET_DEVICE_GFX9)
     shader.compute_9 = make_shader(kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12);
+#endif
+#ifdef TARGET_DEVICE_GFX90A
     shader.compute_90a = make_shader(kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12);
+#endif
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)
     shader.compute_942 = make_shader(kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12);
 #endif
 
@@ -415,7 +421,11 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
 
 #ifdef TARGET_DEVICE_GFX9
     shader.compute_9 = make_shader(kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10);
+#endif
+#ifdef TARGET_DEVICE_GFX90A
     shader.compute_90a = make_shader(kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10);
+#endif
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)    
     shader.compute_942 = make_shader(kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10);
 #endif
 
@@ -461,7 +471,11 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
 
 #ifdef TARGET_DEVICE_GFX9
     shader.compute_9 = make_shader(kCodeFill9, sizeof(kCodeFill9), 19, 8);
+#endif
+#ifdef TARGET_DEVICE_GFX90A    
     shader.compute_90a = make_shader(kCodeFill9, sizeof(kCodeFill9), 19, 8);
+#endif
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)    
     shader.compute_942 = make_shader(kCodeFill9, sizeof(kCodeFill9), 19, 8);
 #endif
 
@@ -510,14 +524,15 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
       asic_shader = &compiled_shader_it->second.compute_8;
       break;
 #endif
-#if defined(TARGET_DEVICE_GFX9) || defined(TARGET_DEVICE_GFX942)
+#if defined(TARGET_DEVICE_GFX9) || defined(TARGET_DEVICE_GFX942) || \
+      defined(TARGET_DEVICE_GFX950) || defined(TARGET_DEVICE_GFX90A)
     case 9:
-#ifdef TARGET_DEVICE_GFX9
+#ifdef TARGET_DEVICE_GFX90A
       if((isa_->GetMinorVersion() == 0) && (isa_->GetStepping() == 10)) {
         asic_shader = &compiled_shader_it->second.compute_90a;
       } else
 #endif
-#ifdef TARGET_DEVICE_GFX942
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)
       if(isa_->GetMinorVersion() == 4 || isa_->GetMinorVersion() == 5) {
         asic_shader = &compiled_shader_it->second.compute_942;
       } else

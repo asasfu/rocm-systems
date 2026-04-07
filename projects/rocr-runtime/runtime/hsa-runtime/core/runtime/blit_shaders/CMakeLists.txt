@@ -129,6 +129,9 @@ function(build_kernels_for_devices SHADER_NAMES SHADER_FILES)
 	foreach(shader_index RANGE ${num_shader_names})
 		list(GET SHADER_NAMES ${shader_index} shader_name)
 		list(GET SHADER_FILES ${shader_index} shader_file)
+
+		# Track which targets the current shader has already been built for
+		set(SHADER_BUILT_OUTPUTS "") 
 		foreach(device_index RANGE ${num_target_devices})
 			# Get device from list of target devices
 			list(GET TARGET_DEVICES ${device_index} target_device)
@@ -142,12 +145,12 @@ function(build_kernels_for_devices SHADER_NAMES SHADER_FILES)
 				set(postfix "10")
 			elseif(${target_device} MATCHES "^gfx11")
 				set(postfix "11")
-			elseif(${target_device} STREQUAL "gfx1200")
-				set(postfix "12")
 			elseif(${target_device} MATCHES "^gfx125")
 				set(postfix "1250")
 			elseif(${target_device} STREQUAL "gfx1260")
 				set(postfix "1260")
+			elseif(${target_device} MATCHES "^gfx12")
+				set(postfix "12")
 			elseif(${target_device} STREQUAL "gfx131F")
 				set(postfix "131F")
 			elseif(${target_device} MATCHES "^gfx13")
@@ -156,6 +159,15 @@ function(build_kernels_for_devices SHADER_NAMES SHADER_FILES)
 				message(WARNING "Unsupported target device: ${target_device}. Skipping blit shaders..")
 				continue()
 			endif()
+
+			# Temporary check to prevent regenerating blit shaders for devices that share 
+            # them (e.g, gfx942 and gfx950) when building rocr for all default targets.
+            # TODO: Remove when architecture family grouping is implemented.
+            list(FIND SHADER_BUILT_OUTPUTS "${postfix}" idx)
+            if(NOT idx EQUAL -1)
+                continue()
+            endif()
+            list(APPEND SHADER_BUILT_OUTPUTS "${postfix}")
 
 			if(${CMAKE_VERBOSE_MAKEFILE})
 				message("\n  Generating: ${target_device} for ${shader_name} ...")
