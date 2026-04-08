@@ -99,6 +99,14 @@
 
 #define PM4_ATOMIC_MEM_DW1_ATOMIC(x)                       (((x) & 0x7FU) << 0)
 #  define PM4_ATOMIC_MEM_GL2_OP_ATOMIC_SWAP_RTN_64         (39U << 0)
+// COMMAND field: bits 11:8 of DW1 (first DW after header)
+#define PM4_ATOMIC_MEM_DW1_COMMAND(x)                      (((x) & 0xFU) << 8)
+// SCOPE field: bits 24:23 of DW1 — MI450+ only (earlier ASICs ignore these bits)
+#define PM4_ATOMIC_MEM_DW1_SCOPE(x)                        (((x) & 0x3U) << 23)
+#  define PM4_ATOMIC_MEM_SCOPE_CU                          0U
+#  define PM4_ATOMIC_MEM_SCOPE_SE                          1U
+#  define PM4_ATOMIC_MEM_SCOPE_DEV                         2U
+#  define PM4_ATOMIC_MEM_SCOPE_SYS                         3U
 #define PM4_ATOMIC_MEM_DW2_ADDR_LO(x)                      (((x) & 0xFFFFFFF8U) << 0)
 #define PM4_ATOMIC_MEM_DW3_ADDR_HI(x)                      (((x) & 0xFFFFFFFFU) << 0)
 #define PM4_ATOMIC_MEM_DW4_SRC_DATA_LO(x)                  (((x) & 0xFFFFFFFFU) << 0)

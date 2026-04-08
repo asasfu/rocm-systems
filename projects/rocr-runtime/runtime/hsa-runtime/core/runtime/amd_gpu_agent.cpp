@@ -3787,7 +3787,23 @@ hsa_status_t GpuAgent::PcSamplingFlushDeviceBuffers(
    */
 
   cmd_data[i++] = PM4_HDR(PM4_HDR_IT_OPCODE_ATOMIC_MEM, atomic_ex_cmd_sz, isa_->GetMajorVersion());
-  cmd_data[i++] = PM4_ATOMIC_MEM_DW1_ATOMIC(PM4_ATOMIC_MEM_GL2_OP_ATOMIC_SWAP_RTN_64);
+  // On gfx1250+, Command Processor lives inside the GL2 cache, and multiple GL2s
+  // can perform atomics in SPX mode. Both waves and CP must use SCOPE_DEV so
+  // their atomics meet at the GL2 coherence point. Without this, the CP's
+  // atomic_swap (defaulting to CU scope) could miss atomic_adds from waves
+  // serviced by a different GL2.
+  //
+  // On gfx12.0 (gfx1200/gfx1201), the CP sits beyond the GL2. Waves use
+  // SCOPE_SYS to punch through GL2 and meet CP at the data fabric coherent
+  // station. The SCOPE field in ATOMIC_MEM packet is not defined for gfx12.0,
+  // so these bits are reserved/ignored.
+  //
+  // On gfx9xx, both waves and CP atomic at data fabric coherent station
+  // with no GL2 involvement, so scope is not relevant.
+  cmd_data[i++] = PM4_ATOMIC_MEM_DW1_ATOMIC(PM4_ATOMIC_MEM_GL2_OP_ATOMIC_SWAP_RTN_64) |
+      ((isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5)
+          ? PM4_ATOMIC_MEM_DW1_SCOPE(PM4_ATOMIC_MEM_SCOPE_DEV)
+          : 0);
   cmd_data[i++] = PM4_ATOMIC_MEM_DW2_ADDR_LO(buf_write_val);
   cmd_data[i++] = PM4_ATOMIC_MEM_DW3_ADDR_HI((buf_write_val) >> 32);
   cmd_data[i++] = PM4_ATOMIC_MEM_DW4_SRC_DATA_LO((uint64_t)reset_write_val);
@@ -3825,7 +3841,7 @@ hsa_status_t GpuAgent::PcSamplingFlushDeviceBuffers(
    * and the 2nd level trap handler code will skip recording samples, causing lost samples
    */
   if (*old_val > buf_size) {
-    pcs_data->lost_sample_count = *old_val - buf_size;
+    pcs_data->lost_sample_count += *old_val - buf_size;
     *old_val = buf_size;
   }
 
@@ -3845,8 +3861,8 @@ hsa_status_t GpuAgent::PcSamplingFlushDeviceBuffers(
   /*
    * Do the WAIT_REG_MEM, DMA_DATA(s) and WRITE_DATA
    *
-   * 1. Wait for all trap handlers have finished writing values to this buffer by waiting for
-   *    buf_written_val to equal to old_val.
+   * 1. Wait for all trap handlers to finish writing to this buffer by waiting for
+   *    buf_written_val to equal old_val.
    * 2. Copy the values out of buffer to the host buffers.
    * 3. Reset buf_written_val so that we start writing to beginning of this buffer on the next
    *    buffer swap.
