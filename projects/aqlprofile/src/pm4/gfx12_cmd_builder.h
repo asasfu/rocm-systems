@@ -444,7 +444,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
 
   void BuildCopyRegDataPacket(CmdBuffer* cmdbuf, uint32_t src_reg_addr, const void* dst_addr,
                               uint32_t size, bool wait) override {
-    BuildCopyRegDataPacketImpl(cmdbuf, src_reg_addr, dst_addr, size, false, std::nullopt, std::nullopt);
+    BuildCopyRegDataPacketImpl(cmdbuf, src_reg_addr, dst_addr, size, wait, std::nullopt, std::nullopt);
   }
 
   uint32_t BuildCopyCounterDataPacket(CmdBuffer* cmdbuf, uint32_t src_reg_addr_lo,
