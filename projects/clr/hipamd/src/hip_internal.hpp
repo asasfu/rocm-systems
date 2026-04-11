@@ -236,12 +236,12 @@ const char* ihipGetErrorName(hipError_t hip_error);
 
 #define STREAM_CAPTURE(name, stream, ...)                                                          \
   hip::getStreamPerThread(stream);                                                                 \
-  if (stream != nullptr && stream != hipStreamLegacy &&                                            \
+  if (stream != nullptr && hip::isValid(stream)  && stream != hipStreamLegacy &&                   \
       reinterpret_cast<hip::Stream*>(stream)->GetCaptureStatus() ==                                \
           hipStreamCaptureStatusActive) {                                                          \
     hipError_t status = hip::capture##name(stream, ##__VA_ARGS__);                                 \
     return status;                                                                                 \
-  } else if (stream != nullptr && stream != hipStreamLegacy &&                                     \
+  } else if (stream != nullptr && hip::isValid(stream) && stream != hipStreamLegacy &&             \
              reinterpret_cast<hip::Stream*>(stream)->GetCaptureStatus() ==                         \
                  hipStreamCaptureStatusInvalidated) {                                              \
     return hipErrorStreamCaptureInvalidated;                                                       \
