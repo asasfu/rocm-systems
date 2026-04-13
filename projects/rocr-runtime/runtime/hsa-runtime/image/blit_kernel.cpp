@@ -64,14 +64,21 @@ extern uint8_t blit_object_gfx7xx[14608];
 extern uint8_t blit_object_gfx8xx[15424];
 extern uint8_t blit_object_gfx9xx[15432];
 
+#ifdef TARGET_DEVICE_GFX7
 extern uint8_t ocl_blit_object_gfx700[];
 extern uint8_t ocl_blit_object_gfx701[];
 extern uint8_t ocl_blit_object_gfx702[];
+#endif
+
+#ifdef TARGET_DEVICE_GFX8
 extern uint8_t ocl_blit_object_gfx801[];
 extern uint8_t ocl_blit_object_gfx802[];
 extern uint8_t ocl_blit_object_gfx803[];
 extern uint8_t ocl_blit_object_gfx805[];
 extern uint8_t ocl_blit_object_gfx810[];
+#endif
+
+#ifdef TARGET_DEVICE_GFX9
 extern uint8_t ocl_blit_object_gfx900[];
 extern uint8_t ocl_blit_object_gfx902[];
 extern uint8_t ocl_blit_object_gfx904[];
@@ -82,6 +89,9 @@ extern uint8_t ocl_blit_object_gfx90a[];
 extern uint8_t ocl_blit_object_gfx90c[];
 extern uint8_t ocl_blit_object_gfx942[];
 extern uint8_t ocl_blit_object_gfx950[];
+#endif
+
+#ifdef TARGET_DEVICE_GFX10
 extern uint8_t ocl_blit_object_gfx1010[];
 extern uint8_t ocl_blit_object_gfx1011[];
 extern uint8_t ocl_blit_object_gfx1012[];
@@ -93,6 +103,9 @@ extern uint8_t ocl_blit_object_gfx1033[];
 extern uint8_t ocl_blit_object_gfx1034[];
 extern uint8_t ocl_blit_object_gfx1035[];
 extern uint8_t ocl_blit_object_gfx1036[];
+#endif
+
+#ifdef TARGET_DEVICE_GFX11
 extern uint8_t ocl_blit_object_gfx1100[];
 extern uint8_t ocl_blit_object_gfx1101[];
 extern uint8_t ocl_blit_object_gfx1102[];
@@ -100,9 +113,18 @@ extern uint8_t ocl_blit_object_gfx1103[];
 extern uint8_t ocl_blit_object_gfx1150[];
 extern uint8_t ocl_blit_object_gfx1151[];
 extern uint8_t ocl_blit_object_gfx1152[];
-extern uint8_t ocl_blit_object_gfx1153[];
+#endif
+
+#ifdef TARGET_DEVICE_GFX12
 extern uint8_t ocl_blit_object_gfx1200[];
 extern uint8_t ocl_blit_object_gfx1201[];
+#endif
+
+#ifdef TARGET_DEVICE_GFX13
+extern uint8_t ocl_blit_object_gfx1310[];
+extern uint8_t ocl_blit_object_gfx131F[];
+extern uint8_t ocl_blit_object_gfx1370[];
+#endif
 
 // Arguments inserted by OCL compiler, all zero here.
 struct OCLHiddenArgs {
@@ -157,7 +179,7 @@ hsa_status_t BlitKernel::Cleanup() {
   return HSA_STATUS_SUCCESS;
 }
 
-hsa_status_t BlitKernel::BuildBlitCode(
+hsa_status_t BlitKernel::BuildImageBlitCode(
     hsa_agent_t agent, std::vector<BlitCodeInfo>& blit_code_catalog) {
   // Find existing kernels in the list that have compatible ISA.
   hsa_isa_t agent_isa = {0};
@@ -165,6 +187,14 @@ hsa_status_t BlitKernel::BuildBlitCode(
   if (HSA_STATUS_SUCCESS != status) {
     return status;
   }
+
+  bool image_support = true;
+  HSA::hsa_agent_get_info(agent, (hsa_agent_info_t)HSA_EXT_AGENT_INFO_IMAGE_SUPPORT, &image_support);
+  if (HSA_STATUS_SUCCESS != status)
+    return status;
+
+  if (!image_support)
+    return HSA_STATUS_ERROR_INVALID_ARGUMENT;
 
   std::lock_guard<std::mutex> lock(lock_);
 
@@ -978,13 +1008,20 @@ hsa_status_t BlitKernel::GetPatchedBlitObject(const char* agent_name,
                                               uint8_t** blit_code_object) {
   std::string sname(agent_name);
 
+#ifdef TARGET_DEVICE_GFX7
   if (sname == "gfx700") {
     *blit_code_object = ocl_blit_object_gfx700;
   } else if (sname == "gfx701") {
     *blit_code_object = ocl_blit_object_gfx701;
   } else if (sname == "gfx702") {
     *blit_code_object = ocl_blit_object_gfx702;
-  } else if (sname == "gfx801") {
+  } else {
+    return HSA_STATUS_ERROR_INVALID_ISA_NAME;
+  }
+#endif
+
+#ifdef TARGET_DEVICE_GFX8
+  if (sname == "gfx801") {
     *blit_code_object = ocl_blit_object_gfx801;
   } else if (sname == "gfx802") {
     *blit_code_object = ocl_blit_object_gfx802;
@@ -994,7 +1031,13 @@ hsa_status_t BlitKernel::GetPatchedBlitObject(const char* agent_name,
     *blit_code_object = ocl_blit_object_gfx805;
   } else if (sname == "gfx810") {
     *blit_code_object = ocl_blit_object_gfx810;
-  } else if (sname == "gfx900") {
+  } else {
+    return HSA_STATUS_ERROR_INVALID_ISA_NAME;
+  }
+#endif
+
+#ifdef TARGET_DEVICE_GFX9
+  if (sname == "gfx900") {
     *blit_code_object = ocl_blit_object_gfx900;
   } else if (sname == "gfx902") {
     *blit_code_object = ocl_blit_object_gfx902;
@@ -1014,7 +1057,13 @@ hsa_status_t BlitKernel::GetPatchedBlitObject(const char* agent_name,
     *blit_code_object = ocl_blit_object_gfx942;
   } else if (sname == "gfx950") {
     *blit_code_object = ocl_blit_object_gfx950;
-  } else if (sname == "gfx1010") {
+  } else {
+    return HSA_STATUS_ERROR_INVALID_ISA_NAME;
+  }
+#endif
+
+#ifdef TARGET_DEVICE_GFX10
+  if (sname == "gfx1010") {
     *blit_code_object = ocl_blit_object_gfx1010;
   } else if (sname == "gfx1011") {
     *blit_code_object = ocl_blit_object_gfx1011;
@@ -1036,7 +1085,13 @@ hsa_status_t BlitKernel::GetPatchedBlitObject(const char* agent_name,
     *blit_code_object = ocl_blit_object_gfx1035;
   } else if (sname == "gfx1036") {
     *blit_code_object = ocl_blit_object_gfx1036;
-  } else if (sname == "gfx1100") {
+  } else {
+    return HSA_STATUS_ERROR_INVALID_ISA_NAME;
+  }
+#endif
+
+#ifdef TARGET_DEVICE_GFX11
+  if (sname == "gfx1100") {
     *blit_code_object = ocl_blit_object_gfx1100;
   } else if (sname == "gfx1101") {
     *blit_code_object = ocl_blit_object_gfx1101;
@@ -1050,15 +1105,32 @@ hsa_status_t BlitKernel::GetPatchedBlitObject(const char* agent_name,
     *blit_code_object = ocl_blit_object_gfx1151;
   } else if (sname == "gfx1152") {
     *blit_code_object = ocl_blit_object_gfx1152;
-  } else if (sname == "gfx1153") {
-    *blit_code_object = ocl_blit_object_gfx1153;
-  } else if (sname == "gfx1200") {
+  } else {
+    return HSA_STATUS_ERROR_INVALID_ISA_NAME;
+  }
+#endif
+
+#ifdef TARGET_DEVICE_GFX12
+  if (sname == "gfx1200") {
     *blit_code_object = ocl_blit_object_gfx1200;
   } else if (sname == "gfx1201") {
     *blit_code_object = ocl_blit_object_gfx1201;
   } else {
     return HSA_STATUS_ERROR_INVALID_ISA_NAME;
   }
+#endif
+
+#ifdef TARGET_DEVICE_GFX13
+  if (sname == "gfx1310") {
+    *blit_code_object = ocl_blit_object_gfx1310;
+  } else if (sname == "gfx131F") {
+    *blit_code_object = ocl_blit_object_gfx131F;
+  } else if (sname == "gfx1370") {
+    *blit_code_object = ocl_blit_object_gfx1370;
+  } else {
+    return HSA_STATUS_ERROR_INVALID_ISA_NAME;
+  }
+#endif
 
   return HSA_STATUS_SUCCESS;
 }

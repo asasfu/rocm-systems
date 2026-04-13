@@ -92,10 +92,6 @@ class BlitSdmaBase : public core::Blit {
                                   core::Signal& prologue_signal,
                                   core::Signal& body_signal) = 0;
 
-  /// @brief Submit epilogue that waits for bodies, then performs GCR writeback,
-  /// end timestamp, and sets out_signal to its final value.
-  /// When body_signals is non-empty, polls each body signal for 0 (non-atomic path).
-  /// When body_signals is empty, polls out_signal for body_complete_value (atomic path).
   virtual hsa_status_t SubmitEpilogue(core::Signal& out_signal,
                                       hsa_signal_value_t body_complete_value,
                                       const std::vector<core::Signal*>& body_signals = {}) = 0;
@@ -111,7 +107,7 @@ class BlitSdmaBase : public core::Blit {
   virtual bool SwapSupported() const = 0;
 };
 
-template <bool useGCR> class BlitSdma : public BlitSdmaBase {
+template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
  public:
   BlitSdma();
 
@@ -166,16 +162,6 @@ template <bool useGCR> class BlitSdma : public BlitSdmaBase {
                                              std::vector<core::Signal*>& dep_signals,
                                              core::Signal& out_signal) override;
 
-  /// @brief Submit a broadcast linear copy command. Copies from a single source
-  /// to multiple destinations using SDMA broadcast packets (2 dsts per packet).
-  /// If the destination count is odd, the last destination uses a regular
-  /// linear copy packet. Large transfers are broken into size-chunked packets.
-  ///
-  /// @param dsts Vector of destination memory addresses.
-  /// @param src Memory address of the copy source.
-  /// @param size Size of the data to be copied to each destination.
-  /// @param dep_signals Arrays of dependent signal.
-  /// @param out_signal Output signal.
   hsa_status_t SubmitLinearCopyBroadcastCommand(
       const std::vector<void*>& dsts, const void* src, size_t size,
       std::vector<core::Signal*>& dep_signals,
@@ -345,8 +331,6 @@ template <bool useGCR> class BlitSdma : public BlitSdmaBase {
   uint64_t cached_reserve_index_;
   uint64_t cached_commit_index_;
 
-  static const uint32_t linear_copy_command_size_;
-
   static const uint32_t broadcast_copy_command_size_;
 
   static const uint32_t swap_copy_command_size_;
@@ -365,7 +349,8 @@ template <bool useGCR> class BlitSdma : public BlitSdmaBase {
 
   static const uint32_t trap_command_size_;
 
-  static const uint32_t gcr_command_size_;
+  uint32_t gcr_command_size();
+  uint32_t linear_copy_command_size();
 
   // Max copy size of a single linear copy command packet.
   size_t max_single_linear_copy_size_;
@@ -407,7 +392,7 @@ template <bool useGCR> class BlitSdma : public BlitSdmaBase {
   /// True if SDMA supports broadcast linear copy (one src -> two dst).
   bool broadcast_supported_;
 
-  /// True if SDMA supports multicast copy  (one src -> multiple dst).
+  /// True if SDMA supports multicast copy (one src -> multiple dst).
   bool multicast_supported_;
 
   /// True if SDMA supports linear swap copy (gfx94X+).
@@ -415,10 +400,16 @@ template <bool useGCR> class BlitSdma : public BlitSdmaBase {
 };
 
 
-typedef BlitSdma<false> BlitSdmaV4;
+typedef BlitSdma<false, false> BlitSdmaV4;
 
 // SDMA is connected to gL2.
-typedef BlitSdma<true> BlitSdmaV5;
+typedef BlitSdma<true, false> BlitSdmaV5;
+
+// SDMA ops are done by DACC Backend so LINEAR_COPY and CONSTANT_FILL ops are
+// not cached in GL2.
+// SDMA ops support NPD field (no prior dependency)
+// SDMA OSS v7.1
+typedef BlitSdma<true, true> BlitSdmaV6;
 
 }  // namespace amd
 }  // namespace rocr

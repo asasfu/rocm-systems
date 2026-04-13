@@ -222,6 +222,17 @@ run_transpose(int rank, int tid, hipStream_t stream, int argc, char** argv)
     if(argc > 2) nitr = atoll(argv[2]);
     if(argc > 3) nsync = atoll(argv[3]);
 
+    hipDeviceProp_t prop{};
+    HIP_API_CALL(hipGetDeviceProperties(&prop, 0));
+    std::string_view gfxip(prop.gcnArchName);
+    if(gfxip.find("gfx1250") != std::string_view::npos)
+    {
+        // reducing a workload on MI450 emulators
+        M    = 512;
+        N    = 512;
+        nitr = 10;
+    }
+
     auto_lock_t _lk{print_lock};
     std::cout << "[" << exe_name << "][transpose][" << rank << "][" << tid << "] M: " << M
               << " N: " << N << std::endl;
@@ -300,6 +311,16 @@ run_transpose(int rank, int tid, hipStream_t stream, int argc, char** argv)
 void
 run_scratch(int rank, int tid, hipStream_t stream, int, char** argv)
 {
+    auto            reduce_scratch_workload = false;
+    hipDeviceProp_t prop{};
+    HIP_API_CALL(hipGetDeviceProperties(&prop, 0));
+    std::string_view gfxip(prop.gcnArchName);
+    if(gfxip.find("gfx1250") != std::string_view::npos)
+    {
+        // test_kern_large cannot run on MI450 emulators due to limited scratch,
+        // so ignore it.
+        reduce_scratch_workload = true;
+    }
     auto t1 = std::chrono::high_resolution_clock::now();
 
     HIP_API_CALL(hipStreamSynchronize(stream));
@@ -313,7 +334,7 @@ run_scratch(int rank, int tid, hipStream_t stream, int, char** argv)
     test_kern_small<<<1000, 1, 0, stream>>>(data_ptr);
     test_kern_medium<<<1000, 1, 0, stream>>>(data_ptr);
     test_kern_small<<<1000, 1, 0, stream>>>(data_ptr);
-    test_kern_large<<<1100, 1, 0, stream>>>(data_ptr);
+    if(!reduce_scratch_workload) test_kern_large<<<1100, 1, 0, stream>>>(data_ptr);
     HIP_API_CALL(hipStreamSynchronize(stream));
 
     test_kern_small<<<1000, 1, 0, stream>>>(data_ptr);
@@ -325,8 +346,11 @@ run_scratch(int rank, int tid, hipStream_t stream, int, char** argv)
     test_kern_small<<<1000, 1, 0, stream>>>(data_ptr);
     HIP_API_CALL(hipStreamSynchronize(stream));
 
-    test_kern_large<<<1100, 1, 0, stream>>>(data_ptr);
-    HIP_API_CALL(hipStreamSynchronize(stream));
+    if(!reduce_scratch_workload)
+    {
+        test_kern_large<<<1100, 1, 0, stream>>>(data_ptr);
+        HIP_API_CALL(hipStreamSynchronize(stream));
+    }
 
     auto   t2   = std::chrono::high_resolution_clock::now();
     double time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();

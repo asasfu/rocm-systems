@@ -538,6 +538,30 @@ add_test(
         tests/test_autogen_config.py ${WORKING_DIR_OPTION}
 )
 
+# -----------------------------------
+# TUI component tests
+# -----------------------------------
+
+add_test(
+    NAME test_tui_components
+    COMMAND
+        ${PYTHON_TEST_COMMAND} -m pytest ${STANDALONEBINARY_TEST_OPTION}
+        --junitxml=tests/test_tui_components.xml ${COV_OPTION} -m tui
+        tests/test_tui_components.py ${WORKING_DIR_OPTION}
+)
+
+# -----------------------------------
+# Torch trace tests
+# -----------------------------------
+
+add_test(
+    NAME test_torch_trace
+    COMMAND
+        ${PYTHON_TEST_COMMAND} -m pytest ${STANDALONEBINARY_TEST_OPTION}
+        --junitxml=tests/test_torch_trace.xml ${COV_OPTION} tests/test_torch_trace.py
+        ${WORKING_DIR_OPTION}
+)
+
 # ---------------------------
 # PC sampling tests
 # ---------------------------

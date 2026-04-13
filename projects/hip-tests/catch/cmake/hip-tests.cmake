@@ -56,7 +56,6 @@ function(hip_gen_exe_target)
     "${list_args}"
   )
   foreach(SRC_NAME ${TEST_SRC})
-
     if(NOT _STANDALONE_FLAG EQUAL "1")
       set(_EXE_NAME ${_NAME})
       set(SRC_NAME ${TEST_SRC})
@@ -119,10 +118,15 @@ function(hip_gen_exe_target)
     endforeach()
     # add binary to global list of binaries to install
     set_property(GLOBAL APPEND PROPERTY G_INSTALL_EXE_TARGETS ${_EXE_NAME})
+    set(_TEST_PROPERTIES
+      SKIP_REGULAR_EXPRESSION "HIP_SKIP_THIS_TEST"
+    )
+    if (DEFINED HIP_TEST_LABELS)
+      list(APPEND _TEST_PROPERTIES LABELS "${HIP_TEST_LABELS}")
+    endif()
     set(_DISCOVER_ARGS
       DISCOVERY_MODE PRE_TEST
-      ADD_TAGS_AS_LABELS
-      SKIP_REGULAR_EXPRESSION "HIP_SKIP_THIS_TEST"
+      ADD_TAGS_AS_LABELS PROPERTIES ${_TEST_PROPERTIES}
     )
     if (DEFINED HIP_TEST_LABELS)
       list(APPEND _DISCOVER_ARGS PROPERTIES LABELS "${HIP_TEST_LABELS}")

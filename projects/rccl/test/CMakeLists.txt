@@ -4,8 +4,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 if(BUILD_TESTS)
-
-  option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
+option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
   option(ENABLE_MPI_TESTS "Enable MPI-based tests" OFF)
 
   message("Building rccl unit tests (Installed in /test/rccl-UnitTests)")

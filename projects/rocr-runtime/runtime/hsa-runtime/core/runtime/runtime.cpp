@@ -635,6 +635,10 @@ hsa_status_t Runtime::GetPreferredEngine(core::Agent* dst_agent, core::Agent* sr
   const bool src_gpu = (src_agent->device_type() == core::Agent::DeviceType::kAmdGpuDevice);
   core::Agent* copy_agent = (src_gpu) ? src_agent : dst_agent;
 
+  if (dst_agent == src_agent) {
+    return HSA_STATUS_ERROR_INVALID_AGENT;
+  }
+
   return copy_agent->DmaPreferredEngine(*dst_agent, *src_agent, recommended_ids_mask);
 }
 
@@ -812,6 +816,10 @@ hsa_status_t Runtime::GetSystemInfo(hsa_system_info_t attribute, void* value) {
       *((bool*)value) = core::Runtime::runtime_singleton_->XnackEnabled();
       break;
     }
+    case HSA_AMD_SYSTEM_INFO_FABRIC_HANDLES_SUPPORTED: {
+      *((bool*)value) = true; /* query into KMD not defined yet */
+      break;
+    }
     case HSA_AMD_SYSTEM_INFO_EXT_VERSION_MAJOR: {
       *((uint16_t*)value) = HSA_AMD_INTERFACE_VERSION_MAJOR;
       break;
@@ -823,6 +831,13 @@ hsa_status_t Runtime::GetSystemInfo(hsa_system_info_t attribute, void* value) {
     default:
       return HSA_STATUS_ERROR_INVALID_ARGUMENT;
   }
+  return HSA_STATUS_SUCCESS;
+}
+
+hsa_status_t Runtime::GetSignalEventId(hsa_signal_t signal, uint32_t *event_id) {
+  core::Signal* coreSignal = core::Signal::Convert(signal);
+  *event_id = coreSignal->EopEvent() ? coreSignal->EopEvent()->EventId : 0;
+
   return HSA_STATUS_SUCCESS;
 }
 
@@ -4104,6 +4119,26 @@ hsa_status_t Runtime::VMemoryImportShareableHandle(int dmabuf_fd,
   *memoryOnlyHandle = MemoryHandle::Convert(thunk_handle);
 
   return HSA_STATUS_SUCCESS;
+}
+
+hsa_status_t Runtime::VMemoryExportFabricHandle(hsa_fabric_handle_t *fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t handle,
+                                               const uint64_t flags) {
+
+  auto memoryHandle = memory_handle_map_.find((void*)handle.handle);
+  if (memoryHandle == memory_handle_map_.end()) {
+    debug_warning(false && "Can't find memory handle");
+    return HSA_STATUS_ERROR_INVALID_ALLOCATION;
+  }
+
+  // NOT IMPLEMENTED: Call Thunk/KFD to get unique handle
+  return HSA_STATUS_ERROR;
+}
+
+hsa_status_t Runtime::VMemoryImportFabricHandle(hsa_fabric_handle_t fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t* handle) {
+  // NOT IMPLEMENTED: Call Thunk/KFD to import
+  return HSA_STATUS_ERROR;
 }
 
 hsa_status_t Runtime::VMemoryRetainAllocHandle(hsa_amd_vmem_alloc_handle_t* mapped_handle,

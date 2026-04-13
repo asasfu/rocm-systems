@@ -80,12 +80,14 @@ namespace AMD {
 
 AqlQueue::AqlQueue(core::SharedQueue* shared_queue, GpuAgent* agent, size_t req_size_pkts,
                    HSAuint32 node_id, ScratchInfo& scratch, core::HsaEventCallback callback,
-                   void* err_data, uint64_t flags)
+                   void* err_data, bool metadata_prefetch, uint64_t flags)
     : Queue(shared_queue, flags, !agent->is_xgmi_cpu_gpu(), agent),
       LocalSignal(0, false),
       DoorbellSignal(signal()),
       ring_buf_(nullptr),
       ring_buf_alloc_bytes_(0),
+      ring_buf_metadata_(nullptr),
+      ring_buf_metadata_alloc_bytes_(0),
       queue_id_(HSA_QUEUEID(-1)),
       active_(false),
       agent_(agent),
@@ -114,16 +116,19 @@ AqlQueue::AqlQueue(core::SharedQueue* shared_queue, GpuAgent* agent, size_t req_
     throw AMD::hsa_exception(HSA_STATUS_ERROR_INVALID_QUEUE_CREATION,
                              "Requested queue with non-power of two packet capacity.\n");
 
+  if (core::Runtime::runtime_singleton_->KfdVersion().supports_metadata_prefetch &&
+      metadata_prefetch &&
+      agent_->supported_isas()[0]->GetMajorVersion() == 12
+      && agent_->supported_isas()[0]->GetMinorVersion() >= 5) {
+    /* First valid version of meta data prefetch - Version is 0.0 */
+    dispatch_version_.set_version(0, 0);
+    barrier_version_.set_version(0, 0);
+  }
+
   // Allocate the AQL packet ring buffer.
   AllocRegisteredRingBuffer(queue_size_pkts);
   if (ring_buf_ == nullptr) throw std::bad_alloc();
   MAKE_NAMED_SCOPE_GUARD(RingGuard, [&]() { FreeQueueMemory(); });
-
-  // Fill the ring buffer with invalid packet headers.
-  // Leave packet content uninitialized to help track errors.
-  for (uint32_t pkt_id = 0; pkt_id < queue_size_pkts; ++pkt_id) {
-    (((core::AqlPacket*)ring_buf_)[pkt_id]).dispatch.header = HSA_PACKET_TYPE_INVALID;
-  }
 
   // Zero the amd_queue_ structure to clear RPTR/WPTR before queue attach.
   memset(&amd_queue_, 0, sizeof(amd_queue_));
@@ -269,11 +274,15 @@ AqlQueue::AqlQueue(core::SharedQueue* shared_queue, GpuAgent* agent, size_t req_
   if (core::Runtime::runtime_singleton_->KfdVersion().supports_exception_debugging) {
     queue_rsrc.ErrorReason = &exception_signal_->signal_.value;
     status =
-        agent->driver().CreateQueue(node_id, HSA_QUEUE_COMPUTE_AQL, 100, priority_, 0, ring_buf_,
-                                    ring_buf_alloc_bytes_, queue_event(), queue_rsrc);
+        agent->driver().CreateQueue(node_id, HSA_QUEUE_COMPUTE_AQL, 100, priority_, 0,
+                                    ring_buf_, ring_buf_alloc_bytes_,
+                                    ring_buf_metadata_alloc_bytes_,
+                                    queue_event(), queue_rsrc);
   } else {
     status = agent->driver().CreateQueue(node_id, HSA_QUEUE_COMPUTE_AQL, 100, priority_, 0,
-                                         ring_buf_, ring_buf_alloc_bytes_, NULL, queue_rsrc);
+                                         ring_buf_, ring_buf_alloc_bytes_,
+                                         ring_buf_metadata_alloc_bytes_,
+                                         NULL, queue_rsrc);
   }
   if (status != HSA_STATUS_SUCCESS)
     throw AMD::hsa_exception(HSA_STATUS_ERROR_OUT_OF_RESOURCES,
@@ -334,6 +343,12 @@ AqlQueue::AqlQueue(core::SharedQueue* shared_queue, GpuAgent* agent, size_t req_
   if (!core::Runtime::runtime_singleton_->flag().cu_mask_skip_init()) SetCUMasking(0, nullptr);
 
   active_ = true;
+
+  #ifdef AMD_NPI_ONLY
+  if (core::Runtime::runtime_singleton_->flag().debug_set_resource_limits()) {
+    SetResourceLimits(core::Runtime::runtime_singleton_->flag().debug_set_resource_limits());
+  }
+  #endif
 
   PM4IBGuard.Dismiss();
   RingGuard.Dismiss();
@@ -486,6 +501,20 @@ void AqlQueue::StoreRelease(hsa_signal_value_t value) {
   StoreRelaxed(value);
 }
 
+void AqlQueue::GetInfoProperties(uint8_t value[8]) const {
+  auto setFlag = [&](uint32_t bit) {
+    assert(bit < 8 * 8 && "Flag value exceeds input parameter size");
+
+    uint index = bit / 8;
+    uint subBit = bit % 8;
+    ((uint8_t*)value)[index] |= 1 << subBit;
+  };
+
+  memset(value, 0, sizeof(uint8_t) * 8);
+
+  //TODO: Set future queue properties here
+}
+
 hsa_status_t AqlQueue::GetInfo(hsa_queue_info_attribute_t attribute, void* value) {
   switch (attribute) {
     case HSA_AMD_QUEUE_INFO_AGENT:
@@ -508,7 +537,25 @@ hsa_status_t AqlQueue::GetInfo(hsa_queue_info_attribute_t attribute, void* value
       break;
     case HSA_QUEUE_INFO_HW_ID:
       // Return the hardware queue ID for both counted and non-counted queues
-      *static_cast<uint32_t*>(value) = public_handle()->id; 
+      *static_cast<uint32_t*>(value) = public_handle()->id;
+      break; 
+    case HSA_AMD_QUEUE_INFO_PREFETCH_METADATA_DISPATCH_PKT_VERSION_MAJOR:
+      *(reinterpret_cast<uint8_t*>(value)) = dispatch_version_.major_version();
+      break;
+    case HSA_AMD_QUEUE_INFO_PREFETCH_METADATA_DISPATCH_PKT_VERSION_MINOR:
+      *(reinterpret_cast<uint8_t*>(value)) = dispatch_version_.minor_version();
+      break;
+    case HSA_AMD_QUEUE_INFO_PREFETCH_METADATA_BARRIER_PKT_VERSION_MAJOR:
+      *(reinterpret_cast<uint8_t*>(value)) = barrier_version_.major_version();
+      break;
+    case HSA_AMD_QUEUE_INFO_PREFETCH_METADATA_BARRIER_PKT_VERSION_MINOR:
+      *(reinterpret_cast<uint8_t*>(value)) = barrier_version_.minor_version();
+      break;
+    case HSA_AMD_QUEUE_INFO_PREFETCH_METADATA_RING_BUFFER:
+      *((uint64_t*)value) = (uint64_t)ring_buf_metadata_;
+      break;
+    case HSA_AMD_QUEUE_INFO_PROPERTIES:
+      GetInfoProperties(reinterpret_cast<uint8_t*>(value));
       break;
     default:
       return HSA_STATUS_ERROR_INVALID_ARGUMENT;
@@ -539,6 +586,15 @@ void AqlQueue::AllocRegisteredRingBuffer(uint32_t queue_size_pkts) {
   ring_buf_alloc_bytes_ = queue_size_pkts * sizeof(core::AqlPacket);
   assert(IsMultipleOf(ring_buf_alloc_bytes_, 4096) && "Ring buffer sizes must be 4KiB aligned.");
 
+  switch (dispatch_version_.major_version()) {
+    case 0: /* Only version 0 supported for now */
+        ring_buf_metadata_alloc_bytes_ = queue_size_pkts * sizeof(core::AqlMetadataPrefetchPacket);
+        assert(IsMultipleOf(ring_buf_metadata_alloc_bytes_, 4096) && "Ring buffer sizes must be 4KiB aligned.");
+        break;
+      default:
+        break;
+  }
+
   if (IsDeviceMemRingBuf()) {
     if (!agent_->LargeBarEnabled()) {
       throw AMD::hsa_exception(HSA_STATUS_ERROR_INVALID_QUEUE_CREATION,
@@ -546,15 +602,31 @@ void AqlQueue::AllocRegisteredRingBuffer(uint32_t queue_size_pkts) {
                                 "large BAR PCIe enabled.");
     }
     ring_buf_ = agent_->coarsegrain_allocator()(
-        ring_buf_alloc_bytes_,
+        ring_buf_alloc_bytes_ + ring_buf_metadata_alloc_bytes_,
         core::MemoryRegion::AllocateExecutable | core::MemoryRegion::AllocateUncached);
   } else {
     ring_buf_ = agent_->system_allocator()(
-        ring_buf_alloc_bytes_, 0x1000,
+        ring_buf_alloc_bytes_ + ring_buf_metadata_alloc_bytes_, 0x1000,
         core::MemoryRegion::AllocateExecutable);
   }
 
   assert(ring_buf_ != NULL && "AQL queue memory allocation failure");
+  // Fill the ring buffer with invalid packet headers.
+  // Leave packet content uninitialized to help track errors.
+  for (uint32_t pkt_id = 0; pkt_id < queue_size_pkts; ++pkt_id)
+    (((core::AqlPacket*)ring_buf_)[pkt_id]).dispatch.header = HSA_PACKET_TYPE_INVALID;
+
+  if (ring_buf_metadata_alloc_bytes_) {
+    ring_buf_metadata_ = reinterpret_cast<uint8_t*>(ring_buf_) + ring_buf_alloc_bytes_;
+
+    // Fill the metadata ring buffer with invalid packet headers.
+    for (uint32_t pkt_id = 0; pkt_id < queue_size_pkts; ++pkt_id) {
+      ((((core::AqlMetadataPrefetchPacket*)ring_buf_metadata_)[pkt_id]).packet.header0).type = HSA_PACKET_TYPE_INVALID;
+      ((((core::AqlMetadataPrefetchPacket*)ring_buf_metadata_)[pkt_id]).packet.header1).type = HSA_PACKET_TYPE_INVALID;
+      ((((core::AqlMetadataPrefetchPacket*)ring_buf_metadata_)[pkt_id]).packet.header2).type = HSA_PACKET_TYPE_INVALID;
+      ((((core::AqlMetadataPrefetchPacket*)ring_buf_metadata_)[pkt_id]).packet.header3).type = HSA_PACKET_TYPE_INVALID;
+    }
+  }
 }
 
 void AqlQueue::FreeQueueMemory() {
@@ -575,8 +647,11 @@ void AqlQueue::FreeQueueMemory() {
     }
   }
 
-  ring_buf_ = NULL;
+  ring_buf_ = nullptr;
   ring_buf_alloc_bytes_ = 0;
+
+  ring_buf_metadata_ = nullptr;
+  ring_buf_metadata_alloc_bytes_ = 0;
 }
 
 void AqlQueue::CloseRingBufferFD(const char* ring_buf_shm_path, int fd) const {
@@ -928,6 +1003,26 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
   core::AqlPacket *pkt = NULL;
   uint64_t dispatch_id = UINT64_MAX;
 
+  /* These fields need to be binary compatible between hsa_kernel_dispatch_packet_t and
+     hsa_amd_ext_kernel_dispatch_packet_t.
+   */
+  static_assert(offsetof(hsa_kernel_dispatch_packet_t, header) ==
+                    offsetof(hsa_amd_ext_kernel_dispatch_packet_t, header),
+                "invalid offset for headers");
+
+  static_assert(offsetof(hsa_kernel_dispatch_packet_t, workgroup_size_x) ==
+                    offsetof(hsa_amd_ext_kernel_dispatch_packet_t, workgroup_size_x),
+                "invalid offset for workgroup_size_x");
+
+  static_assert(offsetof(hsa_kernel_dispatch_packet_t, workgroup_size_y) ==
+                    offsetof(hsa_amd_ext_kernel_dispatch_packet_t, workgroup_size_y),
+                "invalid offset for workgroup_size_y");
+
+  static_assert(offsetof(hsa_kernel_dispatch_packet_t, workgroup_size_z) ==
+                    offsetof(hsa_amd_ext_kernel_dispatch_packet_t, workgroup_size_z),
+                "invalid offset for workgroup_size_z");
+
+
   auto get_dispatch_pkt = [&]() {
     dispatch_id = amd_queue_.read_dispatch_id;
     do {
@@ -939,7 +1034,9 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
 
       core::AqlPacket *dispatch_pkt =
           &((core::AqlPacket *)amd_queue_.hsa_queue.base_address)[pkt_slot_idx];
-      if (dispatch_pkt->IsDispatchAndNeedsScratch()) return dispatch_pkt;
+
+      if (dispatch_pkt->IsDispatchAndNeedsScratch())
+        return dispatch_pkt;
 
       dispatch_id++;
     } while (dispatch_id <= LoadWriteIndexRelaxed());
@@ -957,16 +1054,17 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
   };
 
   auto calc_dispatch_groups = [&](core::AqlPacket& pkt) {
+    auto ceil_divide = [](uint64_t a, uint64_t b) { return (a + b - 1) / b; };
+
     const uint64_t lanes_per_group =
         (uint64_t(pkt.dispatch.workgroup_size_x) * pkt.dispatch.workgroup_size_y) *
         pkt.dispatch.workgroup_size_z;
 
-    uint64_t groups = ((uint64_t(pkt.dispatch.grid_size_x) + pkt.dispatch.workgroup_size_x - 1) /
-                       pkt.dispatch.workgroup_size_x) *
-                      ((uint64_t(pkt.dispatch.grid_size_y) + pkt.dispatch.workgroup_size_y - 1) /
-                       pkt.dispatch.workgroup_size_y) *
-                      ((uint64_t(pkt.dispatch.grid_size_z) + pkt.dispatch.workgroup_size_z - 1) /
-                       pkt.dispatch.workgroup_size_z);
+    uint64_t groups_x = ceil_divide(pkt.dispatch_grid_size_x(), pkt.dispatch.workgroup_size_x);
+    uint64_t groups_y = ceil_divide(pkt.dispatch_grid_size_y(), pkt.dispatch.workgroup_size_y);
+    uint64_t groups_z = ceil_divide(pkt.dispatch_grid_size_z(), pkt.dispatch.workgroup_size_z);
+    uint64_t groups = groups_x * groups_y * groups_z;
+
     const uint32_t cu_count = amd_queue_.max_cu_id + 1;
 
     const uint32_t engines = agent_->properties().NumShaderBanks;
@@ -1023,6 +1121,8 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
 
   const uint64_t lanes_per_wave = (error_code & 0x400) ? 32 : 64;
 
+  // TODO-GFX13: Adjust these calculations when wavegroups are enabled.
+  //             (Requires looking at the kernel descriptor.)
   const uint64_t size_per_thread =
       AlignUp(pkt->dispatch.private_segment_size,
               scratch.mem_alignment_size / lanes_per_wave);
@@ -1049,9 +1149,9 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
 
     agent_->AcquireQueueAltScratch(scratch);
     if (scratch.alt_queue_base) {
-      scratch.alt_dispatch_limit_x = pkt->dispatch.grid_size_x;
-      scratch.alt_dispatch_limit_y = pkt->dispatch.grid_size_y;
-      scratch.alt_dispatch_limit_z = pkt->dispatch.grid_size_z;
+      scratch.alt_dispatch_limit_x = pkt->dispatch_grid_size_x();
+      scratch.alt_dispatch_limit_y = pkt->dispatch_grid_size_y();
+      scratch.alt_dispatch_limit_z = pkt->dispatch_grid_size_z();
 
       InitScratchSRD();
       /*
@@ -1448,6 +1548,44 @@ void AqlQueue::SetProfiling(bool enabled) {
   return;
 }
 
+#ifdef AMD_NPI_ONLY
+void AqlQueue::SetResourceLimits(uint32_t limit) {
+  if (limit > 1023) {
+     printf("ERROR: Invalid resource limit %u (valid range: 0-1023) - ignoring!\n", limit);
+    return;
+  }
+  auto isa = agent_->supported_isas()[0];
+
+  // Tested only on gfx942
+  if (!(isa->GetMajorVersion() == 9 && isa->GetMinorVersion() >= 4)) {
+      printf("ERROR: Resource limit not supported on this device - ignoring!\n");
+      return;
+  }
+
+  printf("DEBUG: Set resource limit to:%d\n", limit);
+
+  const uint32_t sh_reg_pkt_size_dw = 3;
+  uint32_t sh_reg_pkt[sh_reg_pkt_size_dw] = {};
+
+  /*
+   * COMPUTE_RESOURCE_LIMITS SH-register offset for gfx9.x:
+   * The absolute MMIO register address is defined in the kernel headers as:
+   *  mmCOMPUTE_RESOURCE_LIMITS = 0x2e15
+   * in linux/drivers/gpu/drm/amd/include/asic_reg/gc/gc_9_1_offset.h.
+   * PM4 SET_SH_REG packets, however, take a register index relative to the
+   * start of the SH register space at 0x2c00, so the offset programmed into
+   * the packet is (0x2e15 - 0x2c00) = 0x0215.
+   */
+  uint32_t mmCOMPUTE_RESOURCE_LIMITS = 0x0215;
+
+  sh_reg_pkt[0] = PM4_HDR(PM4_HDR_IT_OPCODE_SET_SH_REG, sh_reg_pkt_size_dw, isa->GetMajorVersion());
+  sh_reg_pkt[1] = PM4_SET_SH_REG_DW1_REG_OFFSET(mmCOMPUTE_RESOURCE_LIMITS);
+  sh_reg_pkt[2] = PM4_SET_SH_REG_DW2_DATA(limit);
+
+  ExecutePM4(sh_reg_pkt, sh_reg_pkt_size_dw * sizeof(uint32_t));
+}
+#endif
+
 // If in_signal is NULL then this ExecutePM4 will block and wait for PM4 commands to complete
 // If in_signal is provided, then ExecutePM4 will return and caller may wait for in_signal
 // Note: On gfx8, there is no completion signal support, so ExecutePM4 will block even if
@@ -1728,6 +1866,56 @@ void AqlQueue::FillBufRsrcWord3_Gfx12() {
   amd_queue_.scratch_resource_descriptor[3] = srd3.u32All;
 }
 
+void AqlQueue::FillBufRsrcWords_Gfx13() {
+  /*
+   * For GFX13, buffer descriptor is either 4 or 5 dwords
+   * depending on the instruction using it.
+   *
+   * For scratch buffer, we are passing only the first 4 dwords.
+   * The last dword is not necessary for scratch buffer and passing
+   * all 5 dwords would require ROCr/firmware interface change.
+   */
+  const auto& agent_props = agent_->properties();
+  const uint32_t num_xcc = agent_props.NumXcc;
+  uintptr_t scratch_base = uintptr_t(queue_scratch_.main_queue_base);
+
+  SQ_BUF_RSRC_WORD0_GFX13 srd0;
+  srd0.bits.BASE_ADDRESS = uint32_t(scratch_base);
+
+  SQ_BUF_RSRC_WORD1_GFX13 srd1;
+  srd1.u32All = 0;
+#ifdef HSA_LARGE_MODEL
+  srd1.bits.BASE_ADDRESS_HI = uint32_t(scratch_base >> 32);
+#endif
+
+  // NUM_RECORDS is 45 bits total, split across dwords 1, 2, and 3:
+  // - NUM_RECORDS_1: Bit[6:0]   ( 7 bits)
+  // - NUM_RECORDS_2: Bit[38:7]  (32 bits)
+  // - NUM_RECORDS_3: Bit[44:39] ( 6 bits)
+  uint64_t num_records = queue_scratch_.main_size / num_xcc;
+  srd1.bits.NUM_RECORDS_1 = uint32_t(num_records & 0x7F);  // bits [6:0]
+
+  SQ_BUF_RSRC_WORD2_GFX13 srd2;
+  srd2.bits.NUM_RECORDS_2 = uint32_t((num_records >> 7) & 0xFFFFFFFF);  // bits [38:7]
+
+  SQ_BUF_RSRC_WORD3_GFX13 srd3;
+  srd3.bits.NUM_RECORDS_3 = uint32_t((num_records >> 39) & 0x3F);  // bits [44:39]
+  srd3.bits.WRITE_COMPRESS_ENABLE = 0;
+  srd3.bits.COMPRESSION_EN = 0;
+  srd3.bits.COMPRESSION_ACCESS_MODE = 0;
+  srd3.bits.TH_OVERRIDE = 0;
+  srd3.bits.STRIDE = 0;
+  srd3.bits.STRIDE_SCALE = 0;
+  srd3.bits.SWIZZLE_ENABLE = 1;
+  srd3.bits.OOB_SELECT = 0;  // Note: For GFX13, only value 0 and 1 are valid.  Cannot disable with 2.
+  srd3.bits.TYPE = SQ_RSRC_BUF;
+
+  amd_queue_.scratch_resource_descriptor[0] = srd0.u32All;
+  amd_queue_.scratch_resource_descriptor[1] = srd1.u32All;
+  amd_queue_.scratch_resource_descriptor[2] = srd2.u32All;
+  amd_queue_.scratch_resource_descriptor[3] = srd3.u32All;
+}
+
 // Set concurrent wavefront limits only when scratch is being used.
 void AqlQueue::FillComputeTmpRingSize() {
   COMPUTE_TMPRING_SIZE tmpring_size = {};
@@ -1820,14 +2008,14 @@ void AqlQueue::FillComputeTmpRingSize_Gfx11() {
   uint32_t num_waves =
       queue_scratch_.main_size / (tmpring_size.bits.WAVESIZE * queue_scratch_.mem_alignment_size);
 
-  // For GFX11 we specify number of waves per engine instead of total
+  // For GFX11+ we specify number of waves per engine instead of total
   num_waves /= agent_->properties().NumShaderBanks;
   tmpring_size.bits.WAVES = std::min(num_waves, max_scratch_waves);
   amd_queue_.compute_tmpring_size = tmpring_size.u32All;
 }
 
 // Set concurrent wavefront limits only when scratch is being used.
-void AqlQueue::FillComputeTmpRingSize_Gfx12() {
+void AqlQueue::FillComputeTmpRingSize_Gfx12_Gfx13() {
   // For GFX12, struct field size changes.
   // Consider refactoring code for GFX11/GFX12 if no other changes.
   COMPUTE_TMPRING_SIZE_GFX12 tmpring_size = {};
@@ -1865,12 +2053,16 @@ void AqlQueue::FillComputeTmpRingSize_Gfx12() {
 // that enable kernel access scratch memory
 void AqlQueue::InitScratchSRD() {
   switch (agent_->supported_isas()[0]->GetMajorVersion()) {
+    case 13:
+      FillBufRsrcWords_Gfx13();
+      FillComputeTmpRingSize_Gfx12_Gfx13();
+      break;
     case 12:
       FillBufRsrcWord0();
       FillBufRsrcWord1_Gfx11();
       FillBufRsrcWord2();
       FillBufRsrcWord3_Gfx12();
-      FillComputeTmpRingSize_Gfx12();
+      FillComputeTmpRingSize_Gfx12_Gfx13();
       break;
     case 11:
       FillBufRsrcWord0();

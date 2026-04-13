@@ -83,3 +83,9 @@ kernel:
   Unit_ConfigureCall_CheckParams:
     <<: *level_2
     tags: [launch]
+  Unit_hipGridLaunch_MaxGridDim_DeviceProperties: *level_2
+  Unit_hipGridLaunch_MaxGridDim_GetDeviceAttribute: *level_2
+  Unit_hipGridLaunch_ExceedMaxGridDim_Negative: *level_2
+  Unit_hipLaunchParmFunctor_kernel_arg_prefetch: *level_2
+  Unit_KernelStackSize: *level_2
+  Unit_Validate_User_Sgpr_Count: *level_2

@@ -3307,6 +3307,9 @@ class AMDSMICommands:
                     "deep_sleep": "N/A",
                 }
 
+                clocks["uclk_aid"] = "N/A"
+                clocks["socclks_mid"] = "N/A"
+
                 clock_unit = "MHz"
 
                 # Populate clock values from gpu_metrics_info
@@ -3401,6 +3404,30 @@ class AMDSMICommands:
                         )
                 except KeyError as e:
                     logging.debug("Failed to get current_socclk for gpu %s | %s", gpu_id, e)
+
+                try:
+                    current_uclk_aid = gpu_metric.get("current_uclk_aid", "N/A")
+                    if current_uclk_aid != "N/A":
+                        clocks["uclk_aid"] = {
+                            f"AID_{index}": self.helpers.unit_format(self.logger, clk, clock_unit)
+                            if clk != "N/A"
+                            else "N/A"
+                            for index, clk in enumerate(current_uclk_aid)
+                        }
+                except Exception as e:
+                    logging.debug("Failed to get current_uclk_aid for gpu %s | %s", gpu_id, e)
+
+                try:
+                    current_socclks_mid = gpu_metric.get("current_socclks_mid", "N/A")
+                    if current_socclks_mid != "N/A":
+                        clocks["socclks_mid"] = {
+                            f"MID_{index}": self.helpers.unit_format(self.logger, clk, clock_unit)
+                            if clk != "N/A"
+                            else "N/A"
+                            for index, clk in enumerate(current_socclks_mid)
+                        }
+                except Exception as e:
+                    logging.debug("Failed to get current_socclks_mid for gpu %s | %s", gpu_id, e)
 
                 # Populate the max and min clock values from sysfs.
                 # Min and Max values are per clock type, not per clock engine.
@@ -3643,12 +3670,74 @@ class AMDSMICommands:
                     "edge": temperature_edge_current,
                     "hotspot": temperature_hotspot_current,
                     "mem": temperature_vram_current,
+                    "hbm_stacks": gpu_metric.get("temperature_hbm_stacks", "N/A"),
+                    "mid": gpu_metric.get("temperature_mid", "N/A"),
+                    "aid": gpu_metric.get("temperature_aid", "N/A"),
+                    "xcd": "N/A",
                 }
+
+                if temperatures["hbm_stacks"] != "N/A":
+                    temperatures["hbm_stacks"] = list(temperatures["hbm_stacks"])
+                if temperatures["mid"] != "N/A":
+                    temperatures["mid"] = list(temperatures["mid"])
+                if temperatures["aid"] != "N/A":
+                    temperatures["aid"] = list(temperatures["aid"])
+
+                if num_partition != "N/A":
+                    xcp_temp_xcd = gpu_metric.get("xcp_stats.temperature_xcd", "N/A")
+                    if xcp_temp_xcd != "N/A":
+                        available_partition = min(num_partition, len(xcp_temp_xcd))
+                        temperatures["xcd"] = {
+                            f"XCP_{current_xcp}": xcp_temp_xcd[current_xcp]
+                            for current_xcp in range(available_partition)
+                        }
 
                 temp_unit_human_readable = "\N{DEGREE SIGN}C"
                 temp_unit_json = "C"
                 for temperature_key, temperature_value in temperatures.items():
-                    if "N/A" not in str(temperature_value):
+                    if isinstance(temperature_value, list):
+                        if self.logger.is_human_readable_format():
+                            formatted_values = [
+                                f"{value} {temp_unit_human_readable}" if value != "N/A" else "N/A"
+                                for value in temperature_value
+                            ]
+                            temperatures[temperature_key] = "[" + ", ".join(formatted_values) + "]"
+                        if self.logger.is_json_format():
+                            temperatures[temperature_key] = [
+                                {"value": value, "unit": temp_unit_json}
+                                if value != "N/A"
+                                else "N/A"
+                                for value in temperature_value
+                            ]
+                    elif isinstance(temperature_value, dict):
+                        for key, value in temperature_value.items():
+                            if isinstance(value, list):
+                                if self.logger.is_human_readable_format():
+                                    formatted_values = [
+                                        f"{item} {temp_unit_human_readable}"
+                                        if item != "N/A"
+                                        else "N/A"
+                                        for item in value
+                                    ]
+                                    temperature_value[key] = "[" + ", ".join(formatted_values) + "]"
+                                if self.logger.is_json_format():
+                                    temperature_value[key] = [
+                                        {"value": item, "unit": temp_unit_json}
+                                        if item != "N/A"
+                                        else "N/A"
+                                        for item in value
+                                    ]
+                            elif value != "N/A":
+                                if self.logger.is_human_readable_format():
+                                    temperature_value[key] = f"{value} {temp_unit_human_readable}"
+                                if self.logger.is_json_format():
+                                    temperature_value[key] = {
+                                        "value": value,
+                                        "unit": temp_unit_json,
+                                    }
+                    else:
+                        if temperature_value == "N/A":
+                            continue
                         if self.logger.is_human_readable_format():
                             temperatures[temperature_key] = (
                                 f"{temperature_value} {temp_unit_human_readable}"
@@ -11837,12 +11926,12 @@ class AMDSMICommands:
             # only display warning message if not running as root or with sudo
             if os.geteuid() != 0:
                 self.logger.warning_message = """
-***************************************************************************
-** WARNING:                                                              **
-** ACCELERATOR_PARTITION_PROFILES requires sudo/root permissions to run. **
-** Please run the command with sudo permissions to get accurate results. **
-***************************************************************************
-"""
+        ***************************************************************************
+        ** WARNING:                                                              **
+        ** ACCELERATOR_PARTITION_PROFILES requires sudo/root permissions to run. **
+        ** Please run the command with sudo permissions to get accurate results. **
+        ***************************************************************************
+        """
             if self.logger.is_json_format():
                 self.logger.store_partition_profiles_json_output.extend(tabular_output)
             else:

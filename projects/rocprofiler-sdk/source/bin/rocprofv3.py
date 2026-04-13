@@ -757,6 +757,11 @@ For attachment profiling of running processes:
         "--selected-regions-ref-count",
         help="If set, rocprofv3 will reference count roctxProfilerResume and roctxProfilerPause calls to ignore nested pause/resume pairs",
     )
+    add_parser_bool_argument(
+        filter_options,
+        "--selected-regions-ref-count",
+        help="If set, rocprofv3 will reference count roctxProfilerResume and roctxProfilerPause calls to ignore nested pause/resume pairs",
+    )
 
     perfetto_options = parser.add_argument_group("Perfetto-specific options")
 

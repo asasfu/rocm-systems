@@ -179,11 +179,15 @@ main()
                                gpuTransposeMatrix,
                                gpuMatrix,
                                WIDTH);
+<<<<<<< HEAD
             // Use max(i, 1) to ensure at least 1 thread per block (i=0 would be invalid)
             int threads_per_block = (i > 0 ? i : 1);
             pc_sampling_kernel<<<num_blocks, threads_per_block>>>(threads_per_block);
             // Check for kernel launch errors
             checkHipErrors(hipGetLastError());
+=======
+            pc_sampling_kernel<<<num_blocks, i>>>(i);
+>>>>>>> amd-npi
             roctxProfilerPause(tid);
         }
     }

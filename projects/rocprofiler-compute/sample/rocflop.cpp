@@ -19,6 +19,39 @@ using vecT = T __attribute__((ext_vector_type(Rank)));
 template<typename T> using vec4 = vecT<T, 4>;
 template<typename T> using vec8 = vecT<T, 8>;
 
+// __builtin_amdgcn_mfma_* (e.g. mfma_f32_16x16x16f16) must not be compiled for these AMDGPU targets:
+// gfx906 or client gfx1250/gfx1251/gfx1252/gfx1260/gfx1310/gfx1370 — list each __gfx*__ macro here explicitly.
+#if !defined(__gfx906__) && !defined(__gfx1250__) && !defined(__gfx1251__) && !defined(__gfx1252__) \
+    && !defined(__gfx1260__) && !defined(__gfx1310__) && !defined(__gfx1370__)
+#define ROC_FLOP_COMPILE_MFMA_KERNELS 1
+#else
+#define ROC_FLOP_COMPILE_MFMA_KERNELS 0
+#endif
+
+// SMFMAC follows MFMA availability and gfx908/gfx90a exclusions (unchanged from original).
+#if ROC_FLOP_COMPILE_MFMA_KERNELS && !defined(__gfx908__) && !defined(__gfx90a__)
+#define ROC_FLOP_COMPILE_SMFMAC_KERNELS 1
+#else
+#define ROC_FLOP_COMPILE_SMFMAC_KERNELS 0
+#endif
+
+// Runtime: skip matrix paths if a multi-arch or generic binary runs on gfx1250/1260/1310/1370.
+
+static inline bool rocflop_gfx_bypass_cdna_matrix_kernels(int gfx_id_hex)
+{
+    switch(static_cast<unsigned>(gfx_id_hex)) {
+    case 0x1250:
+    case 0x1251:
+    case 0x1252:
+    case 0x1260:
+    case 0x1310:
+    case 0x1370:
+        return true;
+    default:
+        return false;
+    }
+}
+
 
 // Kernels
 
@@ -51,8 +84,8 @@ template<typename T> __global__ void fma_throughput(vec4<T>* buffer, int count)
     ptr[tid] = value0 + value1 + value2 + value3;
 }
 
-// MFMA instructions are only available on gfx908 and later (not supported on gfx906)
-#if !defined(__gfx906__)
+// MFMA instructions: gfx908+ only, not gfx906; gfx1250/1260/1310/1370 excluded via ROC_FLOP_COMPILE_MFMA_KERNELS.
+#if ROC_FLOP_COMPILE_MFMA_KERNELS
 __global__ void matmul_fp16_throughput(vec4<float16>* inputs, vec4<float>* outputs, int count)
 {
     int grid_size = gridDim.x * blockDim.x;
@@ -110,10 +143,10 @@ __global__ void matmul_fp32_throughput(float* inputs, vec4<float>* outputs, int 
 
     outputs[tid] = accum0 + accum1 + accum2 + accum3;
 }
-#endif // !defined(__gfx906__)
+#endif // MFMA block
 
-// SMFMAC (Sparse MFMA) instructions are only available on gfx940 and later (not on gfx906, gfx908, or gfx90a)
-#if !defined(__gfx906__) && !defined(__gfx908__) && !defined(__gfx90a__)
+// SMFMAC (Sparse MFMA): gfx940+ only; not gfx906/908/90a; requires ROC_FLOP_COMPILE_SMFMAC_KERNELS.
+#if ROC_FLOP_COMPILE_SMFMAC_KERNELS
 __global__ void sparse_matmul_fp16_throughput(vec4<float16>* input0, vec8<float16>* input1, vec4<float>* outputs, int count)
 {
     int grid_size = gridDim.x * blockDim.x;
@@ -149,7 +182,9 @@ __global__ void sparse_matmul_fp16_throughput(vec4<float16>* input0, vec8<float1
 
     outputs[tid] = accum0 + accum1 + accum2 + accum3;
 }
-#endif // !defined(__gfx906__) && !defined(__gfx908__) && !defined(__gfx90a__)
+#endif // SMFMAC block
+
+int g_current_device = -1;
 
 int g_current_device = -1;
 
@@ -165,6 +200,7 @@ void HIP_CALL(hipError_t err)
 }
 
 struct GCNArch {
+    int gfx_id_hex; // full ID from gcnArchName, e.g. 0x1250 for gfx1250
     int major;
     int minor;
     int rev;
@@ -185,6 +221,7 @@ GCNArch get_gcn_arch(int device)
     int gfx_num = std::stoi(gfx_str, nullptr, 16);
 
     GCNArch arch;
+    arch.gfx_id_hex = gfx_num;
     arch.major = (gfx_num & 0xff00) >> 8;
     arch.minor = (gfx_num & 0x00f0) >> 4;
     arch.rev   = (gfx_num & 0x000f);
@@ -269,7 +306,7 @@ template<typename T> double fma_throughput_test(int device, int count, int runs 
     return flops;
 }
 
-#if !defined(__gfx906__)
+#if ROC_FLOP_COMPILE_MFMA_KERNELS
 template<typename matT, typename accumT> double matmul_throughput_test(int device, int count, int runs = 1)
 {
     const int wave_size = 64;
@@ -325,9 +362,9 @@ template<typename matT, typename accumT> double matmul_throughput_test(int devic
 
     return flops;
 }
-#endif // !defined(__gfx906__)
+#endif // matmul_throughput_test
 
-#if !defined(__gfx906__) && !defined(__gfx908__) && !defined(__gfx90a__)
+#if ROC_FLOP_COMPILE_SMFMAC_KERNELS
 template<typename matT, typename accumT> double sparse_matmul_throughput_test(int device, int count, int runs = 1)
 {
     const int wave_size = 64;
@@ -381,7 +418,7 @@ template<typename matT, typename accumT> double sparse_matmul_throughput_test(in
 
     return flops;
 }
-#endif // !defined(__gfx906__) && !defined(__gfx908__) && !defined(__gfx90a__)
+#endif // sparse_matmul_throughput_test
 
 struct Result {
     int device = -1;
@@ -457,10 +494,11 @@ Result run_tests(int device, int runs, uint32_t mask)
         res.valu_int32 = fma_throughput_test<int>(device, 4096, runs);
     }
 
-#if !defined(__gfx906__)
-    // MFMA available on gfx908+ (excludes gfx906 with rev=6)
+#if ROC_FLOP_COMPILE_MFMA_KERNELS
+    // MFMA available on gfx908+ (excludes gfx906 with rev=6); skip gfx1250/1260/1310/1370 at runtime too.
     bool has_mfma = arch.major == 0x9 && (arch.minor >= 0x4 || (arch.minor == 0 && arch.rev >= 8));
-    
+    has_mfma = has_mfma && !rocflop_gfx_bypass_cdna_matrix_kernels(arch.gfx_id_hex);
+
     if(mask & MATRIX_FP16) {
         if(has_mfma) {
             res.mfma_fp16 = matmul_throughput_test<float16, float>(device, 4096, runs);
@@ -468,7 +506,7 @@ Result run_tests(int device, int runs, uint32_t mask)
             res.mfma_fp16 = 0;
         }
     }
-    
+
     if(mask & MATRIX_FP32) {
         if(has_mfma) {
             res.mfma_fp32 = matmul_throughput_test<float, float>(device, 4096, runs);
@@ -477,7 +515,7 @@ Result run_tests(int device, int runs, uint32_t mask)
         }
     }
 #else
-    // MFMA not available when compiling for gfx906
+    // MFMA kernels not in this build (gfx906 or gfx1250/1260/1310/1370 offload target).
     if(mask & MATRIX_FP16) {
         res.mfma_fp16 = 0;
     }
@@ -486,17 +524,19 @@ Result run_tests(int device, int runs, uint32_t mask)
     }
 #endif
 
-#if !defined(__gfx906__) && !defined(__gfx908__) && !defined(__gfx90a__)
+#if ROC_FLOP_COMPILE_SMFMAC_KERNELS
     if(mask & SMATRIX_FP16) {
         // SMFMAC only available on gfx940 (MI300) and later, not on gfx906, gfx908, or gfx90a
-        if(arch.major == 0x9 && arch.minor >= 0x4) {
+        bool has_smfmac = arch.major == 0x9 && arch.minor >= 0x4;
+        has_smfmac = has_smfmac && !rocflop_gfx_bypass_cdna_matrix_kernels(arch.gfx_id_hex);
+        if(has_smfmac) {
             res.smfmac_fp16 = sparse_matmul_throughput_test<float16, float>(device, 4096, runs);
         } else {
             res.smfmac_fp16 = 0;
         }
     }
 #else
-    // SMFMAC not available when compiling for gfx906, gfx908, or gfx90a
+    // SMFMAC kernels not in this build.
     if(mask & SMATRIX_FP16) {
         res.smfmac_fp16 = 0;
     }
@@ -757,5 +797,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-
-

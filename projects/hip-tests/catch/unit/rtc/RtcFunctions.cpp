@@ -3014,6 +3014,7 @@ bool check_trapping_math_disabled(const char** Combination_CO, int Combination_C
 std::string checking_IR(const char* kername, const char** extra_CO_IRadded,
                         int extra_CO_IRadded_size, const char** Combination_CO,
                         int Combination_CO_size) {
+  setenv("AMD_COMGR_CACHE", "0", 1);
   float *A_d, *B_d, *C_d;
   std::vector<float> A_h(1), B_h(1), C_h(1), result(1);
   float Nbytes = sizeof(float);

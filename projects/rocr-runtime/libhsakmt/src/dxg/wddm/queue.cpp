@@ -287,7 +287,7 @@ ComputeQueue::ComputeQueue(WDDMDevice *device,
   amd_queue_memory_ = GetGpuMemoryFromAddress(amd_queue_rocr_);
   native_aql_ = use_hws && device->IsAqlSupported();
   bool ret = device->CreateQueue(
-      this, !native_aql_ ? reinterpret_cast<uint64_t>(_ring_rptr) : 0);
+      this, !device->IsAqlSupported() ? reinterpret_cast<uint64_t>(_ring_rptr) : 0);
   assert(ret);
 
   GpuMemoryCreateInfo create_info{};

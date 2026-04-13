@@ -216,7 +216,12 @@ private:
   inline __device__ void postPeer(bool dataStored) {
     if (skip_fence) {
       __atomic_signal_fence(__ATOMIC_SEQ_CST);
+#if defined(__gfx1250__)
+      // To be revisited for correctness on MI4xx
+      barrier_generic(asm volatile("s_wait_loadcnt 0x0\n\ts_wait_dscnt 0x0"), nworkers, barrier_next, barriers);
+#else
       barrier_generic(asm volatile("s_waitcnt lgkmcnt(0) vmcnt(0)"), nworkers, barrier_next, barriers);
+#endif
       __atomic_signal_fence(__ATOMIC_SEQ_CST);
     }
 

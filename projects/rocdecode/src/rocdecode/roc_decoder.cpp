@@ -131,6 +131,7 @@ rocDecStatus RocDecoder::GetVideoFrame(int pic_idx, void *dev_mem_ptr[3], uint32
     if (rocdec_status != ROCDEC_SUCCESS) {
         ErrorLog(logger_, "Failed to export surface for picture idx = " + TOSTR(pic_idx));
         FunctionExitLog(logger_);
+        FunctionExitLog(logger_);
         return rocdec_status;
     }
 
@@ -143,6 +144,7 @@ rocDecStatus RocDecoder::GetVideoFrame(int pic_idx, void *dev_mem_ptr[3], uint32
         rocdec_status = va_video_decoder_.ExportSurface(pic_idx, va_drm_prime_surface_desc);
         if (rocdec_status != ROCDEC_SUCCESS) {
             ErrorLog(logger_, "Failed to export surface for picture idx = " + TOSTR(pic_idx));
+            FunctionExitLog(logger_);
             FunctionExitLog(logger_);
             return rocdec_status;
         }

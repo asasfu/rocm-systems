@@ -28,8 +28,11 @@
 #include <timemory/utility/types.hpp>
 
 #include <cstdlib>
-#include <rocprofiler-sdk/rocprofiler.h>
+#include <mutex>
+#include <tuple>
 #include <vector>
+
+#include <rocprofiler-sdk/rocprofiler.h>
 
 namespace rocprofsys
 {

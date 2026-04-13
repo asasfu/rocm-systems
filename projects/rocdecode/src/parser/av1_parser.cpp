@@ -184,6 +184,7 @@ ParserResult Av1VideoParser::ParsePictureData(const uint8_t *p_stream, uint32_t 
                 if (num_output_pics_ >= dec_buf_pool_size_) {
                     ErrorLog(logger_, "Display list size larger than decode buffer pool size!");
                     FunctionExitLog(logger_);
+                    FunctionExitLog(logger_);
                     return PARSER_OUT_OF_RANGE;
                 } else {
                     output_pic_list_[num_output_pics_] = disp_idx;
