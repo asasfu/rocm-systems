@@ -174,6 +174,8 @@ bool Settings::create(const Pal::DeviceProperties& palProp,
     case Pal::AsicRevision::StrixHalo:
     case Pal::AsicRevision::Strix1:
     case Pal::AsicRevision::Medusa1_A0:
+    case Pal::AsicRevision::Medusa1:
+    case Pal::AsicRevision::Medusa2:
     case Pal::AsicRevision::Krackan1:
     case Pal::AsicRevision::Krackan2:
     case Pal::AsicRevision::Phoenix1:
