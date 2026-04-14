@@ -1,0 +1,180 @@
+Total: 15 Primary Categories | 71 Subcategories | ~834 Files | ~2,793 Tests
+
+═══════════════════════════════════════════════════════════════════════════
+
+PRIMARY CATEGORY              SUBCATEGORIES                      FILES   PR
+═══════════════════════════════════════════════════════════════════════════
+
+1. [device_mgmt]              [query]        Device queries       47    PR1
+   Device Management          [config]       Configuration
+                              [init]         Initialization
+                              [sync]         Synchronization
+                              [peer]         Peer-to-peer access
+                              [ipc]          Inter-process comm
+                              [multithread]  Multi-threaded (cross-cut)
+
+2. [stream]                   [lifecycle]    Create/destroy       44    PR1
+   Stream Management          [sync]         Synchronization
+                              [callback]     Stream callbacks
+                              [stream_per_thread] Per-thread streams
+                              [properties]   Flags/properties
+                              [memory]       Stream-ordered memory
+                              [multithread]  Multi-threaded (cross-cut)
+
+3. [event]                    [lifecycle]    Create/destroy       12    PR1
+   Event Management           [sync]         Sync/recording
+                              [ipc]          Inter-process comm
+
+4. [error_handling]           (none - flat structure)            13    PR1
+   Error Handling
+
+5. [memory]                   [alloc]        Alloc/dealloc       156    PR2
+   Memory Operations          [transfer]     Memory copy
+                              [memset]       Memory set
+                              [query]        Memory queries
+                              [multithread]  Multi-threaded (cross-cut)
+
+6. [cooperative]              [thread_block] Thread block groups  20    PR3
+   Cooperative Groups         [grid]         Grid groups
+                              [coalesced]    Coalesced groups
+
+7. [kernel]                   [launch]       Kernel launching     27    PR3
+   Kernel Execution           [attribute]    Kernel attributes
+                              [config]       Launch config
+                              [occupancy]    Occupancy
+
+8. [graph]                    [lifecycle]    Create/destroy      135    PR5
+   Graph Operations           [node]         Add/modify nodes
+                              [exec]         Graph execution
+                              [capture]      Stream capture
+                              [query]        Query structure
+                              [dependency]   Node dependencies
+                              [userobj]      User object mgmt
+
+9. [texture]                  [texobj]       Texture objects      96    PR6
+   Textures & Surfaces        [texref]       Texture references
+                              [mipmap]       Mipmapped arrays
+                              [sample]       Device sampling
+                              [query]        Texture queries
+                              [surface]      Surface parent tag
+                                [surfobj]    Surface objects
+                                [surfop]     Surface operations
+
+10. [module]                  [load]         Module load/unload   43    PR7
+    Module Loading            [function]     Function mgmt
+                              [launch]       Kernel launch
+                              [resource]     Module resources
+                              [library]      Dynamic libraries
+
+11. [rtc]                     [compile]      Compilation          30    PR7
+    Runtime Compilation       [header]       Header inclusion
+                              [link]         Linking/bitcode
+                              [integration]  HIP integration
+
+12. [device_lib]              ━━━ PARALLEL PRIMITIVES ━━━      ~206    PR7
+    Device Library            [atomic]       Atomic ops (55 files)
+                                [operation]  Basic atomics
+                                [builtin]    Builtin functions
+                                [system]     System-scope
+                                [cas]        Compare-and-swap
+                              
+                              [warp]         Warp ops (19 files)
+                                [intrinsic]  Shuffle/ballot
+                                [vote]       Vote operations
+                                [reduce]     Reductions
+                              
+                              [sync]         Sync ops (17 files)
+                                [barrier]    Thread barriers
+                                [vote]       Vote sync
+                                [count]      Count sync
+                              
+                              ━━━ MATH & DATA TYPES ━━━
+                              [math]         Math functions (63)
+                              [bitops]       Bit manipulation (8)
+                              [types]        Data types (17)
+                              
+                              ━━━ OTHER FUNCTIONS ━━━
+                              [memory]       Device memory ops (2)
+                              [assert]       Assertions (4)
+                              [timing]       Clock/timing (1)
+                              [hip_ext]      HIP extensions (1)
+                              [misc]         Miscellaneous (8)
+
+13. [interop]                 [gl]           OpenGL interop       26    PR8
+    Graphics Interop          [vulkan]       Vulkan interop
+
+14. [callback]                (none - flat structure)             5    PR8
+    API Introspection
+
+15. [occupancy]               (none - flat structure)            12    PR8
+    Occupancy Calculators
+
+═══════════════════════════════════════════════════════════════════════════
+
+CROSS-CUTTING TAGS (Not Primary Categories):
+═══════════════════════════════════════════
+
+[multithread]  - Multi-threaded testing methodology (4 files)
+                 Applied to: memory, device_mgmt, stream
+
+[multigpu]     - Multi-GPU testing (spans many categories)
+                 Applied to: device, stream, event, memory, graph, etc.
+
+═══════════════════════════════════════════════════════════════════════════
+
+CATEGORY BREAKDOWN BY SIZE:
+═══════════════════════════
+
+Largest Categories:
+  1. [device_lib]      ~206 files  (25% of all tests)
+  2. [memory]          156 files   (19% of all tests)
+  3. [graph]           135 files   (16% of all tests)
+  4. [texture]          96 files   (12% of all tests)
+  5. [device_mgmt]      47 files   (6% of all tests)
+
+Medium Categories:
+  6. [stream]           44 files
+  7. [module]           43 files
+  8. [rtc]              30 files
+  9. [kernel]           27 files
+  10. [interop]         26 files
+
+Smaller Categories:
+  11. [cooperative]     20 files
+  12. [error_handling]  13 files
+  13. [event]           12 files
+  14. [occupancy]       12 files
+  15. [callback]         5 files
+
+═══════════════════════════════════════════════════════════════════════════
+
+SUBCATEGORY BREAKDOWN:
+══════════════════════
+
+Most Subcategories:
+  • [device_lib]    14 subcategories (atomic, warp, sync each have 3-4 sub-subs)
+  • [graph]          7 subcategories
+  • [texture]        7 subcategories (includes 2 nested under [surface])
+  • [device_mgmt]    6 subcategories
+  • [stream]         6 subcategories
+
+Fewest Subcategories:
+  • [error_handling] 0 subcategories (flat)
+  • [callback]       0 subcategories (flat)
+  • [occupancy]      0 subcategories (flat)
+  • [event]          3 subcategories
+  • [cooperative]    3 subcategories
+
+═══════════════════════════════════════════════════════════════════════════
+
+PR DISTRIBUTION:
+════════════════
+
+PR1 (Device & Runtime):       117 files, 4 categories, 11 subcategories
+PR2 (Memory):                 156 files, 1 category,   4 subcategories
+PR3 (Cooperative & Kernel):    47 files, 2 categories,  7 subcategories
+PR4 (Device libs warps and sync)
+PR5 (Graphs):                 135 files, 1 category,   7 subcategories
+PR6 (Textures & Surfaces):     92 files, 1 category,   7 subcategories
+PR7 (Module/RTC/Device Lib):  227 files, 3 categories, 31 subcategories
+PR8 (Interop & Advanced):      61 files, 3 categories,  4 subcategories

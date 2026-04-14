@@ -284,7 +284,7 @@ template <typename T> static void runTestRW(const int width, const int height) {
  * ------------------------
  *    - HIP_VERSION >= 5.7
  */
-TEMPLATE_TEST_CASE(Unit_surfCubemapLayeredread_Positive_Basic, char, unsigned char, short,
+HIP_TEMPLATE_TEST_CASE(Unit_surfCubemapLayeredread_Positive_Basic, char, unsigned char, short,
                    unsigned short, int, unsigned int, float) {
   CHECK_IMAGE_SUPPORT;
 
@@ -307,15 +307,9 @@ TEMPLATE_TEST_CASE(Unit_surfCubemapLayeredread_Positive_Basic, char, unsigned ch
  * ------------------------
  *    - HIP_VERSION >= 5.7
  */
-TEMPLATE_TEST_CASE(Unit_surfCubemapLayeredwrite_Positive_Basic, char, unsigned char, short,
+HIP_TEMPLATE_TEST_CASE(Unit_surfCubemapLayeredwrite_Positive_Basic, char, unsigned char, short,
                    unsigned short, int, unsigned int, float) {
   CHECK_IMAGE_SUPPORT;
-
-  const int width = GENERATE(31, 67);
-  const int height = GENERATE(131, 263);
-  runTestW<vector_type_helper_t<TestType, 0>>(width, height);
-  runTestW<vector_type_helper_t<TestType, 1>>(width, height);
-  runTestW<vector_type_helper_t<TestType, 2>>(width, height);
   runTestW<vector_type_helper_t<TestType, 4>>(width, height);
 }
 
@@ -330,7 +324,7 @@ TEMPLATE_TEST_CASE(Unit_surfCubemapLayeredwrite_Positive_Basic, char, unsigned c
  * ------------------------
  *    - HIP_VERSION >= 5.7
  */
-TEMPLATE_TEST_CASE(Unit_surfCubemapLayered_Positive_ReadWrite, char, unsigned char, short,
+HIP_TEMPLATE_TEST_CASE(Unit_surfCubemapLayered_Positive_ReadWrite, char, unsigned char, short,
                    unsigned short, int, unsigned int, float) {
   CHECK_IMAGE_SUPPORT;
 

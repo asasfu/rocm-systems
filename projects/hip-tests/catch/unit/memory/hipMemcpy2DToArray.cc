@@ -33,7 +33,7 @@ unsuccessful execution of hipMemcpy2DToArray api when parameters are invalid
 #include <resource_guards.hh>
 #include <utils.hh>
 
-TEST_CASE(Unit_hipMemcpy2DToArray_Positive_Default) {
+HIP_TEST_CASE(Unit_hipMemcpy2DToArray_Positive_Default) {
   CHECK_IMAGE_SUPPORT
 
   using namespace std::placeholders;
@@ -85,7 +85,7 @@ TEST_CASE(Unit_hipMemcpy2DToArray_Positive_Default) {
 #endif
 }
 
-TEST_CASE(Unit_hipMemcpy2DToArray_Positive_Synchronization_Behavior) {
+HIP_TEST_CASE(Unit_hipMemcpy2DToArray_Positive_Synchronization_Behavior) {
   CHECK_IMAGE_SUPPORT
 
   using namespace std::placeholders;
@@ -111,7 +111,7 @@ TEST_CASE(Unit_hipMemcpy2DToArray_Positive_Synchronization_Behavior) {
 #endif
 }
 
-TEST_CASE(Unit_hipMemcpy2DToArray_Positive_ZeroWidthHeight) {
+HIP_TEST_CASE(Unit_hipMemcpy2DToArray_Positive_ZeroWidthHeight) {
   CHECK_IMAGE_SUPPORT
 
   using namespace std::placeholders;
@@ -146,7 +146,7 @@ TEST_CASE(Unit_hipMemcpy2DToArray_Positive_ZeroWidthHeight) {
   }
 }
 
-TEST_CASE(Unit_hipMemcpy2DToArray_Negative_Parameters) {
+HIP_TEST_CASE(Unit_hipMemcpy2DToArray_Negative_Parameters) {
   CHECK_IMAGE_SUPPORT
 
   using namespace std::placeholders;
@@ -255,7 +255,7 @@ TEST_CASE(Unit_hipMemcpy2DToArray_Negative_Parameters) {
   }
 }
 
-TEST_CASE(Unit_hipMemcpy2DToArray_Capture) {
+HIP_TEST_CASE(Unit_hipMemcpy2DToArray_Capture) {
   CHECK_IMAGE_SUPPORT
 
   const auto width = 16;
