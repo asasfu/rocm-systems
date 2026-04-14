@@ -199,6 +199,8 @@ enum EINST
     wmma_ld_scale,
     valu_dpmacc_32 = 187,
     vmem_other_simd_start,
+    sema_signal = 279,
+    sema_wait,
     block_store = 222,
     block_store_end = 255,
     einst_final
@@ -327,6 +329,9 @@ static std::unordered_map<int, mapped_inst_t> table_map_to_common_type{
     {(int) EINST::valu_dpmacc_4,          {WaveInstCategory::VALU, 4}           },
     {(int) EINST::valu_dpmacc_32,         {WaveInstCategory::VALU, 32}          },
     {(int) EINST::wmma_ld_scale,          {WaveInstCategory::LD_SCALE, 1}       },
+
+    {(int) EINST::sema_signal,            {WaveInstCategory::MSG, 1}            },
+    {(int) EINST::sema_wait,              {WaveInstCategory::IMMED, 1}          },
 
     {(int) EINST::lds_other_simd_1,       {WaveInstCategory::LDS_OTHER_SIMD, 1} },
     {(int) EINST::lds_other_simd_2,       {WaveInstCategory::LDS_OTHER_SIMD, 2} },

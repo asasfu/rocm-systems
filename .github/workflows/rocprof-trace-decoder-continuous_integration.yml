@@ -27,9 +27,12 @@ jobs:
   build-and-test-ubuntu:
     name: Build & Test • Ubuntu 24.04
 
-    runs-on: ubuntu-24.04
+    runs-on: linux-mi325-1gpu-ossci-rocm
     container:
-      image: rocm/dev-ubuntu-24.04:latest
+      image: docker.io/rocm/rocprofiler-private:ubuntu-22.04-gfx94X-latest
+      credentials:
+        username: ${{ secrets.ROCPROFILER_AZURE_CI_USER }}
+        password: ${{ secrets.ROCPROFILER_AZURE_CI_PASS }}
       options: --user root
 
     env:
