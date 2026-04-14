@@ -710,7 +710,8 @@ class Settings : public amd::HeapObject {
       uint kernel_arg_opt_ : 1;               //!< Enables kernel arg optimization for blit kernels
       uint kernel_arg_impl_ : 2;              //!< Kernel argument implementation
       uint groupMemCarveout_ : 1;             //!< Group memory carveout functionality
-      uint reserved_ : 11;
+      uint sdma_swap_supported_ : 1;         //!< SDMA linear swap copy (gfx94x/gfx95x)
+      uint reserved_ : 10;
     };
     uint value_;
   };
