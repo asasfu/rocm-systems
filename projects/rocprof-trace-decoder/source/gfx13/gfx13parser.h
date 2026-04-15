@@ -22,66 +22,24 @@
 
 #pragma once
 #include <unordered_map>
-#include "gfx12/gfx12parser.h"
-#include "mi400token.h"
+#include "gfx13token.h"
+#include "mi400/mi400parser.h"
 
-namespace mi400
+namespace gfx13
 {
 
-class TokenLookupTable : public gfx12::TokenLookupTable
+class TokenLookupTable : public mi400::TokenLookupTable
 {
 public:
     TokenLookupTable();
-
-    int64_t getDelta(RdnaType type, uint64_t contents)
-    {
-        auto res = time_bits[type];
-        uint64_t beg = res.first;
-        uint64_t mask = (1ull << (res.second - beg)) - 1;
-        return ((contents >> beg) & mask);
-    };
-
-protected:
-    std::array<std::pair<int, int>, NAVI_TYPE_LAST> time_bits;
 };
 
-class TokenGenerator : public NaviTokenGenerator
+class TokenGenerator : public mi400::TokenGenerator
 {
 public:
     TokenGenerator(const uint8_t* _buffer, size_t size, int64_t _globaltime, int64_t _base_time);
-    gfx10::Token next() override;
 
-    virtual int64_t getTime(RdnaType type, bool& PL, int64_t& rt);
-
-    inline uint64_t getBuffer400() { return buffer[byte_ptr]; };
-
-    inline void advanceByte(uint64_t value)
-    {
-        current = (current >> 8) | (value << 56);
-        byte_ptr++;
-        bits_toread -= 8;
-    }
-
-    inline void readOne_unsafe400()
-    {
-        while (bits_toread > 0) advanceByte(getBuffer400());
-    }
-
-    inline void readOne_safe400()
-    {
-        while (bits_toread > 0) advanceByte(byte_ptr < BUFFER_SIZE ? getBuffer400() : 0);
-    }
-
-    void update_fifo(int wave);
-    int get_valu_inst_mi400();
-
-protected:
-    std::array<int, 6> FIFO = {-1, -1, -1, -1, -1, -1};
-    TokenLookupTable lookupbits{};
-    std::array<uint8_t, 64> TOKEN_LEN{};
-
-    size_t byte_ptr = 0;
-    bool bIsExt = false;
+    int64_t getTime(RdnaType type, bool& PL, int64_t& rt) override;
 };
 
-} // namespace mi400
+} // namespace gfx13

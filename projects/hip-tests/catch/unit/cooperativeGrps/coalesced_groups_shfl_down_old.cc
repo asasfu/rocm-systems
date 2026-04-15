@@ -56,13 +56,7 @@ __global__ void kernel_cg_group_partition_shfl_down(int* result, unsigned int ti
   int id = threadIdx.x + blockIdx.x * blockDim.x;
   if (id % cg_sizes == 0) {
     coalesced_group threadBlockCGTy = coalesced_threads();
-    int input, outputSum, expectedSum;
-
-    // Choose a leader thread to print the results
-    if (threadBlockCGTy.thread_rank() == 0) {
-      printf(" Creating %d groups, of tile size %d threads:\n\n",
-             (int)threadBlockCGTy.size() / tileSz, tileSz);
-    }
+    int input, outputSum;
 
     threadBlockCGTy.sync();
 
@@ -70,16 +64,9 @@ __global__ void kernel_cg_group_partition_shfl_down(int* result, unsigned int ti
 
     input = tiledPartition.thread_rank();
 
-    // (n-1)(n)/2
-    expectedSum = ((tileSz - 1) * tileSz / 2);
-
     outputSum = reduction_kernel_shfl_down(tiledPartition, input);
 
     if (tiledPartition.thread_rank() == 0) {
-      printf(
-          "   Sum of all ranks 0..%d in this tiledPartition group using shfl_down is %d (expected "
-          "%d)\n",
-          tiledPartition.size() - 1, outputSum, expectedSum);
       result[threadBlockCGTy.thread_rank() / (tileSz)] = outputSum;
     }
     return;

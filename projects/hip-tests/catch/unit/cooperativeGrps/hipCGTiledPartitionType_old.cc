@@ -83,13 +83,6 @@ __global__ void kernel_cg_group_partition_static(int* result, bool is_global_mem
 
   output_sum = reduction_kernel(thread_block_CG_ty, workspace, input);
 
-  if (thread_block_CG_ty.thread_rank() == 0) {
-    printf(" Sum of all ranks 0..%d in threadBlockCooperativeGroup is %d (expected %d)\n\n",
-           (int)thread_block_CG_ty.size() - 1, output_sum, expected_output);
-    printf(" Creating %d groups, of tile size %d threads:\n\n",
-           (int)thread_block_CG_ty.size() / tile_size, tile_size);
-  }
-
   thread_block_CG_ty.sync();
 
   cg::thread_block_tile<tile_size> tiled_part = cg::tiled_partition<tile_size>(thread_block_CG_ty);
@@ -100,12 +93,6 @@ __global__ void kernel_cg_group_partition_static(int* result, bool is_global_mem
   output_sum = reduction_kernel(tiled_part, workspace + workspace_offset, input);
 
   if (tiled_part.thread_rank() == 0) {
-    printf(
-        "   Sum of all ranks 0..%d in this tiledPartition group is %d. Corresponding parent thread "
-        "rank: via meta_group_rank : %d and the total number of groups created when partitioned : "
-        "%d\n",
-        tiled_part.size() - 1, output_sum, tiled_part.meta_group_rank(),
-        tiled_part.meta_group_size());
     result[input / (tile_size)] = output_sum;
   }
   return;
@@ -132,13 +119,6 @@ __global__ void kernel_cg_group_partition_dynamic(unsigned int tile_size, int* r
 
   output_sum = reduction_kernel(thread_block_CG_ty, workspace, input);
 
-  if (thread_block_CG_ty.thread_rank() == 0) {
-    printf("\n\n\n Sum of all ranks 0..%d in threadBlockCooperativeGroup is %d\n\n",
-           (int)thread_block_CG_ty.size() - 1, output_sum);
-    printf(" Creating %d groups, of tile size %d threads:\n\n",
-           (int)thread_block_CG_ty.size() / tile_size, tile_size);
-  }
-
   thread_block_CG_ty.sync();
 
   cg::thread_group tiled_part = cg::tiled_partition(thread_block_CG_ty, tile_size);
@@ -149,10 +129,6 @@ __global__ void kernel_cg_group_partition_dynamic(unsigned int tile_size, int* r
   output_sum = reduction_kernel(tiled_part, workspace + workspace_offset, input);
 
   if (tiled_part.thread_rank() == 0) {
-    printf(
-        "   Sum of all ranks 0..%d in this tiledPartition group is %d. Corresponding parent thread "
-        "rank: %d\n",
-        static_cast<int>(tiled_part.size()) - 1, output_sum, input);
     result[input / (tile_size)] = output_sum;
   }
   return;
@@ -188,9 +164,6 @@ __global__ void kernel_cg_group_partition_nested(unsigned int outer_tile_size,
     int subtile_global_id = outer_id * subtiles_per_outer + inner_id_within_outer;
 
     result[subtile_global_id] = subtotal;
-
-    printf("Outer tile %d (size=%u), inner subtile %d (size=%u) subtotal = %d\n",
-           outer_id, outer_tile_size, inner_id_within_outer, inner_tile_size, subtotal);
   }
 }
 

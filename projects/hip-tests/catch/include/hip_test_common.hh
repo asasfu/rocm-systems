@@ -34,6 +34,17 @@
 #define HIP_TEMPLATE_TEST_CASE(name, ...) TEMPLATE_TEST_CASE(#name, "", __VA_ARGS__)
 #endif
 
+#define SECOND_ARG(a, b, ...) b
+#define GET_TAGS(...) SECOND_ARG(__VA_ARGS__)
+#define HIP_TEST_CASE(name) TEST_CASE(#name, GET_TAGS(name))
+#define HIP_TEMPLATE_TEST_CASE(name, ...) TEMPLATE_TEST_CASE(#name, GET_TAGS(name), __VA_ARGS__)
+
+#else
+#define GET_TAGS(...)
+#define HIP_TEST_CASE(name) TEST_CASE(#name, "")
+#define HIP_TEMPLATE_TEST_CASE(name, ...) TEMPLATE_TEST_CASE(#name, "", __VA_ARGS__)
+#endif
+
 #if HT_LINUX
 #include <sys/resource.h>
 #endif
