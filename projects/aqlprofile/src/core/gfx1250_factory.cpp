@@ -42,6 +42,9 @@ class Mi450Factory : public Pm4Factory {
   }
   bool IsGFX12() const override { return true; }
 
+  virtual int GetAccumLowID() const override { return 1; };
+  virtual int GetAccumHiID() const override { return 1; };
+
  protected:
   void ConstructBuilders(const AgentInfo* agent_info);
   void ConstructTable(const AgentInfo* agent_info);
