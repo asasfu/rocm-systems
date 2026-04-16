@@ -1406,7 +1406,6 @@ hsa_status_t Runtime::IPCCreate(void* ptr, size_t len, hsa_amd_ipc_memory_t* han
     std::uniform_int_distribution<uint32_t> distr(1, 1<<15);
     handle->handle[7] = distr(gen);
 
-    HsaExternalHandleDesc desc;
     HsaHandleImportDesc desc;
     desc.device_handle = agent_->libThunkDev();
     desc.dmabuf_fd = static_cast<HSAint32>(dmabuf_fd);
@@ -3746,11 +3745,6 @@ Runtime::MappedHandleAllowedAgent::MappedHandleAllowedAgent(
 
   auto status = targetAgent->driver().ImportDMABuf(memHandle->dmabuf_fd, *targetAgent, &shareable_handle, &alloc_size);
   assert(status == HSA_STATUS_SUCCESS);
-  if (status != HSA_STATUS_SUCCESS)
-    return;
-  status = core::Runtime::runtime_singleton_->DmaBufClose(dmabuf_fd);
-  if (status != HSA_STATUS_SUCCESS)
-    return;
 }
 
 Runtime::MappedHandleAllowedAgent::~MappedHandleAllowedAgent() {

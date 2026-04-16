@@ -2358,7 +2358,6 @@ static HSAKMT_STATUS get_process_apertures(HsaKFDContext *ctx,
 
 int hsakmt_open_drm_render_device(HsaKFDContext *ctx, int minor)
 {
-	char path[128];
 	int index, fd, dev_init_ret;
 	uint32_t major_drm, minor_drm;
 	struct amdgpu_device **device_handle;

@@ -1830,9 +1830,6 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
     out_signal.AddRelaxed(num_entries);
   }
 
-  const char* op_name =
-      (op == HSA_AMD_MEMORY_COPY_OP_LINEAR_SWAP) ? "Swap" : "Copy";
-
   // Prologue: dep polls, HDP flush, GCR invalidate, decrement prologue_signal.
   LogPrint(HSA_AMD_LOG_FLAG_SDMA,
            "SDMA FanOut(%s) Prologue: engine %02u, num_entries=%u, dep_signal=0x%zx, "
