@@ -79,7 +79,7 @@
 #define CP_PERFMON_CNTL__PERFMON_ENABLE_MODE_MASK CP_PERFMON_CNTL_1__PERFMON_ENABLE_MODE_MASK
 #define CP_PERFMON_CNTL__PERFMON_SAMPLE_ENABLE_MASK CP_PERFMON_CNTL_1__PERFMON_SAMPLE_ENABLE_MASK
 #endif
-#include "linux/packets/nvd.h"
+#include "linux/packets/gfx_v12_1_pkt.h"
 #include "gfxip/gfx12/gfx12_block_info.h"
 using namespace gfxip::gfx12;
 #if GFX12_VARIANT == GFX12_VARIANT_1250
