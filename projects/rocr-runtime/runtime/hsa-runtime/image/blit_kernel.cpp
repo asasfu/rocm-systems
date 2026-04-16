@@ -114,6 +114,8 @@ extern uint8_t ocl_blit_object_gfx1150[];
 extern uint8_t ocl_blit_object_gfx1151[];
 extern uint8_t ocl_blit_object_gfx1152[];
 extern uint8_t ocl_blit_object_gfx115E[];
+extern uint8_t ocl_blit_object_gfx1170[];
+extern uint8_t ocl_blit_object_gfx1171[];
 #endif
 
 #ifdef TARGET_DEVICE_GFX12
@@ -1108,6 +1110,10 @@ hsa_status_t BlitKernel::GetPatchedBlitObject(const char* agent_name,
     *blit_code_object = ocl_blit_object_gfx1152;
   } else if (sname == "gfx115E") {
     *blit_code_object = ocl_blit_object_gfx115E;
+  } else if (sname == "gfx1170") {
+    *blit_code_object = ocl_blit_object_gfx1170;
+  } else if (sname == "gfx1171") {
+    *blit_code_object = ocl_blit_object_gfx1171;
   } else {
     return HSA_STATUS_ERROR_INVALID_ISA_NAME;
   }

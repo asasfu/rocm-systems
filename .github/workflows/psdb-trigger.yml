@@ -9,34 +9,98 @@ on:
 jobs:
   check:
     runs-on: rocm-ci-runner
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
     outputs:
-      should_run: ${{ steps.check.outputs.should_run }}
+      pass_psdb_merge_guard: ${{ steps.merge_msg.outputs.pass_psdb_merge_guard }}
+      # True when every changed file is skippable per SKIPPABLE_PATH_PATTERNS in public
+      # https://github.com/ROCm/rocm-systems/blob/develop/.github/scripts/therock_configure_ci.py
+      only_skippable_paths: >-
+        ${{ steps.merge_msg.outputs.pass_psdb_merge_guard == 'true' &&
+        steps.paths.outputs.any_file == 'true' &&
+        steps.paths.outputs.non_skippable != 'true' }}
     steps:
-      - name: Check if this is our own merge commit
-        id: check
+      - name: PSDB merge-loop guard ([psdb-merge] commits)
+        id: merge_msg
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           COMMIT_MSG=$(curl -s \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}" \
             | jq -r '.commit.message // ""')
-
           if [[ "$COMMIT_MSG" == *"[psdb-merge]"* ]]; then
-            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "pass_psdb_merge_guard=false" >> "$GITHUB_OUTPUT"
             echo "Skipping - this is a re-trigger from our own merge push"
           else
-            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "pass_psdb_merge_guard=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Clean workspace
+        run: |
+          set -euo pipefail
+          ws="${GITHUB_WORKSPACE}"
+          sudo rm -rf "${ws:?}"/* "${ws}"/.[!.]* 2>/dev/null || true
+          sudo rm -rf "${ws}/.git" 2>/dev/null || true
+          sudo chown -R "$(id -un):$(id -gn)" "${ws}" 2>/dev/null || true
+
+      - name: Checkout .github/scripts for PSDB path classifier
+        if: steps.merge_msg.outputs.pass_psdb_merge_guard == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: |
+            .github/scripts
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Classify skippable paths (therock_configure_ci rules)
+        id: paths
+        if: steps.merge_msg.outputs.pass_psdb_merge_guard == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          python3 "${GITHUB_WORKSPACE}/.github/scripts/psdb_pr_skippable_paths.py" \
+            --pr-number "${PR_NUMBER}"
+
+      - name: Post CI Summary for skippable-path-only PRs
+        if: >-
+          steps.merge_msg.outputs.pass_psdb_merge_guard == 'true' &&
+          steps.paths.outputs.any_file == 'true' &&
+          steps.paths.outputs.non_skippable != 'true' &&
+          (!github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'run-psdb'))
+        env:
+          GH_TOKEN: ${{ secrets.ROCM_SERVICE_ACCOUNT_PAT }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+            -f state=success \
+            -f context="CI Summary" \
+            -f description="PSDB skipped (skippable paths only; see therock_configure_ci SKIPPABLE_PATH_PATTERNS)." \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
   merge-and-trigger:
     needs: check
-    if: needs.check.outputs.should_run == 'true' && (!github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'run-psdb'))
+    if: >-
+      needs.check.outputs.pass_psdb_merge_guard == 'true' &&
+      needs.check.outputs.only_skippable_paths != 'true' &&
+      (!github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'run-psdb'))
     runs-on: rocm-ci-runner
     steps:
       - name: Cleanup workspace
-        run: sudo rm -rf ${{ github.workspace }}/* ${{ github.workspace }}/.[!.]*
+        run: |
+          set -euo pipefail
+          ws="${GITHUB_WORKSPACE}"
+          sudo rm -rf "${ws:?}"/* "${ws}"/.[!.]* 2>/dev/null || true
+          sudo rm -rf "${ws}/.git" 2>/dev/null || true
+          sudo chown -R "$(id -un):$(id -gn)" "${ws}" 2>/dev/null || true
 
       - name: Checkout PR branch
         uses: actions/checkout@v4
