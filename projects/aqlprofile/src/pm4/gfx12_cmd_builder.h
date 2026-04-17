@@ -34,28 +34,6 @@
 #include "pm4/cmd_builder.h"
 #include "def/gfx12_def.h"
 
-// Will find a home for these later
-#define   PACKET3_COPY_DATA__RRMT_MODE(x) ((((unsigned)(x)) & 0x3) << 6)
-#define   PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE(x) ((((unsigned)(x)) & 0x1) << 17)
-#define 	PACKET3_COPY_DATA__MID_DIE_ID(x) ((((unsigned)(x)) & 0x3) << 18)
-#define 	PACKET3_COPY_DATA__XCD_DIE_ID(x) ((((unsigned)(x)) & 0x7) << 21)
-#define   PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD 0
-#define   PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID 1
-#define   PACKET3_COPY_DATA__RRMT_MODE__REMOTE_XCD 2
-#define   PACKET3_COPY_DATA__RRMT_MODE__REMOTE_MID 3
-#define   PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE__SRC_IS_REMOTE 0
-#define   PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE__DST_IS_REMOTE 1
-#define   PACKET3_COPY_DATA__MID_DIE_ID__MID0 0
-#define   PACKET3_COPY_DATA__MID_DIE_ID__MID1 1
-#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD0 0
-#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD1 1
-#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD2 2
-#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD3 3
-#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD4 4
-#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD5 5
-#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD6 6
-#define   PACKET3_COPY_DATA__XCD_DIE_ID__XCD7 7
-
 namespace pm4_builder {
 
 /// @brief class Gfx12CmdBuilder implements the virtual class CmdBuilder
@@ -73,26 +51,26 @@ class Gfx12CmdBuilder : public CmdBuilder {
       uint32_t& die_id) {
     switch (chiplet_id) {
       case CHIPLET_MID0:
-        rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__REMOTE_MID);
+        rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_MID);
         die_id = PACKET3_COPY_DATA__MID_DIE_ID(PACKET3_COPY_DATA__MID_DIE_ID__MID0);
         break;
       case CHIPLET_MID1:
-        rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__REMOTE_MID);
+        rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_MID);
         die_id = PACKET3_COPY_DATA__MID_DIE_ID(PACKET3_COPY_DATA__MID_DIE_ID__MID1);
         break;
       case CHIPLET_AID0:
-        rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID);
+        rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD0);
         break;
       case CHIPLET_AID1:
-        rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID);
+        rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD4);
         break;
       case CHIPLET_XCD0:
         if (is_aid_chiplet) {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD0);
         break;
@@ -100,7 +78,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD1);
         break;
@@ -108,7 +86,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD2);
         break;
@@ -116,15 +94,15 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD3);
         break;
       case CHIPLET_XCD4:
         if (is_aid_chiplet) {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_REMOTE_AID);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD4);
         break;
@@ -132,7 +110,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD5);
         break;
@@ -140,7 +118,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false ;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD6);
         break;
@@ -148,7 +126,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__RRMT_MODE(PACKET3_COPY_DATA__RRMT_MODE__LOCAL_XCD);
+          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD7);
         break;
@@ -178,7 +156,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         PACKET3_COPY_DATA__COUNT_SEL(PACKET3_COPY_DATA__COUNT_SEL__32_BITS_OF_DATA);
 
     uint32_t dword3 = PACKET3_COPY_DATA__IMM_DATA(value);
-    uint32_t dword5 = PACKET3_COPY_DATA__DST_REG_OFFSET(addr);
+    uint32_t dword5 = PACKET3_COPY_DATA__DST_REG_OFFSET_LO(addr);
 
     if (chiplet.has_value()) {
       ChipletId chiplet_id = chiplet.value();
@@ -232,7 +210,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
                      : PACKET3_COPY_DATA__COUNT_SEL(PACKET3_COPY_DATA__COUNT_SEL__64_BITS_OF_DATA));
 
     // Specify the source register offset
-    uint32_t dword3 = PACKET3_COPY_DATA__SRC_REG_OFFSET(src_reg_addr);
+    uint32_t dword3 = PACKET3_COPY_DATA__SRC_REG_OFFSET_LO(src_reg_addr);
 
     uint32_t dword5 = 0;
     if (size == 0) {
@@ -500,10 +478,10 @@ class Gfx12CmdBuilder : public CmdBuilder {
                     PACKET3_WRITE_DATA__WR_CONFIRM__DO_NOT_WAIT_FOR_WRITE_CONFIRMATION));
 
     // ordinal3
-    uint32_t dword3 = PACKET3_WRITE_DATA__DST_MMREG_ADDR(dst_reg_addr);  // mem-mapped reg
+    uint32_t dword3 = PACKET3_WRITE_DATA__DST_MMREG_ADDR_LO(dst_reg_addr);  // mem-mapped reg
 
     // ordinal4
-    uint32_t dword4 = PACKET3_WRITE_DATA__DST_MEM_ADDR_HI(0);  // mem-mapped reg
+    uint32_t dword4 = PACKET3_WRITE_DATA__DST_MMREG_ADDR_HI(0);  // mem-mapped reg
 
     // build the pm4mec_write_data command which has 4 Dwords
     uint32_t pm4mec_write_data_cmd[4] = {header, dword2, dword3, dword4};
@@ -558,7 +536,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
     uint32_t header = MakePacket3Header(PACKET3_PRED_EXEC, 2 * sizeof(uint32_t));
     uint32_t virtualxccid_select = 1 << xcc_select;
     uint32_t dword2 = PACKET3_PRED_EXEC__EXEC_COUNT(exec_count) |
-                      PACKET3_PRED_EXEC__VIRTUAL_XCC_ID_SELECT(virtualxccid_select);
+                      PACKET3_PRED_EXEC__VIRTUALXCCID_SELECT(virtualxccid_select);
 
     // build the pm4_mec_pred_exec command which has 2 Dwords
     uint32_t pm4_mec_pred_exec_cmd[2] = {header, dword2};
