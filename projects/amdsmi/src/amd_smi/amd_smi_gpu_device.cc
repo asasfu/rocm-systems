@@ -49,15 +49,6 @@
 #include <utility>
 #include <vector>
 
-<<<<<<< ours
-#include "amd_smi/impl/amd_smi_utils.h"
-#include "amd_smi/impl/fdinfo.h"
-#include "rocm_smi/rocm_smi_kfd.h"
-#include "rocm_smi/rocm_smi_logger.h"
-#include "rocm_smi/rocm_smi_utils.h"
-=======
->>>>>>> theirs
-
 namespace amd::smi {
 
 // Constant for KFD context directory prefix
