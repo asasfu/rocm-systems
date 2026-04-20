@@ -198,7 +198,17 @@ class gfx12_cntx_prim {
 
   // GRBM SE indexing
   static uint32_t grbm_inst_index_value(const uint32_t& instance_index) {
-    uint32_t grbm_gfx_index = SET_REG_FIELD_BITS(GRBM_GFX_INDEX, INSTANCE_INDEX, instance_index) |
+    uint32_t instance_index_ = (instance_index & 0xFFFF);
+#if GFX12_VARIANT == GFX12_VARIANT_1250
+    const uint32_t instance_count_ = instance_index >> 16;
+    if (instance_count_) {
+      const uint32_t num_glarb = GlarbaCounterBlockNumInstances;
+      const uint32_t instance_per_glarb = instance_count_ / num_glarb;
+      const uint32_t glarb_index = instance_index_ / instance_per_glarb;
+      instance_index_ = (instance_index_ % instance_per_glarb) | (glarb_index << 4);
+    }
+#endif
+    uint32_t grbm_gfx_index = SET_REG_FIELD_BITS(GRBM_GFX_INDEX, INSTANCE_INDEX, instance_index_) |
                               SET_REG_FIELD_BITS(GRBM_GFX_INDEX, SE_BROADCAST_WRITES, 1) |
                               SET_REG_FIELD_BITS(GRBM_GFX_INDEX, SA_BROADCAST_WRITES, 1);
     return grbm_gfx_index;

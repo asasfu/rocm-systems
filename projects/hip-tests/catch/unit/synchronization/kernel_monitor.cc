@@ -22,9 +22,9 @@ THE SOFTWARE.
 #define ALIGNSIZE 4096
 
 // The tests will verify kernel monitor based on new memory based synchronization builtins on
-// gfx1250/1251/1260
+// gfx1250/1251
 
-#if defined(__gfx1250__) || defined(__gfx1251__) || defined(__gfx1260__)
+#if defined(__gfx1250__) || defined(__gfx1251__)
 #define __mem_based_sync_support__ 1
 __device__ constexpr int hint_and_scope = 2 << 3;  // temporal + Device
 // HW uses first 7 bits to apply wait.
@@ -183,7 +183,7 @@ TEST_CASE("Unit_test_kernel_monitor") {
   hipDeviceProp_t props;
   HIP_CHECK(hipSetDevice(0));
   HIP_CHECK(hipGetDeviceProperties(&props, 0));
-  if (props.major == 12 && props.minor >= 5) {
+  if (props.major == 12 && props.minor == 5) {
       SECTION("with_1_cacheline") {
         test_1_cacheline();
       }

@@ -76,6 +76,8 @@ enum CounterBlockAttr {
   //   Perfmon uses PERFCOUNTER_SELECT
   //   PerfCnt uses PERFCOUNTER_CFG + PERFCOUNTER_RSLT_CNTL
   CounterBlockPerfCntAttr = CounterBlockRpbAttr | CounterBlockAtcAttr | CounterBlockUtcl2Attr,
+  // GLARB blocks
+  CounterBlockGlarbAttr = 0x2000000,
 };
 
 

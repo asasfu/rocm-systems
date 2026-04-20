@@ -228,6 +228,14 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     }
   }
 
+  uint32_t GetInstanceIndex(uint32_t instance_index, const GpuBlockInfo* block_info) {
+    // GLARB blocks require special instance handling, so we encode instance_count into
+    // instance_index. This won't impact GPUs without GLARB blocks
+    return (block_info->attr & CounterBlockGlarbAttr)
+               ? (instance_index | (block_info->instance_count << 16))
+               : instance_index;
+  }
+
  public:
   explicit GpuPmcBuilder(const AgentInfo* agent_info)
       : PmcBuilder(),
@@ -339,7 +347,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
       //       is not a common practice
       const uint32_t grbm_value =
           (block_info->instance_count > 1 && !(block_info->attr & CounterBlockWgpAttr))
-              ? Primitives::grbm_inst_index_value(block_des.index)
+              ? Primitives::grbm_inst_index_value(GetInstanceIndex(block_des.index,block_info))
               : Primitives::grbm_broadcast_value();
       GCMode gc_mode = (block_info->attr & CounterBlockGrbmaAttr) ? GC_MODE_ALL : GC_MODE_XCD;
       SetGrbmGfxIndex(cmd_buffer, grbm_value, gc_mode);
@@ -655,7 +663,8 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
                        (block_info->attr & CounterBlockSeAttr)) {
               grbm_value = Primitives::grbm_inst_se_index_value(block_des.index, se_index);
             } else if (block_info->instance_count > 1) {
-              grbm_value = Primitives::grbm_inst_index_value(block_des.index);
+              grbm_value =
+                  Primitives::grbm_inst_index_value(GetInstanceIndex(block_des.index, block_info));
             } else if (block_info->attr & CounterBlockSeAttr) {
               grbm_value = Primitives::grbm_se_index_value(se_index);
             }
