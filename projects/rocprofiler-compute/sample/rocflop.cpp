@@ -186,8 +186,6 @@ __global__ void sparse_matmul_fp16_throughput(vec4<float16>* input0, vec8<float1
 
 int g_current_device = -1;
 
-int g_current_device = -1;
-
 void HIP_CALL(hipError_t err)
 {
     if(err != hipSuccess) {
