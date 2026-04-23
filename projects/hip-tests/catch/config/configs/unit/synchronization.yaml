@@ -9,6 +9,4 @@ synchronization:
   Unit_cache_coherency_gpu_gpu:
     <<: *level_2
     tags: [coherency, multigpu]
-  Unit_test_kernel_monitor:
-    <<: *level_2
-    tags: [coherency]
+  Unit_test_kernel_monitor: *level_2

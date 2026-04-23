@@ -1,3 +1,7 @@
+# Copyright (c) Advanced Micro Devices, Inc., or its affiliates.
+#
+# SPDX-License-Identifier: MIT
+
 cmake_minimum_required(VERSION 3.20)
 
 if (HIP_PLATFORM MATCHES "nvidia")
@@ -250,20 +254,13 @@ if(WIN32)
 endif()
 
 if(HIP_PLATFORM STREQUAL "amd")
-    if(WIN32)
-        set(win_disable_warnings ${win_disable_warnings} -Wno-ignored-attributes -Wno-microsoft-cast)
-        # Windows for some reason does not honor the `CMAKE_CXX_STANDARD` we set initially in the file
-        # Which results in errors about missing headers etc
-        set(win_cxx_standard -std=c++17)
-    endif()
-    add_compile_options(${HIP_PATH_OPT} ${win_cxx_standard} -x hip -Wall -Wextra -Wvla -Wno-deprecated -Wno-option-ignored -Wno-unused-parameter ${win_disable_warnings})
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_compile_options(-O3)
-    endif()
-    add_compile_options(${HIP_PATH_OPT} -std=c++17 -x hip -Wall -Wextra -Wvla -Wno-deprecated -Wno-option-ignored -Wno-unused-parameter ${win_disable_warnings}) # -Werror)
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_compile_options(-O3)
-    endif()
+  if(WIN32)
+    set(win_disable_warnings ${win_disable_warnings} -Wno-ignored-attributes -Wno-microsoft-cast)
+    # Windows for some reason does not honor the `CMAKE_CXX_STANDARD` we set initially in the file
+    # Which results in errors about missing headers etc
+    set(win_cxx_standard -std=c++17)
+  endif()
+  add_compile_options(${HIP_PATH_OPT} ${win_cxx_standard} -x hip -Wall -Wextra -Wvla -Wno-deprecated -Wno-option-ignored -Wno-unused-parameter ${win_disable_warnings})
 endif()
 
 # Turn off CMAKE_HIP_ARCHITECTURES Feature if cmake version is 3.21+
@@ -361,25 +358,16 @@ if(WIN32)
     RESULT_VARIABLE json_result)
   message(STATUS "${configToUse}.json file generation result: ${json_result}")
 else()
-    set(configTemplates "config_amd_linux" "config_amd_linux_npi_hw")
-    foreach(configToUse ${configTemplates})
+    set(configToUse "config_amd_linux")
     foreach(arch ${HIP_GPU_ARCH_LIST})
-        if(configToUse STREQUAL "config_amd_linux_npi_hw" AND NOT arch STREQUAL "gfx1250")
-            continue()
-        endif()
         set(config_file ${CMAKE_SOURCE_DIR}/hipTestMain/config/${configToUse})
-        if(configToUse STREQUAL "config_amd_linux_npi_hw" AND arch STREQUAL "gfx1250")
-          set(json_file ${HIP_TEST_CONFIG_BINARY_DIR}/npi_real_hw.json)
-        else()
-          set(json_file ${HIP_TEST_CONFIG_BINARY_DIR}/${configToUse}_${arch}.json)
-        endif()
+        set(json_file ${HIP_TEST_CONFIG_BINARY_DIR}/${configToUse}_${arch}.json)
         set(cmd "${CLANG_CPP_EXEC} -P ${ASAN_CONFIG_DEF} -D${arch} -DGITHASH=\\\"${HIP_VERSION_GITHASH}\\\" ${config_file}>${json_file}")
         message(${cmd})
         execute_process(COMMAND bash -c ${cmd}
         RESULT_VARIABLE json_result)
-        message(STATUS "${configToUse}_${arch}.json file generation result: ${json_result}")
-    endforeach()
-    endforeach()
+    message(STATUS "${configToUse}_${arch}.json file generation result: ${json_result}")
+  endforeach()
 endif()
 
 # prints the catch info to a file

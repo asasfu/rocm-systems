@@ -179,8 +179,11 @@ hsa_status_t KfdDriver::Close() {
 }
 
 hsa_status_t KfdDriver::GetSystemProperties(HsaSystemProperties& sys_props) const {
-  if (HSAKMT_CALL(hsaKmtReleaseSystemProperties()) != HSAKMT_STATUS_SUCCESS) return HSA_STATUS_ERROR;
-
+  // Note: We intentionally do NOT call hsaKmtReleaseSystemProperties() here.
+  // hsaKmtRuntimeEnable (called from Init) already acquired system properties.
+  // Releasing and re-acquiring would tear down FMM apertures and fail to
+  // re-acquire the VM because the kernel-side VM binding persists.
+  // hsaKmtAcquireSystemProperties handles the cached-snapshot case internally.
   if (HSAKMT_CALL(hsaKmtAcquireSystemProperties(&sys_props)) != HSAKMT_STATUS_SUCCESS) return HSA_STATUS_ERROR;
 
   return HSA_STATUS_SUCCESS;
@@ -473,7 +476,7 @@ hsa_status_t KfdDriver::ImportDMABuf(int dmabuf_fd, const core::Agent& agent,
   const auto& gpu_agent = static_cast<const GpuAgent&>(agent);
   HsaHandleImportDesc desc;
   desc.device_handle = gpu_agent.libThunkDev();
-  desc.dmabuf_fd = static_cast<HSAint32>(dmabuf_fd);
+  desc.dmabuf_fd = static_cast<HSAint64>(dmabuf_fd);
   desc.type = HSA_EXTERNAL_HANDLE_DMA_BUF;
   desc.mem = mem;
   desc.metadata = 0;

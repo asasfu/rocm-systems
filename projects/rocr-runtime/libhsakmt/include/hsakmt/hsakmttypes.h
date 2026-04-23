@@ -1550,8 +1550,17 @@ typedef enum _HsaExternalHandleType{
     HSA_EXTERNAL_HANDLE_FABRIC          = 3
 } HsaExternalHandleType;
 
+typedef struct _HsaExternalHandleDesc {
+    HsaAMDGPUDeviceHandle device_handle; // GPU device handle (used for import only)
+    HSAint64 fd; // dmabuf fd
+    HsaExternalHandleType type; // handle type
+    void *mem; // existing buffer address (for windows and WSL only)
+    HSAuint32 metadata; // Used for IPC handles
+} HsaExternalHandleDesc;
+
 typedef struct _HsaHandleImportDesc {
     HsaAMDGPUDeviceHandle device_handle; // GPU device handle (used for import only)
+    HSAint64 fd; // dmabuf fd
     HsaExternalHandleType type; // handle type
     union {
         HSAint32 dmabuf_fd; // dmabuf fd

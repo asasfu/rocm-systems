@@ -1,24 +1,8 @@
 /*
-Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All rights reserved.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
+ * Copyright (c) Advanced Micro Devices, Inc., or its affiliates.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 
 /**
  * @addtogroup hipHostRegister hipHostRegister
@@ -77,8 +61,8 @@ void doMemCopy(size_t numElements, int offset, T* A, T* Bh, T* Bd, bool internal
 
   // Reset
   for (size_t i = 0; i < numElements; i++) {
-    A[i] = static_cast<float>(i);
-    Bh[i] = 0.0f;
+    A[i] = static_cast<T>(i);
+    Bh[i] = static_cast<T>(0);
   }
 
   HIP_CHECK(hipMemset(Bd, memsetval, sizeBytes));
@@ -100,7 +84,7 @@ void doMemCopy(size_t numElements, int offset, T* A, T* Bh, T* Bd, bool internal
  *    - This testcase verifies the hipHostRegister API by
  * 1. Allocating the memory using malloc
  * 2. hipHostRegister that variable
- * 3. Getting the corresponding device pointer of the registered varible
+ * 3. Getting the corresponding device pointer of the registered variable
  * 4. Launching kernel and access the device pointer variable
  * 5. performing hipMemset on the device pointer variable
  * Test source
@@ -697,14 +681,12 @@ HIP_TEST_CASE(Unit_hipHostRegister_Flags) {
     bool valid;
   };
 
-  /* EXSWCPHIPT-29 - 0x08 is hipHostRegisterReadOnly which currently doesn't
-  have a definition in the headers */
   /* hipHostRegisterIoMemory is a valid flag but requires access to I/O mapped
   memory to be tested */
   FlagType flags = GENERATE(
       FlagType{hipHostRegisterDefault, true}, FlagType{hipHostRegisterPortable, true},
-      FlagType{0x08, true}, FlagType{hipHostRegisterPortable | hipHostRegisterMapped, true},
-      FlagType{hipHostRegisterPortable | hipHostRegisterMapped | 0x08, true},
+      FlagType{hipHostRegisterReadOnly, true}, FlagType{hipHostRegisterPortable | hipHostRegisterMapped, true},
+      FlagType{hipHostRegisterPortable | hipHostRegisterMapped | hipHostRegisterReadOnly, true},
 #if (HT_AMD == 1) && (HT_LINUX == 1)
       FlagType{hipHostRegisterIoMemory, true},
       FlagType{hipExtHostRegisterUncached, true},
@@ -714,6 +696,7 @@ HIP_TEST_CASE(Unit_hipHostRegister_Flags) {
 
 #if (HT_AMD == 1) && (HT_LINUX == 1)
   if (IsNavi4X() && (flags.value & hipExtHostRegisterUncached)) {
+    free(hostPtr);
     return;
   }
 #endif

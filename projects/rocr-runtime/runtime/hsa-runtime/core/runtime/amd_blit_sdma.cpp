@@ -157,6 +157,7 @@ BlitSdma<useGCR, scopeFields>::BlitSdma()
       queue_rptr_(nullptr),
       queue_doorbell_(nullptr),
       broadcast_supported_(false),
+      multicast_supported_(false),
       is_gfx1250_(false),
       is_gfx1260_(false),
       swap_supported_(false) {
@@ -229,6 +230,7 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::Initialize(const core::Agent& agent,
     broadcast_supported_ = (minor >= 4) || (minor == 0 && stepping >= 10);
     swap_supported_ = (minor >= 4);
   }
+
 
 
   // Allocate queue buffer.
@@ -1195,6 +1197,8 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearSwapBody(
   if (!swap_supported_)
     return HSA_STATUS_ERROR_INVALID_ARGUMENT;
 
+  // Addresses must be aligned for SWAP operation. Make this check here to
+  // avoid SDMA blit creation at top level.
   constexpr size_t kAlign = SDMA_PKT_COPY_LINEAR_SWAP::kAlignment_;
   if ((reinterpret_cast<uintptr_t>(addr_a) & (kAlign - 1)) != 0 ||
       (reinterpret_cast<uintptr_t>(addr_b) & (kAlign - 1)) != 0)
@@ -1584,15 +1588,14 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearFillCommand(void* ptr, u
   const bool isGFX13Plus = (agent_->supported_isas()[0]->GetMajorVersion() >= 13);
   const uint32_t packet_size_dwords = (isGFX13Plus ? sizeof(SDMA_PKT_CONSTANT_FILL_GFX13) :
                                                      sizeof(SDMA_PKT_CONSTANT_FILL)) / 4;
-
   // Avoid heap allocation for common single-packet case.
-  uint32_t stack_buff[SDMA_PKT_CONSTANT_FILL_MAX_DWORDS];
-  std::vector<uint32_t> heap_buff(num_fill_command > 1 ? num_fill_command * packet_size_dwords : 0);
-  auto* buff = num_fill_command <= 1 ? stack_buff : heap_buff.data();
+  SDMA_PKT_CONSTANT_FILL stack_buff;
+  std::vector<SDMA_PKT_CONSTANT_FILL> heap_buff(num_fill_command > 1 ? num_fill_command * packet_size_dwords : 0);
+  auto* buff = num_fill_command <= 1 ? &stack_buff : heap_buff.data();
 
   BuildFillCommand(reinterpret_cast<char*>(buff), num_fill_command, ptr, value, count);
 
-  return SubmitBlockingCommand(buff, num_fill_command * packet_size_dwords * sizeof(uint32_t), size);
+  return SubmitBlockingCommand(buff, num_fill_command * sizeof(SDMA_PKT_CONSTANT_FILL), size);
 }
 
 template <bool useGCR, bool scopeFields> hsa_status_t BlitSdma<useGCR, scopeFields>::EnableProfiling(bool enable) {
@@ -1648,7 +1651,8 @@ void BlitSdma<useGCR, scopeFields>::UpdateWriteAndDoorbellRegister(uint64_t curr
   while (true) {
     // Make sure that the address before ::curr_index is already released.
     // Otherwise the CP may read invalid packets.
-    if (atomic::Load(&cached_commit_index_, std::memory_order_acquire) == curr_index) {
+    uint64_t commit_index = atomic::Load(&cached_commit_index_, std::memory_order_acquire);
+    if (commit_index == curr_index) {
       if (sdma_wait_idle_) {
         // TODO: remove when sdma wpointer issue is resolved.
         // Wait until the SDMA engine finish processing all packets before
@@ -1680,6 +1684,7 @@ void BlitSdma<useGCR, scopeFields>::UpdateWriteAndDoorbellRegister(uint64_t curr
     // burning CPU cycles.
     if (core::g_use_mwaitx) {
       timer::DoMwaitx(static_cast<int64_t*>(static_cast<void*>(&cached_commit_index_)),
+                      static_cast<int64_t>(commit_index),
                       10000, true);
     } else {
       os::YieldThread();

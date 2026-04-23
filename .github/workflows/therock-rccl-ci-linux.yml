@@ -38,7 +38,7 @@ jobs:
         with:
           repository: "ROCm/TheRock"
           path: "TheRock"
-          ref: a5ed8195057dbd8f06888236b1c78ccf41ed326e # 2026-03-11 commit
+          ref: 3272cd77d15e7972b26f68a477a3d61fe4a93591 # 2026-03-26 commit
 
       - name: Install python deps
         run: |
@@ -68,7 +68,7 @@ jobs:
       - name: Patch rocm-systems
         run: |
           # Remove patches here if they cannot be applied cleanly, and they have not been deleted from TheRock repo
-          rm ./TheRock/patches/amd-mainline/rocm-systems/0003-Use-is_versioned-true-consistently-in-both-Comgr-Loa.patch
+          # rm ./TheRock/patches/amd-mainline/rocm-systems/0003-Use-is_versioned-true-consistently-in-both-Comgr-Loa.patch
 
       - name: Configure Projects
         env:
@@ -142,5 +142,5 @@ jobs:
     with:
       amdgpu_families: ${{ inputs.amdgpu_families }}
       artifact_group: ${{ inputs.artifact_group }}
-      test_runs_on: linux-mi325-8gpu-ossci-rocm
+      test_runs_on: linux-gfx942-8gpu-ossci-rocm
       artifact_run_id: ${{ github.run_id }}

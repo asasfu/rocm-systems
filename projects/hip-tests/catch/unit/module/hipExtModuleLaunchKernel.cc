@@ -1,21 +1,8 @@
 /*
-Copyright (c) 2023-2024 Advanced Micro Devices, Inc. All rights reserved.
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANNTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER INN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR INN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
+ * Copyright (c) Advanced Micro Devices, Inc., or its affiliates.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 
 /**
  * @addtogroup hipExtModuleLaunchKernel hipExtModuleLaunchKernel
@@ -771,62 +758,6 @@ HIP_TEST_CASE(Unit_hipExtModuleLaunchKernel_Functional) {
     testStatus &= kernelLaunch.Module_WorkGroup_Test();
     REQUIRE(testStatus == true);
   }
-}
-
-TEST_CASE("Unit_hipExtModuleLaunchKernel_AnyOrder") {
-  int device = -1;
-  hipDeviceProp_t props{};
-  HIP_CHECK(hipGetDevice(&device));
-  HIP_CHECK(hipGetDeviceProperties(&props, device));
-  std::string arch = std::string(props.gcnArchName);
-  auto pos = arch.find("gfx9");
-  // skip for all gfx9xx, Meant to run on gfx11xx & gfx12xx.
-  if (pos != std::string::npos) {
-    HipTest::HIP_SKIP_TEST("Not supported on gfx9xx. Skipping test ...");
-    return;
-  }
-  int ticks_per_ms = 0;
-  HIP_CHECK(hipDeviceGetAttribute(&ticks_per_ms, hipDeviceAttributeWallClockRate, 0));
-  // wait in first kernel.
-  int ticks_per_100us = ticks_per_ms; //(ticks_per_ms / 1000) * 100;
-  hipModule_t module;
-  hipFunction_t first;
-  hipFunction_t second;
-  HIP_CHECK(hipModuleLoad(&module, "anyOrderLaunch.code"));
-  HIP_CHECK(hipModuleGetFunction(&first, module, "first"));
-  HIP_CHECK(hipModuleGetFunction(&second, module, "second"));
-
-  int* res;
-  HIP_CHECK(hipHostMalloc(&res, sizeof(int), hipHostAllocMapped));
-  *res = 0;
-
-  int *dres;
-  HIP_CHECK(hipHostGetDevicePointer(reinterpret_cast<void**>(&dres), res, 0));
-
-  struct {
-    int* _res;
-    int _ticks_per_100us;
-  } args;
-
-  args._res = dres;
-  args._ticks_per_100us = ticks_per_100us;
-
-  size_t size = sizeof(args);
-  void* config1[] = {HIP_LAUNCH_PARAM_BUFFER_POINTER, &args, HIP_LAUNCH_PARAM_BUFFER_SIZE, &size,
-                    HIP_LAUNCH_PARAM_END};
-  hipStream_t stream;
-  HIP_CHECK(hipStreamCreate(&stream));
-  HIP_CHECK(hipExtModuleLaunchKernel(first, 1, 1, 1, 1, 1, 1, 0, stream, nullptr,
-                                    reinterpret_cast<void**>(&config1), 0, 0,
-                                    hipExtAnyOrderLaunch));
-  HIP_CHECK(hipExtModuleLaunchKernel(second, 1, 1, 1, 1, 1, 1, 0, stream, nullptr,
-                                    nullptr, 0, 0,
-                                    hipExtAnyOrderLaunch));
-  HIP_CHECK(hipStreamSynchronize(stream));
-  REQUIRE(*res == 1);
-  HIP_CHECK(hipModuleUnload(module));
-  HIP_CHECK(hipStreamDestroy(stream));
-  HIP_CHECK(hipHostFree(res));
 }
 /**
  * End doxygen group KernelTest.

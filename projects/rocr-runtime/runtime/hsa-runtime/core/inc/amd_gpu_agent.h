@@ -397,6 +397,8 @@ class GpuAgent : public GpuAgentInt {
     return current_coherency_type_;
   }
 
+  hsa_status_t Preload(uint64_t flags);
+
   core::Agent* GetNearestCpuAgent(void) const;
 
   void RegisterGangPeer(core::Agent& gang_peer, unsigned int bandwidth_factor) override;
@@ -714,6 +716,9 @@ class GpuAgent : public GpuAgentInt {
   // @brief Pool of shared queues owned by this agent
   rocr::core::CountedQueuePoolManager queue_pool_;
 
+  // @brief /// Cached derived CUID for this GPU agent (16 bytes, zeroed if unavailable).
+  uint8_t derived_cuid_[16] = {};
+
   void* trap_code_buf_;
 
   size_t trap_code_buf_size_;
@@ -756,6 +761,10 @@ class GpuAgent : public GpuAgentInt {
 
   // @brief Initialize scratch handler thresholds
   void InitAsyncScratchThresholds();
+
+  // @brief Initialize Secondary CUID for GPU device that 
+  // this agent is running on.
+  void InitDerivedCuid() override;
 
   // @brief Register signal for notification when scratch may become available.
   // @p signal is notified by OR'ing with @p value.
@@ -910,6 +919,11 @@ class GpuAgent : public GpuAgentInt {
     // signal to pass into ExecutePM4() so that we do not need to re-allocate a
     // new signal on each call
     hsa_signal_t exec_pm4_signal;
+
+    // Host-side copies - cannot read these from device_data on non-large BAR systems
+    hsa_signal_t done_sig0;
+    hsa_signal_t done_sig1;
+    uint32_t buf_size;
 
     os::Thread thread;
     pcs::PcsRuntime::PcSamplingSession* session;

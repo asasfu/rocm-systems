@@ -314,8 +314,8 @@ elseif("$ENV{ROCPROFSYS_CI}")
 endif()
 
 if(ROCPROFSYS_INSTALL_TESTING)
-    set(ROCPROFSYS_INSTALL_EXAMPLES ON CACHE BOOL "Enable installing examples" FORCE)
     set(ROCPROFSYS_BUILD_TESTING ON CACHE BOOL "Enable building the testing suite" FORCE)
+    set(ROCPROFSYS_INSTALL_EXAMPLES ON CACHE BOOL "Enable installing examples" FORCE)
 endif()
 
 if(ROCPROFSYS_INSTALL_EXAMPLES)
@@ -396,6 +396,14 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN
     "Visibility preset for inline functions"
 )
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# symlink compile_commands.json to source root for clangd and clang-tidy
+file(
+    CREATE_LINK
+        "${CMAKE_BINARY_DIR}/compile_commands.json"
+        "${CMAKE_SOURCE_DIR}/compile_commands.json"
+    SYMBOLIC
+)
 
 include(Formatting) # format target
 include(Packages) # finds third-party libraries

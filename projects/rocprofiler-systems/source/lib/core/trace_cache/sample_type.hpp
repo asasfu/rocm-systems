@@ -43,11 +43,12 @@ enum class type_identifier_t : uint32_t
     kernel_dispatch         = 0x0003,
     memory_copy             = 0x0004,
     memory_alloc            = 0x0005,
-    amd_smi_sample          = 0x0006,
+    gpu_pmc_sample          = 0x0006,
     cpu_freq_sample         = 0x0007,
     backtrace_region_sample = 0x0008,
     scratch_memory          = 0x0009,
-    ainic_sample            = 0x000A,
+    ainic_pmc_sample        = 0x000A,
+    ainic_sample            = 0x000B,
     fragmented_space        = 0xFFFF
 };
 
@@ -611,92 +612,6 @@ get_size(const pmc_event_with_sample& item)
         static_cast<uint64_t>(item.correlation_id), std::string_view(item.call_stack),
         std::string_view(item.line_info), item.device_id, item.device_type,
         std::string_view(item.pmc_info_name), item.value, item.system_tid);
-}
-
-struct amd_smi_sample : cacheable_t
-{
-    static constexpr type_identifier_t type_identifier =
-        type_identifier_t::amd_smi_sample;
-
-    amd_smi_sample() = default;
-    amd_smi_sample(uint64_t _settings, uint32_t _device_id, size_t _timestamp,
-                   uint32_t _gfx_activity, uint32_t _umc_activity, uint32_t _mm_activity,
-                   uint32_t _power, int64_t _temperature, size_t _mem_usage,
-                   std::vector<uint8_t> _gpu_activity, uint32_t _sdma_usage = 0)
-    : settings(_settings)
-    , device_id(_device_id)
-    , timestamp(_timestamp)
-    , gfx_activity(_gfx_activity)
-    , umc_activity(_umc_activity)
-    , mm_activity(_mm_activity)
-    , power(_power)
-    , temperature(_temperature)
-    , mem_usage(_mem_usage)
-    , gpu_activity(std::move(_gpu_activity))
-    , sdma_usage(_sdma_usage)
-    {}
-
-    enum class settings_positions : uint8_t
-    {
-        busy = 0,
-        temp,
-        power,
-        mem_usage,
-        vcn_activity,
-        jpeg_activity,
-        xgmi,
-        pcie,
-        sdma_usage
-    };
-
-    uint64_t             settings;  // bitfield
-    uint32_t             device_id;
-    size_t               timestamp;
-    uint32_t             gfx_activity;
-    uint32_t             umc_activity;
-    uint32_t             mm_activity;
-    uint32_t             power;
-    int64_t              temperature;
-    size_t               mem_usage;
-    std::vector<uint8_t> gpu_activity;
-    uint32_t             sdma_usage = 0;  // SDMA utilization percentage (0-100)
-};
-
-template <>
-inline void
-serialize(uint8_t* buffer, const amd_smi_sample& item)
-{
-    utility::store_value(buffer, item.settings, item.device_id,
-                         static_cast<uint64_t>(item.timestamp), item.gfx_activity,
-                         item.umc_activity, item.mm_activity, item.power,
-                         item.temperature, static_cast<uint64_t>(item.mem_usage),
-                         item.gpu_activity, item.sdma_usage);
-}
-
-template <>
-inline amd_smi_sample
-deserialize(uint8_t*& buffer)
-{
-    amd_smi_sample item;
-    uint64_t       timestamp, mem_usage;
-    utility::parse_value(buffer, item.settings, item.device_id, timestamp,
-                         item.gfx_activity, item.umc_activity, item.mm_activity,
-                         item.power, item.temperature, mem_usage, item.gpu_activity,
-                         item.sdma_usage);
-    item.timestamp = timestamp;
-    item.mem_usage = mem_usage;
-    return item;
-}
-
-template <>
-inline size_t
-get_size(const amd_smi_sample& item)
-{
-    return utility::get_size(item.settings, item.device_id,
-                             static_cast<uint64_t>(item.timestamp), item.gfx_activity,
-                             item.umc_activity, item.mm_activity, item.power,
-                             item.temperature, static_cast<uint64_t>(item.mem_usage),
-                             item.gpu_activity, item.sdma_usage);
 }
 
 struct ainic_sample : cacheable_t

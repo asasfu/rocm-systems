@@ -448,6 +448,8 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
   /// True if SDMA supports broadcast linear copy (one src -> two dst).
   bool broadcast_supported_;
 
+  /// True if SDMA supports multicast copy (one src -> multiple dst).
+  bool multicast_supported_;
   /// True for gfx1250 (major=12 minor=5): multicast, wait/signal packets, 64b poll/fence.
   bool is_gfx1250_;
 

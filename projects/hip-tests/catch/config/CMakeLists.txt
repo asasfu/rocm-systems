@@ -1,3 +1,7 @@
+# Copyright (c) Advanced Micro Devices, Inc., or its affiliates.
+#
+# SPDX-License-Identifier: MIT
+
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 # Check for PyYAML
@@ -16,10 +20,14 @@ if(WIN32)
 else()
     set(CONFIG_OS "linux")
 
-    # TODO multiple arch support
-    foreach(ARCH ${HIP_GPU_ARCH_LIST})
-        set(CONFIG_ARCH ${ARCH})
-    endforeach()
+    if (HIP_PLATFORM MATCHES "amd")
+        # TODO multiple arch support
+        foreach(ARCH ${HIP_GPU_ARCH_LIST})
+            set(CONFIG_ARCH ${ARCH})
+        endforeach()
+    else()
+        set(CONFIG_ARCH "linux")
+    endif()
 endif()
 
 set(HIP_TESTS_CONFIGS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/configs)

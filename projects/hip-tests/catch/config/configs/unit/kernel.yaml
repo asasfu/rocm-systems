@@ -23,15 +23,6 @@ kernel:
   Unit_hipGridLaunch:
     <<: *level_2
     tags: [launch]
-  Unit_hipGridLaunch_MaxGridDim_DeviceProperties:
-    <<: *level_2
-    tags: [launch]
-  Unit_hipGridLaunch_MaxGridDim_GetDeviceAttribute:
-    <<: *level_2
-    tags: [launch]
-  Unit_hipGridLaunch_ExceedMaxGridDim_Negative:
-    <<: *level_2
-    tags: [launch]
   Unit_hipLanguageExtensions:
     <<: *level_2
     tags: [language]
@@ -39,15 +30,6 @@ kernel:
     <<: *level_2
     tags: [launch]
   Unit_hipLaunchParmFunctor:
-    <<: *level_2
-    tags: [launch]
-  Unit_hipLaunchParmFunctor_kernel_arg_prefetch:
-    <<: *level_2
-    tags: [launch]
-  Unit_KernelStackSize:
-    <<: *level_2
-    tags: [launch]
-  Unit_Validate_User_Sgpr_Count:
     <<: *level_2
     tags: [launch]
   Unit_kernel_chkConstantViaKernel:
@@ -88,8 +70,6 @@ kernel:
     tags: [language, multigpu]
   Unit_hipExtLaunchKernelGGL:
     <<: *level_2
-    # SWDEV-438524: Below tests causing TDR & machine down in stress test on 15/12/23
-    disabled: [amd_windows, amd_wsl]
     tags: [launch]
   Unit_hipSetupArgument_Simple:
     <<: *level_2
@@ -103,3 +83,9 @@ kernel:
   Unit_ConfigureCall_CheckParams:
     <<: *level_2
     tags: [launch]
+  Unit_hipGridLaunch_MaxGridDim_DeviceProperties: *level_2
+  Unit_hipGridLaunch_MaxGridDim_GetDeviceAttribute: *level_2
+  Unit_hipGridLaunch_ExceedMaxGridDim_Negative: *level_2
+  Unit_hipLaunchParmFunctor_kernel_arg_prefetch: *level_2
+  Unit_KernelStackSize: *level_2
+  Unit_Validate_User_Sgpr_Count: *level_2

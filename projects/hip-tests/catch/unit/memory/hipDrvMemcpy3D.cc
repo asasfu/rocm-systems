@@ -1,24 +1,8 @@
 /*
-Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
+ * Copyright (c) Advanced Micro Devices, Inc., or its affiliates.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 
 #include <memcpy1d_tests_common.hh>
 #include <memcpy3d_tests_common.hh>
@@ -29,8 +13,6 @@ THE SOFTWARE.
 #include <utils.hh>
 
 HIP_TEST_CASE(Unit_hipDrvMemcpy3D_Positive_Basic) {
-  CHECK_IMAGE_SUPPORT
-
   constexpr bool async = false;
 
 #if HT_NVIDIA  // Disabled on AMD due to defect - EXSWHTEC-236
@@ -54,8 +36,6 @@ HIP_TEST_CASE(Unit_hipDrvMemcpy3D_Positive_Basic) {
 }
 
 HIP_TEST_CASE(Unit_hipDrvMemcpy3D_Positive_Synchronization_Behavior) {
-  CHECK_IMAGE_SUPPORT
-
   HIP_CHECK(hipDeviceSynchronize());
 
   SECTION("Host to Device") { Memcpy3DHtoDSyncBehavior(DrvMemcpy3DWrapper<>, true); }
@@ -72,8 +52,6 @@ HIP_TEST_CASE(Unit_hipDrvMemcpy3D_Positive_Synchronization_Behavior) {
 }
 
 HIP_TEST_CASE(Unit_hipDrvMemcpy3D_Positive_Parameters) {
-  CHECK_IMAGE_SUPPORT
-
   constexpr bool async = false;
   Memcpy3DZeroWidthHeightDepth<async>(DrvMemcpy3DWrapper<>);
 }
@@ -88,8 +66,6 @@ HIP_TEST_CASE(Unit_hipDrvMemcpy3D_Positive_Array) {
 }
 
 HIP_TEST_CASE(Unit_hipDrvMemcpy3D_Negative_Parameters) {
-  CHECK_IMAGE_SUPPORT
-
   constexpr hipExtent extent{128 * sizeof(int), 128, 8};
 
   constexpr auto NegativeTests = [](hipPitchedPtr dst_ptr, hipPos dst_pos, hipPitchedPtr src_ptr,
@@ -227,8 +203,6 @@ HIP_TEST_CASE(Unit_hipDrvMemcpy3D_Negative_Parameters) {
 }
 
 HIP_TEST_CASE(Unit_hipDrvMemcpy3D_Capture) {
-  CHECK_IMAGE_SUPPORT
-
   constexpr hipExtent extent{128 * sizeof(int), 128, 8};
   LinearAllocGuard3D<int> device_alloc(extent);
   LinearAllocGuard<int> host_alloc(
