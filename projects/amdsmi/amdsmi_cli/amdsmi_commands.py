@@ -3070,7 +3070,7 @@ class AMDSMICommands:
                     "current_bandwidth_sent": "N/A",
                     "current_bandwidth_received": "N/A",
                     "max_packet_size": "N/A",
-                    "lc_perf_other_end_recovery": "N/A",
+                    "lc_perf_other_end_recovery_count": "N/A",
                 }
 
                 try:
@@ -3106,7 +3106,7 @@ class AMDSMICommands:
                     pcie_dict["replay_roll_over_count"] = pcie_metric["pcie_replay_roll_over_count"]
                     pcie_dict["nak_received_count"] = pcie_metric["pcie_nak_received_count"]
                     pcie_dict["nak_sent_count"] = pcie_metric["pcie_nak_sent_count"]
-                    pcie_dict["lc_perf_other_end_recovery"] = pcie_metric[
+                    pcie_dict["lc_perf_other_end_recovery_count"] = pcie_metric[
                         "pcie_lc_perf_other_end_recovery_count"
                     ]
 

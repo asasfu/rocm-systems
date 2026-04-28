@@ -2142,6 +2142,7 @@ struct_amdsmi_gpu_xcp_metrics_t._fields_ = [
     ('gfx_below_host_limit_thm_acc', ctypes.c_uint64 * 8),
     ('gfx_low_utilization_acc', ctypes.c_uint64 * 8),
     ('gfx_below_host_limit_total_acc', ctypes.c_uint64 * 8),
+    ('temperature_xcd', ctypes.c_uint16 * 8),
 ]
 
 amdsmi_gpu_xcp_metrics_t = struct_amdsmi_gpu_xcp_metrics_t

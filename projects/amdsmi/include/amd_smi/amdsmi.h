@@ -2057,6 +2057,11 @@ typedef struct {
   uint64_t gfx_below_host_limit_thm_acc[AMDSMI_MAX_NUM_XCC];
   uint64_t gfx_low_utilization_acc[AMDSMI_MAX_NUM_XCC];
   uint64_t gfx_below_host_limit_total_acc[AMDSMI_MAX_NUM_XCC];
+
+  /**
+   * @brief v1.9 additions
+   */
+  uint16_t temperature_xcd[AMDSMI_MAX_NUM_XCC];
 } amdsmi_gpu_xcp_metrics_t;
 
 /**
