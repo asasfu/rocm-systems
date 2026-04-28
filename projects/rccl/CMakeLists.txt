@@ -403,6 +403,44 @@ find_package(hsa-runtime64 REQUIRED)
 get_target_property(HSA_INCLUDE_PATH hsa-runtime64::hsa-runtime64 INTERFACE_INCLUDE_DIRECTORIES)
 message(STATUS "HSA runtime: ${HSA_INCLUDE_PATH}")
 
+## Check for amd-smi if ROCm 7.11.0 or newer
+if(ROCM_VERSION VERSION_GREATER_EQUAL "71100")
+  find_package(amd_smi PATHS ${ROCM_PATH}/lib/cmake/amd_smi)
+  if(amd_smi_FOUND)
+    message(STATUS "amd_smi_INCLUDE_DIR: ${amd_smi_INCLUDE_DIR}")
+    message(STATUS "amd_smi_LIB_DIR: ${amd_smi_LIB_DIR}")
+    set(SMI_INCLUDE_DIR "${amd_smi_INCLUDE_DIR}" CACHE INTERNAL "amd-smi include directory")
+    set(SMI_LIB_DIR "${amd_smi_LIB_DIR}" CACHE INTERNAL "amd-smi library directory")
+    set(SMI_LIB_NAME "amd-smi-lib" CACHE INTERNAL "amd-smi-lib for packaging")
+    if(NOT EXISTS "${SMI_INCLUDE_DIR}" OR NOT EXISTS "${SMI_LIB_DIR}")
+      message(FATAL_ERROR "amd_smi not found in ${SMI_INCLUDE_DIR}")
+    endif()
+    message(STATUS "Found amd_smi at ${SMI_INCLUDE_DIR}")
+    set(SMI_LIBRARIES amd_smi)
+
+    ### Check whether the installed amdsmi headers expose the UALoE fabric struct
+    ### (amdsmi_fabric_info_t). The probe compiles against the struct only — no
+    ### link-time dependency on amdsmi_get_gpu_fabric_info — because amdsmi is
+    ### loaded lazily at runtime via dlopen. If the struct is absent, the compat
+    ### types in amdsmi_wrap.h must be compiled in.
+    set(CMAKE_REQUIRED_INCLUDES "${SMI_INCLUDE_DIR}")
+    check_cxx_source_compiles("
+      #include <amd_smi/amdsmi.h>
+      int main() {
+        amdsmi_fabric_info_t info{};
+        (void)info;
+        return 0;
+      }
+    " AMDSMI_FABRIC_API)
+    unset(CMAKE_REQUIRED_INCLUDES)
+    if(AMDSMI_FABRIC_API)
+      message(STATUS "amdsmi UALoE fabric API found - enabling AMDSMI_FABRIC_DIRECT")
+    else()
+      message(STATUS "amdsmi UALoE fabric API not found - using compat types")
+    endif()
+  endif()
+endif()
+
 set(USE_AMDSMI ON CACHE INTERNAL "Force enable AMD SMI path since we use lazy loading, and rsmi path is available as fallback if AMD SMI is not enabled at runtime")
 
 ## Check for BFD library if custom backtrace is requested
