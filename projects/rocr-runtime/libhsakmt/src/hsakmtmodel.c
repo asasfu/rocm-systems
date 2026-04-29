@@ -251,14 +251,21 @@ int hsakmt_amdgpu_bo_cpu_map(amdgpu_bo_handle buf_handle, void **cpu)
 int hsakmt_amdgpu_bo_export(amdgpu_bo_handle buf_handle,
 			     enum amdgpu_bo_handle_type type, uint32_t *shared_handle)
 {
+	int ret;
 	if (hsakmt_use_model) {
 		if (model_reported_minor >= 1) {
 			struct hsakmt_drm_bo_export_args a = {buf_handle, (uint32_t)type, shared_handle};
-			return model_drm_call(HSAKMT_DRM_BO_EXPORT, &a);
+			ret = model_drm_call(HSAKMT_DRM_BO_EXPORT, &a);
+			if (ret == 0 && type == amdgpu_bo_handle_type_dma_buf_fd && *shared_handle > INT32_MAX)
+				return -1;
+			return ret;
 		}
 		return -1; /* v1.0 fallback: was previously unguarded (crash); clean error */
 	}
-	return amdgpu_bo_export(buf_handle, type, shared_handle);
+	ret = amdgpu_bo_export(buf_handle, type, shared_handle);
+	if (ret == 0 && type == amdgpu_bo_handle_type_dma_buf_fd && *shared_handle > INT32_MAX)
+		return -1;
+	return ret;
 }
 
 int hsakmt_drm_command_write_read(int fd, unsigned long drmCommandIndex,
