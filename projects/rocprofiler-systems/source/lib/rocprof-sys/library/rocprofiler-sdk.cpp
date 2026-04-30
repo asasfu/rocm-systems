@@ -939,7 +939,8 @@ ompt_iterate_operation_args(const rocprofiler_callback_tracing_record_t& record,
     switch(ompt_operation_type)
     {
         case ROCPROFILER_OMPT_ID_parallel_begin:  // ompt_parallel_flag_t
-        case ROCPROFILER_OMPT_ID_parallel_end:    // ompt_parallel_flag_t
+            [[fallthrough]];
+        case ROCPROFILER_OMPT_ID_parallel_end:  // ompt_parallel_flag_t
         {
             const auto ft = std::string{ "ompt_parallel_flag_t" };
             if(flags_val & ompt_parallel_invoker_program)

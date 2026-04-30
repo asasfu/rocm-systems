@@ -302,3 +302,4 @@ module:
   Unit_hipFuncGetAttributes_basic:
     <<: *level_2
     tags: [function]
+  Unit_hipExtModuleLaunchKernel_AnyOrder: *level_2

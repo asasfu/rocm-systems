@@ -56,7 +56,6 @@ function(hip_gen_exe_target)
     "${list_args}"
   )
   foreach(SRC_NAME ${TEST_SRC})
-
     if(NOT _STANDALONE_FLAG EQUAL "1")
       set(_EXE_NAME ${_NAME})
       set(SRC_NAME ${TEST_SRC})

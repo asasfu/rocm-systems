@@ -72,6 +72,8 @@
  * - 1.19 - hsa_amd_agent_preload
  * - 1.20 - Memory batch discard API: hsa_amd_svm_discard_batch_async
  * - 1.21 - hsa_amd_signal_get_event_id
+ * - 1.22 - Metadata Prefetch
+ * - 1.23 - hsa_amd_vmem_export_fabric_handle/hsa_amd_vmem_import_fabric_handle
  */
 #define HSA_AMD_INTERFACE_VERSION_MAJOR 1
 #define HSA_AMD_INTERFACE_VERSION_MINOR 21
@@ -1099,18 +1101,47 @@ typedef enum hsa_amd_agent_info_s {
    */
   HSA_AMD_AGENT_INFO_CLOCK_COUNTERS = 0xA118,
   /**
+   * Maximum number of work-groups across all dimensions for non-clustered dispatches.
+   * Returns uint64_t into value output
+   */
+  HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_SIZE = 0xA119,
+  /**
+   * Maximum number of clusters in each dimension for clustered dispatches.
+   * Returns hsa_amd_dim3_t into value output.
+   */
+  HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_DIM = 0xA11A,
+  /*
+  * Maximum number of clusters across all dimensions for clustered dispatches
+  * Returns uint64_t into value output
+  */
+  HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_SIZE = 0xA11B,
+  /*
+  * Maximum number of workgroups in a cluster in each dimension
+  * Returns hsa_amd_dim3_t into value output
+  */
+  HSA_AMD_AGENT_INFO_CLUSTER_MAX_DIM = 0xA11C,
+  /*
+  * Maximum number of workgroups in a cluster across all dimensions
+  * Returns uint64_t into value output
+  */
+  HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE = 0xA11D,
+  /** Maximum number of work-groups in each dimension for non-clustered dispatches.
+   * Returns hsa_amd_dim3_t into value output.
+   */
+  HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM = 0xA11E,
+  /**
    * The agent uses PM4 emulation mode.
    */
-  HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA119,
+  HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA11F,
   /**
    * Queries for the LUID that identifies a hardware node. The LUID is only
    * valid on Windows. The type of this attribute is LUID.
    */
-  HSA_AMD_AGENT_INFO_LUID = 0xA11A,
+  HSA_AMD_AGENT_INFO_LUID = 0xA120,
   /**
    * The agent supports expert scheduling mode. The type of this attribute is bool.
    */
-  HSA_AMD_AGENT_INFO_HAS_EXPERT_SCHED_MODE = 0xA11B,
+  HSA_AMD_AGENT_INFO_HAS_EXPERT_SCHED_MODE = 0xA121,
   /**
    * Queries the secondary CUID (128-bit UUID (16 bytes) in UUIDv8 format)
    * of a CPU/GPU agent. The type of this attribute is uint8_t[16].
@@ -2564,6 +2595,8 @@ hsa_amd_memory_copy_engine_status(hsa_agent_t dst_agent, hsa_agent_t src_agent,
  *
  * @retval ::HSA_STATUS_SUCCESS For mask returned
  *
+ * @retval ::HSA_STATUS_ERROR_INVALID_AGENT dst_agent and src_agent are the same as
+ * dst_agent == src_agent is generally used for shader copies.
  */
 hsa_status_t HSA_API
 hsa_amd_memory_get_preferred_copy_engine(hsa_agent_t dst_agent, hsa_agent_t src_agent,
@@ -4351,7 +4384,7 @@ hsa_status_t hsa_amd_vmem_get_access(void* va, hsa_access_permission_t* perms,
                                      hsa_agent_t agent_handle);
 
 /**
- * @brief Get an exportable shareable handle
+ * @brief Get an exportable locally unique shareable handle
  *
  * Get an exportable shareable handle for a memory_handle. This shareabl handle can then be used to
  * re-create a virtual memory handle using hsa_amd_vmem_import_shareable_handle. The shareable
@@ -4427,6 +4460,56 @@ hsa_status_t hsa_amd_vmem_get_alloc_properties_from_handle(
     hsa_amd_vmem_alloc_handle_t memory_handle, hsa_amd_memory_pool_t* pool,
     hsa_amd_memory_type_t* type);
 
+/**
+ * @brief 128-bit globally unique identifier for a ROCr shared memory
+ * allocation.
+ */
+typedef struct hsa_fabric_handle_s {
+  uint8_t handle[16];
+} hsa_fabric_handle_t;
+
+
+/**
+ * Get a globaly-unique exportable shareable handle for a memory_handle.
+ * This shareable handle can then be used to re-create a virtual memory handle
+ * using hsa_amd_vmem_import_shareable_handle. Once all shareable handles are
+ * closed, the memory_handle is released.
+ *
+ * @param[out] fabric_handle fabric handle
+ * @param[in] handle previously allocated virtual memory handle
+ * @param[in] flags Currently unsupported
+ *
+ * @retval ::HSA_STATUS_SUCCESS
+ *
+ * @retval ::HSA_STATUS_ERROR_INVALID_ALLOCATION Invalid memory handle
+ *
+ * @retval ::HSA_STATUS_ERROR_OUT_OF_RESOURCES Out of resources
+ *
+ * @retval ::HSA_STATUS_ERROR Unexpected internal error
+ */
+hsa_status_t hsa_amd_vmem_export_fabric_handle(hsa_fabric_handle_t *fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t handle,
+                                               uint64_t flags);
+
+/**
+ * @brief Import a globally-unique shareable handle
+ *
+ * Import a shareable handle for a memory handle. Importing a shareable handle that has been closed
+ * and released results in undefined behavior.
+ *
+ * @param[in] fabric_handle shareable handle exported with hsa_amd_vmem_export_shareable_handle
+ * @param[out] handle virtual memory handle
+ *
+ * @retval ::HSA_STATUS_SUCCESS
+ *
+ * @retval ::HSA_STATUS_ERROR_INVALID_ALLOCATION Invalid memory handle
+ *
+ * @retval ::HSA_STATUS_ERROR_OUT_OF_RESOURCES Out of resources
+ *
+ * @retval ::HSA_STATUS_ERROR Unexpected internal error
+ */
+hsa_status_t hsa_amd_vmem_import_fabric_handle(hsa_fabric_handle_t fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t* handle);
 /** @} */
 
 /** \addtogroup queue Queues

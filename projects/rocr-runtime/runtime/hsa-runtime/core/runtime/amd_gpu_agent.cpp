@@ -240,7 +240,7 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
   hsa_status_t status = driver().IsModelEnabled(&model_enabled);
   assert(status == HSA_STATUS_SUCCESS && "IsModelEnabled failed");
   if (model_enabled) {
-    wallclock_frequency_ = 0;
+    wallclock_frequency_ = 1000*1000*1000; // The model has a 1GHz refclk
   } else {
     // Prefer cached node properties when available (in KHz)
     if (properties_.WallClockKHz != 0) {
@@ -299,75 +299,215 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
     ASICShader compute_11;
     ASICShader compute_12;
     ASICShader compute_1250;
+    ASICShader compute_1260;
+    ASICShader compute_13;
   };
 
-  std::map<std::string, CompiledShader> compiled_shaders = {
-      {"TrapHandler",
-       {
-           {NULL, 0, 0, 0},                                                 // gfx7
-           {kCodeTrapHandler8, sizeof(kCodeTrapHandler8), 2, 4},            // gfx8
-           {kCodeTrapHandler9, sizeof(kCodeTrapHandler9), 2, 4},            // gfx9
-           {kCodeTrapHandler90a, sizeof(kCodeTrapHandler90a), 2, 4},        // gfx90a
-           {NULL, 0, 0, 0},                                                 // gfx942
-           {kCodeTrapHandler1010, sizeof(kCodeTrapHandler1010), 2, 4},      // gfx1010
-           {kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4},          // gfx10
-           {NULL, 0, 0, 0},                                                 // gfx11
-           // GFX12_TODO: Using one for GFX10 for now.
-           //             If NULL is used (like GFX11), get an assert.
-           {kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4},          // gfx12
-       }},
-      {"TrapHandlerKfdExceptions",
-       {
-           {NULL, 0, 0, 0},                                                 // gfx7
-           {kCodeTrapHandler8, sizeof(kCodeTrapHandler8), 2, 4},            // gfx8
-           {kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4},      // gfx9
-           {kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4},      // gfx90a
-           {kCodeTrapHandlerV2_942, sizeof(kCodeTrapHandlerV2_942), 2, 4},  // gfx942
-           {kCodeTrapHandlerV2_1010, sizeof(kCodeTrapHandlerV2_1010), 2, 4},// gfx1010
-           {kCodeTrapHandlerV2_10, sizeof(kCodeTrapHandlerV2_10), 2, 4},    // gfx10
-           {kCodeTrapHandlerV2_11, sizeof(kCodeTrapHandlerV2_11), 2, 4},    // gfx11
-           {kCodeTrapHandlerV2_12, sizeof(kCodeTrapHandlerV2_12), 2, 4},    // gfx12
-           {kCodeTrapHandlerV2_1250, sizeof(kCodeTrapHandlerV2_1250), 2, 4},  // gfx1250
-       }},
-      {"CopyAligned",
-       {
-           {kCodeCopyAligned7, sizeof(kCodeCopyAligned7), 32, 12},          // gfx7
-           {kCodeCopyAligned8, sizeof(kCodeCopyAligned8), 32, 12},          // gfx8
-           {kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12},          // gfx9
-           {kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12},          // gfx90a
-           {kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12},          // gfx942
-           {kCodeCopyAligned10, sizeof(kCodeCopyAligned10), 32, 12},        // gfx1010
-           {kCodeCopyAligned10, sizeof(kCodeCopyAligned10), 32, 12},        // gfx10
-           {kCodeCopyAligned11, sizeof(kCodeCopyAligned11), 32, 12},        // gfx11
-           {kCodeCopyAligned12, sizeof(kCodeCopyAligned12), 32, 12},        // gfx12
-           {kCodeCopyAligned1250, sizeof(kCodeCopyAligned1250), 32, 12},    // gfx1250
-       }},
-      {"CopyMisaligned",
-       {
-           {kCodeCopyMisaligned7, sizeof(kCodeCopyMisaligned7), 23, 10},    // gfx7
-           {kCodeCopyMisaligned8, sizeof(kCodeCopyMisaligned8), 23, 10},    // gfx8
-           {kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10},    // gfx9
-           {kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10},    // gfx90a
-           {kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10},    // gfx942
-           {kCodeCopyMisaligned10, sizeof(kCodeCopyMisaligned10), 23, 10},  // gfx1010
-           {kCodeCopyMisaligned10, sizeof(kCodeCopyMisaligned10), 23, 10},  // gfx10
-           {kCodeCopyMisaligned11, sizeof(kCodeCopyMisaligned11), 23, 10},  // gfx11
-           {kCodeCopyMisaligned12, sizeof(kCodeCopyMisaligned12), 23, 10},  // gfx12
-           {kCodeCopyMisaligned1250, sizeof(kCodeCopyMisaligned1250), 23, 10},  // gfx1250
-       }},
-      {"Fill",
-       {
-           {kCodeFill7, sizeof(kCodeFill7), 19, 8},                         // gfx7
-           {kCodeFill8, sizeof(kCodeFill8), 19, 8},                         // gfx8
-           {kCodeFill9, sizeof(kCodeFill9), 19, 8},                         // gfx9
-           {kCodeFill9, sizeof(kCodeFill9), 19, 8},                         // gfx90a
-           {kCodeFill9, sizeof(kCodeFill9), 19, 8},                         // gfx942
-           {kCodeFill10, sizeof(kCodeFill10), 19, 8},                       // gfx1010
-           {kCodeFill10, sizeof(kCodeFill10), 19, 8},                       // gfx10
-           {kCodeFill11, sizeof(kCodeFill11), 19, 8},                       // gfx11
-           {kCodeFill12, sizeof(kCodeFill12), 19, 8},                       // gfx12
-           {kCodeFill1250, sizeof(kCodeFill1250), 19, 8},                   // gfx1250
-       }}};
+  std::map<std::string, CompiledShader> compiled_shaders;
+
+  auto make_shader = [](const void* code, size_t size, int sgprs, int vgprs) {
+    return ASICShader{code, size, sgprs, vgprs};
+  };
+
+  // Trap Handler
+  {
+    CompiledShader shader = {};
+    shader.compute_8 = make_shader(kCodeTrapHandler8, sizeof(kCodeTrapHandler8), 2, 4);
+    shader.compute_9   = make_shader(kCodeTrapHandler9, sizeof(kCodeTrapHandler9), 2, 4);
+    shader.compute_90a = make_shader(kCodeTrapHandler90a, sizeof(kCodeTrapHandler90a), 2, 4);
+    shader.compute_1010 = make_shader(kCodeTrapHandler1010, sizeof(kCodeTrapHandler1010), 2, 4);
+    shader.compute_10 = make_shader(kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4);
+    shader.compute_12 = make_shader(kCodeTrapHandler10, sizeof(kCodeTrapHandler10), 2, 4);
+    compiled_shaders["TrapHandler"] = shader;
+  }
+
+  // TrapHandlerKfdExceptions
+  {
+    CompiledShader shader = {};
+#ifdef TARGET_DEVICE_GFX9
+    shader.compute_9 = make_shader(kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX90A
+    shader.compute_90a = make_shader(kCodeTrapHandlerV2_9, sizeof(kCodeTrapHandlerV2_9), 2, 4);
+#endif
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)
+    shader.compute_942 = make_shader(kCodeTrapHandlerV2_942, sizeof(kCodeTrapHandlerV2_942), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX1010
+    shader.compute_1010 = make_shader(kCodeTrapHandlerV2_1010, sizeof(kCodeTrapHandlerV2_1010), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX10
+    shader.compute_10 = make_shader(kCodeTrapHandlerV2_10, sizeof(kCodeTrapHandlerV2_10), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX11
+    shader.compute_11 = make_shader(kCodeTrapHandlerV2_11, sizeof(kCodeTrapHandlerV2_11), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX12
+    shader.compute_12 = make_shader(kCodeTrapHandlerV2_12, sizeof(kCodeTrapHandlerV2_12), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX1250
+    shader.compute_1250 = make_shader(kCodeTrapHandlerV2_1250, sizeof(kCodeTrapHandlerV2_1250), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX1260
+    shader.compute_1260 = make_shader(kCodeTrapHandlerV2_1260, sizeof(kCodeTrapHandlerV2_1260), 2, 4);
+#endif
+#ifdef TARGET_DEVICE_GFX13
+    shader.compute_13 = make_shader(kCodeTrapHandlerV2_13, sizeof(kCodeTrapHandlerV2_13), 2, 4);
+#endif
+
+    compiled_shaders["TrapHandlerKfdExceptions"] = shader;
+  }
+
+  // CopyAligned Shaders
+  {
+    CompiledShader shader = {};
+
+#ifdef TARGET_DEVICE_GFX7
+    shader.compute_7 = make_shader(kCodeCopyAligned7, sizeof(kCodeCopyAligned7), 32, 12);
+#endif
+#ifdef TARGET_DEVICE_GFX8
+    shader.compute_8 = make_shader(kCodeCopyAligned8, sizeof(kCodeCopyAligned8), 32, 12);
+#endif
+#if defined(TARGET_DEVICE_GFX9)
+    shader.compute_9 = make_shader(kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12);
+#endif
+#ifdef TARGET_DEVICE_GFX90A
+    shader.compute_90a = make_shader(kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12);
+#endif
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)
+    shader.compute_942 = make_shader(kCodeCopyAligned9, sizeof(kCodeCopyAligned9), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1010
+    shader.compute_1010 = make_shader(kCodeCopyAligned1010, sizeof(kCodeCopyAligned1010), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX10
+    shader.compute_10 = make_shader(kCodeCopyAligned10, sizeof(kCodeCopyAligned10), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX11
+    shader.compute_11 = make_shader(kCodeCopyAligned11, sizeof(kCodeCopyAligned11), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX12
+    shader.compute_12 = make_shader(kCodeCopyAligned12, sizeof(kCodeCopyAligned12), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1250
+    shader.compute_1250 = make_shader(kCodeCopyAligned1250, sizeof(kCodeCopyAligned1250), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1260
+    shader.compute_1260 = make_shader(kCodeCopyAligned1260, sizeof(kCodeCopyAligned1260), 32, 12);
+#endif
+
+#ifdef TARGET_DEVICE_GFX13
+    shader.compute_13 = make_shader(kCodeCopyAligned13, sizeof(kCodeCopyAligned13), 32, 12);
+#endif
+
+    compiled_shaders["CopyAligned"] = shader;
+  }
+
+  // CopyMisaligned Shaders
+  {
+    CompiledShader shader = {};
+
+#ifdef TARGET_DEVICE_GFX7
+    shader.compute_7 = make_shader(kCodeCopyMisaligned7, sizeof(kCodeCopyMisaligned7), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX8
+    shader.compute_8 = make_shader(kCodeCopyMisaligned8, sizeof(kCodeCopyMisaligned8), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX9
+    shader.compute_9 = make_shader(kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10);
+#endif
+#ifdef TARGET_DEVICE_GFX90A
+    shader.compute_90a = make_shader(kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10);
+#endif
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)
+    shader.compute_942 = make_shader(kCodeCopyMisaligned9, sizeof(kCodeCopyMisaligned9), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1010
+    shader.compute_1010 = make_shader(kCodeCopyMisaligned1010, sizeof(kCodeCopyMisaligned1010), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX10
+    shader.compute_10 = make_shader(kCodeCopyMisaligned10, sizeof(kCodeCopyMisaligned10), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX11
+    shader.compute_11 = make_shader(kCodeCopyMisaligned11, sizeof(kCodeCopyMisaligned11), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX12
+    shader.compute_12 = make_shader(kCodeCopyMisaligned12, sizeof(kCodeCopyMisaligned12), 23, 10);
+#endif
+#ifdef TARGET_DEVICE_GFX1250
+    shader.compute_1250 = make_shader(kCodeCopyMisaligned1250, sizeof(kCodeCopyMisaligned1250), 23, 10);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1260
+    shader.compute_1260 = make_shader(kCodeCopyMisaligned1260, sizeof(kCodeCopyMisaligned1260), 23, 10);
+#endif
+#ifdef TARGET_DEVICE_GFX13
+    shader.compute_13 = make_shader(kCodeCopyMisaligned13, sizeof(kCodeCopyMisaligned13), 23, 10);
+#endif
+    compiled_shaders["CopyMisaligned"] = shader;
+  }
+
+  // Fill Shaders
+  {
+    CompiledShader shader = {};
+
+#ifdef TARGET_DEVICE_GFX7
+    shader.compute_7 = make_shader(kCodeFill7, sizeof(kCodeFill7), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX8
+    shader.compute_8 = make_shader(kCodeFill8, sizeof(kCodeFill8), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX9
+    shader.compute_9 = make_shader(kCodeFill9, sizeof(kCodeFill9), 19, 8);
+#endif
+#ifdef TARGET_DEVICE_GFX90A
+    shader.compute_90a = make_shader(kCodeFill9, sizeof(kCodeFill9), 19, 8);
+#endif
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)
+    shader.compute_942 = make_shader(kCodeFill9, sizeof(kCodeFill9), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX1010
+    shader.compute_1010 = make_shader(kCodeFill1010, sizeof(kCodeFill1010), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX10
+    shader.compute_10 = make_shader(kCodeFill10, sizeof(kCodeFill10), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX11
+    shader.compute_11 = make_shader(kCodeFill11, sizeof(kCodeFill11), 19, 8);
+#endif
+
+#ifdef TARGET_DEVICE_GFX12
+    shader.compute_12 = make_shader(kCodeFill12, sizeof(kCodeFill12), 19, 8);
+#endif
+#ifdef TARGET_DEVICE_GFX1250
+    shader.compute_1250 = make_shader(kCodeFill1250, sizeof(kCodeFill1250), 19, 8);
+#endif
+#ifdef TARGET_DEVICE_GFX1260
+    shader.compute_1260 = make_shader(kCodeFill1260, sizeof(kCodeFill1260), 19, 8);
+#endif
+#ifdef TARGET_DEVICE_GFX13
+    shader.compute_13 = make_shader(kCodeFill13, sizeof(kCodeFill13), 19, 8);
+#endif
+
+    compiled_shaders["Fill"] = shader;
+  }
 
   auto compiled_shader_it = compiled_shaders.find(func_name);
   assert(compiled_shader_it != compiled_shaders.end() &&
@@ -376,36 +516,84 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
   ASICShader* asic_shader = NULL;
 
   switch (isa_->GetMajorVersion()) {
+#ifdef TARGET_DEVICE_GFX7
     case 7:
       asic_shader = &compiled_shader_it->second.compute_7;
       break;
+#endif
+#ifdef TARGET_DEVICE_GFX8
     case 8:
       asic_shader = &compiled_shader_it->second.compute_8;
       break;
+#endif
+#if defined(TARGET_DEVICE_GFX9) || defined(TARGET_DEVICE_GFX942) || \
+      defined(TARGET_DEVICE_GFX950) || defined(TARGET_DEVICE_GFX90A)
     case 9:
+#ifdef TARGET_DEVICE_GFX90A
       if((isa_->GetMinorVersion() == 0) && (isa_->GetStepping() == 10)) {
         asic_shader = &compiled_shader_it->second.compute_90a;
-      } else if(isa_->GetMinorVersion() == 4 || isa_->GetMinorVersion() == 5) {
+      } else
+#endif
+#if defined(TARGET_DEVICE_GFX942) || defined(TARGET_DEVICE_GFX950)
+      if(isa_->GetMinorVersion() == 4 || isa_->GetMinorVersion() == 5) {
         asic_shader = &compiled_shader_it->second.compute_942;
-      } else {
+      } else
+#endif
+#ifdef TARGET_DEVICE_GFX9
+      {
         asic_shader = &compiled_shader_it->second.compute_9;
       }
+#else
+      {
+        assert(false && "Precompiled shader unavailable for gfx9 variant");
+      }
+#endif
       break;
+#endif
+#if defined(TARGET_DEVICE_GFX1010) || defined(TARGET_DEVICE_GFX10)
     case 10:
+#ifdef TARGET_DEVICE_GFX1010
       if(isa_->GetMinorVersion() == 1)
         asic_shader = &compiled_shader_it->second.compute_1010;
       else
+#endif
+#ifdef TARGET_DEVICE_GFX10
         asic_shader = &compiled_shader_it->second.compute_10;
+#else
+        assert(false && "Precompiled shader unavailable for gfx10 variant");
+#endif
       break;
+#endif
+#ifdef TARGET_DEVICE_GFX11
     case 11:
         asic_shader = &compiled_shader_it->second.compute_11;
       break;
+#endif
+#if defined(TARGET_DEVICE_GFX12) || defined(TARGET_DEVICE_GFX1250) || defined(TARGET_DEVICE_GFX1260)
     case 12:
-        if(isa_->GetMinorVersion() >= 5)
+#ifdef TARGET_DEVICE_GFX1250
+        if(isa_->GetMinorVersion() == 5) {
           asic_shader = &compiled_shader_it->second.compute_1250;
+        }
         else
+#endif
+#ifdef TARGET_DEVICE_GFX1260
+        if (isa_->GetMinorVersion() >= 6)
+          asic_shader = &compiled_shader_it->second.compute_1260;
+        else
+#endif
+#ifdef TARGET_DEVICE_GFX12
           asic_shader = &compiled_shader_it->second.compute_12;
+#else
+          assert(false && "Precompiled shader unavailable for gfx12 variant");
+#endif
       break;
+#endif
+#ifdef TARGET_DEVICE_GFX13
+    case 13:
+      asic_shader = &compiled_shader_it->second.compute_13;
+      break;
+#endif
     default:
       assert(false && "Precompiled shader unavailable for target");
   }
@@ -429,7 +617,11 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
     amd_kernel_code_t* header = reinterpret_cast<amd_kernel_code_t*>(code_buf);
 
     int gran_sgprs = std::max(0, (int(asic_shader->num_sgprs) - 1) / 8);
-    int gran_vgprs = std::max(0, (int(asic_shader->num_vgprs) - 1) / 4);
+    const int vgpr_gran = (isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5) ? 16
+                        : (isa_->GetMajorVersion() >= 10 ||
+                           (isa_->GetMajorVersion() == 9 && isa_->GetMinorVersion() >= 4)) ? 8
+                        : 4;
+    int gran_vgprs = std::max(0, (asic_shader->num_vgprs + vgpr_gran - 1) / vgpr_gran - 1);
 
     header->kernel_code_entry_byte_offset = sizeof(amd_kernel_code_t);
     AMD_HSA_BITS_SET(header->kernel_code_properties,
@@ -462,6 +654,8 @@ void GpuAgent::AssembleShader(const char* func_name, AssembleTarget assemble_tar
       int gran_accvgprs = ((gran_vgprs + 1) * 8) / 4 - 1;
       header->max_scratch_backing_memory_byte_size = uint64_t(gran_accvgprs) << 32;
     }
+    header->wavefront_size = isa_->GetMajorVersion() >= 10 ? AMD_POWERTWO_32 : AMD_POWERTWO_64;
+    header->workitem_vgpr_count = asic_shader->num_vgprs;
   }
 
   // Copy shader code into the GPU-visible buffer.
@@ -824,6 +1018,10 @@ core::Blit* GpuAgent::CreateBlitSdma(bool use_xgmi, int rec_eng) {
       }
       copy_size_override = copy_size_overrides[1];
       break;
+    case 13:
+      sdma = new BlitSdmaV6();
+      copy_size_override = copy_size_overrides[1];
+      break;
     default:
       assert(false && "Unexpected device major version.");
       return nullptr;
@@ -1118,8 +1316,9 @@ hsa_status_t GpuAgent::DmaCopy(void* dst, core::Agent& dst_agent,
                                std::vector<core::Signal*>& dep_signals,
                                core::Signal& out_signal) {
   // Recommended SDMA engine copies only have gang factor 1
-  uint32_t rec_sdma_eng =
-    rocr::os::Ffs(rec_sdma_eng_id_peers_info_[dst_agent.public_handle().handle]);
+  uint32_t rec_mask = 0;
+  DmaPreferredEngine(dst_agent, src_agent, &rec_mask);
+  uint32_t rec_sdma_eng = PickSdmaEngine(rec_mask);
   if (rec_sdma_eng)
     return DmaCopyOnEngine(dst, dst_agent, src, src_agent, size,
                            dep_signals, out_signal, rec_sdma_eng, false);
@@ -1272,6 +1471,19 @@ hsa_status_t GpuAgent::DmaCopyOnEngine(void* dst, core::Agent& dst_agent,
     out_signal.async_copy_agent(core::Agent::Convert(this->public_handle()));
   }
 
+  // gfx1250 fast path: fuse poll+copy+signal into a single WaitSignal packet.
+  if (!profiling_enabled() && blit->isSDMA()) {
+    BlitSdmaBase* sdma_blit = static_cast<BlitSdmaBase*>((*blit).get());
+    if (sdma_blit->IsGfx1250() || sdma_blit->IsGfx1260()) {
+      hsa_status_t stat = sdma_blit->SubmitNotifyPrologue();
+      if (stat != HSA_STATUS_SUCCESS) return stat;
+      stat = sdma_blit->SubmitLinearCopyBodyWaitSignal(
+          dst, src, size, dep_signals, out_signal);
+      if (stat != HSA_STATUS_SUCCESS) return stat;
+      return sdma_blit->SubmitNotifyEpilogue(out_signal);
+    }
+  }
+
   std::vector<core::Signal*> gang_signals(0);
 
   hsa_status_t stat = blit->SubmitLinearCopyCommand(dst, src, size, dep_signals, out_signal,
@@ -1346,6 +1558,14 @@ hsa_status_t GpuAgent::DmaCopyStatus(core::Agent& dst_agent, core::Agent& src_ag
 
 hsa_status_t GpuAgent::DmaPreferredEngine(core::Agent& dst_agent, core::Agent& src_agent,
                                           uint32_t *recommended_ids_mask) {
+  // gfx1250+: all SDMA engines are equivalent, return full mask.
+  if (isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5) {
+    const uint32_t total_sdma =
+        properties_.NumSdmaEngines + properties_.NumSdmaXgmiEngines;
+    *recommended_ids_mask = total_sdma ? ((1u << total_sdma) - 1) : 0;
+    return HSA_STATUS_SUCCESS;
+  }
+
   // From the collected data, gfx94x performance is better only for first 3 SDMA engines
   bool isGfx94x = (isa_->GetMajorVersion() == 9 &&
                   (isa_->GetMinorVersion() == 4 || isa_->GetMinorVersion() == 5));
@@ -1390,28 +1610,51 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
   if (profiling_enabled())
     out_signal.async_copy_agent(core::Agent::Convert(this->public_handle()));
 
-  lazy_ptr<core::Blit>& coord_blit = GetBlitObject(BlitHostToDev);
+  // Resolve per-entry SDMA engines.
+  const uint32_t total_sdma =
+      properties_.NumSdmaEngines + properties_.NumSdmaXgmiEngines;
+
+  // Select the coordinator engine. For gfx1250/gfx1260, all engines are
+  // equivalent so we rotate the coordinator via PeekSdmaEngine (read-only peek
+  // at the round-robin counter) to spread GCR prologue/epilogue workload across
+  // engines over successive fan-out calls. The counter is NOT incremented here
+  // so body assignments start from the same position and coordinator selection
+  // is independent of body distribution.
+  // For all other architectures the coordinator is always BlitHostToDev (the
+  // dedicated H2D/P2P engine that owns the prologue/epilogue).
+  uint32_t coord_idx = BlitHostToDev;
+  {
+    uint32_t eng_mask = 0;
+    DmaPreferredEngine(*this, *this, &eng_mask);
+    if (eng_mask && total_sdma > 0) {
+      uint32_t peek = PickSdmaEngine(eng_mask, false);
+      if (peek) coord_idx = peek;
+    }
+  }
+
+  lazy_ptr<core::Blit>& coord_blit = GetBlitObject(coord_idx);
   if (!coord_blit->isSDMA())
     return HSA_STATUS_ERROR_INVALID_ARGUMENT;
   BlitSdmaBase* coordinator = static_cast<BlitSdmaBase*>((*coord_blit).get());
 
-  if (op == HSA_AMD_MEMORY_COPY_OP_LINEAR_SWAP && !coordinator->SwapSupported())
+  if (op == HSA_AMD_MEMORY_COPY_OP_LINEAR_SWAP &&
+      !coordinator->SwapSupported() && !coordinator->IsGfx1250() && !coordinator->IsGfx1260())
     return HSA_STATUS_ERROR_INVALID_ARGUMENT;
 
-  // Resolve per-entry SDMA engines.
-  constexpr bool kUseRRBalancing = false;
-  const uint32_t total_sdma =
-      properties_.NumSdmaEngines + properties_.NumSdmaXgmiEngines;
-
   struct EngineSlot { BlitSdmaBase* blit; uint32_t idx; };
-  std::vector<EngineSlot> engines(num_entries, {coordinator, BlitHostToDev});
+  std::vector<EngineSlot> engines(num_entries, {coordinator, coord_idx});
 
-  if (kUseRRBalancing && total_sdma > 0) {
+  if ((coordinator->IsGfx1250() || coordinator->IsGfx1260()) && total_sdma > 0) {
+    // gfx1250/gfx1260: all engines equivalent — round-robin via PickSdmaEngine.
+    uint32_t eng_mask = 0;
+    DmaPreferredEngine(*this, *this, &eng_mask);
     for (uint32_t d = 0; d < num_entries; ++d) {
-      uint32_t eng_idx = BlitHostToDev + (sdma_rr_index_++ % total_sdma);
-      lazy_ptr<core::Blit>& blit = GetBlitObject(eng_idx);
-      if (blit->isSDMA())
-        engines[d] = {static_cast<BlitSdmaBase*>((*blit).get()), eng_idx};
+      uint32_t eng_idx = PickSdmaEngine(eng_mask);
+      if (eng_idx) {
+        lazy_ptr<core::Blit>& blit = GetBlitObject(eng_idx);
+        if (blit->isSDMA())
+          engines[d] = {static_cast<BlitSdmaBase*>((*blit).get()), eng_idx};
+      }
     }
   } else {
     std::set<uint32_t> usedEngines;
@@ -1420,8 +1663,9 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
     // Assign recommended engines to entries that have one.
     for (uint32_t d = 0; d < num_entries; ++d) {
       core::Agent* dst_agent = core::Agent::Convert(dst_agent_list[d]);
-      int rec_eng = rocr::os::Ffs(
-          rec_sdma_eng_id_peers_info_[dst_agent->public_handle().handle]);
+      uint32_t rec_mask = 0;
+      DmaPreferredEngine(*dst_agent, *this, &rec_mask);
+      int rec_eng = PickSdmaEngine(rec_mask);
       if (rec_eng) {
         lazy_ptr<core::Blit>& blit = GetBlitObject(rec_eng);
         if (blit->isSDMA()) {
@@ -1455,6 +1699,92 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
       }
     }
   }
+
+  const char* op_name =
+      (op == HSA_AMD_MEMORY_COPY_OP_LINEAR_SWAP) ? "Swap" : "Copy";
+
+  // GFX1250+ fast path: use wait/signal packets so bodies directly wait on
+  // dep_signals and signal out_signal. No prologue or epilogue needed when
+  // profiling is off (no timestamps to collect).
+  if ((coordinator->IsGfx1250() || coordinator->IsGfx1260()) && !profiling_enabled()) {
+    // N bodies each do a 64b-sub of 1 on out_signal. Initial value is 1,
+    // so bump by (N-1) so the final value after all decrements is 0.
+    out_signal.AddRelaxed(num_entries - 1);
+
+    // When GCR is active, issue a GCR invalidate on the coordinator engine
+    // before bodies start.  Since bodies run on different engines, allocate a
+    // prologue_signal that the prologue decrements after GCR completes.
+    // Bodies wait on it before copying.  Without GCR, bodies use the user's
+    // dep_signals directly — no extra signal needed.
+    const bool needs_gcr = coordinator->UsesGCR();
+    core::unique_signal_ptr prologue_signal;
+
+    if (needs_gcr) {
+      prologue_signal.reset(new core::DefaultSignal(1));
+      if (!prologue_signal->IsValid()) return HSA_STATUS_ERROR_OUT_OF_RESOURCES;
+    }
+
+    hsa_status_t stat = coordinator->SubmitNotifyPrologue(
+        needs_gcr ? prologue_signal.get() : nullptr);
+    if (stat != HSA_STATUS_SUCCESS) return stat;
+
+    // Build body deps: prepend prologue_signal (if GCR) so it becomes
+    // dep_signals[0] inside SubmitLinearCopy/SwapBodyWaitSignal, mapping
+    // to the WaitSignal packet's hardware WAIT field.  The SDMA engine
+    // won't start the copy until prologue_signal reaches 0.
+    // Without GCR, bodies use the original dep_signals unchanged.
+    const std::vector<core::Signal*>* body_deps_ptr = &dep_signals;
+    std::vector<core::Signal*> body_deps_with_prologue;
+    if (needs_gcr) {
+      body_deps_with_prologue.reserve(1 + dep_signals.size());
+      body_deps_with_prologue.push_back(prologue_signal.get());
+      body_deps_with_prologue.insert(body_deps_with_prologue.end(),
+                                     dep_signals.begin(), dep_signals.end());
+      body_deps_ptr = &body_deps_with_prologue;
+    }
+
+    for (uint32_t d = 0; d < num_entries; ++d) {
+      LogPrint(HSA_AMD_LOG_FLAG_SDMA,
+               "SDMA FanOut(%s) WaitSignalBody[%u/%u]: engine %02u, src=%p, dst=%p, "
+               "size=%zu, completion_signal=0x%zx",
+               op_name,
+               d + 1, num_entries, engines[d].idx, src_list[d], dst_list[d],
+               size_list[d],
+               core::Signal::Convert(&out_signal).handle);
+      switch (op) {
+      case HSA_AMD_MEMORY_COPY_OP_LINEAR_SWAP:
+        stat = engines[d].blit->SubmitLinearSwapBodyWaitSignal(
+            dst_list[d], const_cast<void*>(src_list[d]),
+            size_list[d], size_list[d],
+            *body_deps_ptr, out_signal);
+        break;
+      default:
+        stat = engines[d].blit->SubmitLinearCopyBodyWaitSignal(
+            dst_list[d], src_list[d], size_list[d],
+            *body_deps_ptr, out_signal);
+        break;
+      }
+      if (stat != HSA_STATUS_SUCCESS) return stat;
+    }
+
+    // Clean up prologue_signal asynchronously when out_signal reaches 0.
+    if (needs_gcr) {
+      core::Signal* prol_raw = prologue_signal.release();
+      core::Runtime::runtime_singleton_->SetAsyncSignalHandler(
+          core::Signal::Convert(&out_signal),
+          HSA_SIGNAL_CONDITION_EQ, 0,
+          [](hsa_signal_value_t, void* arg) -> bool {
+            reinterpret_cast<core::Signal*>(arg)->DestroySignal();
+            return false;
+          },
+          reinterpret_cast<void*>(prol_raw));
+    }
+
+    // Lightweight notify: poll out_signal==0, GCR writeback, mailbox + trap.
+    return coordinator->SubmitNotifyEpilogue(out_signal);
+  }
+
+  // Legacy Path: prologue -> body -> epilogue path.
 
   // Allocate prologue synchronization signal
   core::unique_signal_ptr prologue_signal(new core::DefaultSignal(1));
@@ -1500,14 +1830,11 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
     out_signal.AddRelaxed(num_entries);
   }
 
-  const char* op_name =
-      (op == HSA_AMD_MEMORY_COPY_OP_LINEAR_SWAP) ? "Swap" : "Copy";
-
   // Prologue: dep polls, HDP flush, GCR invalidate, decrement prologue_signal.
   LogPrint(HSA_AMD_LOG_FLAG_SDMA,
            "SDMA FanOut(%s) Prologue: engine %02u, num_entries=%u, dep_signal=0x%zx, "
            "completion_signal=0x%zx, prologue_signal=0x%zx",
-           op_name, BlitHostToDev, num_entries,
+           op_name, coord_idx, num_entries,
            dep_signals.empty() ? 0 : core::Signal::Convert(dep_signals[0]).handle,
            core::Signal::Convert(&out_signal).handle,
            core::Signal::Convert(prologue_raw).handle);
@@ -1516,6 +1843,12 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
   if (stat != HSA_STATUS_SUCCESS) return stat;
 
   // Fan out: one body per entry on its resolved engine.
+  // On gfx1250 with shared out_signal, use WaitSignal body to fuse
+  // poll+copy+signal into a single packet per body.
+  const bool waitsignal_body = (coordinator->IsGfx1250() || coordinator->IsGfx1260()) && !use_body_signals;
+  const std::vector<core::Signal*> body_deps = waitsignal_body
+      ? std::vector<core::Signal*>{prologue_raw} : std::vector<core::Signal*>{};
+
   for (uint32_t d = 0; d < num_entries; ++d) {
     core::Signal& body_sig = use_body_signals ? *body_raw[d] : out_signal;
     LogPrint(HSA_AMD_LOG_FLAG_SDMA,
@@ -1528,14 +1861,23 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
              core::Signal::Convert(&body_sig).handle);
     switch (op) {
     case HSA_AMD_MEMORY_COPY_OP_LINEAR_SWAP:
-      stat = engines[d].blit->SubmitLinearSwapBody(
-          dst_list[d], const_cast<void*>(src_list[d]), size_list[d],
-          *prologue_raw, body_sig);
+      stat = waitsignal_body
+          ? engines[d].blit->SubmitLinearSwapBodyWaitSignal(
+                dst_list[d], const_cast<void*>(src_list[d]),
+                size_list[d], size_list[d],
+                body_deps, out_signal)
+          : engines[d].blit->SubmitLinearSwapBody(
+                dst_list[d], const_cast<void*>(src_list[d]), size_list[d],
+                *prologue_raw, body_sig);
       break;
-    default:
-      stat = engines[d].blit->SubmitLinearCopyBody(
-          dst_list[d], src_list[d], size_list[d],
-          *prologue_raw, body_sig);
+    default: // Default is Linear Copy
+      stat = waitsignal_body
+          ? engines[d].blit->SubmitLinearCopyBodyWaitSignal(
+                dst_list[d], src_list[d], size_list[d],
+                body_deps, out_signal)
+          : engines[d].blit->SubmitLinearCopyBody(
+                dst_list[d], src_list[d], size_list[d],
+                *prologue_raw, body_sig);
       break;
     }
     if (stat != HSA_STATUS_SUCCESS) return stat;
@@ -1545,7 +1887,7 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
   LogPrint(HSA_AMD_LOG_FLAG_SDMA,
            "SDMA FanOut(%s) Epilogue: engine %02u, completion_signal=0x%zx, "
            "num_body_signals=%zu",
-           op_name, BlitHostToDev,
+           op_name, coord_idx,
            core::Signal::Convert(&out_signal).handle,
            body_raw.size());
   constexpr hsa_signal_value_t kWaitValue = 1;
@@ -1562,21 +1904,23 @@ hsa_status_t GpuAgent::DmaCopyBroadcast(
   const uint16_t num_entries = op.num_entries;
   constexpr size_t kBroadcastMaxSize = 1024 * 1024;
 
-  // Try HW broadcast for small transfers.
-  if (op.size < kBroadcastMaxSize) {
+  // Try HW broadcast/multicast.
+  {
     SetCopyRequestRefCount(true);
     MAKE_SCOPE_GUARD([&]() { SetCopyRequestRefCount(false); });
 
     lazy_ptr<core::Blit>& blit = GetBlitObject(BlitHostToDev);
     if (blit->isSDMA()) {
       BlitSdmaBase* sdma_blit = static_cast<BlitSdmaBase*>((*blit).get());
-      if (sdma_blit->BroadcastSupported()) {
+      if (sdma_blit->BroadcastSupported() &&
+          (sdma_blit->IsGfx1250() || sdma_blit->IsGfx1260() || op.size < kBroadcastMaxSize)) {
         if (profiling_enabled())
           out_signal.async_copy_agent(core::Agent::Convert(this->public_handle()));
 
         LogPrint(HSA_AMD_LOG_FLAG_SDMA,
-                 "SDMA Broadcast using engine %02u, src=%p, num_entries=%u, size=%zu, "
+                 "SDMA %s using engine %02u, src=%p, num_entries=%u, size=%zu, "
                  "dep_signal=0x%zx, completion_signal=0x%zx",
+                 (sdma_blit->IsGfx1250() || sdma_blit->IsGfx1260()) ? "Multicast" : "Broadcast",
                  BlitHostToDev, op.src, num_entries, op.size,
                  dep_signals.empty() ? 0 : core::Signal::Convert(dep_signals[0]).handle,
                  out_signal_obj->signal_);
@@ -1642,8 +1986,9 @@ hsa_status_t GpuAgent::DmaCopyBatch(const hsa_amd_memory_copy_op_t* ops,
       } else {
         core::Agent* dst_agent = core::Agent::Convert(op.dst_agent);
         core::Agent* src_agent = core::Agent::Convert(op.src_agent);
-        uint32_t engine_offset =
-            rocr::os::Ffs(rec_sdma_eng_id_peers_info_[dst_agent->public_handle().handle]);
+        uint32_t rec_mask = 0;
+        DmaPreferredEngine(*dst_agent, *src_agent, &rec_mask);
+        uint32_t engine_offset = PickSdmaEngine(rec_mask);
         if (!engine_offset) {
           bool is_h2d = (src_agent->device_type() == core::Agent::kAmdCpuDevice &&
                          dst_agent->device_type() == core::Agent::kAmdGpuDevice);
@@ -1854,7 +2199,7 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       break;
     case HSA_AGENT_INFO_CACHE_SIZE: {
       std::memset(value, 0, sizeof(uint32_t) * 4);
-      assert(cache_props_.size() > 0 && "GPU cache info missing.");
+      /* assert(cache_props_.size() > 0 && "GPU cache info missing."); */
       const size_t num_cache = cache_props_.size();
       for (size_t i = 0; i < num_cache; ++i) {
         const uint32_t line_level = cache_props_[i].CacheLevel;
@@ -1940,6 +2285,11 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       *((uint32_t*)value) = properties_.DeviceId;
       break;
     case HSA_AMD_AGENT_INFO_CACHELINE_SIZE:
+      if (core::Runtime::runtime_singleton_->flag().cacheline_size_override() >= 0) {
+        *((uint32_t*)value) =
+            core::Runtime::runtime_singleton_->flag().cacheline_size_override();
+        return HSA_STATUS_SUCCESS;
+      }
       for (auto& cache : cache_props_) {
         if ((cache.CacheLevel == 2) && (cache.CacheLineSize != 0)) {
           *((uint32_t*)value) = cache.CacheLineSize;
@@ -2126,6 +2476,20 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       }
       return HSA_STATUS_ERROR;
     }
+    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_DIM:
+    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM:
+      memcpy(value, &kern_cluster_max_dim_, sizeof(kern_cluster_max_dim_));
+      break;
+    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_SIZE:
+    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_SIZE:
+      *((uint64_t*)value) = kern_cluster_max_dim_.x * kern_cluster_max_dim_.y * kern_cluster_max_dim_.z;
+      break;
+    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_DIM:
+      memcpy(value, &cluster_max_dim_, sizeof(cluster_max_dim_));
+      break;
+    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE:
+      *((uint64_t*)value) = cluster_max_dim_.x;
+      break;
     case HSA_AMD_AGENT_INFO_PM4_EMULATION:
       *((bool*)value) = properties_.Capability2.ui32.AqlEmulationPm4_;
       break;
@@ -2745,7 +3109,7 @@ hsa_status_t GpuAgent::UpdateTrapHandlerWithPCS(pcs_sampling_data_t* pcs_hosttra
     tma_addr = trap_handler_tma_region_;
   } else if (trap_handler_tma_region_) {
     finegrain_deallocator()(trap_handler_tma_region_);
-    trap_handler_tma_region_ = NULL;
+    trap_handler_tma_region_ = nullptr;
   }
 
   // Bind the trap handler to this node.
@@ -2808,8 +3172,13 @@ void GpuAgent::InvalidateCodeCaches(void *ptr, size_t size) {
       // Microcode is handling code cache invalidation.
       return;
     }
-  } else if (isa_->GetMajorVersion() > 12) {
+  } else if (isa_->GetMajorVersion() > 13) {
     assert(false && "Code cache invalidation not implemented for this agent");
+  }
+
+  if (core::Runtime::runtime_singleton_->flag().enable_dtif() &&
+      core::Runtime::runtime_singleton_->flag().enable_dtif_skip_inv_code_cache()) {
+    return;
   }
 
   // Invalidate caches which may hold lines of code object allocation.
@@ -3075,6 +3444,10 @@ hsa_status_t GpuAgent::PcSamplingIterateConfig(hsa_ven_amd_pcs_iterate_configura
   if (ret != HSAKMT_STATUS_SUCCESS) return HSA_STATUS_ERROR;
 
   for (uint32_t i = 0; i < size; i++) {
+    if ((isa_->GetMajorVersion() == 12 && (isa_->GetMinorVersion() == 0)) &&
+        sampleInfoList[i].method == HSA_PC_SAMPLING_METHOD_KIND_STOCHASTIC_V1) {
+      continue;
+    }
     hsa_ven_amd_pcs_configuration_t hsaPcSampling;
     if (ConvertHsaKmtPcSamplingInfoToHsa(&sampleInfoList[i], &hsaPcSampling) == HSA_STATUS_SUCCESS
         && cb(&hsaPcSampling, cb_data) == HSA_STATUS_INFO_BREAK)
@@ -3121,6 +3494,10 @@ hsa_status_t GpuAgent::PcSamplingCreateFromId(HsaPcSamplingTraceId ioctlId,
   if (sampling_method == HSA_VEN_AMD_PCS_METHOD_HOSTTRAP_V1) {
     pcs_data = &pcs_hosttrap_data_;
   } else if (sampling_method == HSA_VEN_AMD_PCS_METHOD_STOCHASTIC_V1) {
+    if (isa_->GetMajorVersion() == 12 && (isa_->GetMinorVersion() == 0)) {
+      return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+    }
+
     pcs_data = &pcs_stochastic_data_;
   } else {
     // Unsupported sampling method
@@ -3662,7 +4039,23 @@ hsa_status_t GpuAgent::PcSamplingFlushDeviceBuffers(
    */
 
   cmd_data[i++] = PM4_HDR(PM4_HDR_IT_OPCODE_ATOMIC_MEM, atomic_ex_cmd_sz, isa_->GetMajorVersion());
-  cmd_data[i++] = PM4_ATOMIC_MEM_DW1_ATOMIC(PM4_ATOMIC_MEM_GL2_OP_ATOMIC_SWAP_RTN_64);
+  // On gfx1250+, Command Processor lives inside the GL2 cache, and multiple GL2s
+  // can perform atomics in SPX mode. Both waves and CP must use SCOPE_DEV so
+  // their atomics meet at the GL2 coherence point. Without this, the CP's
+  // atomic_swap (defaulting to CU scope) could miss atomic_adds from waves
+  // serviced by a different GL2.
+  //
+  // On gfx12.0 (gfx1200/gfx1201), the CP sits beyond the GL2. Waves use
+  // SCOPE_SYS to punch through GL2 and meet CP at the data fabric coherent
+  // station. The SCOPE field in ATOMIC_MEM packet is not defined for gfx12.0,
+  // so these bits are reserved/ignored.
+  //
+  // On gfx9xx, both waves and CP atomic at data fabric coherent station
+  // with no GL2 involvement, so scope is not relevant.
+  cmd_data[i++] = PM4_ATOMIC_MEM_DW1_ATOMIC(PM4_ATOMIC_MEM_GL2_OP_ATOMIC_SWAP_RTN_64) |
+      ((isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5)
+          ? PM4_ATOMIC_MEM_DW1_SCOPE(PM4_ATOMIC_MEM_SCOPE_DEV)
+          : 0);
   cmd_data[i++] = PM4_ATOMIC_MEM_DW2_ADDR_LO(buf_write_val);
   cmd_data[i++] = PM4_ATOMIC_MEM_DW3_ADDR_HI((buf_write_val) >> 32);
   cmd_data[i++] = PM4_ATOMIC_MEM_DW4_SRC_DATA_LO((uint64_t)reset_write_val);
@@ -3700,7 +4093,7 @@ hsa_status_t GpuAgent::PcSamplingFlushDeviceBuffers(
    * and the 2nd level trap handler code will skip recording samples, causing lost samples
    */
   if (*old_val > buf_size) {
-    pcs_data->lost_sample_count = *old_val - buf_size;
+    pcs_data->lost_sample_count += *old_val - buf_size;
     *old_val = buf_size;
   }
 
@@ -3720,8 +4113,8 @@ hsa_status_t GpuAgent::PcSamplingFlushDeviceBuffers(
   /*
    * Do the WAIT_REG_MEM, DMA_DATA(s) and WRITE_DATA
    *
-   * 1. Wait for all trap handlers have finished writing values to this buffer by waiting for
-   *    buf_written_val to equal to old_val.
+   * 1. Wait for all trap handlers to finish writing to this buffer by waiting for
+   *    buf_written_val to equal old_val.
    * 2. Copy the values out of buffer to the host buffers.
    * 3. Reset buf_written_val so that we start writing to beginning of this buffer on the next
    *    buffer swap.

@@ -522,7 +522,7 @@ rocpd_processor_t::handle([[maybe_unused]] const ainic_pmc_sample& _nic_sample)
 }
 
 void
-rocpd_processor_t::handle([[maybe_unused]] const cpu_freq_sample& _cpu_freq_sample)
+rocpd_processor_t::handle(const cpu_freq_sample& _cpu_freq_sample)
 {
     struct core_freq_sample
     {
@@ -639,6 +639,62 @@ rocpd_processor_t::handle(const kfd_sample& _kfd)
                     "device_type={}: {}",
                     _kfd.device_id, _kfd.device_type, e.what());
     }
+}
+
+void
+rocpd_processor_t::handle(const ainic_sample& _ainic)
+{
+    const auto* _category_name   = trait::name<category::amd_smi_nic>::value;
+    auto        name_primary_key = m_data_processor->insert_string(_category_name);
+    auto        event_id = m_data_processor->insert_event(name_primary_key, 0, 0, 0);
+
+    const auto& nic_agent =
+        m_agent_manager->get_agent_by_id(_ainic.nic_index, agent_type::NIC);
+
+    const auto  base_id  = nic_agent.base_id;
+    const char* nic_name = nic_agent.name.c_str();
+
+    auto insert_event_and_sample = [&](const char* pmc_descriptor, const char* track_name,
+                                       double value) {
+        m_data_processor->insert_pmc_event(event_id, base_id, pmc_descriptor, value);
+        m_data_processor->insert_sample(track_name, _ainic.timestamp, event_id);
+    };
+
+    insert_event_and_sample(trait::name<category::amd_smi_nic_rx_cnp_pkts>::value,
+                            info::annotate_with_nic<category::amd_smi_nic_rx_cnp_pkts>(
+                                nic_name, _ainic.nic_index)
+                                .c_str(),
+                            _ainic.rx_rdma_cnp_pkts);
+
+    insert_event_and_sample(trait::name<category::amd_smi_nic_tx_cnp_pkts>::value,
+                            info::annotate_with_nic<category::amd_smi_nic_tx_cnp_pkts>(
+                                nic_name, _ainic.nic_index)
+                                .c_str(),
+                            _ainic.tx_rdma_cnp_pkts);
+
+    insert_event_and_sample(trait::name<category::amd_smi_nic_rx_ucast_bytes>::value,
+                            info::annotate_with_nic<category::amd_smi_nic_rx_ucast_bytes>(
+                                nic_name, _ainic.nic_index)
+                                .c_str(),
+                            _ainic.rx_ucast_bytes);
+
+    insert_event_and_sample(trait::name<category::amd_smi_nic_tx_ucast_bytes>::value,
+                            info::annotate_with_nic<category::amd_smi_nic_tx_ucast_bytes>(
+                                nic_name, _ainic.nic_index)
+                                .c_str(),
+                            _ainic.tx_ucast_bytes);
+
+    insert_event_and_sample(trait::name<category::amd_smi_nic_rx_ucast_pkts>::value,
+                            info::annotate_with_nic<category::amd_smi_nic_rx_ucast_pkts>(
+                                nic_name, _ainic.nic_index)
+                                .c_str(),
+                            _ainic.rx_ucast_pkts);
+
+    insert_event_and_sample(trait::name<category::amd_smi_nic_tx_ucast_pkts>::value,
+                            info::annotate_with_nic<category::amd_smi_nic_tx_ucast_pkts>(
+                                nic_name, _ainic.nic_index)
+                                .c_str(),
+                            _ainic.tx_ucast_pkts);
 }
 
 rocpd_processor_t::rocpd_processor_t(const std::shared_ptr<metadata_registry>& md,

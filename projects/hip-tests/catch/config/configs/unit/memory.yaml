@@ -94,6 +94,12 @@ memory:
   Unit_hipMemcpy3DAsync_multiDevice_DiffStream:
     <<: *level_2
     tags: [multigpu, image]
+  Unit_hipMemcpy3DAsync_multiDevice_D2D:
+    <<: *level_2
+    tags: [multigpu]
+  Unit_hipMemcpy3DAsync_Basic_Size_Test:
+    <<: *level_2
+    tags: [transfer]
   Unit_hipMemcpyParam2D_Positive_Basic:
     <<: *level_2
     tags: [transfer]
@@ -164,6 +170,15 @@ memory:
     <<: *level_2
     # Below tests are failing PSDB
     disabled: [amd_windows]
+  Unit_hipMemcpy2D_multiDevice_D2D:
+    <<: *level_2
+    tags: [multigpu]
+  Unit_hipMemcpy2D_SizeCheck:
+    <<: *level_2
+    tags: [transfer]
+  Unit_hipMemcpy2D_Negative:
+    <<: *level_2
+    tags: [transfer]
   Unit_hipMemcpy2D_multiDevice_Basic_Size_Test:
     <<: *level_2
     tags: [transfer]
@@ -184,9 +199,18 @@ memory:
     <<: *level_2
     # Below tests are failing PSDB
     disabled: [amd_windows]
+  Unit_hipMemcpy2DAsync_multiDevice_Host_N_PinnedMem:
+    <<: *level_2
+    tags: [multigpu]
   Unit_hipMemcpy2DAsync_multiDevice_StreamOnDiffDevice:
     <<: *level_2
     tags: [multigpu]
+  Unit_hipMemcpy2DAsync_SizeCheck:
+    <<: *level_2
+    tags: [transfer]
+  Unit_hipMemcpy2DAsync_Negative:
+    <<: *level_2
+    tags: [transfer]
   Unit_hipMemcpy2DAsync_multiDevice_Basic_Size_Test:
     <<: *level_2
     tags: [transfer]

@@ -154,35 +154,21 @@ __global__ void kernel_cg_coalesced_group_partition(unsigned int tileSz, int* re
   }
 }
 
-__global__ void kernel_coalesced_active_groups() {
+// result[0] = even group size, result[1] = odd group size
+__global__ void kernel_coalesced_active_groups(int* result) {
   thread_block threadBlockCGTy = this_thread_block();
-
-  // input to reduction, for each thread, is its' rank in the group
-
-  if (threadBlockCGTy.thread_rank() == 0) {
-    printf(" Creating odd and even set of active thread groups based on branch divergence\n\n");
-  }
-
   threadBlockCGTy.sync();
 
   // Group all active odd threads
   if (threadBlockCGTy.thread_rank() % 2) {
     coalesced_group activeOdd = coalesced_threads();
-
     if (activeOdd.thread_rank() == 0) {
-      printf(
-          " ODD: Size of odd set of active threads is %d."
-          " Corresponding parent thread_rank is %d.\n\n",
-          activeOdd.size(), threadBlockCGTy.thread_rank());
+      result[1] = activeOdd.size();
     }
   } else {  // Group all active even threads
     coalesced_group activeEven = coalesced_threads();
-
     if (activeEven.thread_rank() == 0) {
-      printf(
-          " EVEN: Size of even set of active threads is %d."
-          " Corresponding parent thread_rank is %d.",
-          activeEven.size(), threadBlockCGTy.thread_rank());
+      result[0] = activeEven.size();
     }
   }
   return;
@@ -204,19 +190,26 @@ void compareResultsSimpleCoalescedGroups(int* cpu, int* gpu, int size) {
 }
 
 static void test_active_threads_grouping() {
-  hipError_t err;
   int blockSize = 1;
   int threadsPerBlock = WAVE_SIZE;
 
-  // Launch Kernel
-  hipLaunchKernelGGL(kernel_coalesced_active_groups, blockSize, threadsPerBlock, 0, 0);
-  HIP_CHECK(hipGetLastError());
+  int* dResult = NULL;
+  int hResult[2] = {0, 0};
 
-  err = hipDeviceSynchronize();
-  if (err != hipSuccess) {
-    fprintf(stderr, "Failed to launch kernel (error code %s)!\n", hipGetErrorString(err));
-  }
-  printf("\n...PASSED.\n\n");
+  HIP_CHECK(hipMalloc(&dResult, 2 * sizeof(int)));
+  HIP_CHECK(hipMemset(dResult, 0, 2 * sizeof(int)));
+
+  // Launch Kernel
+  hipLaunchKernelGGL(kernel_coalesced_active_groups, blockSize, threadsPerBlock, 0, 0, dResult);
+  HIP_CHECK(hipGetLastError());
+  HIP_CHECK(hipDeviceSynchronize());
+
+  HIP_CHECK(hipMemcpy(hResult, dResult, 2 * sizeof(int), hipMemcpyDeviceToHost));
+
+  REQUIRE(hResult[0] == threadsPerBlock / 2);  // even group size
+  REQUIRE(hResult[1] == threadsPerBlock / 2);  // odd group size
+
+  HIP_CHECK(hipFree(dResult));
 }
 
 // Search if the sum exists in the expected results array

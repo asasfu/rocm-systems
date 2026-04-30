@@ -232,13 +232,15 @@ const char* ihipGetErrorName(hipError_t hip_error);
 
 #define STREAM_CAPTURE(name, stream, ...)                                                          \
   hip::getStreamPerThread(stream);                                                                 \
-  if (stream != nullptr && stream != hipStreamLegacy) {                                            \
-    auto captureStatus = reinterpret_cast<hip::Stream*>(stream)->GetCaptureStatus();               \
-    if (captureStatus == hipStreamCaptureStatusActive) {                                           \
-      return hip::capture##name(stream, ##__VA_ARGS__);                                            \
-    } else if (captureStatus == hipStreamCaptureStatusInvalidated) {                               \
-      return hipErrorStreamCaptureInvalidated;                                                     \
-    }                                                                                              \
+  if (stream != nullptr && hip::isValid(stream)  && stream != hipStreamLegacy &&                   \
+      reinterpret_cast<hip::Stream*>(stream)->GetCaptureStatus() ==                                \
+          hipStreamCaptureStatusActive) {                                                          \
+    hipError_t status = hip::capture##name(stream, ##__VA_ARGS__);                                 \
+    return status;                                                                                 \
+  } else if (stream != nullptr && hip::isValid(stream) && stream != hipStreamLegacy &&             \
+             reinterpret_cast<hip::Stream*>(stream)->GetCaptureStatus() ==                         \
+                 hipStreamCaptureStatusInvalidated) {                                              \
+    return hipErrorStreamCaptureInvalidated;                                                       \
   }
 
 #define PER_THREAD_DEFAULT_STREAM(stream)                                                         \

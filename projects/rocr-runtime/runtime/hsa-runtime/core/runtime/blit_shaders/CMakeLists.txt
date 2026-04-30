@@ -49,10 +49,26 @@ find_package(Clang REQUIRED HINTS ${CMAKE_PREFIX_PATH}/llvm PATHS /opt/rocm/llvm
 find_package(LLVM REQUIRED HINTS ${CMAKE_PREFIX_PATH}/llvm PATHS /opt/rocm/llvm )
 
 # Set the target devices
-set (TARGET_DEVS "gfx900;gfx1010;gfx1030;gfx1100;gfx1200;gfx1250")
+set (TARGET_DEVICES_DEFAULT "gfx900;gfx1010;gfx1030;gfx1100;gfx1200;gfx1250;gfx1260;gfx1310;gfx131F")
 
-# Set the postfix for each target device
-set (POSTFIX "9;1010;10;11;12;1250")
+# Determine the target devices if not specified
+if (NOT DEFINED TARGET_DEVICES OR TARGET_DEVICES STREQUAL "")
+  if (DEFINED THEROCK_DIST_AMDGPU_TARGETS AND NOT THEROCK_DIST_AMDGPU_TARGETS STREQUAL "")
+	message(STATUS "Using THEROCK_DIST_AMDGPU_TARGETS from build system: ${THEROCK_DIST_AMDGPU_TARGETS}")
+	set(TARGET_DEVICES ${THEROCK_DIST_AMDGPU_TARGETS})
+  elseif (DEFINED GPU_TARGETS AND NOT GPU_TARGETS STREQUAL "")
+	message(STATUS "Using GPU_TARGETS from build system: ${GPU_TARGETS}")
+	set(TARGET_DEVICES ${GPU_TARGETS})
+  elseif(DEFINED AMDGPU_TARGETS AND NOT AMDGPU_TARGETS STREQUAL "") 
+	message(STATUS "Using AMDGPU_TARGETS from build system: ${AMDGPU_TARGETS}")
+	set(TARGET_DEVICES ${AMDGPU_TARGETS})
+  else()
+	message(STATUS "No target devices specified, using defaults: ${TARGET_DEVICES_DEFAULT}")
+    message(STATUS "To specify targets: cmake -DTARGET_DEVICES=\"gfx900;gfx1010...\"")
+    message(STATUS "Valid ASICs: ${TARGET_DEVICES_DEFAULT}")
+    set(TARGET_DEVICES ${TARGET_DEVICES_DEFAULT})
+  endif()
+endif()
 
 # If verbose output is enabled, print paths and target devices
 if(${CMAKE_VERBOSE_MAKEFILE})
@@ -60,7 +76,7 @@ if(${CMAKE_VERBOSE_MAKEFILE})
 	get_property(objcopy_path TARGET llvm-objcopy PROPERTY LOCATION)
 	message("Using clang from: ${clang_path}")
 	message("Using llvm-objcopy from: ${objcopy_path}")
-	message("Blit Shaders assembled for: ${TARGET_DEVS}")
+	message("Blit Shaders assembled for: ${TARGET_DEVICES}")
 endif()
 
 # Function to generate kernel bitcode
@@ -105,7 +121,7 @@ endfunction(build_kernel)
 function(build_kernels_for_devices SHADER_NAMES SHADER_FILES)
 	set(HSACO_TARG_LIST "")
 
-	list(LENGTH TARGET_DEVS num_target_devices)
+	list(LENGTH TARGET_DEVICES num_target_devices)
 	math(EXPR num_target_devices "${num_target_devices} - 1")
 	list(LENGTH SHADER_NAMES num_shader_names)
 	math(EXPR num_shader_names "${num_shader_names} - 1")
@@ -113,11 +129,46 @@ function(build_kernels_for_devices SHADER_NAMES SHADER_FILES)
 	foreach(shader_index RANGE ${num_shader_names})
 		list(GET SHADER_NAMES ${shader_index} shader_name)
 		list(GET SHADER_FILES ${shader_index} shader_file)
+
+		# Track which targets the current shader has already been built for
+		set(SHADER_BUILT_OUTPUTS "") 
 		foreach(device_index RANGE ${num_target_devices})
 			# Get device from list of target devices
-			list(GET TARGET_DEVS ${device_index} target_device)
-			# Get postfix from list of postfixes
-			list(GET POSTFIX ${device_index} postfix)
+			list(GET TARGET_DEVICES ${device_index} target_device)
+
+			# Determine postfix based on gfx architecture
+			if (${target_device} MATCHES "^gfx9")
+				set(postfix "9")
+			elseif(${target_device} STREQUAL "gfx1010")
+				set(postfix "1010")
+			elseif(${target_device} MATCHES "^gfx10")
+				set(postfix "10")
+			elseif(${target_device} MATCHES "^gfx11")
+				set(postfix "11")
+			elseif(${target_device} MATCHES "^gfx125")
+				set(postfix "1250")
+			elseif(${target_device} STREQUAL "gfx1260")
+				set(postfix "1260")
+			elseif(${target_device} MATCHES "^gfx12")
+				set(postfix "12")
+			elseif(${target_device} STREQUAL "gfx131F")
+				set(postfix "131F")
+			elseif(${target_device} MATCHES "^gfx13")
+				set(postfix "13")
+			else()
+				message(WARNING "Unsupported target device: ${target_device}. Skipping blit shaders..")
+				continue()
+			endif()
+
+			# Temporary check to prevent regenerating blit shaders for devices that share 
+            # them (e.g, gfx942 and gfx950) when building rocr for all default targets.
+            # TODO: Remove when architecture family grouping is implemented.
+            list(FIND SHADER_BUILT_OUTPUTS "${postfix}" idx)
+            if(NOT idx EQUAL -1)
+                continue()
+            endif()
+            list(APPEND SHADER_BUILT_OUTPUTS "${postfix}")
+
 			if(${CMAKE_VERBOSE_MAKEFILE})
 				message("\n  Generating: ${target_device} for ${shader_name} ...")
 			endif()

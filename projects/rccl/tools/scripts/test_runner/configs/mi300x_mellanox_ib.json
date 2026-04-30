@@ -781,6 +781,12 @@
       "description": "Graph capture with buffer registration on multi-node (requires 2+ nodes)",
       "config": "graph_capture_multi_node",
       "enabled": true
+    },
+    {
+      "name": "Implicit Launch Order Tests",
+      "description": "Test NCCL_LAUNCH_ORDER_IMPLICIT for multi-communicator serialization",
+      "config": "implicit_launch_order",
+      "enabled": true
     }
   ]
 }

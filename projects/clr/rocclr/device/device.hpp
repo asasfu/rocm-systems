@@ -109,12 +109,8 @@ enum MemRangeAttribute : uint32_t {
   CoherencyMode = 100,       ///< Current coherency mode for the specified range
 };
 
-enum FuncCache : uint32_t  {
-  kPreferNone = 0,   ///< Default function cache configuration, no preference
-  kPreferLDS = 1,    ///< Prefer larger shared memory and smaller L1 cache
-  kPreferCache = 2,  ///< Prefer larger L1 cache and smaller shared memory
-  kPreferEqual = 3   ///< Prefer equal size L1 cache and shared memory
-};
+//! hipFuncCache_t as index: 0=None, 1=Shared, 2=L1, 3=Equal -> carveout %.
+inline constexpr uint8_t kFuncCacheToGroupMemCarveoutPercent[] = {0, 100, 1, 50};
 
 constexpr int CpuDeviceId = static_cast<int>(-1);
 constexpr int InvalidDeviceId = static_cast<int>(-2);
@@ -283,6 +279,9 @@ struct Info : public amd::EmbeddedObject {
   //! Maximum number of work-items in a work-group executing a kernel
   //  using the data-parallel execution model.
   size_t maxWorkGroupSize_;
+
+  //! Maximum grid dimensions (from HSA_AGENT_INFO_GRID_MAX_DIM). Work-items per dimension.
+  uint32_t maxGridDim_[3];
 
   //! Preferred number of work-items in a work-group executing a kernel
   //  using the data-parallel execution model.
@@ -638,6 +637,9 @@ struct Info : public amd::EmbeddedObject {
   //! large bar support.
   bool largeBar_;
 
+  //! whether all local memory size can be shared within wgp mode
+  bool shareLocalMemInWGP_;
+
   uint32_t hmmSupported_;            //!< ROCr supports HMM interfaces
   uint32_t hmmCpuMemoryAccessible_;  //!< CPU memory is accessible by GPU without pinning/register
   uint32_t hmmDirectHostAccess_;     //!< HMM memory is accessible from the host without migration
@@ -668,6 +670,7 @@ struct Info : public amd::EmbeddedObject {
 
   uint32_t numberOfXccs_;  //! The number of XCC(s) on the device
 
+  bool fabric_handle_; //!< fabric handle support flag
   bool hasExpertSchedMode_;  //! Device supports expert scheduling mode
 
   bool dmabufSupported_;  //!< DMABuf support flag
@@ -696,6 +699,8 @@ class Settings : public amd::HeapObject {
       uint customHostAllocator_ : 1;          //!< True if device has custom host allocator
                                               //  that replaces generic OS allocation routines
       uint supportDepthsRGB_ : 1;             //!< Support DEPTH and sRGB channel order format
+      uint reportFMAF_ : 1;                   //!< Report FP_FAST_FMAF define in CL program
+      uint reportFMA_ : 1;                    //!< Report FP_FAST_FMA define in CL program
       uint singleFpDenorm_ : 1;               //!< Support Single FP Denorm
       uint enableWgpMode_ : 1;                //!< Enable WGP mode for this device
       uint enableWave32Mode_ : 1;             //!< Enable Wave32 mode for this device
@@ -710,7 +715,7 @@ class Settings : public amd::HeapObject {
       uint kernel_arg_impl_ : 2;              //!< Kernel argument implementation
       uint sdma_swap_supported_ : 1;         //!< SDMA linear swap copy (gfx94x/gfx95x)
       uint groupMemCarveout_ : 1;             //!< Group memory carveout functionality
-      uint reserved_ : 12;
+      uint reserved_ : 10;
     };
     uint value_;
   };
@@ -731,13 +736,6 @@ class Settings : public amd::HeapObject {
   void enableExtension(uint name) { extensions_ |= static_cast<uint64_t>(1) << name; }
 
   size_t stagedXferSize_ = 0;     //!< Staged buffer size
-  typedef struct CarveoutPref {
-    uint8_t totalSharedBanks;
-    uint8_t preferLDSBanks;
-    uint8_t preferCacheLDSBanks;
-    uint8_t preferEqualLDSBanks;
-  } CarveoutPref;
-  CarveoutPref groupMemPref_;
 
  private:
   //! Disable copy constructor
@@ -2010,7 +2008,7 @@ class Device : public RuntimeObject {
    * @param shareableHandle exported handle, points to fdesc.
    */
   virtual bool ExportShareableVMMHandle(amd::Memory& amd_mem_obj, int flags,
-                                        void* shareableHandle) {
+                                        void* shareableHandle, amd::Memory::HandleType handle_type) {
     ShouldNotCallThis();
     return false;
   }
@@ -2021,7 +2019,7 @@ class Device : public RuntimeObject {
    * @param osHandle os handle/fdesc/void*
    * @param amd_mem_obj amd_mem_obj with hsa_handle/memory_obj.
    */
-  virtual amd::Memory* ImportShareableVMMHandle(void* osHandle) {
+  virtual amd::Memory* ImportShareableVMMHandle(void* osHandle, amd::Memory::HandleType handle_type) {
     ShouldNotCallThis();
     return nullptr;
   }

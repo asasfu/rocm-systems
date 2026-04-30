@@ -45,13 +45,37 @@ cmake_minimum_required ( VERSION 3.7 )
 # Import target 'clang'
 find_package(Clang REQUIRED HINTS ${CMAKE_PREFIX_PATH}/llvm PATHS /opt/rocm/llvm )
 
+# Define all supported variants for every GFX family
+set(GFX7_VARIANTS "gfx700;gfx701;gfx702")
+set(GFX8_VARIANTS "gfx801;gfx802;gfx803;gfx805;gfx810")
+set(GFX9_VARIANTS "gfx900;gfx902;gfx904;gfx906;gfx908;gfx909;gfx90a;gfx90c;gfx942;gfx950")
+set(GFX10_VARIANTS "gfx1010;gfx1011;gfx1012;gfx1013;gfx1030;gfx1031;gfx1032;gfx1033;gfx1034;gfx1035;gfx1036")
+set(GFX11_VARIANTS "gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx115E;gfx1170;gfx1171")
+set(GFX12_VARIANTS "gfx1200;gfx1201")
+set(GFX13_VARIANTS "gfx1310;gfx131F;gfx1370")
+
+set(TARGET_DEVICES_DEFAULT ${GFX7_VARIANTS} ${GFX8_VARIANTS} 
+                           ${GFX9_VARIANTS} ${GFX10_VARIANTS}
+                           ${GFX11_VARIANTS} ${GFX12_VARIANTS}
+                           ${GFX13_VARIANTS})
+
 # Determine the target devices if not specified
-if (NOT DEFINED TARGET_DEVICES)
-  set (TARGET_DEVICES "gfx700;gfx701;gfx702;gfx801;gfx802;gfx803;gfx805;gfx810"
-                      "gfx900;gfx902;gfx904;gfx906;gfx908;gfx909;gfx90a;gfx90c;gfx942;gfx950"
-                      "gfx1010;gfx1011;gfx1012;gfx1013;gfx1030;gfx1031;gfx1032;gfx1033;gfx1034;gfx1035;gfx1036"
-                      "gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx1153"
-                      "gfx1200;gfx1201")
+if (NOT DEFINED TARGET_DEVICES OR TARGET_DEVICES STREQUAL "")
+  if (DEFINED THEROCK_DIST_AMDGPU_TARGETS AND NOT THEROCK_DIST_AMDGPU_TARGETS STREQUAL "")
+    set(TARGET_DEVICES ${THEROCK_DIST_AMDGPU_TARGETS})
+    message(STATUS "Using THEROCK_DIST_AMDGPU_TARGETS from build system: ${THEROCK_DIST_AMDGPU_TARGETS}")
+  elseif (DEFINED GPU_TARGETS AND NOT GPU_TARGETS STREQUAL "")
+    set(TARGET_DEVICES ${GPU_TARGETS})
+    message(STATUS "Using GPU_TARGETS from build system: ${GPU_TARGETS}")
+  elseif(DEFINED AMDGPU_TARGETS AND NOT AMDGPU_TARGETS STREQUAL "") 
+    message(STATUS "Using AMDGPU_TARGETS from build system: ${AMDGPU_TARGETS}")
+    set(TARGET_DEVICES ${AMDGPU_TARGETS})
+  else()
+  	message(STATUS "No target devices specified, using defaults: ${TARGET_DEVICES_DEFAULT}")
+    message(STATUS "To specify targets: cmake -DTARGET_DEVICES=\"gfx900;gfx1010...\"")
+    message(STATUS "Valid ASICs: ${TARGET_DEVICES_DEFAULT}")
+    set(TARGET_DEVICES ${TARGET_DEVICES_DEFAULT})
+  endif()    
 endif()
 set( TARGET_DEVICES ${TARGET_DEVICES} CACHE STRING "Build targets" FORCE )
 
@@ -113,7 +137,38 @@ function(build_kernel_for_devices BLIT_NAME)
 
   set(HSACO_TARG_LIST "")
 
+  # Expand target devices to include all variants of each GFX family
+  set(EXPANDED_TARGET_DEVS "")
   foreach(dev ${TARGET_DEVICES})
+    if (${dev} MATCHES "^gfx7") 
+      list(APPEND EXPANDED_TARGETS ${GFX7_VARIANTS})
+    elseif(${dev} MATCHES "^gfx8")
+      list(APPEND EXPANDED_TARGETS ${GFX8_VARIANTS})
+    elseif(${dev} MATCHES "^gfx9")
+      list(APPEND EXPANDED_TARGETS ${GFX9_VARIANTS})
+    elseif(${dev} MATCHES "^gfx10")
+      list(APPEND EXPANDED_TARGETS ${GFX10_VARIANTS})
+    elseif(${dev} MATCHES "^gfx11")
+      list(APPEND EXPANDED_TARGETS ${GFX11_VARIANTS})
+    elseif(${dev} MATCHES "^gfx12")
+      list(APPEND EXPANDED_TARGETS ${GFX12_VARIANTS})
+    elseif(${dev} MATCHES "^gfx13")
+      list(APPEND EXPANDED_TARGETS ${GFX13_VARIANTS})
+    endif()
+  endforeach(dev)
+
+  # Remove duplicates
+  list(REMOVE_DUPLICATES EXPANDED_TARGETS)
+
+  foreach(dev ${EXPANDED_TARGETS})
+    # For gfx1250/1260, llvm compiler does not support blit kernels for images
+    # Skip generation for any unsupported device that is not listed in TARGET_DEVICES_DEFAULT
+    list(FIND TARGET_DEVICES_DEFAULT ${dev} dev_index)
+    if(dev_index EQUAL -1)
+      message(STATUS "Skipping unsupported device: ${dev}")
+      continue()
+    endif()
+
     if(${CMAKE_VERBOSE_MAKEFILE})
       message("\n  Generating: ${dev} ...")
     endif()
@@ -150,4 +205,21 @@ function(generate_blit_file BFILE)
 endfunction(generate_blit_file)
 
 build_kernel_for_devices("ocl_blit_object")
-generate_blit_file("opencl_blit_objects")
+
+# Only generate the blit file if we have any kernels built
+list(LENGTH HSACO_TARG_LIST kernel_count)
+if(kernel_count GREATER 0)
+  generate_blit_file("opencl_blit_objects")
+else()
+  # No kernels built - create stub file (opencl_blit_objects.cpp)
+  message(WARNING "No image blit kernels built for current targets. Creating stub opencl_blit_objects.cpp")
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/opencl_blit_objects.cpp 
+    "// No image blit kernels available for current target devices\n"
+    "// This occurs when building for targets not yet supported by LLVM OpenCL compiler\n\n"
+    "namespace rocr {\n"
+    "namespace image {\n"
+    "// Empty - no image blit support for current targets\n"
+    "} // namespace image\n"
+    "} // namespace rocr\n")
+  add_custom_target(opencl_blit_objects DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/opencl_blit_objects.cpp)
+endif()

@@ -21,6 +21,7 @@ Testcase Scenarios :
 
 */
 #include "occupancy_common.hh"
+#ifdef CLUSTER_SUPPORT
 
 static __global__ void f1(float* a) { *a = 1.0; }
 static __global__ __cluster_dims__(1, 1, 1) void f1_with_attr(float* a) { *a = 1.0; }
@@ -208,3 +209,4 @@ TEST_CASE("Unit_hipOccupancyMaxActiveClusters_Negative_Parameters") {
     REQUIRE(numClusters == 0);
   }
 }
+#endif
