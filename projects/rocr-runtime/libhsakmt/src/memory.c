@@ -940,25 +940,28 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtHandleExport(const HsaHandleExportDesc* desc,
 					   HsaHandleExportFlags* flags)
 {
 	CHECK_KFD_OPEN();
-	if (!desc || !res || desc->device_handle == NULL)
+	if (!desc || !res)
 		return HSAKMT_STATUS_INVALID_HANDLE;
 
-		pr_debug("[%s] type:%s handle:%lx size:%lx", __func__,
+	if (desc->device_handle == NULL &&
+	    !(hsakmt_use_model && desc->type == HSA_EXTERNAL_HANDLE_DMA_BUF))
+		return HSAKMT_STATUS_INVALID_HANDLE;
+
+	pr_debug("[%s] type:%s handle:%lx size:%lx", __func__,
 			(desc->type == HSA_EXTERNAL_HANDLE_GEM_FLINK_NAME) 	? "GEM_FLINK" :
 			(desc->type == HSA_EXTERNAL_HANDLE_KMS) 			? "KMS" :
 			(desc->type == HSA_EXTERNAL_HANDLE_DMA_BUF) 		? "DMA_BUF" :
 			(desc->type == HSA_EXTERNAL_HANDLE_FABRIC) 			? "FABRIC" : "INVALID",
 			desc->buf_handle, desc->size);
 
-	enum amdgpu_bo_handle_type type;
 	switch (desc->type) {
 	case HSA_EXTERNAL_HANDLE_FABRIC: {
-		int renderFd = amdgpu_device_get_fd(desc->device_handle);
+		int renderFd = hsakmt_amdgpu_device_get_fd(desc->device_handle);
 		if (renderFd < 0)
 			return HSAKMT_STATUS_ERROR;
 
 		uint32_t gem_handle;
-		int ret = amdgpu_bo_export((amdgpu_bo_handle)desc->buf_handle, amdgpu_bo_handle_type_kms,
+		int ret = hsakmt_amdgpu_bo_export((amdgpu_bo_handle)desc->buf_handle, amdgpu_bo_handle_type_kms,
 					&gem_handle);
 
 		if (ret)
@@ -968,7 +971,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtHandleExport(const HsaHandleExportDesc* desc,
 		args.in.op = DRM_AMDGPU_UALINK_HANDLE_OP_EXPORT;
 		args.in.gem_handle = gem_handle;
 
-		if (drmCommandWriteRead(renderFd, DRM_AMDGPU_UALINK_HANDLE, &args,
+		if (hsakmt_drm_command_write_read(renderFd, DRM_AMDGPU_UALINK_HANDLE, &args,
 					sizeof(args)))
 			return HSAKMT_STATUS_ERROR;
 
@@ -977,15 +980,14 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtHandleExport(const HsaHandleExportDesc* desc,
 		break;
 	}
 	case HSA_EXTERNAL_HANDLE_DMA_BUF: {
-		int renderFd = amdgpu_device_get_fd(desc->device_handle);
-		if (renderFd < 0)
-			return HSAKMT_STATUS_ERROR;
+		uint32_t dmabuf_fd = 0;
 
-		int ret = amdgpu_bo_export((amdgpu_bo_handle)desc->buf_handle,
-					amdgpu_bo_handle_type_dma_buf_fd, &res->dmabuf_fd);
+		int ret = hsakmt_amdgpu_bo_export((amdgpu_bo_handle)desc->buf_handle,
+					amdgpu_bo_handle_type_dma_buf_fd, &dmabuf_fd);
 
 		if (ret)
 			return HSAKMT_STATUS_INVALID_HANDLE;
+		res->dmabuf_fd = (HSAint32)dmabuf_fd;
 		break;
 	}
 	case HSA_EXTERNAL_HANDLE_GEM_FLINK_NAME:
@@ -1004,7 +1006,11 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtHandleImport(const HsaHandleImportDesc* import_des
 	uint32_t shared_handle = 0;
 	struct amdgpu_bo_import_result res;
 
-	if (!import_desc || !import_res || import_desc->device_handle == NULL)
+	if (!import_desc || !import_res)
+		return HSAKMT_STATUS_INVALID_HANDLE;
+
+	if (import_desc->device_handle == NULL &&
+	    !(hsakmt_use_model && import_desc->type == HSA_EXTERNAL_HANDLE_DMA_BUF))
 		return HSAKMT_STATUS_INVALID_HANDLE;
 
 	amdgpu_device_handle devhandle = (amdgpu_device_handle)import_desc->device_handle;
@@ -1021,7 +1027,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtHandleImport(const HsaHandleImportDesc* import_des
 	assert(!flags->ui32.UpdateMetadata);
 	/* Obtain a dma-buf from the fabric handle, then import it */
 	{
-		int renderFd = amdgpu_device_get_fd(devhandle);
+		int renderFd = hsakmt_amdgpu_device_get_fd(devhandle);
 		if (renderFd < 0)
 			return HSAKMT_STATUS_ERROR;
 
@@ -1031,7 +1037,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtHandleImport(const HsaHandleImportDesc* import_des
 		memcpy(&args.in.import_ualink_handle, &import_desc->fabric,
 				sizeof(import_desc->fabric));
 
-		ret = drmCommandWriteRead(renderFd, DRM_AMDGPU_UALINK_HANDLE, &args,
+		ret = hsakmt_drm_command_write_read(renderFd, DRM_AMDGPU_UALINK_HANDLE, &args,
 						sizeof(args));
 		if (ret)
 			return HSAKMT_STATUS_ERROR;
@@ -1048,7 +1054,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtHandleImport(const HsaHandleImportDesc* import_des
 			return HSAKMT_STATUS_NOT_SUPPORTED;
 	}
 	
-	ret = hsakmt_amdgpu_bo_import(devhandle, type, import_desc->dmabuf_fd, &res);
+	ret = hsakmt_amdgpu_bo_import(devhandle, type, shared_handle, &res);
 	if (ret)
 		return HSAKMT_STATUS_ERROR;
 
@@ -1166,6 +1172,16 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryGetCpuAddr(HsaAMDGPUDeviceHandle DeviceHandl
 						HSAuint64* cpu_addr)
 {
 	CHECK_KFD_OPEN();
+	if (hsakmt_use_model && DeviceHandle == NULL) {
+		void *cpu_ptr = NULL;
+		int ret = hsakmt_amdgpu_bo_cpu_map((amdgpu_bo_handle)MemoryHandle, &cpu_ptr);
+		if (ret || cpu_ptr == NULL)
+			return HSAKMT_STATUS_ERROR;
+
+		*cpu_addr = (HSAuint64)(uintptr_t)cpu_ptr;
+		return HSAKMT_STATUS_SUCCESS;
+	}
+
 	int renderFd = hsakmt_amdgpu_device_get_fd((amdgpu_device_handle)DeviceHandle);
 
 	if (renderFd < 0) {
@@ -1196,6 +1212,14 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryGetCpuAddr(HsaAMDGPUDeviceHandle DeviceHandl
 
 HSAKMT_STATUS HSAKMTAPI hsaKmtGetAmdGPUDeviceFd(HsaAMDGPUDeviceHandle DeviceHandle, int *fd) {
 	CHECK_KFD_OPEN();
+	if (hsakmt_use_model) {
+		/* In model mode there is no real amdgpu device handle. Return the
+		 * primary KFD context fd (model memfd) so callers can pass it to
+		 * mmap() with PROT_NONE for VA reservation without dereferencing a
+		 * NULL libdrm device handle. */
+		*fd = hsakmt_primary_kfd_ctx.fd;
+		return HSAKMT_STATUS_SUCCESS;
+	}
 	if (!hsakmt_fn_amdgpu_device_get_fd) {
 		*fd = -1;
 		return HSAKMT_STATUS_NOT_SUPPORTED;

@@ -320,6 +320,9 @@ class Flag {
 
     var = os::GetEnvVar("HSA_NPI_SET_RESOURCE_LIMITS");
     debug_set_resource_limits_ = var.empty() ? 0 : atoi(var.c_str());
+
+    var = os::GetEnvVar("HSA_NPI_ENABLE_SDMA_FASTPATH");
+    enable_sdma_fastpath_debug_ = (var == "1") ? true : false;
 #endif
 
     var = os::GetEnvVar("HSA_COREDUMP_SHOW_PROGRESS");
@@ -480,6 +483,7 @@ class Flag {
 #ifdef AMD_NPI_ONLY
   bool raw_timestamps() const  { return raw_timestamps_; }
   bool disable_coredump() const { return disable_coredump_; }
+  bool enable_sdma_fastpath_debug() const { return enable_sdma_fastpath_debug_; }
 #endif
 
   bool enable_dtif() const { return enable_dtif_; }
@@ -621,6 +625,7 @@ class Flag {
 #ifdef AMD_NPI_ONLY
   bool raw_timestamps_;
   bool disable_coredump_;
+  bool enable_sdma_fastpath_debug_;
 #endif
 
   void parse_masks(std::string& args, uint32_t maxGpu, uint32_t maxCU);

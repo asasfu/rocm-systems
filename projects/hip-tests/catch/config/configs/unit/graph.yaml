@@ -73,7 +73,7 @@ graph:
     tags: [node]
   Unit_hipGraph_BasicFunctional:
     <<: *level_2
-    tags: [lifecycle]
+    tags: [lifecycle, P0]
   Unit_hipGraph_SimpleGraphWithKernel:
     <<: *level_2
     tags: [exec]
@@ -324,7 +324,7 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemcpyNode1D_Positive_Basic:
     <<: *level_2
-    tags: [node]
+    tags: [node, P0]
   Unit_hipGraphAddMemcpyNode1D_Negative_Parameters:
     <<: *level_2
     tags: [node]
@@ -591,7 +591,7 @@ graph:
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_Basic:
     <<: *level_2
-    tags: [capture]
+    tags: [capture, P0]
   Unit_hipStreamBeginCapture_Positive_InterStrmEventSync_Flags:
     <<: *level_2
     tags: [capture]
@@ -756,7 +756,7 @@ graph:
     tags: [capture]
   Unit_hipStreamIsCapturing_Positive_Basic:
     <<: *level_2
-    tags: [capture]
+    tags: [capture, P0]
   Unit_hipStreamIsCapturing_Positive_Functional:
     <<: *level_2
     tags: [capture]
@@ -945,7 +945,7 @@ graph:
     tags: [capture]
   Unit_hipStreamEndCapture_Positive_GraphDestroy:
     <<: *level_2
-    tags: [capture]
+    tags: [capture, P0]
   Unit_hipStreamEndCapture_Negative_Thread:
     <<: *level_2
     tags: [capture]
@@ -1012,7 +1012,7 @@ graph:
     tags: [node]
   Unit_hipGraphAddKernelNode_Negative:
     <<: *level_2
-    tags: [node]
+    tags: [node, P0]
   Unit_hipGraphAddKernelNode_moduleLoadKernelFn_graphNclonedGraph:
     <<: *level_2
     tags: [node]
