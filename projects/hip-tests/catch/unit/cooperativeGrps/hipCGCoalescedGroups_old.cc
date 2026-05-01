@@ -125,13 +125,6 @@ __global__ void kernel_cg_coalesced_group_partition(unsigned int tileSz, int* re
 
     outputSum = reduction_kernel(threadBlockCGTy, workspace, input);
 
-    if (threadBlockCGTy.thread_rank() == 0) {
-      printf(" Sum of all ranks 0..%d in coalesced_group is %d\n\n",
-             (int)threadBlockCGTy.size() - 1, outputSum);
-      printf(" Creating %d groups, of tile size %d threads:\n\n",
-             (int)threadBlockCGTy.size() / tileSz, tileSz);
-    }
-
     threadBlockCGTy.sync();
 
     coalesced_group tiledPartition = tiled_partition(threadBlockCGTy, tileSz);
@@ -142,12 +135,6 @@ __global__ void kernel_cg_coalesced_group_partition(unsigned int tileSz, int* re
     outputSum = reduction_kernel(tiledPartition, workspace + workspaceOffset, input);
 
     if (tiledPartition.thread_rank() == 0) {
-      printf(
-          "   Sum of all ranks 0..%d in this tiledPartition group is %d. Corresponding parent "
-          "thread rank"
-          " obtained from meta_group_rank : %d and number of tiles created : %d\n",
-          tiledPartition.size() - 1, outputSum, tiledPartition.meta_group_rank(),
-          tiledPartition.meta_group_size());
       result[input / (tileSz)] = outputSum;
     }
     return;
