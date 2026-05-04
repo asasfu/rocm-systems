@@ -165,11 +165,8 @@ namespace core {
       HSAKMT_PFN(hsaKmtCreateQueueExt) = (HSAKMT_DEF(hsaKmtCreateQueueExt)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtCreateQueueExt");
       if (HSAKMT_PFN(hsaKmtCreateQueueExt) == nullptr) goto LOAD_ERROR;
 
-      HSAKMT_PFN(hsaKmtCreateQueueExtV2) = (HSAKMT_DEF(hsaKmtCreateQueueExtV2)*)dlsym(thunk_handle, "hsaKmtCreateQueueExtV2");
-      if (HSAKMT_PFN(hsaKmtCreateQueueExtV2) == NULL) goto ERROR;
-
-      HSAKMT_PFN(hsaKmtUpdateQueue) = (HSAKMT_DEF(hsaKmtUpdateQueue)*)dlsym(thunk_handle, "hsaKmtUpdateQueue");
-      if (HSAKMT_PFN(hsaKmtUpdateQueue) == nullptr) goto ERROR;
+      HSAKMT_PFN(hsaKmtCreateQueueExtV2) = (HSAKMT_DEF(hsaKmtCreateQueueExtV2)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtCreateQueueExtV2");
+      if (HSAKMT_PFN(hsaKmtCreateQueueExtV2) == nullptr) goto LOAD_ERROR;
 
       HSAKMT_PFN(hsaKmtUpdateQueue) = (HSAKMT_DEF(hsaKmtUpdateQueue)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtUpdateQueue");
       if (HSAKMT_PFN(hsaKmtUpdateQueue) == nullptr) goto LOAD_ERROR;
@@ -410,8 +407,8 @@ namespace core {
       HSAKMT_PFN(hsaKmtMemoryVaMap) = (HSAKMT_DEF(hsaKmtMemoryVaMap)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtMemoryVaMap");
       if (HSAKMT_PFN(hsaKmtMemoryVaMap) == nullptr) goto LOAD_ERROR;
 
-      HSAKMT_PFN(hsaKmtHandleExport) = (HSAKMT_DEF(hsaKmtHandleExport)*)dlsym(thunk_handle, "hsaKmtHandleExport");
-      if (HSAKMT_PFN(hsaKmtHandleExport) == nullptr) goto ERROR;
+      HSAKMT_PFN(hsaKmtHandleExport) = (HSAKMT_DEF(hsaKmtHandleExport)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtHandleExport");
+      if (HSAKMT_PFN(hsaKmtHandleExport) == nullptr) goto LOAD_ERROR;
 
       HSAKMT_PFN(hsaKmtMemoryVaUnmap) = (HSAKMT_DEF(hsaKmtMemoryVaUnmap)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtMemoryVaUnmap");
       if (HSAKMT_PFN(hsaKmtMemoryVaUnmap) == nullptr) goto LOAD_ERROR;
@@ -425,8 +422,8 @@ namespace core {
       HSAKMT_PFN(hsaKmtMemoryCpuMap) = (HSAKMT_DEF(hsaKmtMemoryCpuMap)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtMemoryCpuMap");
       if (HSAKMT_PFN(hsaKmtMemoryCpuMap) == nullptr) goto LOAD_ERROR;
 
-      HSAKMT_PFN(hsaKmtGetAmdGPUDeviceFd) = (HSAKMT_DEF(hsaKmtGetAmdGPUDeviceFd)*)dlsym(thunk_handle, "hsaKmtGetAmdGPUDeviceFd");
-      if (HSAKMT_PFN(hsaKmtGetAmdGPUDeviceFd) == nullptr) goto ERROR;
+      HSAKMT_PFN(hsaKmtGetAmdGPUDeviceFd) = (HSAKMT_DEF(hsaKmtGetAmdGPUDeviceFd)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtGetAmdGPUDeviceFd");
+      if (HSAKMT_PFN(hsaKmtGetAmdGPUDeviceFd) == nullptr) goto LOAD_ERROR;
 
       HSAKMT_PFN(hsaKmtGetNodeWallclockFrequency) = (HSAKMT_DEF(hsaKmtGetNodeWallclockFrequency)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtGetNodeWallclockFrequency");
       if (HSAKMT_PFN(hsaKmtGetNodeWallclockFrequency) == nullptr) goto LOAD_ERROR;

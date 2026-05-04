@@ -1101,47 +1101,18 @@ typedef enum hsa_amd_agent_info_s {
    */
   HSA_AMD_AGENT_INFO_CLOCK_COUNTERS = 0xA118,
   /**
-   * Maximum number of work-groups across all dimensions for non-clustered dispatches.
-   * Returns uint64_t into value output
-   */
-  HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_SIZE = 0xA119,
-  /**
-   * Maximum number of clusters in each dimension for clustered dispatches.
-   * Returns hsa_amd_dim3_t into value output.
-   */
-  HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_DIM = 0xA11A,
-  /*
-  * Maximum number of clusters across all dimensions for clustered dispatches
-  * Returns uint64_t into value output
-  */
-  HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_SIZE = 0xA11B,
-  /*
-  * Maximum number of workgroups in a cluster in each dimension
-  * Returns hsa_amd_dim3_t into value output
-  */
-  HSA_AMD_AGENT_INFO_CLUSTER_MAX_DIM = 0xA11C,
-  /*
-  * Maximum number of workgroups in a cluster across all dimensions
-  * Returns uint64_t into value output
-  */
-  HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE = 0xA11D,
-  /** Maximum number of work-groups in each dimension for non-clustered dispatches.
-   * Returns hsa_amd_dim3_t into value output.
-   */
-  HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM = 0xA11E,
-  /**
    * The agent uses PM4 emulation mode.
    */
-  HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA11F,
+  HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA119,
   /**
    * Queries for the LUID that identifies a hardware node. The LUID is only
    * valid on Windows. The type of this attribute is LUID.
    */
-  HSA_AMD_AGENT_INFO_LUID = 0xA120,
+  HSA_AMD_AGENT_INFO_LUID = 0xA11A,
   /**
    * The agent supports expert scheduling mode. The type of this attribute is bool.
    */
-  HSA_AMD_AGENT_INFO_HAS_EXPERT_SCHED_MODE = 0xA121,
+  HSA_AMD_AGENT_INFO_HAS_EXPERT_SCHED_MODE = 0xA11B,
   /**
    * Queries the secondary CUID (128-bit UUID (16 bytes) in UUIDv8 format)
    * of a CPU/GPU agent. The type of this attribute is uint8_t[16].
@@ -1177,6 +1148,17 @@ typedef enum hsa_amd_agent_info_s {
    * Returns hsa_amd_dim3_t into value output.
    */
   HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM = 0xA122,
+
+  // ====================================================================
+  // RANGE 0xA130-0xA1FF: Reserved for future NPI-specific features
+  //
+  // When adding NPI-only enums, start from 0xA130 to leave buffer space
+  // for potential develop branch additions (0xA123-0xA12F).
+  //
+  // When NPI features are released to public develop branch, they should
+  // be reassigned values from the develop range starting after the last
+  // develop enum (currently 0xA122). Update this comment accordingly.
+  // ====================================================================
 } hsa_amd_agent_info_t;
 
 /**

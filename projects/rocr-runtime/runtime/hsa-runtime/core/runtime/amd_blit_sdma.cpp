@@ -2197,6 +2197,7 @@ void BlitSdma<useGCR, scopeFields>::BuildCopyRectCommand(const std::function<voi
   }
 }
 
+template <bool useGCR, bool scopeFields>
 void BlitSdma<useGCR, scopeFields>::BuildFillCommand(char* cmd_addr, uint32_t num_fill_command,
                                                      void* ptr, uint32_t value, size_t count) {
   char* cur_ptr = reinterpret_cast<char*>(ptr);
