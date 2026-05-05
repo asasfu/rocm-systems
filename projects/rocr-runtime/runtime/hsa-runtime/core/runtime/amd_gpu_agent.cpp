@@ -140,8 +140,9 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
   assert(err == HSA_STATUS_SUCCESS && "hsaGetClockCounters error");
 
   num_h2d_d2h_engines_ = properties_.NumSdmaEngines > 2 ? 2 : properties_.NumSdmaEngines;
-  num_p2p_engines_ =  properties_.NumSdmaXgmiEngines ? properties_.NumSdmaXgmiEngines
-                      : std::max(0U, properties_.NumSdmaEngines - 2);
+  num_p2p_engines_ =  properties_.NumSdmaXgmiEngines
+      ? properties_.NumSdmaXgmiEngines
+      : (properties_.NumSdmaEngines > 2 ? properties_.NumSdmaEngines - 2 : 0U);
 
   const core::Isa *isa_base;
 
@@ -1474,6 +1475,7 @@ hsa_status_t GpuAgent::DmaCopyOnEngine(void* dst, core::Agent& dst_agent,
     out_signal.async_copy_agent(core::Agent::Convert(this->public_handle()));
   }
 
+#ifdef AMD_NPI_ONLY
   // gfx1250 fast path: fuse poll+copy+signal into a single WaitSignal packet.
   if (core::Runtime::runtime_singleton_->flag().enable_sdma_fastpath_debug() && !profiling_enabled() && blit->isSDMA()) {
     BlitSdmaBase* sdma_blit = static_cast<BlitSdmaBase*>((*blit).get());
@@ -1486,6 +1488,7 @@ hsa_status_t GpuAgent::DmaCopyOnEngine(void* dst, core::Agent& dst_agent,
       return sdma_blit->SubmitNotifyEpilogue(out_signal);
     }
   }
+#endif
 
   std::vector<core::Signal*> gang_signals(0);
 

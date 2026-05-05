@@ -4042,10 +4042,14 @@ hsa_status_t Runtime::VMemoryExportShareableHandle(int* dmabuf_fd,
     return HSA_STATUS_ERROR_INVALID_ALLOCATION;
   }
 
+#ifndef _WIN32
   *dmabuf_fd = fcntl(memoryHandle->second.dmabuf_fd, F_DUPFD_CLOEXEC, 0);
   if (*dmabuf_fd == -1) return HSA_STATUS_ERROR;
 
   return HSA_STATUS_SUCCESS;
+#else
+  return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+#endif
 }
 
 hsa_status_t Runtime::VMemoryImportShareableHandle(int dmabuf_fd,
