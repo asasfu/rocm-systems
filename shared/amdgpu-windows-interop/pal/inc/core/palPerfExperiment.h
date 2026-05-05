@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palPerfExperiment.h
@@ -101,6 +78,19 @@ enum class GpuBlock : uint32
     RlcUser  = 0x38,
 #else
     RlcLocal = 0x38,
+#endif
+#if PAL_BUILD_GFX13
+    Rds      = 0x39,
+    Rte      = 0x3A,
+    Rie      = 0x3B,
+    Rwm      = 0x3C,
+    Swc      = 0x3D,
+    Vts      = 0x3E,
+    Vca      = 0x3F,
+    Vmw      = 0x40,
+    Vcd      = 0x41,
+    Vtf      = 0x42,
+    Df       = 0x43,
 #endif
     Count
 };
@@ -186,6 +176,9 @@ union PerfExperimentDeviceFeatureFlags
 /// are enabled. It's all still per-WGP in HW, we just can't support different counter configs within the same SE.
 /// The counter data is still reported per WGP (not aggregated for the whole SE).
 ///
+///# Check the following two documents for details:
+///# /gfxip/gfx11/doc/architecture/subsystem/SH/GFX11_SH_perfcounter_users_guide.docx
+///# /gfxip/gfx11/doc/architecture/subsystem/SH/GFX11_PerfCtr_per_WGP.docx
 struct PerfCounterInfo
 {
     PerfCounterType              counterType; ///< Type of counter to add.
@@ -319,6 +312,7 @@ struct ThreadTraceTokenConfig
     uint32 regMask;
 };
 
+
 /// Specifies properties for a perf trace being added to a perf experiment.  Input structure to
 /// IPerfExperiment::AddThreadTrace().
 struct ThreadTraceInfo
@@ -350,7 +344,11 @@ struct ThreadTraceInfo
             uint32                  threadTraceExcludeNonDetailShaderData :  1;
             uint32                  threadTraceEnableExecPop              :  1;
             ThreadTraceWaveStartExt threadTraceWaveStartExt               :  2;
+#if PAL_BUILD_GFX13
+            uint32                  threadTraceEnableRts                  :  1;
+#else
             uint32                  placeholder3                          :  1;
+#endif
             uint32                  reserved                              : 13;
         };
         uint32 u32All;
@@ -377,6 +375,10 @@ struct ThreadTraceInfo
         bool                      threadTraceStallAllSimds;
         bool                      threadTraceExcludeNonDetailShaderData;
         bool                      threadTraceEnableExecPop;
+#if PAL_BUILD_GFX13
+        uint32                    threadTraceRtsTokenMask;
+        uint32                    threadTraceRtsMaxRays;
+#endif
     } optionValues;
 };
 
