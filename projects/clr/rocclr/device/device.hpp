@@ -109,6 +109,13 @@ enum MemRangeAttribute : uint32_t {
   CoherencyMode = 100,       ///< Current coherency mode for the specified range
 };
 
+enum FuncCache : uint32_t  {
+  kPreferNone = 0,   ///< Default function cache configuration, no preference
+  kPreferLDS = 1,    ///< Prefer larger shared memory and smaller L1 cache
+  kPreferCache = 2,  ///< Prefer larger L1 cache and smaller shared memory
+  kPreferEqual = 3   ///< Prefer equal size L1 cache and shared memory
+};
+
 //! hipFuncCache_t as index: 0=None, 1=Shared, 2=L1, 3=Equal -> carveout %.
 inline constexpr uint8_t kFuncCacheToGroupMemCarveoutPercent[] = {0, 100, 1, 50};
 
@@ -736,6 +743,13 @@ class Settings : public amd::HeapObject {
   void enableExtension(uint name) { extensions_ |= static_cast<uint64_t>(1) << name; }
 
   size_t stagedXferSize_ = 0;     //!< Staged buffer size
+  typedef struct CarveoutPref {
+    uint8_t totalSharedBanks;
+    uint8_t preferLDSBanks;
+    uint8_t preferCacheLDSBanks;
+    uint8_t preferEqualLDSBanks;
+  } CarveoutPref;
+  CarveoutPref groupMemPref_;
 
  private:
   //! Disable copy constructor

@@ -446,62 +446,7 @@ hipError_t ihipCreateGlobalVarObj(const char* name, hipModule_t hmod, amd::Memor
   HIP_RETURN(hipSuccess);
 }
 
-}  // namespace hip
 
-namespace hip_impl {
-namespace {
-// based register usage for the device symbol and device capabilities, returns the maximum number
-// of threads that could be utilized
-int maxThreadsPerCU(const amd::device::Info& deviceInfo,
-                    const device::Kernel::WorkGroupInfo& wrkGrpInfo, amd::Isa isa) {
-  // Find wave occupancy per CU => simd_per_cu * GPR usage
-  size_t MaxWavesPerSimd;
-
-  if (isa.versionMajor() <= 9) {
-    MaxWavesPerSimd = 8;  // Limited by SPI 32 per CU, hence 8 per SIMD
-  } else {
-    MaxWavesPerSimd = 16;
-  }
-  size_t VgprWaves = MaxWavesPerSimd;
-  uint32_t VgprGranularity = deviceInfo.vgprAllocGranularity_;
-  size_t maxVGPRs = deviceInfo.vgprsPerSimd_;
-  size_t wavefrontSize = wrkGrpInfo.wavefrontSize_;
-  if (isa.versionMajor() >= 10) {
-    if (wavefrontSize == 64) {
-      maxVGPRs = maxVGPRs >> 1;
-      VgprGranularity = VgprGranularity >> 1;
-    }
-  }
-  if (wrkGrpInfo.usedVGPRs_ > 0) {
-    VgprWaves = maxVGPRs / amd::alignUp(wrkGrpInfo.usedVGPRs_, VgprGranularity);
-  }
-
-  if (VgprWaves == 0) {
-    // This should not happen ideally, but in case the value is
-    // incorrect, it can lead to a crash. By returning error, API can exit gracefully.
-    return hipErrorUnknown;
-  }
-
-  size_t GprWaves = VgprWaves;
-  if (wrkGrpInfo.usedSGPRs_ > 0) {
-    size_t maxSGPRs = deviceInfo.sgprsPerSimd_;
-    const size_t SgprWaves = maxSGPRs / amd::alignUp(wrkGrpInfo.usedSGPRs_, 16);
-    GprWaves = std::min(VgprWaves, SgprWaves);
-  }
-
-  // multiply the number of SIMDs by 2, to account for 2CUs in 1 WGP.
-  uint32_t simdPerCU = isa.simdPerCU();
-  if (wrkGrpInfo.isWGPMode_) {
-    simdPerCU *= 2;
-  }
-
-  const size_t alu_occupancy = simdPerCU * std::min(MaxWavesPerSimd, GprWaves);
-  return alu_occupancy * wrkGrpInfo.wavefrontSize_;
-}
-}  // namespace
-}  // namespace hip_impl
-
-namespace hip {
 hipError_t hipOccupancyAvailableDynamicSMemPerBlock(size_t* dynamicSmemSize, const void* f,
                                                     int numBlocks, int blockSize){
   HIP_INIT_API(hipOccupancyAvailableDynamicSMemPerBlock, dynamicSmemSize, f, numBlocks, blockSize);
@@ -784,7 +729,7 @@ hipError_t ihipLaunchKernel(const void* hostFunction, dim3 gridDim, dim3 blockDi
   }
 
   amd::HIPLaunchParams launch_params(gridDim.x, gridDim.y, gridDim.z, blockDim.x, blockDim.y,
-                                     blockDim.z, sharedMemBytes, 0, 0, 0,
+                                     blockDim.z, sharedMemBytes, *device, 0, 0, 0,
                                      clusterDim.x, clusterDim.y, clusterDim.z);
   if (!launch_params.IsValidConfig()) {
     return hipErrorInvalidConfiguration;

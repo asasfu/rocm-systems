@@ -186,6 +186,12 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
     groupMemCarveout_ = true;
   }
 
+  if (gfxipMajor == 12 && gfxipMinor >= 5) {
+    groupMemPref_.totalSharedBanks = 7;
+    groupMemPref_.preferLDSBanks = 5;
+    groupMemPref_.preferCacheLDSBanks = 2;
+    groupMemPref_.preferEqualLDSBanks = 3;
+  }
   // Override current device settings
   override();
 
