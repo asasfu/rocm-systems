@@ -1083,6 +1083,10 @@ bool Device::populateOCLDeviceConstants() {
     info_.globalMemCacheLineSize_ = 256;
   }
 
+  if (isa().versionMajor() >= 13 && info_.globalMemCacheLineSize_ < 256) {
+    info_.globalMemCacheLineSize_ = 256;
+  }
+
   uint32_t cachesize[4] = {0};
   if (HSA_STATUS_SUCCESS !=
       Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_CACHE_SIZE, cachesize)) {
