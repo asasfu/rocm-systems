@@ -321,6 +321,7 @@ ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_agent_preload_fn, 80);
 #endif
 #if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x0C
 ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_svm_discard_batch_async_fn, 81);
+#endif
 #if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x0D
 ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_signal_get_event_id_fn, 82);
 ROCP_SDK_ENFORCE_ABI(::AmdExtTable, hsa_amd_vmem_export_fabric_handle_fn, 83);

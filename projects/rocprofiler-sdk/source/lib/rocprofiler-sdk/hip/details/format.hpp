@@ -680,25 +680,6 @@ ROCP_SDK_HIP_FORMATTER(hipArrayMemoryRequirements,
                        v.size,
                        '}')
 #endif
-
-#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 27
-template <>
-struct formatter<hipClusterSchedulingPolicy> : rocprofiler::hip::details::base_formatter
-{
-    template <typename Ctx>
-    auto format(hipClusterSchedulingPolicy v, Ctx& ctx) const
-    {
-        switch(v)
-        {
-            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipClusterSchedulingPolicy, Default);
-            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipClusterSchedulingPolicy, Spread);
-            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipClusterSchedulingPolicy, LoadBalancing);
-            ROCP_SDK_HIP_FORMAT_DFLT_CASE(hipClusterSchedulingPolicy);
-        }
-        return fmt::format_to(ctx.out(), "Unknown");
-    }
-};
-#endif
 }  // namespace fmt
 
 #undef ROCP_SDK_HIP_FORMATTER
