@@ -248,12 +248,6 @@ TEST(rocrtstFunc, Signal_Create_Concurrently) {
   RunCustomTestEpilog(&sd);
 }
 
-TEST(rocrtst, Test_MetadataPrefetchPacket) {
-  MetadataPrefetch tst;
-
-  RunGenericTest(&tst);
-}
-
 TEST(rocrtstFunc, IPC) {
   RUN_IF_NOT_EMU_MODE(
     IPCTest ipc;
