@@ -1092,7 +1092,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtReturnAsanHeaderPage(void *addr) {
 }
 
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtHandleImport(const HsaExternalHandleDesc* import_desc,
+HSAKMT_STATUS HSAKMTAPI hsaKmtHandleImport(const HsaHandleImportDesc* import_desc,
     					HsaHandleImportResult* import_res, HsaHandleImportFlags* flags)
 {
 	CHECK_DXG_OPEN();
@@ -1217,20 +1217,16 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryCpuMap(HsaMemoryObjectHandle Handle,
 }
 
 HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryGetCpuAddr(HsaAMDGPUDeviceHandle DeviceHandle,
-              HsaMemoryObjectHandle MemoryHandle, HSAint32* fd, HSAuint64* cpu_addr)
+              HsaMemoryObjectHandle MemoryHandle, HSAuint64* cpu_addr)
 {
-	CHECK_DXG_OPEN();
+  CHECK_DXG_OPEN();
   wsl::thunk::GpuMemory* gpu_mem = reinterpret_cast<wsl::thunk::GpuMemory*>(MemoryHandle);
   assert(gpu_mem != nullptr);
-  cpu_addr =  static_cast<HSAuint64*>(gpu_mem->CpuAddress());
+  *cpu_addr = reinterpret_cast<HSAuint64>(gpu_mem->CpuAddress());
   return HSAKMT_STATUS_SUCCESS;
 }
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtGetAmdGPUDeviceFd(HsaAMDGPUDeviceHandle DeviceHandle, HSAint32* fd) 
+HSAKMT_STATUS HSAKMTAPI hsaKmtGetAmdGPUDeviceFd(HsaAMDGPUDeviceHandle DeviceHandle, HSAint32* fd)
 {
-  CHECK_DXG_OPEN();
-  wsl::thunk::WDDMDevice* dev = reinterpret_cast<wsl::thunk::WDDMDevice*>(DeviceHandle);
-  assert(dev != nullptr);
-  *fd = dev->GetFd();
-  return HSAKMT_STATUS_SUCCESS;
+  return HSAKMT_STATUS_NOT_SUPPORTED;
 }
