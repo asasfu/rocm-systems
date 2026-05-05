@@ -9,11 +9,8 @@
 #include <timemory/utility/types.hpp>
 
 #include <cstdlib>
-#include <mutex>
-#include <tuple>
-#include <vector>
-
 #include <rocprofiler-sdk/rocprofiler.h>
+#include <vector>
 
 namespace rocprofsys
 {
