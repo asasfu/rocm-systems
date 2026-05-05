@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palShaderLibrary.h
@@ -36,8 +13,18 @@
 #include "palStringView.h"
 #include "palSpan.h"
 
+namespace Util
+{
+namespace MetroHash
+{
+struct Hash;
+}
+}
+
 namespace Pal
 {
+
+using Hash128 = Util::MetroHash::Hash;
 
 struct GpuMemSubAllocInfo;
 
@@ -74,19 +61,43 @@ enum class ShaderSubType : uint32
     Miss,
     Callable,
     LaunchKernel,           ///< Raytracing launch kernel
+#if PAL_WORK_GRAPHS_SUPPORT
+    FixedExpansionNode,     ///< Corresponds to Pal::GraphNodeType::FixedExpansion
+    DynamicExpansionNode,   ///< Corresponds to Pal::GraphNodeType::DynamicExpansion
+    AggregationNode,        ///< Corresponds to Pal::GraphNodeType::Aggregation
+    ThreadLaunchNode,       ///< Corresponds to Pal::GraphNodeType::ThreadLaunch
+    DrawNode,               ///< Corresponds to Pal::GraphNodeType::Draw
+    DrawIndexedNode,        ///< Corresponds to Pal::GraphNodeType::DrawIndexed
+    DispatchMeshNode,       ///< Corresponds to Pal::GraphNodeType::DispatchMesh
+#endif
     Count
+};
+
+/// Callback object to get ELF contents from the client's cache for an empty member in an archive pipeline.
+/// The client creates an object of its own subclass of this and provides it to CreatePipeline/CreateShaderLibrary.
+class GetContentsCallback
+{
+public:
+    /// Callback function.
+    /// @param hash         128-bit hash for ELF, base64-decoded from archive member name
+    /// @param (out) pBlob  The returned ELF blob; must remain valid until CreatePipeline/CreateShaderLibrary returns.
+    /// @returns            Success or error code
+    virtual Result Get(const Hash128& hash, Util::Span<const void>* pBlob) = 0;
 };
 
 /// Specifies properties for creation of a compute @ref IShaderLibrary object.  Input structure to
 /// IDevice::CreateShaderLibrary().
 struct ShaderLibraryCreateInfo
 {
-    LibraryCreateFlags  flags;      ///< Library creation flags
+    LibraryCreateFlags   flags;          ///< Library creation flags
 
-    const void*  pCodeObject;       ///< Pointer to code-object ELF binary implementing the Pipeline ABI interface.
-                                    ///  The code-object ELF contains pre-compiled shaders, register values, and
-                                    ///  additional metadata.
-    size_t       codeObjectSize;    ///< Size of code object in bytes.
+    const void*          pCodeObject;    ///< Pointer to code-object ELF binary implementing the Pipeline ABI interface.
+                                         ///  The code-object ELF contains pre-compiled shaders, register values, and
+                                         ///  additional metadata.
+                                         //#  SEE: pal\doc\design\palPipelineAbiSpec.docx for more information.
+    size_t               codeObjectSize; ///< Size of code object in bytes.
+    GetContentsCallback* pGetContents;   ///< Callback to get ELF contents; can be nullptr if client never provides an
+                                         ///  archive with empty members.
 };
 
 /// Reports properties of a compiled library.
@@ -176,6 +187,18 @@ public:
     virtual Result GetCodeObject(
         uint32*  pSize,
         void*    pBuffer) const = 0;
+
+    /// Recursively counts or collects the code objects contained in this shader library.
+    ///
+    /// @param [in, out] pCount     Represents the number of code objects contained in this library and its children.
+    ///
+    /// @param [out] pCodeObjects   If non-null, writes code object spans. If null, writes code object count to pCount.
+    ///
+    /// @returns Success if the library binaries were fetched successfully.
+    ///          +ErrorUnavailable if a library binary was not fetched successfully.
+    virtual Result GetCodeObjects(
+        uint32*                             pCount,
+        Util::Span<Util::Span<const void>>* pCodeObjects) const = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

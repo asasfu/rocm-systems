@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -279,6 +256,7 @@ void* operator new(
 // Provide a placement new function if <new> is not available
 inline void* operator new(size_t size, void *pMemory)
 {
+    DD_UNUSED(size);
     return pMemory;
 };
 #endif
@@ -509,6 +487,8 @@ class Random
 {
 public:
     // Algorithm Constants
+    //# For reference to what these constants are look up common parameters in a linear congruential generator
+    //# These constants are set to the values for POSIX [nl]rand48[_r]
     static constexpr uint64 kModulus    = (uint64(1) << 48);
     static constexpr uint64 kMultiplier = 0X5DEECE66Dull;
     static constexpr uint16 kIncrement  = 0xB;
@@ -619,7 +599,18 @@ void Memcpy_s(void* pDst, size_t dstSize, const void* pSrc, size_t srcSize);
 
 void Memmove_s(void* pDst, size_t dstSize, const void* pSrc, size_t srcSize);
 
+size_t Strlen_s(const char* pStr, size_t maxSize);
+
 int32 Strcmpi(const char* pSrc1, const char* pSrc2);
+
+// Securely retrieves an environment variable, returning nullptr if the process is running with elevated privileges.
+// This prevents malicious environment variable injection attacks in setuid/setgid binaries or elevated processes.
+// Behavior:
+//   - Windows: Returns nullptr if process has high integrity level (Administrator)
+//   - Linux (glibc >= 2.17): Uses secure_getenv()
+//   - Unix/Linux (fallback): Returns nullptr if effective UID/GID differs from real UID/GID
+//   - Other platforms: Falls back to standard getenv()
+const char* SecureGetEnv(const char* name);
 
 int32 Snprintf(char* pDst, size_t dstSize, const char* pFormat, ...);
 int32 Vsnprintf(char* pDst, size_t dstSize, const char* pFormat, va_list args);

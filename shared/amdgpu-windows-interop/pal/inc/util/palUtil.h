@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palUtil.h
@@ -30,6 +7,8 @@
  */
 
 #pragma once
+
+#include "palVersion.h"
 
 /// Utility macro for turning another macro into a string literal.
 #define _PAL_STRINGIFY(_x) #_x
@@ -61,17 +40,12 @@ static_assert(
     "C++ standard version " PAL_STRINGIFY(PAL_CPLUSPLUS_20) " is required to build PAL. "
     "Found " PAL_STRINGIFY(PAL_CPLUSPLUS) ".");
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 878
 /// We already declare NOMINMAX publicly, but that won't stop clients from defining their own min/max macros.
 /// These macros confuse the compiler when using functions named min/max, leading to build errors.
 #if defined(min) || defined(max)
 static_assert(false, "Clients may not define macros named \"min\" or \"max\".");
 #endif
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 873
-#include <chrono>
-#endif
 #include <cstddef>
 
 /// stdint is included instead of cstdint to allow Visual Studio Intellisense to work for Linux builds. This can be
@@ -89,6 +63,8 @@ static_assert(false, "Clients may not define macros named \"min\" or \"max\".");
     _typename() = delete;
 
 #if !defined(__GNUC__)
+//# Define the following MSC-specific defines under !defined(__GNUC__) so they are not removed
+//# by open-source sanitization, so it is possible to build a standalone LLPC on Windows.
 
 // Equates to the [__stdcall](https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/cpp/stdcall.md) convention on Windows.
 #define PAL_STDCALL __stdcall
@@ -108,6 +84,7 @@ static_assert(false, "Clients may not define macros named \"min\" or \"max\".");
 #define PAL_FORCE_INLINE __attribute__((always_inline)) inline
 #define PAL_NO_INLINE __attribute__((noinline))
 #endif
+
 
 /// Platform cache line size in bytes.
 #define PAL_CACHE_LINE_BYTES 64
@@ -508,6 +485,35 @@ enum class Result : int32
     /// The static VMID acquire/release operation failed.
     ErrorStaticVmidOpFailed                 = -(0x00000068),
 
+#if PAL_WORK_GRAPHS_SUPPORT
+    /// Graph node is invalid.
+    ErrorGraphInvalidNode                   = -(0x00000069),
+
+    /// Graph node has insufficient ports.
+    ErrorGraphInsufficientNodePorts         = -(0x0000006A),
+
+    /// Graph has no entry nodes.
+    ErrorGraphNoEntryNodes                  = -(0x0000006B),
+
+    /// Graph has internal node with no predecessors.
+    ErrorGraphUnreachableNodes              = -(0x0000006C),
+
+    /// Graph has disconnected nodes.
+    ErrorGraphDisconnectedNodes             = -(0x0000006D),
+
+    /// Graph has a cycle.
+    ErrorGraphNotAcyclic                    = -(0x0000006E),
+
+    /// Graph maximum node chain is too long.
+    ErrorGraphExceededMaxNodeChainLength    = -(0x0000006F),
+
+    /// Graph node has exceeded output payload limits.
+    ErrorGraphNodeExceededOutputLimits      = -(0x00000070),
+
+    /// Graph exceeds maximum input sharing depth
+    ErrorGraphExceededMaxInputShareDepth    = -(0x000000071),
+#endif
+
 };
 
 ///Specifies a ratio of two unsigned integers.
@@ -555,40 +561,6 @@ struct StoreFlags
         uint32 all;
     };
 };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 873
-/// Seconds stored as a float instead of an integer.
-using fseconds      = std::chrono::duration<float>;
-/// Milliseconds stored as a float instead of an integer.
-using fmilliseconds = std::chrono::duration<float, std::milli>;
-/// Microseconds stored as a float instead of an integer.
-using fmicroseconds = std::chrono::duration<float, std::micro>;
-/// Nanoseconds stored as a float instead of an integer.
-using fnanoseconds  = std::chrono::duration<float, std::nano>;
-
-/// A time_point who's epoch is January 1st 1970 and uses seconds for the duration.
-/// C++20 guarantees us that system_clock's epoch is always January 1st 1970 on all platforms.
-/// system_clock's internal duration is still implementation defined.
-/// On Windows it's hundreds of nanoseconds and on Linux it's seconds.
-/// However time_point has it's own duration type.
-/// As long as we go through the time_point to interpret the duration then everything should be in terms of seconds.
-using SecondsSinceEpoch = std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>;
-
-/// Like std::chrono::duration_cast, but it preserves the special 'infinite' value used in timeouts.
-template <class ToDuration, class Rep, class Period>
-constexpr ToDuration TimeoutCast(
-    const std::chrono::duration<Rep, Period>& d)
-{
-    if (d == (std::chrono::duration<Rep,Period>::max)())
-    {
-        return (ToDuration::max)();
-    }
-    else
-    {
-        return std::chrono::duration_cast<ToDuration, Rep, Period>(d);
-    }
-}
-#endif
 
 /// Inline function to determine if a Result enum is considered an error.
 constexpr bool IsErrorResult(Result result) { return (static_cast<int32>(result) < 0); }
@@ -752,6 +724,7 @@ private:
  * The File class provides an OS-abstracted interface for opening files and reading/writing data in those files.
  * Further, the ElfReadContext and ElfWriteContext classes provide functionality for reading and writing buffers in the
  * [Executable and Linkable Format (ELF)]
+ # Please refer to https://tinyurl.com/what1531f for the format.
  * The ELF utilities can be used in conjunction with File in order to read/write ELF files on disk.
  *
  * ### Inline Functions

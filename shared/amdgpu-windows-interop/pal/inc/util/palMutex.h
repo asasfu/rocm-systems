@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palMutex.h
@@ -255,6 +232,7 @@ private:
 /// Yields the current thread to another thread in the ready state (if available).
 extern void YieldThread();
 
+
 /// Atomic write of 64-bit unsigned integer, using a relaxed memory ordering policy.
 /// If you need to synchronize more than just pTarget, you may need a new function.
 ///
@@ -262,6 +240,7 @@ extern void YieldThread();
 ///
 /// @returns The original value of *pTarget.
 extern void AtomicWriteRelaxed64(volatile uint64* pTarget, uint64 newValue);
+
 
 /// Atomic read of 64-bit unsigned integer, using a relaxed memory ordering policy.
 /// If you need to synchronize more than just pTarget, you may need a new function.
@@ -297,7 +276,7 @@ extern uint32 AtomicDecrement(volatile uint32* pValue);
 /// @param [in,out] pValue Pointer to the value to be decremented.
 ///
 /// @returns Result of the decrement operation.
-extern uint32 AtomicDecrement64(volatile uint64* pValue);
+extern uint64 AtomicDecrement64(volatile uint64* pValue);
 
 /// Performs an atomic compare and swap operation on two 32-bit unsigned integers. This operation compares *pTarget
 /// with oldValue and replaces it with newValue if they match. If the values don't match, no action is taken.

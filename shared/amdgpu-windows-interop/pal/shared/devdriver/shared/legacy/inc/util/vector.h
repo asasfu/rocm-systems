@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2021-2025 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -30,7 +7,6 @@
 #if !DD_PLATFORM_WINDOWS_KM
 #include <type_traits>
 #endif
-#include <cstring>
 
 namespace DevDriver
 {
@@ -142,7 +118,7 @@ namespace DevDriver
             // Instead of letting the compiler guess, we dictate when dealing with Pods.
             if (Platform::IsPod<T>::Value)
             {
-                memcpy(&m_pData[oldSize], pTs, (sizeof(T) * countOfTs));
+                Platform::Memcpy_s(&m_pData[oldSize], (sizeof(T) * countOfTs), pTs, (sizeof(T) * countOfTs));
             }
             else
             {
@@ -339,6 +315,12 @@ namespace DevDriver
                 const size_t allocSize = sizeof(T) * newCapacity;
                 T* pData = static_cast<T*>(DD_MALLOC(allocSize, alignof(T), m_allocCb));
 
+                //# ------------------
+                //# Jira: SWDEV-191924
+                //# ------------------
+                //#
+                //# @TODO: THIS NEEDS TO BE FIXED
+                //#        We are NOT memory safe due to this
                 DD_ASSERT(pData != nullptr);
 
                 // If the struct is not a POD, then we need to construct objects
@@ -362,7 +344,7 @@ namespace DevDriver
                     // Need to use reinterpret_cast here because gcc can't seem to evaluate
                     // `is_trivial_v` at compile-time, thus generating a no-class-memaccess warning.
                     // `if constexpr` fixes the issue, but AMDLOG's toolchain doesn't support c++17.
-                    std::memcpy(reinterpret_cast<void*>(pData), m_pData, m_size * sizeof(T));
+                    Platform::Memcpy_s(reinterpret_cast<void*>(pData), newCapacity * sizeof(T), m_pData, m_size * sizeof(T));
                 }
 
                 if (m_pData != m_data)
@@ -592,14 +574,15 @@ namespace DevDriver
     template <>
     inline bool Vector<char>::Append(const char* pStr)
     {
-        return Append(pStr, strlen(pStr));
+        return Append(pStr, Platform::Strlen_s(pStr, SIZE_MAX));
     }
 
     template <>
     template <size_t Len>
     inline bool Vector<char>::Append(const char (&str)[Len])
     {
-        return Append(str, strlen(str));
+        return Append(str, Platform::Strlen_s(str, Len));
     }
+
 
 } // DevDriver

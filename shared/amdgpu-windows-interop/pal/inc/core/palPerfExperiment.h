@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2014-2025 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palPerfExperiment.h
@@ -102,6 +79,19 @@ enum class GpuBlock : uint32
 #else
     RlcLocal = 0x38,
 #endif
+#if PAL_BUILD_GFX13
+    Rds      = 0x39,
+    Rte      = 0x3A,
+    Rie      = 0x3B,
+    Rwm      = 0x3C,
+    Swc      = 0x3D,
+    Vts      = 0x3E,
+    Vca      = 0x3F,
+    Vmw      = 0x40,
+    Vcd      = 0x41,
+    Vtf      = 0x42,
+    Df       = 0x43,
+#endif
     Count
 };
 
@@ -148,10 +138,6 @@ enum class PerfTraceMarkerType : uint32
 {
     SqttA = 0x0,
     SqttB = 0x1,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 874
-    A = SqttA,
-    B = SqttB,
-#endif
     SpmA  = 0x2,
     SpmB  = 0x3,
     SpmC  = 0x4,
@@ -190,6 +176,9 @@ union PerfExperimentDeviceFeatureFlags
 /// are enabled. It's all still per-WGP in HW, we just can't support different counter configs within the same SE.
 /// The counter data is still reported per WGP (not aggregated for the whole SE).
 ///
+///# Check the following two documents for details:
+///# /gfxip/gfx11/doc/architecture/subsystem/SH/GFX11_SH_perfcounter_users_guide.docx
+///# /gfxip/gfx11/doc/architecture/subsystem/SH/GFX11_PerfCtr_per_WGP.docx
 struct PerfCounterInfo
 {
     PerfCounterType              counterType; ///< Type of counter to add.
@@ -302,6 +291,15 @@ enum ThreadTraceRegTypeFlags : Pal::uint32
     AllReadsAndWrites     = 0xFFFFFFFF  ///< All reads and writes. Not encouraged. This can cause a GPU hang.
 };
 
+/// Enumeration of SQ Thread Trace wavestart extension modes. All versions of Thread Trace (TT) are represented.
+enum ThreadTraceWaveStartExt : Pal::uint32
+{
+    ExtShort = 0x00000000, ///< No extensions enabled on wavestart tokens. TT 3.0.
+    ExtAlloc = 0x00000001, ///< Wavestart tokens extended with VGPR and LDS base addresses. TT 3.0.
+    ExtPbbId = 0x00000002, ///< Wavestart tokens extended with relative draw ID for PBB. TT 3.0.
+    ExtWgId  = 0x00000003  ///< Wavestart tokens extended with workgroup (WG) ID and flags for dynamic VGPRs and last wave in WG. TT 3.3.
+};
+
 /// Represents thread trace token types and register types that can be enabled to be reported in the trace data. If
 /// a particular token type or reg type is unsupported, no error is returned and the thread trace is configured with
 /// the minimum supported tokens in the user provided config.
@@ -313,6 +311,7 @@ struct ThreadTraceTokenConfig
     /// Mask of ThreadTraceRegTypeFlags
     uint32 regMask;
 };
+
 
 /// Specifies properties for a perf trace being added to a perf experiment.  Input structure to
 /// IPerfExperiment::AddThreadTrace().
@@ -326,26 +325,31 @@ struct ThreadTraceInfo
         struct
         {
             // Options common to all traces
-            uint32 bufferSize                            :  1;
+            uint32                  bufferSize                            :  1;
 
             // Thread trace only options
-            uint32 threadTraceTargetSh                   :  1;
-            uint32 threadTraceTargetCu                   :  1;
-            uint32 threadTraceSh0CounterMask             :  1;
-            uint32 threadTraceSh1CounterMask             :  1;
-            uint32 threadTraceSimdMask                   :  1;
-            uint32 threadTraceVmIdMask                   :  1;
-            uint32 threadTraceRandomSeed                 :  1;
-            uint32 threadTraceShaderTypeMask             :  1;
-            uint32 threadTraceIssueMask                  :  1;
-            uint32 threadTraceWrapBuffer                 :  1;
-            uint32 threadTraceStallBehavior              :  1;
-            uint32 threadTraceTokenConfig                :  1;
-            uint32 threadTraceStallAllSimds              :  1;
-            uint32 threadTraceExcludeNonDetailShaderData :  1;
-            uint32 threadTraceEnableExecPop              :  1;
-            uint32 placeholder3                          :  1;
-            uint32 reserved                              : 15;
+            uint32                  threadTraceTargetSh                   :  1;
+            uint32                  threadTraceTargetCu                   :  1;
+            uint32                  threadTraceSh0CounterMask             :  1;
+            uint32                  threadTraceSh1CounterMask             :  1;
+            uint32                  threadTraceSimdMask                   :  1;
+            uint32                  threadTraceVmIdMask                   :  1;
+            uint32                  threadTraceRandomSeed                 :  1;
+            uint32                  threadTraceShaderTypeMask             :  1;
+            uint32                  threadTraceIssueMask                  :  1;
+            uint32                  threadTraceWrapBuffer                 :  1;
+            uint32                  threadTraceStallBehavior              :  1;
+            uint32                  threadTraceTokenConfig                :  1;
+            uint32                  threadTraceStallAllSimds              :  1;
+            uint32                  threadTraceExcludeNonDetailShaderData :  1;
+            uint32                  threadTraceEnableExecPop              :  1;
+            ThreadTraceWaveStartExt threadTraceWaveStartExt               :  2;
+#if PAL_BUILD_GFX13
+            uint32                  threadTraceEnableRts                  :  1;
+#else
+            uint32                  placeholder3                          :  1;
+#endif
+            uint32                  reserved                              : 13;
         };
         uint32 u32All;
     } optionFlags;
@@ -371,6 +375,10 @@ struct ThreadTraceInfo
         bool                      threadTraceStallAllSimds;
         bool                      threadTraceExcludeNonDetailShaderData;
         bool                      threadTraceEnableExecPop;
+#if PAL_BUILD_GFX13
+        uint32                    threadTraceRtsTokenMask;
+        uint32                    threadTraceRtsMaxRays;
+#endif
     } optionValues;
 };
 
