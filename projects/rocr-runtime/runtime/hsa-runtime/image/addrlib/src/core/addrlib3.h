@@ -1,7 +1,7 @@
 /*
 ************************************************************************************************************************
 *
-*  Copyright (C) 2023 Advanced Micro Devices, Inc.  All rights reserved.
+*  Copyright (C) 2022-2025 Advanced Micro Devices, Inc. All rights reserved.
 *  SPDX-License-Identifier: MIT
 *
 ***********************************************************************************************************************/
@@ -25,37 +25,27 @@ namespace Addr
 namespace V3
 {
 
-/**
-************************************************************************************************************************
-* @brief Bitmasks for swizzle mode determination on GFX12
-************************************************************************************************************************
-*/
-const UINT_32 Gfx12Blk256KBSwModeMask = (1u << ADDR3_256KB_2D)  |
-                                        (1u << ADDR3_256KB_3D);
+constexpr UINT_32 Size256  = 256u;
+constexpr UINT_32 Size4K   = 4 * 1024;
+constexpr UINT_32 Size64K  = 64 * 1024;
+constexpr UINT_32 Size256K = 256 * 1024;
+constexpr UINT_32 Addr3MaxMipLevels = 17; // Max Mip Levels across all addr3 chips
 
-const UINT_32 Gfx12Blk64KBSwModeMask  = (1u << ADDR3_64KB_2D)   |
-                                        (1u << ADDR3_64KB_3D);
-
-const UINT_32 Gfx12Blk4KBSwModeMask   = (1u << ADDR3_4KB_2D)    |
-                                        (1u << ADDR3_4KB_3D);
-
-const UINT_32 Gfx12Blk256BSwModeMask  = (1u << ADDR3_256B_2D);
-
-/**
-************************************************************************************************************************
-* @brief Bit setting for swizzle pattern
-************************************************************************************************************************
-*/
-union ADDR_BIT_SETTING
+struct ADDR3_COORD
 {
-    struct
-    {
-        UINT_16 x;
-        UINT_16 y;
-        UINT_16 z;
-        UINT_16 s;
-    };
-    UINT_64 value;
+    INT_32  x;
+    INT_32  y;
+    INT_32  z;
+};
+
+// The HW address library utilizes an "addr_params" structure that is GPU-specific; therefore, we use a "void" pointer
+// here to allow the HWL's to interpret this pointer with the appropriate structure.
+// To reduce the frequency of conversion between the "ADDR3_COMPUTE_SURFACE_INFO_INPUT" structure and the "addr_params"
+// structure, we create this super-structure to tie the two structures together.
+struct ADDR3_COMPUTE_SURFACE_INFO_PARAMS_INPUT
+{
+    const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pSurfInfo;
+    void*                                   pvAddrParams;
 };
 
 /**
@@ -84,15 +74,8 @@ union SwizzleModeFlags
     UINT_32 u32All;
 };
 
-struct Dim2d
-{
-    UINT_32 w;
-    UINT_32 h;
-};
-
 const UINT_32 Log2Size256  = 8u;
-const UINT_32 Log2Size4K   = 12u;
-const UINT_32 Log2Size64K  = 16u;
+
 const UINT_32 Log2Size256K = 18u;
 
 /**
@@ -112,53 +95,6 @@ struct ADDR_SW_PATINFO
 
 /**
 ************************************************************************************************************************
-*   InitBit
-*
-*   @brief
-*       Initialize bit setting value via a return value
-************************************************************************************************************************
-*/
-#define InitBit(c, index) (1ull << ((c << 4) + index))
-
-const UINT_64 X0  = InitBit(0,  0);
-const UINT_64 X1  = InitBit(0,  1);
-const UINT_64 X2  = InitBit(0,  2);
-const UINT_64 X3  = InitBit(0,  3);
-const UINT_64 X4  = InitBit(0,  4);
-const UINT_64 X5  = InitBit(0,  5);
-const UINT_64 X6  = InitBit(0,  6);
-const UINT_64 X7  = InitBit(0,  7);
-const UINT_64 X8  = InitBit(0,  8);
-
-const UINT_64 Y0  = InitBit(1,  0);
-const UINT_64 Y1  = InitBit(1,  1);
-const UINT_64 Y2  = InitBit(1,  2);
-const UINT_64 Y3  = InitBit(1,  3);
-const UINT_64 Y4  = InitBit(1,  4);
-const UINT_64 Y5  = InitBit(1,  5);
-const UINT_64 Y6  = InitBit(1,  6);
-const UINT_64 Y7  = InitBit(1,  7);
-const UINT_64 Y8  = InitBit(1,  8);
-
-const UINT_64 Z0  = InitBit(2,  0);
-const UINT_64 Z1  = InitBit(2,  1);
-const UINT_64 Z2  = InitBit(2,  2);
-const UINT_64 Z3  = InitBit(2,  3);
-const UINT_64 Z4  = InitBit(2,  4);
-const UINT_64 Z5  = InitBit(2,  5);
-
-const UINT_64 S0  = InitBit(3,  0);
-const UINT_64 S1  = InitBit(3,  1);
-const UINT_64 S2  = InitBit(3,  2);
-
-/**
-************************************************************************************************************************
-* @brief Bit setting for swizzle pattern
-************************************************************************************************************************
-*/
-
-/**
-************************************************************************************************************************
 * @brief This class contains asic independent address lib functionalities
 ************************************************************************************************************************
 */
@@ -169,6 +105,8 @@ public:
 
     static Lib* GetLib(
         ADDR_HANDLE hLib);
+
+    UINT_32 GetInterfaceVersion() const override { return 3; }
 
     //
     // Interface stubs
@@ -186,6 +124,26 @@ public:
     ADDR_E_RETURNCODE ComputeSurfaceAddrFromCoord(
         const ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pIn,
         ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*      pOut) const;
+
+    // For HTile
+    ADDR_E_RETURNCODE ComputeHtileInfo(
+        const ADDR3_COMPUTE_HTILE_INFO_INPUT* pIn,
+        ADDR3_COMPUTE_HTILE_INFO_OUTPUT*      pOut) const;
+
+    // For FMask
+    ADDR_E_RETURNCODE ComputeFmaskInfo(
+        const ADDR3_COMPUTE_FMASK_INFO_INPUT* pIn,
+        ADDR3_COMPUTE_FMASK_INFO_OUTPUT*      pOut) const;
+
+    ADDR_E_RETURNCODE CopyMemToSurface(
+        const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                             regionCount) const;
+
+    ADDR_E_RETURNCODE CopySurfaceToMem(
+        const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                             regionCount) const;
 
     // Misc
     ADDR_E_RETURNCODE ComputePipeBankXor(
@@ -208,47 +166,69 @@ protected:
     Lib();  // Constructor is protected
     Lib(const Client* pClient);
 
-    static const UINT_32 MaxImageDim  = 65536;
-    static const UINT_32 MaxMipLevels = 17; // Max image size is 64k
-    static const UINT_32 MaxNumOfBpp  = 5;
-    static const UINT_32 MaxNumOfAA   = 4;
-    UINT_32 m_pipesLog2;                ///< Number of pipe per shader engine Log2
-    UINT_32 m_pipeInterleaveLog2;       ///< Log2 of pipe interleave bytes
-
-    static const Dim2d         Block256_2d[MaxNumOfBpp];
-    static const ADDR_EXTENT3D Block1K_3d[MaxNumOfBpp];
     SwizzleModeFlags m_swizzleModeTable[ADDR3_MAX_TYPE];  ///< Swizzle mode table
 
     // Number of unique MSAA sample rates (1/2/4/8)
-    static const UINT_32 MaxMsaaRateLog2     = 4;
-    // Max number of bpp (8bpp/16bpp/32bpp/64bpp/128bpp)
-    static const UINT_32 MaxElementBytesLog2 = 5;
-    // Number of unique swizzle patterns (one entry per swizzle mode + MSAA + bpp configuration)
-    static const UINT_32 NumSwizzlePatterns  = 19 * MaxElementBytesLog2;
+    static const UINT_32 MaxNumMsaaRates     = 4;
+
+    //# These fields exist in the GB_ADDR_CONFIG register; however, the HW does not care about them.
+    //# The HW acts as if the log2(pipes)==5 and log2(pi) == 8, always.
+    static const UINT_32  NumPipesLog2       = 5;
+    static const UINT_32  PipeInterleaveLog2 = 8;
 
     // Number of equation entries in the table
     UINT_32              m_numEquations;
-    // Equation lookup table according to swizzle mode, MSAA sample rate, and bpp
-    UINT_32              m_equationLookupTable[ADDR3_MAX_TYPE - 1][MaxMsaaRateLog2][MaxElementBytesLog2];
 
-    // Equation table
-    ADDR_EQUATION        m_equationTable[NumSwizzlePatterns];
+    // Swizzle equation lookup table according to swizzle mode, MSAA sample rate and bpp. This does not include linear.
+    UINT_32              m_equationLookupTable[ADDR3_MAX_TYPE - 1][MaxNumMsaaRates][MaxElementBytesLog2];
+
+    // Block dimension lookup table according to swizzle mode, MSAA sample rate and bpp. This includes linear.
+    ADDR_EXTENT3D        m_blockDimensionTable[ADDR3_MAX_TYPE][MaxNumMsaaRates][MaxElementBytesLog2];
+
+    virtual ADDR_E_RETURNCODE HwlComputeStereoInfo(
+        const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn,
+        UINT_32*                                pAlignY,
+        UINT_32*                                pRightXor) const = 0;
 
     void SetEquationTableEntry(
-        Addr3SwizzleMode addrType,
+        Addr3SwizzleMode swMode,
         UINT_32          msaaLog2,
-        UINT_32          elementLog2,
+        UINT_32          elementBytesLog2,
         UINT_32          value)
     {
-        m_equationLookupTable[addrType - 1][msaaLog2][elementLog2] = value;
+        // m_equationLookupTable doesn't include linear, so we must exclude linear when calling this function.
+        ADDR_ASSERT(swMode != ADDR3_LINEAR);
+        m_equationLookupTable[swMode - 1][msaaLog2][elementBytesLog2] = value;
     }
 
     const UINT_32 GetEquationTableEntry(
-        Addr3SwizzleMode addrType,
+        Addr3SwizzleMode swMode,
         UINT_32          msaaLog2,
-        UINT_32          elementLog2) const
+        UINT_32          elementBytesLog2) const
     {
-        return m_equationLookupTable[addrType - 1][msaaLog2][elementLog2];
+        UINT_32 res = ADDR_INVALID_EQUATION_INDEX;
+        // m_equationLookupTable doesn't include linear
+        if (swMode != ADDR3_LINEAR)
+        {
+            res = m_equationLookupTable[swMode - 1][msaaLog2][elementBytesLog2];
+        }
+
+        return res;
+    }
+
+    static UINT_32 ComputeOffsetFromEquation(
+        const ADDR_EQUATION* pEq,
+        UINT_32              x,
+        UINT_32              y,
+        UINT_32              z,
+        UINT_32              s);
+
+    const ADDR_EXTENT3D GetBlockDimensionTableEntry(
+        Addr3SwizzleMode swMode,
+        UINT_32          msaaLog2,
+        UINT_32          elementBytesLog2) const
+    {
+        return m_blockDimensionTable[swMode][msaaLog2][elementBytesLog2];
     }
 
     static BOOL_32 Valid3DMipSliceIdConstraint(
@@ -311,25 +291,44 @@ protected:
         return m_swizzleModeTable[swizzleMode].is3d;
     }
 
-    virtual UINT_32 HwlComputeMaxBaseAlignments() const  { return 256 * 1024; }
-
-    virtual BOOL_32 HwlInitGlobalParams(const ADDR_CREATE_INPUT* pCreateIn)
+    // miptail is applied to only larger block size (4kb, 64kb, 256kb), so there is no miptail in linear and
+    // 256b_2d addressing since they are both 256b block.
+    BOOL_32 SupportsMipTail(Addr3SwizzleMode swizzleMode) const
     {
-        ADDR_NOT_IMPLEMENTED();
-        // Although GFX12 addressing should be consistent regardless of the configuration, we still need to
-        // call some initialization for member variables.
-        return TRUE;
+        return GetBlockSize(swizzleMode) > 256u;
     }
 
-    virtual ChipFamily HwlConvertChipFamily(
-        UINT_32 chipFamily,
-        UINT_32 chipRevision);
+    // The max alignment is tied to the swizzle mode and since the largest swizzle mode is 256kb, so the maximal
+    // alignment is also 256kb.
+    UINT_32 HwlComputeMaxBaseAlignments() const override { return Size256K; }
 
-    virtual UINT_32 HwlComputeMaxMetaBaseAlignments() const { return 0; }
+    virtual ADDR_E_RETURNCODE HwlGetPossibleSwizzleModes(
+        const ADDR3_GET_POSSIBLE_SWIZZLE_MODE_INPUT*   pIn,
+        ADDR3_GET_POSSIBLE_SWIZZLE_MODE_OUTPUT*        pOut) const = 0;
+
+    UINT_32 HwlComputeMaxMetaBaseAlignments() const override { return 0; }
 
     virtual ADDR_E_RETURNCODE HwlComputeSurfaceInfo(
          const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn,
          ADDR3_COMPUTE_SURFACE_INFO_OUTPUT*      pOut) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
+    virtual ADDR_E_RETURNCODE HwlCopyMemToSurface(
+        const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                            regionCount) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
+    virtual ADDR_E_RETURNCODE HwlCopySurfaceToMem(
+        const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                            regionCount) const
     {
         ADDR_NOT_IMPLEMENTED();
         return ADDR_NOTSUPPORTED;
@@ -344,18 +343,27 @@ protected:
     }
 
     VOID ComputeBlockDimensionForSurf(
-        ADDR_EXTENT3D*    pExtent,
-        UINT_32           bpp,
-        UINT_32           numSamples,
-        Addr3SwizzleMode  swizzleMode) const;
+        const ADDR3_COMPUTE_SURFACE_INFO_PARAMS_INPUT* pIn,
+        ADDR_EXTENT3D*                                 pExtent) const;
 
     ADDR_EXTENT3D GetMipTailDim(
-        Addr3SwizzleMode      swizzleMode,
-        const ADDR_EXTENT3D&  blockDims) const;
+        const ADDR3_COMPUTE_SURFACE_INFO_PARAMS_INPUT* pIn,
+        const ADDR_EXTENT3D&                           blockDims) const;
+
+    ADDR_E_RETURNCODE CopyLinearSurface(
+        const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+        const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+        UINT_32                            regionCount,
+        bool                                surfaceIsDst) const;
 
     ADDR_E_RETURNCODE ComputeSurfaceAddrFromCoordLinear(
         const ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pIn,
         ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*      pOut) const;
+
+    virtual ADDR_E_RETURNCODE HwlComputeSurfaceAddrFromCoordLinear(
+        const ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pIn,
+        const ADDR3_COMPUTE_SURFACE_INFO_INPUT*          pSurfInfoIn,
+        ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*      pOut) const = 0;
 
     ADDR_E_RETURNCODE ComputeSurfaceAddrFromCoordTiled(
         const ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT* pIn,
@@ -392,6 +400,28 @@ protected:
         return ADDR_NOTSUPPORTED;
     }
 
+    virtual UINT_32 HwlGetEquationIndex(
+        const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_INVALID_EQUATION_INDEX;
+    }
+
+    void SetEquationIndex(
+        const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn,
+        ADDR3_COMPUTE_SURFACE_INFO_OUTPUT*      pOut) const
+    {
+        UINT_32 equationIdx = HwlGetEquationIndex(pIn);
+
+        if (pOut->pMipInfo != NULL)
+        {
+            for (UINT_32 i = 0; i < pIn->numMipLevels; i++)
+            {
+                pOut->pMipInfo[i].equationIndex = equationIdx;
+            }
+        }
+    }
+
     ADDR_E_RETURNCODE ApplyCustomizedPitchHeight(
         const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn,
         ADDR3_COMPUTE_SURFACE_INFO_OUTPUT*      pOut) const;
@@ -399,6 +429,51 @@ protected:
     BOOL_32 UseCustomHeight(const ADDR3_COMPUTE_SURFACE_INFO_INPUT*  pIn) const;
     BOOL_32 UseCustomPitch(const ADDR3_COMPUTE_SURFACE_INFO_INPUT*  pIn) const;
     BOOL_32 CanTrimLinearPadding(const ADDR3_COMPUTE_SURFACE_INFO_INPUT*  pIn) const;
+
+    virtual VOID HwlCalcBlockSize(
+        const ADDR3_COMPUTE_SURFACE_INFO_PARAMS_INPUT* pIn,
+        ADDR_EXTENT3D*                                 pExtent) const = 0;
+
+    virtual ADDR_EXTENT3D HwlGetMipInTailMaxSize(
+        const ADDR3_COMPUTE_SURFACE_INFO_PARAMS_INPUT* pIn,
+        const ADDR_EXTENT3D&                           blockDims) const = 0;
+
+    virtual BOOL_32 HwlValidateNonSwModeParams(const ADDR3_GET_POSSIBLE_SWIZZLE_MODE_INPUT* pIn) const = 0;
+
+    ADDR_E_RETURNCODE ComputeSurfaceInfoSanityCheck(const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pIn) const;
+
+    virtual ADDR_E_RETURNCODE HwlComputeHtileInfo(
+        const ADDR3_COMPUTE_HTILE_INFO_INPUT* pIn,
+        ADDR3_COMPUTE_HTILE_INFO_OUTPUT* pOut) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
+    virtual ADDR_E_RETURNCODE HwlComputeFmaskInfo(
+        const ADDR3_COMPUTE_FMASK_INFO_INPUT* pIn,
+        ADDR3_COMPUTE_FMASK_INFO_OUTPUT*      pOut) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
+    // This returns bits-per-pixel instead of bytes-per-pixel
+    static UINT_32 GetFmaskBpp(UINT_32 sample)
+    {
+        sample = (sample == 0) ? 1 : sample;
+
+        UINT_32 fmaskBpp = QLog2(sample);
+
+        if (fmaskBpp == 3)
+        {
+            fmaskBpp = 4;
+        }
+
+        fmaskBpp = Max(8u, fmaskBpp * sample);
+
+        return fmaskBpp;
+    }
 
 private:
     // Disallow the copy constructor
@@ -408,10 +483,15 @@ private:
     Lib& operator=(const Lib& a);
 
     void Init();
+
+    VOID ComputeQbStereoInfo(ADDR3_COMPUTE_SURFACE_INFO_OUTPUT* pOut) const;
+
+    VOID ValidateMipSizes(
+        const ADDR3_COMPUTE_HTILE_INFO_INPUT*   pIn,
+        const ADDR3_COMPUTE_HTILE_INFO_OUTPUT*  pOut) const;
 };
 
 } // V3
 } // Addr
 } // namespace rocr
-
 #endif
