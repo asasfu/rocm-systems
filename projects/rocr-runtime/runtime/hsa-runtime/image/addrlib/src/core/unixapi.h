@@ -19,19 +19,11 @@
 
 #define NOMINMAX
 #define STRICT
-//#define WIN32_LEAN_AND_MEAN // _AND_STUPID
 #include <sys/types.h>
 #include <errno.h>
 
 
 namespace UnixApi {
-
-//#define NOMINMAX
-//#define STRICT
-//#define WIN32_LEAN_AND_MEAN // _AND_STUPID
-//#include <sys/types.h>
-//#include <pthread.h>
-//#include <errno.h>
 
 typedef int HKEY;
 
