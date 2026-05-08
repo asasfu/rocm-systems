@@ -125,3 +125,6 @@ executionControl:
   Unit_hipFuncSetAttribute_Positive_PreferredSharedMemoryCarveout_Not_Supported:
     <<: *level_2
     tags: [attributes, kernel]
+  Unit_hipFuncSetAttribute_LDS64K_Carveout:
+    <<: *level_2
+    tags: [attributes, kernel]
