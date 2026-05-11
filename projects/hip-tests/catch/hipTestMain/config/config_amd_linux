@@ -4401,6 +4401,7 @@
         "Unit_hipPointerGetAttributes_ClusterAlloc",
         "Unit_hipPointerGetAttributes_TinyClusterAlloc",
         "Unit_hipGraphHostNodeGetParams_ClonedGraphWithHostNode",
+        "Unit_hipMemGetInfo_FreeLessThanTotal",
     #endif
     #if defined gfx1250
         "=== FFM non-passed tests only on mi450 (gfx1250) vs at2 ===",
