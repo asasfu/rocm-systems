@@ -186,7 +186,7 @@ jobs:
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/AMD-ROCm-Internal/rocm-npi-dev/dispatches \
-            -d "{\"event_type\":\"psdb-trigger\",\"client_payload\":{\"org\":\"${{ github.repository_owner }}\",\"repo\":\"rocm-systems\",\"commit\":\"$COMMIT\",\"pr_number\":\"${{ github.event.pull_request.number }}\",\"families\":\"gfx1250,gfx1260,gfx1310,gfx1370\"}}")
+            -d "{\"event_type\":\"psdb-trigger\",\"client_payload\":{\"org\":\"${{ github.repository_owner }}\",\"repo\":\"rocm-systems\",\"commit\":\"$COMMIT\",\"pr_number\":\"${{ github.event.pull_request.number }}\",\"families\":\"gfx1251,gfx1260,gfx1310,gfx1370\"}}")
 
           if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
             echo "PSDB triggered successfully (HTTP $HTTP_CODE)"
