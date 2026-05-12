@@ -62,6 +62,8 @@ enum CounterBlockAttr {
   CounterBlockSPIAttr = 0x80000,
   // Blocks within WGP
   CounterBlockWgpAttr = 0x100000,
+  // Blocks within VMW
+  CounterBlockVMWAttr = CounterBlockDfltAttr|CounterBlockGRBMAttr|CounterBlockSeAttr|CounterBlockSaAttr|CounterBlockWgpAttr|CounterBlockTcAttr,
 };
 
 // Register address corresponding to each counter

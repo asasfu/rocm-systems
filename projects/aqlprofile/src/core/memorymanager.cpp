@@ -37,7 +37,7 @@ void CounterMemoryManager::CopyEvents(const aqlprofile_pmc_event_t* _events, siz
 
   if (!num_flag_metrics) return;
 
-  std::sort(events.begin(), events.end());
+  std::stable_sort(events.begin(), events.end());
 
   std::vector<EventRequest> acc_requests;
   for (auto it = events.begin(); it != events.end(); it++) {
@@ -57,5 +57,5 @@ void CounterMemoryManager::CopyEvents(const aqlprofile_pmc_event_t* _events, siz
   if (!acc_requests.size()) return;
 
   events.insert(events.end(), acc_requests.begin(), acc_requests.end());
-  std::sort(events.begin(), events.end());
+  std::stable_sort(events.begin(), events.end());
 }

@@ -182,16 +182,30 @@ int main(int argc, char* argv[]) {
         };
         events_count = sizeof(events_arr1) / sizeof(hsa_ven_amd_aqlprofile_event_t);
         events_arr = events_arr1;
+      } else if (TestHsa::HsaAgentName() == "gfx13") {
+        const hsa_ven_amd_aqlprofile_event_t events_arr1[] = {
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 2}, // CYCLES
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 4}, // WAVES
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 640}, // SQC_BUSY
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 896}, // SP HIT 0
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 935}, // SP READ
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 942}, // SP FLOP F32
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 946}, // SP FLOP Int
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_GRBM, 0, 0}, // COUNT
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_GRBM, 0, 2}, // GUI_ACTIVE
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_CPF, 0, 0}, // ALWAYS
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_CPC, 0, 25}, // BUSY
+            {(hsa_ven_amd_aqlprofile_block_name_t)AQLPROFILE_BLOCK_NAME_GRBMH, 0, 0 }, // ALWAYS
+            {(hsa_ven_amd_aqlprofile_block_name_t)AQLPROFILE_BLOCK_NAME_SQG, 0, 14}, // ALWAYS
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SPI, 0, 46}, // CSN_BUSY
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SPI, 0, 47}, // CSN_NUM_THREADGROUPS
+        };
+        events_count = sizeof(events_arr1) / sizeof(hsa_ven_amd_aqlprofile_event_t);
+        events_arr = events_arr1;
       } else {
         const hsa_ven_amd_aqlprofile_event_t events_arr1[] = {
             {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 4 /*WAVES*/},
-            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 14 /*ITEMS*/},
-            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 47 /*WAVE_READY*/},
-            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_TCC, 2, 1 /*CYCLE*/},
-            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_TCC, 2, 3 /*REQS*/},
-            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_TCC, 2, 22 /*WRITEBACK*/},
-            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_CPC, 0, 0 /*ALWAYS_COUNT*/},
-            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_CPC, 0, 8 /*ME1_STALL_WAIT_ON_RCIU_READ*/},
+            {HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ, 0, 2 /*CYCLES*/},
         };
         events_count = sizeof(events_arr1) / sizeof(hsa_ven_amd_aqlprofile_event_t);
         events_arr = events_arr1;
