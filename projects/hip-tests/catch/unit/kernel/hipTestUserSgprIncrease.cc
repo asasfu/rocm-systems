@@ -39,7 +39,7 @@ __global__ void kernel_validate_args(int* result,
     *result = sum;
 }
 
-TEST_CASE("Unit_Validate_User_Sgpr_Count") {
+HIP_TEST_CASE(Unit_Validate_User_Sgpr_Count) {
     // ------------------------------------------------------
     // Test: Validate that a kernel with 32 arguments runs correctly.
     // ------------------------------------------------------

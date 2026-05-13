@@ -72,8 +72,6 @@ else() # Win32
                  PATHS ${HIP_PATH} ${HIP_PATH}../lc/bin ${ROCM_PATH})
 endif()
 
-find_program(CLANG_CPP_EXEC NAMES clang-cpp clang-cpp.exe
-             PATHS ${HIP_PATH} ${HIP_PATH}../lc/bin ${ROCM_PATH}/llvm/bin)
 message(STATUS "HIP Lib path: ${HIP_LIB_INSTALL_DIR}")
 
 # used by clang to find hip
@@ -205,15 +203,6 @@ if (RTC_TESTING)
 endif()
 add_definitions(-DKERNELS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/kernels/")
 
-# old config
-set(HIP_TEST_CONFIG_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CATCH_BUILD_DIR}/config)
-file(MAKE_DIRECTORY ${HIP_TEST_CONFIG_BINARY_DIR})
-file(GLOB JSON_FILES "./hipTestMain/config/*.json")
-foreach(json IN LISTS JSON_FILES)
-  file(COPY ${json}
-         DESTINATION ${HIP_TEST_CONFIG_BINARY_DIR})
-endforeach()
-
 if (WIN32)
   configure_file(catchProp_in_rc.in ${CMAKE_CURRENT_BINARY_DIR}/catchProp.rc @ONLY)
 
@@ -343,39 +332,6 @@ endforeach()
 
 # config generation
 add_subdirectory(config)
-
-# old config
-if(WIN32)
-  set(configToUse "config_amd_windows")
-  set(config_file ${CMAKE_SOURCE_DIR}/hipTestMain/config/${configToUse})
-  set(json_file ${HIP_TEST_CONFIG_BINARY_DIR}/${configToUse}.json)
-
-  set(cmd "${CLANG_CPP_EXEC} -P ${ASAN_CONFIG_DEF} -DGITHASH=\"${HIP_VERSION_GITHASH}\" ${config_file}>${json_file}")
-  message(${cmd})
-  execute_process(COMMAND cmd.exe /C ${cmd}
-    RESULT_VARIABLE json_result)
-  message(STATUS "${configToUse}.json file generation result: ${json_result}")
-else()
-    set(configTemplates "config_amd_linux" "config_amd_linux_npi_hw")
-    foreach(configToUse ${configTemplates})
-    foreach(arch ${HIP_GPU_ARCH_LIST})
-        if(configToUse STREQUAL "config_amd_linux_npi_hw" AND NOT arch STREQUAL "gfx1250")
-            continue()
-        endif()
-        set(config_file ${CMAKE_SOURCE_DIR}/hipTestMain/config/${configToUse})
-        if(configToUse STREQUAL "config_amd_linux_npi_hw" AND arch STREQUAL "gfx1250")
-          set(json_file ${HIP_TEST_CONFIG_BINARY_DIR}/npi_real_hw.json)
-        else()
-          set(json_file ${HIP_TEST_CONFIG_BINARY_DIR}/${configToUse}_${arch}.json)
-        endif()
-        set(cmd "${CLANG_CPP_EXEC} -P ${ASAN_CONFIG_DEF} -D${arch} -DGITHASH=\\\"${HIP_VERSION_GITHASH}\\\" ${config_file}>${json_file}")
-        message(${cmd})
-        execute_process(COMMAND bash -c ${cmd}
-        RESULT_VARIABLE json_result)
-        message(STATUS "${configToUse}_${arch}.json file generation result: ${json_result}")
-    endforeach()
-    endforeach()
-endif()
 
 # prints the catch info to a file
 string(TIMESTAMP _timestamp UTC)

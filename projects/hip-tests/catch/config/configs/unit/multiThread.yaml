@@ -2,6 +2,7 @@
 multiThread:
   Unit_hipMemsetAsync_QueueJobsMultithreaded:
     <<: *level_2
+    disabled: [gfx1260, gfx1310]
     tags: [memory, P1]
   Unit_hipMultiThreadDevice_Streams:
     <<: *level_2
@@ -21,13 +22,17 @@ multiThread:
     tags: [device_mgmt, P1]
   Unit_hipMultiThreadStreams1_AsyncSync:
     <<: *level_2
+    disabled: [gfx1260]
     tags: [stream, P0]
   Unit_hipMultiThreadStreams1_AsyncAsync:
     <<: *level_2
+    disabled: [gfx1260]
     tags: [stream, P0]
   Unit_hipMultiThreadStreams1_AsyncSame:
     <<: *level_2
+    disabled: [gfx1260]
     tags: [stream, P0]
   Unit_hipMultiThreadStreams2:
     <<: *level_2
+    disabled: [gfx1260, gfx1310]
     tags: [stream, P0]

@@ -179,7 +179,7 @@ static void test_2_cachelines() {
   HIP_CHECK(hipHostFree(runNum));
 }
 
-TEST_CASE("Unit_test_kernel_monitor") {
+HIP_TEST_CASE(Unit_test_kernel_monitor) {
   hipDeviceProp_t props;
   HIP_CHECK(hipSetDevice(0));
   HIP_CHECK(hipGetDeviceProperties(&props, 0));

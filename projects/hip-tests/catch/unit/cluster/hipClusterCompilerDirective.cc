@@ -91,7 +91,7 @@ void ReleaseHostAndDeviceMemory(int* hptr_in, int* hptr_out, int* dptr_in, int* 
   free(hptr_out);
 }
 
-TEST_CASE("Unit_hipClusterLaunch_CompilerDirective_Basic") {
+HIP_TEST_CASE(Unit_hipClusterLaunch_CompilerDirective_Basic) {
   if (!CheckTargetSupport()) {
     INFO("Target Not Supported!");
     return;

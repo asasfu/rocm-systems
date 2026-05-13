@@ -16,12 +16,11 @@
 #include <iostream>
 #include <iomanip>
 #include <mutex>
-#include <cstdlib>
 #include <thread>
 #include "hip_test_features.hh"
 
 #ifdef ENABLE_YAML_TAGS
-#include "hip_tests_config.hh"
+#include "hip_test_config.hh"
 
 #define SECOND_ARG(a, b, ...) b
 #define GET_TAGS(...) SECOND_ARG(__VA_ARGS__)

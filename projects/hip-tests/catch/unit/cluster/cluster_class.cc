@@ -51,7 +51,7 @@ static __global__ void __cluster_dims__(2, 1, 1) cluster_class_validation(cluste
   c.barrier_wait(std::move(tok));
 }
 
-TEST_CASE("Unit_cluster_coop_group_class") {
+HIP_TEST_CASE(Unit_cluster_coop_group_class) {
   constexpr unsigned int grds = 2, blks = 8, total_threads = grds * blks;
   dim3 grid(grds, 1, 1);
   dim3 block(blks, 1, 1);

@@ -75,7 +75,7 @@ void SetupAndLaunchCluster(void** kernel_params) {
                                kernel_params));
 }
 
-TEST_CASE("Unit_hipClusterLaunch_LaunchApi_Basic") {
+HIP_TEST_CASE(Unit_hipClusterLaunch_LaunchApi_Basic) {
 
   if (!CheckTargetSupport()) {
     INFO("Target Not Supported!");
