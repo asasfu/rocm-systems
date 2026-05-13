@@ -22,10 +22,17 @@ jobs:
         steps.paths.outputs.any_file == 'true' &&
         steps.paths.outputs.non_skippable != 'true' }}
     steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: PSDB merge-loop guard ([psdb-merge] commits)
         id: merge_msg
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: |
           set -euo pipefail
           COMMIT_MSG=$(curl -s \
@@ -57,13 +64,13 @@ jobs:
             .github/scripts
           sparse-checkout-cone-mode: true
           fetch-depth: 1
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Classify skippable paths (therock_configure_ci rules)
         id: paths
         if: steps.merge_msg.outputs.pass_psdb_merge_guard == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
@@ -77,7 +84,7 @@ jobs:
           steps.paths.outputs.non_skippable != 'true' &&
           (!github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'run-psdb'))
         env:
-          GH_TOKEN: ${{ secrets.ROCM_SERVICE_ACCOUNT_PAT }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
@@ -94,6 +101,13 @@ jobs:
       (!github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'run-psdb'))
     runs-on: rocm-ci-runner
     steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Cleanup workspace
         run: |
           set -euo pipefail
@@ -107,7 +121,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
-          token: ${{ secrets.ROCM_SERVICE_ACCOUNT_PAT }}
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Check if base already merged
         id: check
@@ -137,7 +151,7 @@ jobs:
       - name: Post conflict status
         if: steps.merge.outputs.merge_success == 'false'
         env:
-          GH_TOKEN: ${{ secrets.ROCM_SERVICE_ACCOUNT_PAT }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: |
           gh api repos/${{ github.repository }}/statuses/${{ github.event.pull_request.head.sha }} \
             -f state=error \
@@ -152,7 +166,7 @@ jobs:
       - name: Cancel previous PSDB runs
         if: steps.merge.outputs.merge_success != 'false'
         env:
-          GH_TOKEN: ${{ secrets.ROCM_SERVICE_ACCOUNT_PAT }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: |
           RUNS=$(curl -s \
             -H "Authorization: Bearer $GH_TOKEN" \
@@ -179,7 +193,7 @@ jobs:
       - name: Trigger PSDB
         if: steps.merge.outputs.merge_success != 'false'
         env:
-          GH_TOKEN: ${{ secrets.ROCM_SERVICE_ACCOUNT_PAT }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: |
           COMMIT="${{ steps.merge.outputs.commit_sha || steps.check.outputs.commit_sha }}"
           HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
