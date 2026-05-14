@@ -270,7 +270,7 @@ public:
 
             if(gfxip == 1250) fallback = get_fallback_op_gfx1250(read >> 24);
 
-            if(fallback.str == nullptr || fallback.size == 0) THROW_COMGR(status);
+            if(fallback.str == nullptr || fallback.size == 0) THROW_COMGR(_status);
 
             this->last_instruction = fallback.str;
             size_read              = fallback.size;
