@@ -367,7 +367,7 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemcpyNode1D_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1310]
     tags: [node, P0]
   Unit_hipGraphAddMemcpyNode1D_Negative_Parameters:
     <<: *level_2
@@ -1165,7 +1165,6 @@ graph:
     tags: [node]
   Unit_hipGraphAddKernelNode_Negative:
     <<: *level_2
-    disabled: [gfx1260]
     tags: [node, P0]
   Unit_hipGraphAddKernelNode_moduleLoadKernelFn_graphNclonedGraph:
     <<: *level_2

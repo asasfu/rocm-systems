@@ -22,7 +22,6 @@ multiThread:
     tags: [device_mgmt, P1]
   Unit_hipMultiThreadStreams1_AsyncSync:
     <<: *level_2
-    disabled: [gfx1260]
     tags: [stream, P0]
   Unit_hipMultiThreadStreams1_AsyncAsync:
     <<: *level_2
@@ -30,9 +29,8 @@ multiThread:
     tags: [stream, P0]
   Unit_hipMultiThreadStreams1_AsyncSame:
     <<: *level_2
-    disabled: [gfx1260]
     tags: [stream, P0]
   Unit_hipMultiThreadStreams2:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1310]
     tags: [stream, P0]
