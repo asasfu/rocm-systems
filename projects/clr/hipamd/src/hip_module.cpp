@@ -112,6 +112,10 @@ hipError_t hipModuleGetGlobal(hipDeviceptr_t* dptr, size_t* bytes, hipModule_t h
 }
 
 inline hipError_t GetDeviceKernel(const void* func, device::Kernel** d_kernel) {
+  if (func == nullptr) {
+    return hipErrorInvalidResourceHandle;
+  }
+
   hipFunction_t h_func = nullptr;
 
   hipError_t err = PlatformState::Instance().StatCO().GetFunc(&h_func, func, ihipGetDevice());
