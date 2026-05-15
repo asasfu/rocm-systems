@@ -47,8 +47,8 @@
 // - Reset any of the *_STEP_VERSION defines to zero if the corresponding *_MAJOR_VERSION increases
 #define HIP_API_TABLE_STEP_VERSION 0
 #define HIP_COMPILER_API_TABLE_STEP_VERSION 0
-#define HIP_TOOLS_API_TABLE_STEP_VERSION 0
-#define HIP_RUNTIME_API_TABLE_STEP_VERSION 26
+#define HIP_TOOLS_API_TABLE_STEP_VERSION 1
+#define HIP_RUNTIME_API_TABLE_STEP_VERSION 27
 
 // HIP API interface
 // HIP compiler dispatch functions
@@ -73,6 +73,7 @@ typedef void (*t___hipUnregisterFatBinary)(void** modules);
 
 // HIP tools dispatch functions
 typedef void (*t___hipReportDevices)(size_t numDevices, const hipUUID* uuids);
+typedef void (*t___hipTriggerReportDevices)();
 
 // HIP runtime dispatch functions
 typedef const char* (*t_hipApiName)(uint32_t id);
@@ -1730,18 +1731,20 @@ struct HipDispatchTable {
 
   // HIP_RUNTIME_API_TABLE_STEP_VERSION == 24
   t_hipKernelGetAttribute hipKernelGetAttribute_fn;
+
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 25
   t_hipKernelSetAttribute hipKernelSetAttribute_fn;
   t_hipKernelGetFunction hipKernelGetFunction_fn;
 
-  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 25
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 26
   t_hipMemPrefetchBatchAsync hipMemPrefetchBatchAsync_fn;
 
-  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 26
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 27
   t_hipOccupancyMaxPotentialClusterSize hipOccupancyMaxPotentialClusterSize_fn;
   t_hipOccupancyMaxActiveClusters hipOccupancyMaxActiveClusters_fn;
 
   // DO NOT EDIT ABOVE!
-  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 27
+  // HIP_RUNTIME_API_TABLE_STEP_VERSION == 28
 
   // ******************************************************************************************* //
   //
@@ -1761,10 +1764,15 @@ struct HipDispatchTable {
 struct HipToolsDispatchTable {
   // HIP_TOOLS_API_TABLE_STEP_VERSION == 0
   size_t size;
+  // Callback implemented and registered in profiler, called in hip.
   t___hipReportDevices __hipReportDevices_fn;
+  // HIP_TOOLS_API_TABLE_STEP_VERSION == 1
+  // Callback implemented in hip, called in hip::init(), and again in profiler
+  // when app attached by profiler.
+  t___hipTriggerReportDevices __hipTriggerReportDevices_fn;
 
   // DO NOT EDIT ABOVE!
-  // HIP_TOOLS_API_TABLE_STEP_VERSION == 1
+  // HIP_TOOLS_API_TABLE_STEP_VERSION == 2
 
   // ******************************************************************************************* //
   //

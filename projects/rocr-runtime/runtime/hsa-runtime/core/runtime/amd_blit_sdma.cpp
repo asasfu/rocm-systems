@@ -78,6 +78,8 @@ const size_t BlitSdmaBase::kMaxSingleCopySize = SDMA_PKT_COPY_LINEAR::kMaxSize_;
 const size_t BlitSdmaBase::kMaxSingleFillSize = SDMA_PKT_CONSTANT_FILL::kMaxSize_;
 
 // Initialize size of various sDMA commands use by this module
+template <bool useGCR, bool scopeFields>
+const uint32_t BlitSdma<useGCR, scopeFields>::linear_copy_command_size_ = sizeof(SDMA_PKT_COPY_LINEAR);
 
 template <bool useGCR, bool scopeFields>
 const uint32_t BlitSdma<useGCR, scopeFields>::broadcast_copy_command_size_ = sizeof(SDMA_PKT_COPY_LINEAR_BROADCAST);
@@ -1810,9 +1812,20 @@ void BlitSdma<useGCR, scopeFields>::BuildCopyCommand(char* cmd_addr, uint32_t nu
       packet_addr->HEADER_UNION.op = SDMA_OP_COPY;
       packet_addr->HEADER_UNION.sub_op = SDMA_SUBOP_COPY_LINEAR;
 
-      if (scopeFields) packet_addr->HEADER_UNION.npd = 1;
+    if (scopeFields) packet_addr->HEADER_UNION.npd = 1;
 
-      packet_addr->COUNT_UNION.count = copy_size - 1; /* count is 1-based */
+    if (max_copy_size == max_single_linear_copy_size_)
+      packet_addr->COUNT_UNION.count_ext.count = copy_size - 1; /* count is 1-based */
+    else
+      packet_addr->COUNT_UNION.count.count = copy_size - 1; /* count is 1-based */
+
+    if (scopeFields) {
+      packet_addr->PARAMETER_UNION.dst_scope = SDMA_MEMORY_SCOPE_SYS;
+      packet_addr->PARAMETER_UNION.src_scope = SDMA_MEMORY_SCOPE_SYS;
+    }
+
+    packet_addr->SRC_ADDR_LO_UNION.src_addr_31_0 = ptrlow32(cur_src);
+    packet_addr->SRC_ADDR_HI_UNION.src_addr_63_32 = ptrhigh32(cur_src);
 
       if (scopeFields) {
         packet_addr->PARAMETER_UNION.dst_scope = SDMA_MEMORY_SCOPE_SYS;
@@ -2202,6 +2215,12 @@ void BlitSdma<useGCR, scopeFields>::BuildFillCommand(char* cmd_addr, uint32_t nu
                   reinterpret_cast<SDMA_PKT_CONSTANT_FILL_GFX13*>(cmd_addr);
 
       memset(packet_addr, 0, sizeof(SDMA_PKT_CONSTANT_FILL_GFX13));
+      packet_addr->HEADER_UNION.op = SDMA_OP_CONST_FILL;
+      if (scopeFields) {
+        packet_addr->HEADER_UNION.scope = SDMA_MEMORY_SCOPE_SYS;
+        packet_addr->HEADER_UNION.npd = 1;
+      }
+      packet_addr->HEADER_UNION.fillsize = 2;  // DW fill
 
       packet_addr->HEADER_UNION.op = SDMA_OP_CONST_FILL;
       if (scopeFields) {
@@ -2553,7 +2572,9 @@ template <bool useGCR, bool scopeFields> void BlitSdma<useGCR, scopeFields>::Bui
   assert(cmd_addr != NULL);
   assert(useGCR && "Unsupported SDMA command - GCR.");
 
-  if (is_gfx1250_ || is_gfx1260_) {
+  if (agent_->supported_isas()[0]->GetMajorVersion() == 12 &&
+      agent_->supported_isas()[0]->GetMinorVersion() >= 5) {
+
     SDMA_PKT_GCR_GFX1250* addr = reinterpret_cast<SDMA_PKT_GCR_GFX1250*>(cmd_addr);
     memset(addr, 0, sizeof(SDMA_PKT_GCR_TAG_GFX1250));
     addr->HEADER_UNION.op = SDMA_OP_GCR;

@@ -335,6 +335,18 @@ class VirtualGPU : public device::VirtualDevice {
         queue_base_ = nullptr;
         version_major_ = 0;
         version_minor_ = 0;
+        pending_descriptor_ = nullptr;
+        pending_preload_length_ = 0;
+        pending_preload_offset_ = 0;
+      }
+
+      //! Stage the kernel descriptor and preload info for the next dispatch.
+      //! Call before dispatchAqlPacket.
+      void PrepareDispatch(const hsa_amd_metadata_kernel_descriptor_t* descriptor,
+                           uint16_t preload_length, uint16_t preload_offset) {
+        pending_descriptor_ = descriptor;
+        pending_preload_length_ = preload_length;
+        pending_preload_offset_ = preload_offset;
       }
 
       //! Set metadata prefetching packet associated with regular aql packet
@@ -344,6 +356,9 @@ class VirtualGPU : public device::VirtualDevice {
           return;
         }
         if constexpr (std::is_same_v<AqlPacket, hsa_kernel_dispatch_packet_t>) {
+          if (pending_descriptor_ == nullptr) {
+            return;
+          }
           hsa_amd_metadata_kernel_dispatch_packet_t* queue_metadata_packet =
                &(reinterpret_cast<hsa_amd_metadata_kernel_dispatch_packet_t*>(
                    queue_base_))[index];
@@ -366,40 +381,36 @@ class VirtualGPU : public device::VirtualDevice {
         return (header >> HSA_PACKET_HEADER_TYPE) & ((1 << HSA_PACKET_HEADER_WIDTH_TYPE) - 1);
       }
 
-      //! Set header to the metadata prefetch aql
-      void SetHeader(hsa_kernel_dispatch_packet_t* packet, uint16_t header,
-                     hsa_amd_metadata_kernel_dispatch_packet_t* metadata_packet) const;
-
-      template <class AqlBarrierPacket>
-      void SetHeader(AqlBarrierPacket* packet, uint16_t header,
-                     hsa_amd_metadata_barrier_packet_t* metadata_packet) const {
-        uint8_t type = GetType(header);
-        ClPrint(amd::LOG_INFO, amd::LOG_QUEUE, "prefetch: SetHeader: %s type = %d",
-		        typeid(AqlBarrierPacket).name(), type);
-        uint32_t metadata_header = type;
-        metadata_packet->header0 = metadata_header;
-        metadata_packet->header1 = HSA_PACKET_TYPE_INVALID;
-        metadata_packet->header2 = HSA_PACKET_TYPE_INVALID;
-        metadata_packet->header3 = HSA_PACKET_TYPE_INVALID;
-      }
-
-      //! Set the metadata prefetch aql packet in terms of regular aql
+      //! Set the metadata prefetch aql packet for kernel dispatch
       void SetPacket(hsa_kernel_dispatch_packet_t* aql, uint16_t header,
                      hsa_amd_metadata_kernel_dispatch_packet_t* metadata) const;
 
+      //! Set the metadata prefetch aql packet for barrier.
+      //! The CP invalidates headers after completion, so only header0
+      //! and event_id need to be written.
+      //! Read event_id directly from amd_signal_t to avoid the hsa_amd_signal_get_event_id
+      //! API overhead. Only interrupt signals carry a valid event_id.
       template <class AqlBarrierPacket>
       void SetPacket(AqlBarrierPacket* aql, uint16_t header,
                      hsa_amd_metadata_barrier_packet_t* metadata) const {
-        std::memset(metadata, 0, sizeof(*metadata));
         if (aql->completion_signal.handle) {
-          hsa_amd_signal_get_event_id(aql->completion_signal, &metadata->event_id);
+          auto* signal = reinterpret_cast<amd_signal_t*>(aql->completion_signal.handle);
+          metadata->event_id = signal->event_id;
+        } else {
+          metadata->event_id = 0;
         }
-        SetHeader(aql, header, metadata);
+        // Plain store is sufficient: the subsequent packet_store_release on the main
+        // AQL barrier header provides a release fence that orders all metadata writes
+        // (event_id and header) before the CP sees the valid barrier packet.
+        metadata->header0 = GetType(header);
       }
 
       void* queue_base_ = nullptr;  //!< The buffer base of prefetching queue
       uint8_t version_major_ = 0;   //!< Major version: 3 bits
       uint8_t version_minor_ = 0;   //!< Minor version: 5 bits
+      const hsa_amd_metadata_kernel_descriptor_t* pending_descriptor_ = nullptr;
+      uint16_t pending_preload_length_ = 0;
+      uint16_t pending_preload_offset_ = 0;
   };
 
   VirtualGPU(Device& device, bool profiling = false, bool cooperative = false,
@@ -480,6 +491,24 @@ class VirtualGPU : public device::VirtualDevice {
   hsa_queue_t* gpu_queue() { return gpu_queue_; }
   void set_gpu_queue(hsa_queue_t* gpu_queue) { gpu_queue_ = gpu_queue; }
 
+  //! Snapshot the current HW queue as preferred for future re-acquisition (used by graph launch).
+  //! Only updates if the queue is still valid — avoids clobbering a hint saved by ReleaseHwQueue.
+  void SetPreferredQueue() override {
+    std::scoped_lock lock(execution());
+    if (gpu_queue_ != nullptr) {
+      last_hwq_ = gpu_queue_;
+    }
+  }
+  //! Acquire a HW queue using the preferred hint, then clear the hint
+  void AcquireQueueWithPreference() override;
+
+  //! Pin the HW queue so ReleaseHwQueue() becomes a no-op (used by graph internal streams)
+  void PinQueue() override { queue_pinned_ = true; }
+  //! Unpin the HW queue, allowing ReleaseHwQueue() to release it again
+  void UnpinQueue() override { queue_pinned_ = false; }
+  //! Release current HW queue and acquire a new one, avoiding queues with IDs in the excluded set
+  bool ReacquireQueueExcluding(const std::unordered_set<uint64_t>& excluded_ids) override;
+
   // Return pointer to PrintfDbg
   PrintfDbg* printfDbg() const { return printfdbg_; }
 
@@ -556,6 +585,11 @@ class VirtualGPU : public device::VirtualDevice {
   void ClearAssignedSdmaEngine() {
     assigned_sdma_engine_ = 0;
   }
+  bool hasAssignedSdmaEngine() const {
+    return assigned_sdma_engine_ != 0;
+  }
+
+  void* getOrCreateHostcallBuffer();
 
  private:
   //! Dispatches a barrier with blocking HSA signals
@@ -567,18 +601,19 @@ class VirtualGPU : public device::VirtualDevice {
   bool dispatchAqlPacket(hsa_barrier_and_packet_t* packet, uint16_t header, uint16_t rest,
                          bool blocking = true, bool attach_signal = false);
 
-  //! Dispatches multiple AQL packets in a single batch operation
-  bool dispatchAqlPacketBatch(const std::vector<uint8_t*>& packets,
-                              const std::vector<const std::string*>& kernelNames,
-                              amd::AccumulateCommand* vcmd = nullptr, bool attach_signal = false);
+  //! Fast-path dispatch: pre-built flat contiguous buffer
+  bool dispatchAqlPacketBatchFlat(const std::vector<uint8_t>& flatPacketData,
+                                  const std::vector<uint32_t>& validFullHeaders,
+                                  amd::AccumulateCommand* vcmd = nullptr,
+                                  bool attach_signal = false,
+                                  const std::vector<const std::string*>* kernelNames = nullptr,
+                                  bool pre_patched = false,
+                                  bool blocking = false) override;
+
   template <typename AqlPacket> bool dispatchGenericAqlPacket(AqlPacket* packet, uint16_t header,
                                                               uint16_t rest, bool blocking,
-                                                              bool attach_signal = false);
-  //! Dispatches multiple AQL packets with a single doorbell ring
-  template <typename AqlPacket>
-  bool dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& packets, bool blocking,
-                                     bool attach_signal = false,
-                                     const std::vector<const std::string*>* kernelNames = nullptr);
+                                                              bool attach_signal = false,
+                                                              bool cluster_launch = false);
 
   bool dispatchCounterAqlPacket(hsa_ext_amd_aql_pm4_packet_t* packet, const uint32_t gfxVersion,
                                 bool blocking, const hsa_ven_amd_aqlprofile_1_00_pfn_t* extApi);
@@ -637,13 +672,17 @@ class VirtualGPU : public device::VirtualDevice {
   //! Resets the current queue state. Note: should be called after AQL queue becomes idle
   void ResetQueueStates();
 
-  //! Track the progress of the queue based on the last write index and completion signal
+  //! Track the progress of the queue based on the last write index and completion signal.
+  //! When skip_signal is true, only the write index is advanced and the completion signal
+  //! is cleared. Used for graph pre-patched dispatches whose signals are externally
+  //! managed and freed after graph completion.
   template <typename AqlPacket>
-  inline void TrackQueueProgress(const AqlPacket& packet, uint64_t index) {
-    // Track the progress of the current virtual queue
+  inline void TrackQueueProgress(const AqlPacket& packet, uint64_t index,
+                                 bool skip_signal = false) {
     last_write_index_ = index;
-    // Update the last completion signal if the packet has one
-    if (packet.completion_signal.handle != 0) {
+    if (skip_signal) {
+      last_completion_signal_.handle = 0;
+    } else if (packet.completion_signal.handle != 0) {
       last_packet_with_signal_index_ = index;
       last_completion_signal_ = packet.completion_signal;
     }
@@ -734,6 +773,8 @@ class VirtualGPU : public device::VirtualDevice {
   const std::vector<uint32_t> cuMask_;
   amd::CommandQueue::Priority priority_;  //!< The priority for the hsa queue
   bool dedicated_queue_;                  //!< TRUE if this VirtualGPU has a dedicated queue (e.g., null stream)
+  bool queue_pinned_ = false;             //!< TRUE if queue is pinned by graph (blocks ReleaseHwQueue)
+  hsa_queue_t* last_hwq_ = nullptr;       //!< Last HW queue used, for preferred re-acquisition hint
 
   cl_command_type copy_command_type_;  //!< Type of the copy command, used for ROC profiler
                                        //!< OCL doesn't distinguish different copy types,
@@ -749,6 +790,8 @@ class VirtualGPU : public device::VirtualDevice {
 
   //! SDMA engine affinity tracking for this VirtualGPU/stream
   uint32_t assigned_sdma_engine_ = 0;           //!< Assigned SDMA engine mask for all operations
+
+  void* hostcallBuffer_;  //!< Hostcall buffer
 
   using KernelArgImpl = device::Settings::KernelArgImpl;
 };

@@ -251,12 +251,14 @@ TEST(amdsmitstReadOnly, TestAPISupportRead) {
   TestAPISupportRead tst;
   RunGenericTest(&tst);
 }
+
 /*
 TEST(amdsmitstReadOnly, TestMutualExclusion) {
   TestMutualExclusion tst;
   SetFlags(&tst);
   tst.DisplayTestInfo();
   tst.SetUp();
+  PRINT_VERBOSITY();
   tst.Run();
   RunCustomTestEpilog(&tst);
 }
@@ -324,5 +326,6 @@ int main(int argc, char** argv) {
   }
 
   sRSMIGlvalues = &settings;
+  SetTestVerbosity(settings.verbosity);
   return RUN_ALL_TESTS();
 }

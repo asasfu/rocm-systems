@@ -162,7 +162,7 @@ enum : unsigned {
   EF_AMDGPU_MACH_AMDGCN_FIRST = EF_AMDGPU_MACH_AMDGCN_GFX600,
   EF_AMDGPU_MACH_AMDGCN_LAST = EF_AMDGPU_MACH_AMDGCN_GFX131F,
 
-  // Indicates if the "xnack" target feature is enabled for all code contained
+  // Indicates if the "xnack" target feature is enabled for all code contamained
   // in the object.
   //
   // Only valid for ELFOSABI_AMDGPU_HSA and ELFABIVERSION_AMDGPU_HSA_V2.

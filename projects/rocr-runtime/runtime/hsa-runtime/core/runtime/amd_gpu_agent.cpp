@@ -203,8 +203,6 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
     supported_isas_.push_back(core::IsaRegistry::GetIsa(isa_->GetIsaGeneric()));
   }
 
-  max_wave_scratch_ = (isa_->GetMajorVersion() >= 12) ? MAX_WAVE_SCRATCH_GFX12 : MAX_WAVE_SCRATCH;
-
   if (isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5) {
     extended_aql_dispatch_supported_ = true;
     workgroup_clusters_supported_ = true;
@@ -217,6 +215,8 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
     const uint64_t num_cu_per_se = properties_.NumArrays * properties_.NumCUPerArray;
     cluster_max_dim_ = { num_cu_per_se, num_cu_per_se, num_cu_per_se };
   }
+
+  max_wave_scratch_ = (isa_->GetMajorVersion() >= 12) ? MAX_WAVE_SCRATCH_GFX12 : MAX_WAVE_SCRATCH;
 
   current_coherency_type((profile_ == HSA_PROFILE_FULL)
                              ? HSA_AMD_COHERENCY_TYPE_COHERENT
@@ -1014,7 +1014,7 @@ core::Blit* GpuAgent::CreateBlitSdma(bool use_xgmi, int rec_eng) {
       break;
     case 11:
     case 12:
-      if (isDXG) {
+      if (core::Runtime::runtime_singleton_->thunkLoader()->IsDXG()) {
         sdma = static_cast<BlitSdmaBase*>(new BlitSdmaV4());
       } else if (isa_->GetMinorVersion() >= 5) {
         sdma = static_cast<BlitSdmaBase*>(new BlitSdmaV6());
@@ -2118,15 +2118,14 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
 
   switch (attribute_u) {
     case HSA_AGENT_INFO_NAME: {
-      std::string name = isa_->GetProcessorName();
-      assert(name.size() <= hsa_name_size);
-      std::memset(value, 0, hsa_name_size);
-      char* temp = reinterpret_cast<char*>(value);
-      std::strcpy(temp, name.c_str());
+      const std::string& name = isa_->GetProcessorName();
+      const size_t n = std::min(name.size(), hsa_name_size);
+      std::memset(value, 0, hsa_name_size + 1);
+      std::memcpy(value, name.data(), n);
       break;
     }
     case HSA_AGENT_INFO_VENDOR_NAME:
-      std::memset(value, 0, hsa_name_size);
+      std::memset(value, 0, hsa_name_size + 1);
       std::memcpy(value, "AMD", sizeof("AMD"));
       break;
     case HSA_AGENT_INFO_FEATURE:
@@ -2251,7 +2250,8 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
         setFlag(HSA_EXTENSION_AMD_PC_SAMPLING);
       }
 
-      if (core::Runtime::runtime_singleton_->AqlProfileAvailable()) {
+      if (os::LibHandle lib = os::LoadLib(kAqlProfileLib)) {
+        os::CloseLib(lib);
         setFlag(HSA_EXTENSION_AMD_AQLPROFILE);
       }
 
@@ -2956,25 +2956,37 @@ hsa_status_t GpuAgent::SetAsyncScratchThresholds(size_t use_once_limit) {
 void GpuAgent::TranslateTime(core::Signal* signal, hsa_amd_profiling_dispatch_time_t& time) {
   uint64_t start, end;
   signal->GetRawTs(false, start, end);
+
+  if ((start == 0) || (end == 0) || (start < t0_.GPUClockCounter) || (end < t0_.GPUClockCounter)) {
+    debug_print("Signal %p time stamps may be invalid (start=%lu, end=%lu, t0=%lu).\n",
+                &signal->signal_, start, end, t0_.GPUClockCounter);
+    time.start = 0;
+    time.end = 0;
+    return;
+  }
+
   // Order is important, we want to translate the end time first to ensure that packet duration is
   // not impacted by clock measurement latency jitter.
   time.end = TranslateTime(end);
   time.start = TranslateTime(start);
-
-  if ((start == 0) || (end == 0) || (start < t0_.GPUClockCounter) || (end < t0_.GPUClockCounter))
-    debug_print("Signal %p time stamps may be invalid.\n", &signal->signal_);
 }
 
 void GpuAgent::TranslateTime(core::Signal* signal, hsa_amd_profiling_async_copy_time_t& time) {
   uint64_t start, end;
   signal->GetRawTs(true, start, end);
+
+  if ((start == 0) || (end == 0) || (start < t0_.GPUClockCounter) || (end < t0_.GPUClockCounter)) {
+    debug_print("Signal %p async copy time stamps may be invalid (start=%lu, end=%lu, t0=%lu).\n",
+                &signal->signal_, start, end, t0_.GPUClockCounter);
+    time.start = 0;
+    time.end = 0;
+    return;
+  }
+
   // Order is important, we want to translate the end time first to ensure that packet duration is
   // not impacted by clock measurement latency jitter.
   time.end = TranslateTime(end);
   time.start = TranslateTime(start);
-
-  if ((start == 0) || (end == 0) || (start < t0_.GPUClockCounter) || (end < t0_.GPUClockCounter))
-    debug_print("Signal %p time stamps may be invalid.\n", &signal->signal_);
 }
 
 /*
@@ -4118,7 +4130,7 @@ hsa_status_t GpuAgent::PcSamplingFlushDeviceBuffers(
   cmd_data[i++] = PM4_WAIT_REG_MEM_DW6(PM4_WAIT_REG_MEM_POLL_INTERVAL(4) |
                                        PM4_WAIT_REG_MEM_OPTIMIZE_ACE_OFFLOAD_MODE);
 
-  // For GFX1200 and GFX1201 - add an ACQUIRE_MEM packet to flush L2 cache before DMA.
+  // For GFX1200 and GFX1201 - add an ACQUIRE_MEM packet to flush L2 cache before DMA
   // This ensures that any data written by the trap handler is visible to the DMA engine.
   // On GFX1250 - The flush is needed only until we can enable MTYPE_RW.
   if (isa_->GetMajorVersion() == 12 &&

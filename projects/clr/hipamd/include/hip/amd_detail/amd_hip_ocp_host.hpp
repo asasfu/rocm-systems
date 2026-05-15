@@ -550,7 +550,7 @@ __OCP_FP_HOST_DEVICE_STATIC__ uint32_t from_float_sr(T f, uint32_t seed, int8_t 
     __amd_fp16_storage_t fp16[2];
     __amd_bf16_storage_t bf16[2];
     uint32_t u32;
-  } u;
+  } u{0};
 
   if constexpr (std::is_same<T, float>())
     u.f32 = f;
@@ -664,7 +664,7 @@ __OCP_FP_HOST_DEVICE_STATIC__ uint32_t from_float(T f, int8_t scale_exp) {
     __amd_fp16_storage_t fp16[2];
     __amd_bf16_storage_t bf16[2];
     uint32_t u32;
-  } u;
+  } u{0};
 
   if constexpr (std::is_same<T, float>())
     u.f32 = f;
@@ -778,9 +778,6 @@ __OCP_FP_HOST_DEVICE_STATIC__ OutType fp6_cvt_packedx16(InType in, int8_t scale 
   constexpr bool in_float = std::is_same<InType, __amd_floatx16_storage_t>::value ||
       std::is_same<InType, __amd_fp16x16_storage_t>::value ||
       std::is_same<InType, __amd_bf16x16_storage_t>::value;
-  constexpr bool out_float = std::is_same<OutType, __amd_floatx16_storage_t>::value ||
-      std::is_same<OutType, __amd_fp16x16_storage_t>::value ||
-      std::is_same<OutType, __amd_bf16x16_storage_t>::value;
   using other_type = std::conditional<in_float, OutType, InType>::type;
 
   struct fp6x16_packed {
@@ -895,9 +892,6 @@ __OCP_FP_HOST_DEVICE_STATIC__ OutType fp6_cvt_packedx32(InType in, int8_t scale 
   constexpr bool in_float = std::is_same<InType, __amd_floatx32_storage_t>::value ||
                             std::is_same<InType, __amd_fp16x32_storage_t>::value ||
                             std::is_same<InType, __amd_bf16x32_storage_t>::value;
-  constexpr bool out_float = std::is_same<OutType, __amd_floatx32_storage_t>::value ||
-                             std::is_same<OutType, __amd_fp16x32_storage_t>::value ||
-                             std::is_same<OutType, __amd_bf16x32_storage_t>::value;
   using other_type = std::conditional<in_float, OutType, InType>::type;
 
   struct fp6x32_packed {

@@ -44,6 +44,7 @@ void __hipRegisterTexture(void** modules, void* var, char* hostVar, char* device
 void __hipRegisterVar(void** modules, void* var, char* hostVar, char* deviceVar, int ext,
                       size_t size, int constant, int global);
 void __hipUnregisterFatBinary(void** modules);
+void __hipTriggerReportDevices();
 const char* hipApiName(uint32_t id);
 hipError_t hipArray3DCreate(hipArray_t* array, const HIP_ARRAY3D_DESCRIPTOR* pAllocateArray);
 hipError_t hipArray3DGetDescriptor(HIP_ARRAY3D_DESCRIPTOR* pArrayDescriptor, hipArray_t array);
@@ -909,6 +910,7 @@ void UpdateDispatchTable(HipCompilerDispatchTable* ptrCompilerDispatchTable) {
 void UpdateDispatchTable(HipToolsDispatchTable* ptrToolsDispatchTable) {
   ptrToolsDispatchTable->size = sizeof(HipToolsDispatchTable);
   ptrToolsDispatchTable->__hipReportDevices_fn = nullptr;
+  ptrToolsDispatchTable->__hipTriggerReportDevices_fn = __hipTriggerReportDevices;
 }
 
 void UpdateDispatchTable(HipDispatchTable* ptrDispatchTable) {
@@ -1586,7 +1588,11 @@ static_assert(HIP_COMPILER_API_TABLE_MAJOR_VERSION == 0 && HIP_COMPILER_API_TABL
 // These ensure that function pointers are not re-ordered
 // HIP_TOOLS_API_TABLE_STEP_VERSION == 0
 HIP_ENFORCE_ABI(HipToolsDispatchTable, __hipReportDevices_fn, 0)
+
 // HIP_TOOLS_API_TABLE_STEP_VERSION == 1
+HIP_ENFORCE_ABI(HipToolsDispatchTable, __hipTriggerReportDevices_fn, 1)
+
+// HIP_TOOLS_API_TABLE_STEP_VERSION == 2
 
 // if HIP_ENFORCE_ABI entries are added for each new function pointer in the table, the number below
 // will be +1 of the number in the last HIP_ENFORCE_ABI line. E.g.:
@@ -1594,9 +1600,9 @@ HIP_ENFORCE_ABI(HipToolsDispatchTable, __hipReportDevices_fn, 0)
 //  HIP_ENFORCE_ABI(<table>, <functor>, 8)
 //
 //  HIP_ENFORCE_ABI_VERSIONING(<table>, 9) <- 8 + 1 = 9
-HIP_ENFORCE_ABI_VERSIONING(HipToolsDispatchTable, 1)
+HIP_ENFORCE_ABI_VERSIONING(HipToolsDispatchTable, 2)
 
-static_assert(HIP_TOOLS_API_TABLE_MAJOR_VERSION == 0 && HIP_TOOLS_API_TABLE_STEP_VERSION == 0,
+static_assert(HIP_TOOLS_API_TABLE_MAJOR_VERSION == 0 && HIP_TOOLS_API_TABLE_STEP_VERSION == 1,
               "If you get this error, add new HIP_ENFORCE_ABI(...) code for the new function "
               "pointers and then update this check so it is true");
 
@@ -2143,11 +2149,12 @@ HIP_ENFORCE_ABI(HipDispatchTable, hipMemGetMemPool_fn, 512);
 HIP_ENFORCE_ABI(HipDispatchTable, hipMipmappedArrayGetMemoryRequirements_fn, 513);
 // HIP_RUNTIME_API_TABLE_STEP_VERSION == 24
 HIP_ENFORCE_ABI(HipDispatchTable, hipKernelGetAttribute_fn, 514);
+// HIP_RUNTIME_API_TABLE_STEP_VERSION == 25
 HIP_ENFORCE_ABI(HipDispatchTable, hipKernelSetAttribute_fn, 515);
 HIP_ENFORCE_ABI(HipDispatchTable, hipKernelGetFunction_fn, 516);
-// HIP_RUNTIME_API_TABLE_STEP_VERSION == 25
-HIP_ENFORCE_ABI(HipDispatchTable, hipMemPrefetchBatchAsync_fn, 517);
 // HIP_RUNTIME_API_TABLE_STEP_VERSION == 26
+HIP_ENFORCE_ABI(HipDispatchTable, hipMemPrefetchBatchAsync_fn, 517);
+// HIP_RUNTIME_API_TABLE_STEP_VERSION == 27
 HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxPotentialClusterSize_fn, 518);
 HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxActiveClusters_fn, 519);
 
@@ -2159,7 +2166,7 @@ HIP_ENFORCE_ABI(HipDispatchTable, hipOccupancyMaxActiveClusters_fn, 519);
 //  HIP_ENFORCE_ABI_VERSIONING(<table>, 9) <- 8 + 1 = 9
 HIP_ENFORCE_ABI_VERSIONING(HipDispatchTable, 520)
 
-static_assert(HIP_RUNTIME_API_TABLE_MAJOR_VERSION == 0 && HIP_RUNTIME_API_TABLE_STEP_VERSION == 26,
+static_assert(HIP_RUNTIME_API_TABLE_MAJOR_VERSION == 0 && HIP_RUNTIME_API_TABLE_STEP_VERSION == 27,
               "If you get this error, add new HIP_ENFORCE_ABI(...) code for the new function "
               "pointers and then update this check so it is true");
 #endif

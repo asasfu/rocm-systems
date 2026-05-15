@@ -383,6 +383,8 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
   uint64_t cached_reserve_index_;
   uint64_t cached_commit_index_;
 
+  static const uint32_t linear_copy_command_size_;
+
   static const uint32_t broadcast_copy_command_size_;
 
   static const uint32_t swap_copy_command_size_;

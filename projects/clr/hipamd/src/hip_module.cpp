@@ -650,6 +650,25 @@ hipError_t hipExtModuleLaunchKernel(hipFunction_t f, uint32_t globalWorkSizeX,
     HIP_RETURN(hipErrorInvalidValue);
   }
 
+  if (!launch_params.IsValidConfig() ||
+       launch_params.local_.product() > device->info().maxWorkGroupSize_) {
+    HIP_RETURN(hipErrorInvalidConfiguration);
+  }
+
+  if (sharedMemBytes > device->info().localMemSizePerCU_) {
+    HIP_RETURN(hipErrorInvalidValue);
+  }
+
+  if (launch_params.global_[0] == 0 || launch_params.global_[1] == 0
+      || launch_params.global_[2] == 0) {
+    HIP_RETURN(hipErrorInvalidValue);
+  }
+
+  if (launch_params.local_[0] == 0 || launch_params.local_[1] == 0
+                                    || launch_params.local_[2] == 0) {
+    HIP_RETURN(hipErrorInvalidValue);
+  }
+
   HIP_RETURN(ihipModuleLaunchKernel(f, launch_params, hStream, kernelParams, extra, startEvent,
                                     stopEvent, flags));
 }
@@ -868,8 +887,15 @@ hipError_t hipGetFuncBySymbol(hipFunction_t* functionPtr, const void* symbolPtr)
 }
 
 hipError_t hipLaunchKernel_common(const void* hostFunction, dim3 gridDim, dim3 blockDim,
-                                             void** args, size_t sharedMemBytes,
-                                             hipStream_t stream, dim3 clusterDim = {1, 1, 1}) {
+                                  void** args, size_t sharedMemBytes, hipStream_t stream,
+                                  dim3 clusterDim = {1, 1, 1}) {
+  // TODO: @cjatin refactor the isValid check in hot path
+  // We do this check in `ihipLaunchKernel` as well, but the macro STREAM_CAPTURE dereferences the stream first.
+  // So this shows up in the ASAN run.
+  // I will raise a follow up PR to fix this.
+  if (!hip::isValid(stream)) {
+    return hipErrorInvalidValue;
+  }
   STREAM_CAPTURE(hipLaunchKernel, stream, hostFunction, gridDim, blockDim, args, sharedMemBytes);
   return ihipLaunchKernel(hostFunction, gridDim, blockDim, args, sharedMemBytes, stream, nullptr,
                           nullptr, 0, clusterDim);

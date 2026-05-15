@@ -135,27 +135,27 @@ enum class CodePropField : uint8_t {
 
 //  for Code Object V3
 enum class KernelField : uint8_t {
-  SymbolName                 = 0,
-  ReqdWorkGroupSize          = 1,
-  WorkGroupSizeHint          = 2,
-  VecTypeHint                = 3,
-  DeviceEnqueueSymbol        = 4,
-  KernargSegmentSize         = 5,
-  GroupSegmentFixedSize      = 6,
-  PrivateSegmentFixedSize    = 7,
-  KernargSegmentAlign        = 8,
-  WavefrontSize              = 9,
-  NumSGPRs                   = 10,
-  NumVGPRs                   = 11,
-  MaxFlatWorkGroupSize       = 12,
-  NumSpilledSGPRs            = 13,
-  NumSpilledVGPRs            = 14,
-  Kind                       = 15,
-  WgpMode                    = 16,
-  UniformWrokGroupSize       = 17,
-  ClusterDims                = 18,
+  SymbolName = 0,
+  ReqdWorkGroupSize = 1,
+  WorkGroupSizeHint = 2,
+  VecTypeHint = 3,
+  DeviceEnqueueSymbol = 4,
+  KernargSegmentSize = 5,
+  GroupSegmentFixedSize = 6,
+  PrivateSegmentFixedSize = 7,
+  KernargSegmentAlign = 8,
+  WavefrontSize = 9,
+  NumSGPRs = 10,
+  NumVGPRs = 11,
+  MaxFlatWorkGroupSize = 12,
+  NumSpilledSGPRs = 13,
+  NumSpilledVGPRs = 14,
+  Kind = 15,
+  WgpMode = 16,
+  UniformWrokGroupSize = 17,
+  ClusterDims = 18,
   LanesharedSegmentFixedSize = 19,
-  MaxSize                    = 20
+  MaxSize = 20
 };
 
 namespace amd {

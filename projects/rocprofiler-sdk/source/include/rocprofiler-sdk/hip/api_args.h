@@ -3468,5 +3468,5 @@ typedef union rocprofiler_hip_api_args_t
     } hipOccupancyMaxActiveClusters;
 #endif
 } rocprofiler_hip_api_args_t;
- 
+
 ROCPROFILER_EXTERN_C_FINI

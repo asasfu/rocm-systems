@@ -623,8 +623,7 @@ Device::BlitProgram::~BlitProgram() {
 
 bool Device::BlitProgram::create(amd::Device* device, const std::string& extraKernels,
                                  const std::string& extraOptions) {
-  std::vector<amd::Device*> devices;
-  devices.push_back(device);
+  std::vector<amd::Device*> devices{device};
   int32_t retval = CL_SUCCESS;
   std::string kernels(device::BlitLinearSourceCode);
   std::string image_kernels(device::BlitImageSourceCode);
@@ -683,12 +682,17 @@ bool Device::init() {
   devices_ = nullptr;
   appProfile_.init();
 
+  if (IS_WINDOWS && flagIsDefault(GPU_ENABLE_PAL)) {
+    // On Windows by default keep PAL path for now, until we completely switch to ROCr backend
+    // Without this, roc::Device::init() returns true & disables PAL path in below code
+    GPU_ENABLE_PAL = 1;
+  }
 
 // IMPORTANT: Note that we are initialiing HSA stack first and then
 // GPU stack. The order of initialization is signiicant and if changed
 // amd::Device::registerDevice() must be accordingly modified.
 #if defined(WITH_HSA_DEVICE)
-  if ((GPU_ENABLE_PAL != 1) || flagIsDefault(GPU_ENABLE_PAL)) {
+  if ((GPU_ENABLE_PAL == 0) || (GPU_ENABLE_PAL == 2)) {
     // Return value of roc::Device::init()
     // If returned false, error initializing HSA stack.
     // If returned true, either HSA not installed or HSA stack
@@ -1147,19 +1151,29 @@ void Device::IpcDetach(amd::Memory* amd_mem_obj) const {
 }
 
 std::vector<amd::CommandQueue*> Device::getActiveQueues() {
+  std::vector<amd::CommandQueue*> result;
+  result.reserve(activeQueues.size());
+
   amd::ScopedLock lock(activeQueuesLock_);
-  for (auto it = activeQueues.begin(); it != activeQueues.end();) {
-    if ((*it)->referenceCount() == 0) {
+  for (auto it = activeQueues.begin(); it != activeQueues.end(); ++it) {
+    if (!it->second) {
+      // An inactive queue might have been releeased already, so dereferencing
+      // it->first isn't safe
+      continue;
+    }
+    if (it->first->referenceCount() == 0) {
       // It is being terminated in HostQueue::terminate().
       // We should not wait for commands in a queue being terminated.
-      it = activeQueues.erase(it);
+      it->second = false;
     } else {
+      assert(it->second);
       // In case the queue will be destroyed in Stream::Destroy().
-      (*it)->retain();
-      ++it;
+      it->first->retain();
+      result.push_back(it->first);
     }
   }
-  return std::vector<amd::CommandQueue*>(activeQueues.begin(), activeQueues.end());
+
+  return result;
 }
 
 // =================================================================================================

@@ -985,6 +985,7 @@ class GpuAgent : public GpuAgentInt {
 
   size_t max_wave_scratch_;
 
+  DISALLOW_COPY_AND_ASSIGN(GpuAgent);
 };
 
 }  // namespace amd

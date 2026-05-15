@@ -67,7 +67,7 @@ kernel:
     tags: [launch]
   Unit_kernel_ChkPrintf:
     <<: *level_2
-    tags: [language, multigpu, P0]
+    tags: [language, P0]
   Unit_hipExtLaunchKernelGGL:
     <<: *level_2
     tags: [launch, P0]

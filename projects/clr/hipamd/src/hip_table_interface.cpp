@@ -2097,7 +2097,6 @@ hipError_t hipPeekAtLastError(void) {
   return hip::GetHipDispatchTable()->hipPeekAtLastError_fn();
   CATCH;
 }
-
 extern "C" hipError_t hipOccupancyMaxActiveClusters(int* numClusters, const void* func,
                                                     const hipLaunchConfig_t* launchConfig) {
   TRY;
@@ -2105,10 +2104,9 @@ extern "C" hipError_t hipOccupancyMaxActiveClusters(int* numClusters, const void
                                                                       launchConfig);
   CATCH;
 }
-
 extern "C" hipError_t hipOccupancyMaxPotentialClusterSize(int* clusterSize, const void* func,
                                                           const hipLaunchConfig_t* config) {
-  TRY;  
+  TRY;
   return hip::GetHipDispatchTable()->hipOccupancyMaxPotentialClusterSize_fn(clusterSize, func,
                                                                             config);
   CATCH;

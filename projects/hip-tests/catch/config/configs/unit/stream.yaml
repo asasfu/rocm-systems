@@ -232,7 +232,7 @@ stream:
     tags: [properties, P1]
   Unit_hipStreamGetDevice_Usecase:
     <<: *level_2
-    tags: [properties, multigpu, P0]
+    tags: [properties, P0]
   Unit_hipStreamGetDevice_MThread:
     <<: *level_2
     tags: [properties, P1]
@@ -241,7 +241,7 @@ stream:
     tags: [properties, multigpu, P1]
   Unit_hipStreamGetDevice_NullStream:
     <<: *level_2
-    tags: [properties, multigpu, P1]
+    tags: [properties, P1]
   Unit_hipStreamLegacy_WithBlockingStream:
     <<: *level_2
     tags: [lifecycle, P0]

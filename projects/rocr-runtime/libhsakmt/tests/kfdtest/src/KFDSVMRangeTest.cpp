@@ -53,8 +53,10 @@ void KFDSVMRangeTest::TearDown() {
 
 void KFDSVMRangeTest::BasicSystemMemTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     PM4Queue queue;
     HSAuint64 AlternateVAGPU;
@@ -104,8 +106,10 @@ TEST_P(KFDSVMRangeTest, BasicSystemMemTest) {
 
 void KFDSVMRangeTest::SetGetAttributesTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int m_FamilyId = GetFamilyIdFromNodeId(gpuNode);
     if (m_FamilyId < FAMILY_AI) {
@@ -233,8 +237,10 @@ void KFDSVMRangeTest::InvalidRangeTest(int gpuNode) {
     HSAuint32 Flags;;
     HSAKMT_STATUS ret;
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     Flags = HSA_SVM_FLAG_HOST_ACCESS | HSA_SVM_FLAG_COHERENT;
 
@@ -337,8 +343,10 @@ void KFDSVMRangeTest::SplitSystemRangeTest(int gpuNode) {
         return;
     }
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     SplitRangeTest(gpuNode, 0);
 
@@ -362,8 +370,10 @@ void KFDSVMRangeTest::EvictSystemRangeTest(int gpuNode) {
         return;
     }
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     Assembler* m_pAsm;
     m_pAsm = GetAssemblerFromNodeId(gpuNode);
@@ -468,8 +478,10 @@ TEST_P(KFDSVMRangeTest, EvictSystemRangeTest) {
 
 void KFDSVMRangeTest::PartialUnmapSysMemTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     Assembler* m_pAsm;
     m_pAsm = GetAssemblerFromNodeId(gpuNode);
@@ -533,8 +545,10 @@ TEST_P(KFDSVMRangeTest, PartialUnmapSysMemTest) {
 
 void KFDSVMRangeTest::BasicVramTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     Assembler* m_pAsm;
     m_pAsm = GetAssemblerFromNodeId(gpuNode);
@@ -591,8 +605,10 @@ TEST_P(KFDSVMRangeTest, BasicVramTest) {
 
 void KFDSVMRangeTest::SplitVramRangeTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int m_FamilyId = GetFamilyIdFromNodeId(gpuNode);
     if (m_FamilyId < FAMILY_AI) {
@@ -616,8 +632,10 @@ TEST_P(KFDSVMRangeTest, SplitVramRangeTest) {
 
 void KFDSVMRangeTest::PrefetchTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int BufSize = 16 << 10;
     HsaSVMRange *sysBuffer;
@@ -667,8 +685,10 @@ TEST_P(KFDSVMRangeTest, PrefetchTest) {
 
 void KFDSVMRangeTest::MigrateTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int m_FamilyId = GetFamilyIdFromNodeId(gpuNode);
     if (m_FamilyId < FAMILY_AI) {
@@ -750,8 +770,10 @@ TEST_P(KFDSVMRangeTest, MigrateTest) {
 
 void KFDSVMRangeTest::MigrateAccessInPlaceTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int m_FamilyId = GetFamilyIdFromNodeId(gpuNode);
     if (m_FamilyId < FAMILY_AI) {
@@ -832,8 +854,10 @@ TEST_P(KFDSVMRangeTest, MigrateAccessInPlaceTest) {
 
 void KFDSVMRangeTest::MigrateGranularityTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int m_FamilyId = GetFamilyIdFromNodeId(gpuNode);
     if (m_FamilyId < FAMILY_AI) {
@@ -893,8 +917,10 @@ TEST_P(KFDSVMRangeTest, MigrateGranularityTest) {
 
 void KFDSVMRangeTest::MigrateLargeBufTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     PM4Queue queue;
     HSAuint64 AlternateVAGPU;
@@ -994,8 +1020,10 @@ TEST_P(KFDSVMRangeTest, MigrateLargeBufTest) {
 
 void KFDSVMRangeTest::MigratePolicyTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int m_FamilyId = GetFamilyIdFromNodeId(gpuNode);
     if (m_FamilyId < FAMILY_AI) {
@@ -1290,8 +1318,10 @@ unsigned int GpuReadThread(void* p) {
 
 void KFDSVMRangeTest::MultiThreadMigrationTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int m_FamilyId = GetFamilyIdFromNodeId(gpuNode);
     if (m_FamilyId < FAMILY_AI) {
@@ -1357,8 +1387,10 @@ TEST_P(KFDSVMRangeTest, MultiThreadMigrationTest) {
  */
 void KFDSVMRangeTest::MigrateFileBackedRangeTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int m_FamilyId = GetFamilyIdFromNodeId(gpuNode);
     if (m_FamilyId < FAMILY_AI) {
@@ -1616,8 +1648,10 @@ unsigned int ReadSMIEventThread(void* p) {
 
 void KFDSVMRangeTest::HMMProfilingEvent(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     if (Get_Version()->KernelInterfaceMinorVersion < 10)
         return;
@@ -1789,8 +1823,10 @@ TEST_P(KFDSVMRangeTest, VramOvercommitGiantRangeTest) {
  */
 void KFDSVMRangeTest::PrefaultPartialRangeTest(int gpuNode) {
 
-    if (!SVMAPISupported_GPU(gpuNode))
+    if (!SVMAPISupported_GPU(gpuNode)) {
+        LOG() << "Skipping test: SVM not supported on gpuNode." << gpuNode << std::endl;
         return;
+    }
 
     unsigned int m_FamilyId = GetFamilyIdFromNodeId(gpuNode);
     if (m_FamilyId < FAMILY_AI) {

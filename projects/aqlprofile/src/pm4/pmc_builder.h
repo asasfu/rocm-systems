@@ -573,7 +573,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
         if ((elem.block_info->attr & CounterBlockGRBMAttr) == 0) continue;
         const auto& reg_info = get_reg_table(elem)[elem.index];
         builder.BuildCopyCounterDataPacket(cmd_buffer, reg_info.register_addr_lo,
-                                           reg_info.register_addr_hi, data_buffer, 3);
+                                           reg_info.register_addr_hi, static_cast<const uint32_t*>(data_buffer), 3);
         break;
       }
     }
@@ -814,6 +814,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
   // Build PMC read PM4 comands
   uint32_t Read(CmdBuffer* cmd_buffer, const counters_vector& counters_vec,
                 void* data_buffer) override {
+    uint32_t* buf = reinterpret_cast<uint32_t*>(data_buffer);
     uint32_t read_counter = 0;
     auto counters_attr = counters_vec.get_attr();
 
@@ -847,11 +848,10 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
                                                Primitives::sdma_stop_value(counter_des));
             dw_mask = 0x3;
           }
-          uint32_t* smn_data_buffer = reinterpret_cast<uint32_t*>(data_buffer) + read_counter;
           auto smn_register_addr_lo = get_smn_addr(reg_info.register_addr_lo, target_aid_index);
           auto smn_register_addr_hi = get_smn_addr(reg_info.register_addr_hi, target_aid_index);
           builder.BuildCopyCounterDataPacket(cmd_buffer, smn_register_addr_lo, smn_register_addr_hi,
-                                             smn_data_buffer, dw_mask);
+                                             buf + read_counter, dw_mask);
           read_counter += 2;
         } else if ((block_info->attr & CounterBlockAidAttr)) {
           // Read UMC/ATC/RPB
@@ -866,11 +866,10 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
             builder.BuildWritePConfigRegPacket(cmd_buffer, control_addr,
                                                Primitives::mc_config_value(counter_des));
           }
-          uint32_t* smn_data_buffer = reinterpret_cast<uint32_t*>(data_buffer) + read_counter;
           auto smn_register_addr_lo = get_smn_addr(reg_info.register_addr_lo, target_aid_index);
           auto smn_register_addr_hi = get_smn_addr(reg_info.register_addr_hi, target_aid_index);
           builder.BuildCopyCounterDataPacket(cmd_buffer, smn_register_addr_lo, smn_register_addr_hi,
-                                             smn_data_buffer, 3);
+                                             buf + read_counter, 3);
           read_counter += 2;
         }
       }
@@ -878,7 +877,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
     for (uint32_t xcc_selected = 0; xcc_selected < xcc_number_; ++xcc_selected) {
       PrecExecBuilder<Builder> prec_exec_builder(builder, cmd_buffer, xcc_selected,
                                                  xcc_number_ > 1);
-      ReadXccPackets(cmd_buffer, counters_vec, data_buffer, read_counter);
+      ReadXccPackets(cmd_buffer, counters_vec, buf, read_counter);
     }
     // AIGC blocks
     if (counters_vec.get_attr() & CounterBlockGrbmaAttr) {
@@ -890,7 +889,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
       }
     }
 
-    builder.BuildCacheFlushPacket(cmd_buffer, size_t(data_buffer), read_counter * sizeof(uint32_t));
+    builder.BuildCacheFlushPacket(cmd_buffer, reinterpret_cast<size_t>(buf), read_counter * sizeof(uint32_t));
 
     // Return amount of data to read
     return read_counter * sizeof(uint32_t);

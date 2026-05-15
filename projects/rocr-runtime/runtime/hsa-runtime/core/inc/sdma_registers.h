@@ -322,9 +322,13 @@ typedef struct SDMA_PKT_COPY_LINEAR_GFX13_TAG {
 
   union {
     struct {
+      unsigned int count : 22;
+      unsigned int reserved_0 : 10;
+    } count;
+    struct {
       unsigned int count : 30;
       unsigned int reserved_0 : 2;
-    };
+    } count_ext;
     unsigned int DW_1_DATA;
   } COUNT_UNION;
 

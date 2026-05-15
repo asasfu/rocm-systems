@@ -547,6 +547,9 @@ typedef enum hipDeviceAttribute_t {
   hipDeviceAttributeHostNumaId,             ///< NUMA ID of the cpu node closest to the device,
                                             ///< or -1 when NUMA isn't supported
   hipDeviceAttributeDmaBufSupported,  ///< Device supports DMABuf buffer sharing
+  hipDeviceAttributeGPUDirectRDMAWithHipVMMSupported,  ///< GPU Direct RDMA with HIP VMM is supported
+                                                       ///< (requires DMA-Buf and HIP virtual memory
+                                                       ///< management)
   hipDeviceAttributeHandleTypeFabricSupported,   ///< Device supports exporting memory to a fabric handle
 
   hipDeviceAttributeCudaCompatibleEnd = 9999,
@@ -959,6 +962,10 @@ enum hipLimit_t {
 #define hipStreamWaitValueEq 0x1
 #define hipStreamWaitValueAnd 0x2
 #define hipStreamWaitValueNor 0x3
+// Flags to be used with hipStreamWriteValue32 and hipStreamWriteValue64.
+#define hipStreamWriteValueDefault 0x0
+#define hipExtStreamWriteValueIncrement 0x1000
+#define hipExtStreamWriteValueDecrement 0x1001
 
 /** Operations for hipStreamBatchMemOp*/
 typedef enum hipStreamBatchMemOpType {
@@ -1577,7 +1584,7 @@ typedef enum hipSynchronizationPolicy {
   hipSyncPolicyBlockingSync = 4 /**< Host thread blocks (sleeps) until the stream completes */
 } hipSynchronizationPolicy;
 /* Cluster scheduling policies passed to hipFuncSetAttribute
- */
+*/
 typedef enum hipClusterSchedulingPolicy {
   hipClusterSchedulingPolicyDefault = 0,  ///< the default scheduling policy
   hipClusterSchedulingPolicySpread = 1,   ///< distribute blocks evenly across cluster's CUs
@@ -9848,7 +9855,6 @@ hipError_t hipExtDisableLogging();
  * @see hipExtEnableLogging, hipExtDisableLogging
  */
 hipError_t hipExtSetLoggingParams(size_t log_level, size_t log_size, size_t log_mask);
-
 /**
  * @brief Launches a HIP kernel using a generic function pointer and the specified configuration.
  * @ingroup Execution

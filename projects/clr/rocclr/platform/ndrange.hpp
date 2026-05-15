@@ -220,8 +220,8 @@ class NDRangeContainer : public HeapObject {
    */
   NDRangeContainer(size_t dimensions, const size_t* globalWorkOffset, const size_t* globalWorkSize,
                    const size_t* localWorkSize, const size_t* clusterWorkSize = nullptr)
-                   : dimensions_(dimensions), offset_(dimensions), global_(dimensions),
-                     local_(dimensions), cluster_(dimensions) {
+      : dimensions_(dimensions), offset_(dimensions), global_(dimensions), local_(dimensions), 
+        cluster_(dimensions) {
     for (size_t i = 0; i < dimensions; ++i) {
       offset_[i] = globalWorkOffset != NULL ? globalWorkOffset[i] : 0;
       global_[i] = globalWorkSize[i];

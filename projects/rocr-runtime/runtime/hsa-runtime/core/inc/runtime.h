@@ -384,6 +384,10 @@ class Runtime {
   hsa_status_t SvmPrefetch(void* ptr, size_t size, hsa_agent_t agent, uint32_t num_dep_signals,
                            const hsa_signal_t* dep_signals, hsa_signal_t completion_signal);
 
+  hsa_status_t SvmBatchDiscard(void** ptrs, size_t* sizes, uint32_t count,
+                                        uint32_t num_dep_signals, const hsa_signal_t* dep_signals,
+                                        hsa_signal_t completion_signal);
+
   hsa_status_t DmaBufExport(const void* ptr, size_t size, int* dmabuf,
                                             uint64_t* offset, uint64_t flags);
 
@@ -528,8 +532,6 @@ class Runtime {
   bool VirtualMemApiSupported() const { return virtual_mem_api_supported_; }
   bool XnackEnabled() const { return xnack_enabled_; }
   void XnackEnabled(bool enable) { xnack_enabled_ = enable; }
-  bool AqlProfileAvailable() const { return (aqlprofile_lib_ != nullptr); }
-  os::LibHandle AqlProfileLib() const { return aqlprofile_lib_; }
 
   Driver &AgentDriver(DriverType drv_type) {
     auto is_drv_type = [&](const std::unique_ptr<Driver> &d) {
@@ -740,7 +742,7 @@ class Runtime {
 
   struct PrefetchRange {
     PrefetchRange() {}
-    PrefetchRange(size_t Bytes, PrefetchOp* Op) : bytes(Bytes), op(Op) {}
+    PrefetchRange(size_t Bytes, PrefetchOp* Op) : bytes(Bytes), op(Op), prev{}, next{} {}
     size_t bytes;
     PrefetchOp* op;
     prefetch_map_t::iterator prev;
@@ -941,8 +943,6 @@ class Runtime {
 
   bool virtual_mem_api_supported_;
   bool xnack_enabled_;
-
-  os::LibHandle aqlprofile_lib_;
 
   typedef void* ThunkHandle;
 

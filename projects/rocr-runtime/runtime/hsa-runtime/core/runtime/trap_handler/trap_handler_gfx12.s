@@ -69,6 +69,8 @@
 .set SQ_WAVE_TRAP_CTRL_WAVE_END_SHIFT              , 8
 .set SQ_WAVE_TRAP_CTRL_TRAP_AFTER_INST             , 9
 
+// The PC is dword (32bit) aligned, so the 2 LSBs are always zero.
+.set SQ_WAVE_PC_LO_ADDRESS_MASK                    , 0xFFFFFFFC
 .if .amdgcn.gfx_generation_minor == 0
   .set SQ_WAVE_PC_HI_ADDRESS_MASK                  , 0xFFFF
 .else
@@ -400,7 +402,7 @@
   v_or_b32          v2, \s_scratch1, v2                       // OR the new SE_ID bits into v2
 
   // Construct and store chiplet_and_wave_id bitfield
-  // Bitfield layout: wave_in_wg[5:0] | reserved[7:6] | chiplet[10:8] | reserved[31:11]
+  // Bitfield layout: wave_in_wg[5:0] | reserved_wg[7:6] | chiplet[10:8] | reserved[31:11]
   s_sendmsg_rtn_b32 \s_scratch1, sendmsg(MSG_RTN_GET_SE_AID_ID)
   
   // Extract wave_in_wg while waiting for sendmsg
@@ -970,7 +972,7 @@
   // ttmp[4:5] holds backup of original shader's v[2:3]
   // ttmp6     ttmp6 is free if amdgcn.gfx_generation_minor < 5
   // ttmp[10:11] holds original shader's [exec_lo,exec_hi]
-  // ttmp[14:15]=‘tma', ttmp13.b31 = buf_to_use
+  // ttmp[14:15]='tma', ttmp13.b31 = buf_to_use
   // EXEC is 0x1
 
 .if .amdgcn.gfx_generation_minor >= 5
@@ -1108,10 +1110,12 @@
   // Store snapshot DATA1 and DATA2 at offset SAMPLE_OFF_SNAPSHOT_DATA + 4
   global_store_b64  v[0:1], v[2:3], off, offset:SAMPLE_OFF_SNAPSHOT_DATA + 4, scope:SCOPE_SYS
 
+.if .amdgcn.gfx_generation_minor >= 5
   // Store main snapshot data at offset 0x24 (SAMPLE_OFF_SNAPSHOT_DATA)
   S_GETREG_B32      HW_REG_PERF_SNAPSHOT_DATA
   V_WRITELANE_B32   v2, 0
   global_store_b32  v[0:1], v2, off, offset:SAMPLE_OFF_SNAPSHOT_DATA, scope:SCOPE_SYS  // store perf snapshot DATA
+.endif
 
   // For stochastic sampling, use PC from snapshot registers (actual sampled instruction)
   // Trap PC points to trap handler entry, not the interrupted instruction
@@ -1120,6 +1124,14 @@
   S_GETREG_B32      HW_REG_PERF_SNAPSHOT_PC_HI              // Read performance snapshot PC_HI register
   V_WRITELANE_B32   v3, 0x0                                 // stash PC_HI in v3
 
+.if .amdgcn.gfx_generation_minor == 0
+  // Store PERF_SNAPSHOT_DATA at offset 0x24
+  // We access PERF_SNAPSHOT_DATA last on gfx12.0 as it contains valid bit indicating if the
+  // sample is valid and being read by the sampled wave.
+  s_getreg_b32      ttmp6, hwreg(HW_REG_PERF_SNAPSHOT_DATA)
+  v_writelane_b32   v2, ttmp6, 0
+  global_store_b32  v[0:1], v2, off, offset:SAMPLE_OFF_SNAPSHOT_DATA, scope:SCOPE_SYS  // store perf snapshot DATA
+.endif
   // Store at offset 0x00 (SAMPLE_OFF_PC_HOST)
   global_store_b64  v[0:1], v[2:3], off, offset:SAMPLE_OFF_PC_HOST, scope:SCOPE_SYS
 

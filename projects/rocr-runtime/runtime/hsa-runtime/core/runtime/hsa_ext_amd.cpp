@@ -514,10 +514,18 @@ hsa_status_t hsa_amd_memory_async_batch_copy(const hsa_amd_memory_copy_op_t* cop
 
     if (has_work) {
       core::Agent* copy_agent = nullptr;
-      if (op.type == HSA_AMD_MEMORY_COPY_OP_LINEAR_BROADCAST || is_multi) {
+      if (op.type == HSA_AMD_MEMORY_COPY_OP_LINEAR_BROADCAST ||
+          (is_multi && op.type != HSA_AMD_MEMORY_COPY_OP_LINEAR_SWAP)) {
         if (src_agent->device_type() != core::Agent::DeviceType::kAmdGpuDevice)
           return HSA_STATUS_ERROR_INVALID_AGENT;
         copy_agent = src_agent;
+      } else if (op.type == HSA_AMD_MEMORY_COPY_OP_LINEAR_SWAP && is_multi) {
+        // Swap: pick the GPU agent, same as DmaCopy does.
+        // Multi-entry swap has no single dst_agent, use dst_agent_list[0].
+        const bool src_gpu =
+            (src_agent->device_type() == core::Agent::DeviceType::kAmdGpuDevice);
+        copy_agent = src_gpu ? src_agent
+                             : core::Agent::Convert(op.dst_agent_list[0]);
       } else {
         core::Agent* eff_dst = rev_copy_dir ? src_agent : dst_agent;
         core::Agent* eff_src = rev_copy_dir ? dst_agent : src_agent;
@@ -1887,6 +1895,33 @@ hsa_amd_counted_queue_release(hsa_queue_t* queue) {
 
   return gpu_agent->ReleaseCountedQueue(queue);
   CATCH;
+}
+
+hsa_status_t HSA_API hsa_amd_svm_discard_batch_async(void** ptrs, size_t* sizes, uint32_t count,
+                                               uint32_t num_dep_signals,
+                                               const hsa_signal_t* dep_signals,
+                                               hsa_signal_t completion_signal) {
+  TRY;
+  IS_OPEN();
+  IS_BAD_PTR(ptrs);
+  IS_BAD_PTR(sizes);
+  IS_ZERO(count);
+  
+  if (!core::Runtime::runtime_singleton_->XnackEnabled()) {
+    return static_cast<hsa_status_t>(HSA_STATUS_ERROR_XNACK_DISABLED);
+  }
+
+  // Check if dep_signals and num_dep_signals are consistent
+  if ((num_dep_signals == 0 && dep_signals != nullptr) || 
+      (num_dep_signals > 0 && dep_signals == nullptr)) {
+    return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+  }
+
+  return core::Runtime::runtime_singleton_->SvmBatchDiscard(ptrs, sizes, count, 
+                                                num_dep_signals, dep_signals,
+                                                completion_signal);
+
+  CATCH;                                       
 }
 
 hsa_status_t hsa_amd_enable_logging(uint8_t* flags, void *file) {

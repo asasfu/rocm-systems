@@ -1488,6 +1488,31 @@ typedef union rocprofiler_hsa_api_args_t
         uint32_t                        num_dep_signals;
         const hsa_signal_t*             dep_signals;
     } hsa_amd_memory_async_batch_copy;
+#    endif
+#    if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x0B
+    struct
+    {
+        hsa_agent_t agent;
+        uint64_t    flags;
+    } hsa_amd_agent_preload;
+#    endif
+#    if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x0C
+    struct
+    {
+        void**              ptrs;
+        size_t*             sizes;
+        uint32_t            count;
+        uint32_t            num_dep_signals;
+        const hsa_signal_t* dep_signals;
+        hsa_signal_t        completion_signal;
+    } hsa_amd_svm_discard_batch_async;
+#    endif
+#    if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x0D
+    struct
+    {
+        hsa_signal_t signal;
+        uint32_t*    event_id;
+    } hsa_amd_signal_get_event_id;
     struct
     {
         hsa_fabric_handle_t*        fabric_handle;
@@ -1499,18 +1524,6 @@ typedef union rocprofiler_hsa_api_args_t
         hsa_fabric_handle_t          fabric_handle;
         hsa_amd_vmem_alloc_handle_t* handle;
     } hsa_amd_vmem_import_fabric_handle;
-    struct
-    {
-        hsa_signal_t signal;
-        uint32_t*    event_id;
-    } hsa_amd_signal_get_event_id;
-#    endif
-#    if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x0B
-    struct
-    {
-        hsa_agent_t agent;
-        uint64_t    flags;
-    } hsa_amd_agent_preload;
 #    endif
 #endif
 } rocprofiler_hsa_api_args_t;

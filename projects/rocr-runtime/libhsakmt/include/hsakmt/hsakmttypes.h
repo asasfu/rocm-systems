@@ -1590,8 +1590,10 @@ typedef struct _HsaHandleImportFlags {
 typedef struct _HsaStructureSizes {
   HSAuint16 StructureSizes;           // sizeof(HsaStructureSizes) used for check overflow
   HSAuint16 SizeOfHsaNodeProperties;  // sizeof(HsaNodeProperties)
-  HSAuint16 Reserved[6];
+  HSAuint16 SizeOfHsaExternalHandleDesc; // sizeof(HsaExternalHandleDesc)
+  HSAuint16 Reserved[5];
 } HsaStructureSizes;
+#pragma pack(pop, hsakmttypes_h)
 
 typedef struct _HsaHandleExportDesc {
     HsaAMDGPUDeviceHandle device_handle;

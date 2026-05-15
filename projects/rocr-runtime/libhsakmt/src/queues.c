@@ -162,6 +162,8 @@ uint32_t hsakmt_get_vgpr_size_per_cu(uint32_t gfxv)
 
 	assert(vgpr_size);
 
+	assert(vgpr_size);
+
 	return vgpr_size;
 }
 

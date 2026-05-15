@@ -390,7 +390,7 @@ FILTER[RHEL9]=\
 "KFDPCSamplingTest.*"
 
 FILTER[upstream]=\
-"KFDIPCTest.*"\
+"KFDIPCTest.*:"\
 "KFDPCSamplingTest.*"
 
 FILTER[gfx125x_lsc_n-1]=\
@@ -423,4 +423,4 @@ FILTER[gfx125x_lsc_n-1]=\
 "KFDRASTest.*:"\
 "KFDIPCTest.*:"\
 "KFDHWSTest.*:"\
-"KFDEvictTest.*:"
+"KFDEvictTest.*"

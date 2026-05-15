@@ -68,7 +68,7 @@ typedef _Float16 __attribute__((vector_size(4))) __amd_fp16x2_storage_t;
 typedef _Float16 __attribute__((vector_size(16))) __amd_fp16x8_storage_t;
 typedef _Float16 __attribute__((vector_size(32))) __amd_fp16x16_storage_t;
 typedef _Float16 __attribute__((vector_size(64))) __amd_fp16x32_storage_t;
-typedef uint32_t __attribute__((vector_size(12))) __amd_fp6x32_storage_t;
+typedef uint32_t __attribute__((vector_size(12))) __amd_fp6x16_storage_t;
 typedef uint32_t __attribute__((vector_size(24))) __amd_fp6x32_storage_t;
 typedef short __attribute__((vector_size(4))) __amd_shortx2_storage_t;
 #endif

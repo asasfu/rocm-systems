@@ -70,11 +70,13 @@
  * - 1.17 - hsa_amd_memory_async_batch_copy
  * - 1.18 - hsa_amd_pointer_info: Added alloc_flags field to hsa_amd_pointer_info_t
  * - 1.19 - hsa_amd_agent_preload
- * - 1.20 - Metadata Prefetch
- * - 1.21 - hsa_amd_vmem_export_fabric_handle/hsa_amd_vmem_import_fabric_handle
+ * - 1.20 - Memory batch discard API: hsa_amd_svm_discard_batch_async
+ * - 1.21 - hsa_amd_signal_get_event_id
+ * - 1.22 - Metadata Prefetch
+ * - 1.23 - hsa_amd_vmem_export_fabric_handle/hsa_amd_vmem_import_fabric_handle
  */
 #define HSA_AMD_INTERFACE_VERSION_MAJOR 1
-#define HSA_AMD_INTERFACE_VERSION_MINOR 19
+#define HSA_AMD_INTERFACE_VERSION_MINOR 21
 
 #ifdef __cplusplus
 extern "C" {
@@ -126,6 +128,8 @@ typedef enum {
 
   /* Reserved for a packet that is not yet released */
   HSA_AMD_PACKET_TYPE_RESERVED200 = 200,
+  /* HSA_AMD_PACKET_TYPE_AIE_ERT packet was never released so value may change in the future */
+  HSA_AMD_PACKET_TYPE_AIE_ERT = 200,
 } hsa_amd_packet_type_t;
 
 /**
@@ -708,7 +712,7 @@ typedef struct hsa_amd_metadata_kernel_dispatch_packet_s {
   /**
    * Reserved. Must be 0.
    */
-  uint8_t reserved1[8];
+  uint8_t reserved0[8];
   /**
    * Packet header. Must be same value as header0
    */
@@ -736,7 +740,7 @@ typedef struct hsa_amd_metadata_kernel_dispatch_packet_s {
   /**
    * Reserved. Must be 0.
    */
-  uint8_t reserved[52];
+  uint8_t reserved1[52];
 } hsa_amd_metadata_kernel_dispatch_packet_t;
 
 /**
@@ -833,6 +837,12 @@ enum {
    * Request is not supported by this system
    */
   HSA_STATUS_ERROR_NOT_SUPPORTED = 47,
+
+  /**
+   * Xnack is disabled on this system, but required 
+   * by the requested operation.
+   */
+  HSA_STATUS_ERROR_XNACK_DISABLED = 48,
 };
 
 /** @} */
@@ -1091,52 +1101,64 @@ typedef enum hsa_amd_agent_info_s {
    */
   HSA_AMD_AGENT_INFO_CLOCK_COUNTERS = 0xA118,
   /**
-   * Maximum number of work-groups across all dimensions for non-clustered dispatches.
-   * Returns uint64_t into value output
-   */
-  HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_SIZE = 0xA119,
-  /**
-   * Maximum number of clusters in each dimension for clustered dispatches.
-   * Returns hsa_amd_dim3_t into value output.
-   */
-  HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_DIM = 0xA11A,
-  /*
-  * Maximum number of clusters across all dimensions for clustered dispatches
-  * Returns uint64_t into value output
-  */
-  HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_SIZE = 0xA11B,
-  /*
-  * Maximum number of workgroups in a cluster in each dimension
-  * Returns hsa_amd_dim3_t into value output
-  */
-  HSA_AMD_AGENT_INFO_CLUSTER_MAX_DIM = 0xA11C,
-  /*
-  * Maximum number of workgroups in a cluster across all dimensions
-  * Returns uint64_t into value output
-  */
-  HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE = 0xA11D,
-  /** Maximum number of work-groups in each dimension for non-clustered dispatches.
-   * Returns hsa_amd_dim3_t into value output.
-   */
-  HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM = 0xA11E,
-  /**
    * The agent uses PM4 emulation mode.
    */
-  HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA11F,
+  HSA_AMD_AGENT_INFO_PM4_EMULATION = 0xA119,
   /**
    * Queries for the LUID that identifies a hardware node. The LUID is only
    * valid on Windows. The type of this attribute is LUID.
    */
-  HSA_AMD_AGENT_INFO_LUID = 0xA120,
+  HSA_AMD_AGENT_INFO_LUID = 0xA11A,
   /**
    * The agent supports expert scheduling mode. The type of this attribute is bool.
    */
-  HSA_AMD_AGENT_INFO_HAS_EXPERT_SCHED_MODE = 0xA121,
+  HSA_AMD_AGENT_INFO_HAS_EXPERT_SCHED_MODE = 0xA11B,
   /**
-   * Queries the secondary CUID (128-bit UUID (16 bytes) in UUIDv8 format) 
+   * Queries the secondary CUID (128-bit UUID (16 bytes) in UUIDv8 format)
    * of a CPU/GPU agent. The type of this attribute is uint8_t[16].
    */
-  HSA_AMD_AGENT_INFO_CUID = 0xA122,
+  HSA_AMD_AGENT_INFO_CUID = 0xA11C,
+  /*
+   * Maximum number of work-groups across all dimensions for non-clustered dispatches.
+   * Returns uint64_t into value output
+   */
+  HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_SIZE = 0xA11D,
+  /**
+   * Maximum number of clusters in each dimension for clustered dispatches.
+   * Returns hsa_amd_dim3_t into value output.
+   */
+  HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_DIM = 0xA11E,
+  /*
+   * Maximum number of clusters across all dimensions for clustered dispatches
+   * Returns uint64_t into value output
+   */
+  HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_SIZE = 0xA11F,
+  /*
+   * Maximum number of workgroups in a cluster in each dimension
+   * Returns hsa_amd_dim3_t into value output
+   */
+  HSA_AMD_AGENT_INFO_CLUSTER_MAX_DIM = 0xA120,
+  /*
+   * Maximum number of workgroups in a cluster across all dimensions
+   * Returns uint64_t into value output
+   */
+  HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE = 0xA121,
+  /*
+   * Maximum number of work-groups in each dimension for non-clustered dispatches.
+   * Returns hsa_amd_dim3_t into value output.
+   */
+  HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM = 0xA122,
+
+  // ====================================================================
+  // RANGE 0xA130-0xA1FF: Reserved for future NPI-specific features
+  //
+  // When adding NPI-only enums, start from 0xA130 to leave buffer space
+  // for potential develop branch additions (0xA123-0xA12F).
+  //
+  // When NPI features are released to public develop branch, they should
+  // be reassigned values from the develop range starting after the last
+  // develop enum (currently 0xA122). Update this comment accordingly.
+  // ====================================================================
 } hsa_amd_agent_info_t;
 
 /**
@@ -3896,6 +3918,47 @@ hsa_status_t hsa_amd_svm_prefetch_async(void* ptr, size_t size, hsa_agent_t agen
                                         uint32_t num_dep_signals, const hsa_signal_t* dep_signals,
                                         hsa_signal_t completion_signal);
 
+/**
+ * @brief Discards a batch of SVM memory ranges asynchronously.
+ *
+ * Schedules the discard of multiple SVM ranges in a single batched operation.
+ * The physical pages backing the virtual address ranges may be released and reclaimed
+ * by the system under memory pressure. The discard will be scheduled when all @p dep_signals
+ * have been resolved.
+ *
+ * Only pointers allocated using ::hsa_amd_vmem_address_reserve can be discarded.
+ *
+ * 
+ * @param[in] ptrs Array of @p count pointers to SVM memory ranges to discard.
+ * Must not be NULL.
+ *
+ * @param[in] sizes Array of @p ptr sizes, specifying the length of each memory range
+ * to discard. Must not be NULL.
+ *
+ * @param[in] count Number of memory ranges in the @p ptrs and @p sizes arrays. Must not be 0.
+ *
+ * @param[in] num_dep_signals Number of dependent signals. Can be 0.
+ *
+ * @param[in] dep_signals List of dependency signals to wait for before the discard operation
+ * starts. Can be NULL.
+ *
+ * @param[in] completion_signal Signal used to indicate completion of the discard operation.
+ * May be a NULL signal if no completion signal is required.
+ *
+ * @retval ::HSA_STATUS_SUCCESS Discard operation was successfully scheduled.
+ *
+ * @retval ::HSA_STATUS_ERROR_NOT_INITIALIZED HSA runtime has not been initialized.
+ *
+ * @retval ::HSA_STATUS_ERROR_INVALID_ARGUMENT @p ptrs is NULL, @p sizes is
+ * NULL, @p count is 0, @p dep_signals and @p num_dep_signals are inconsistent.
+ *
+ * @retval ::HSA_STATUS_ERROR_XNACK_DISABLED Cannot run this API on a system with XNACK disabled.
+ */
+hsa_status_t HSA_API hsa_amd_svm_discard_batch_async(void** ptrs, size_t* sizes, uint32_t count,
+                                                     uint32_t num_dep_signals,
+                                                     const hsa_signal_t* dep_signals,
+                                                     hsa_signal_t completion_signal);
+
 /** @} */
 
 /** \addtogroup profile Profiling
@@ -4478,16 +4541,16 @@ typedef enum {
    */
   HSA_AMD_QUEUE_INFO_DOORBELL_ID,
   /*
-  * Returns how many times the underlying hardware queue has been shared.
-  * @p value will be set to -1 if this queue was not allocated using
-  * hsa_amd_counted_queue_acquire. The type of this attribute is uint32_t.
-  */
+   * Returns how many times the underlying hardware queue has been shared.
+   * @p value will be set to -1 if this queue was not allocated using
+   * hsa_amd_counted_queue_acquire. The type of this attribute is uint32_t.
+   */
   HSA_QUEUE_INFO_USE_COUNT,
   /*
-  * Returns a unique ID representing the HW resource used by a counted queue. Two queues
-  * with the same HW_ID use the same underlying hardware queue. This query can be
-  * used on counted and non-counted queues. The type of this attribute is uint32_t.
-  */
+   * Returns a unique ID representing the HW resource used by a counted queue. Two queues
+   * with the same HW_ID use the same underlying hardware queue. This query can be
+   * used on counted and non-counted queues. The type of this attribute is uint32_t.
+   */
   HSA_QUEUE_INFO_HW_ID,
   /*
    * Major version of metadata prefetch dispatch packet. The versioning starts at 0.
