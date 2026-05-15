@@ -16,13 +16,13 @@ if(HIP_PLATFORM MATCHES "amd")
         launch_api.cc
         hipGetProcAddressLaunchCbExecCtrlApis.cc
     hipLaunchCooperativeKernelMultiDevice.cc
+    hipFuncSetAttribute.cc
     )
 else()
   # These functions are currently unimplemented on AMD
   set(TEST_SRC ${TEST_SRC}
         hipFuncSetCacheConfig.cc
         hipFuncSetSharedMemConfig.cc
-        hipFuncSetAttribute.cc
     )
 endif()
 

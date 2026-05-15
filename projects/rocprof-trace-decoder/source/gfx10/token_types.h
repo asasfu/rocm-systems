@@ -41,6 +41,13 @@ enum RdnaType
     EXEC_POPCOUNT3,
     NEW_PC_GFX12,
     LAST_GFX12_TYPE = NEW_PC_GFX12,
+    // New MI400
+    LDS_CONFIG,
+    MEDIUM_TIME,
+    MI400_TYPE_LAST,
+    // New gfx13
+    RAYTRACE = MI400_TYPE_LAST,
+    REALTIME,
     NAVI_TYPE_LAST
 };
 

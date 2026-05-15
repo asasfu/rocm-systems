@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palQueue.h
@@ -169,7 +146,11 @@ struct QueueCreateInfo
                                  ///  with lower priority, if necessary.
     struct
     {
+#if PAL_CLIENT_OCL
         uint32 aqlQueue                        :  1; ///< Compute queue will process AQL packets and kernels
+#else
+        uint32 placeholder1                    :  1; ///< Reserved field. Set to 0.
+#endif
         uint32 windowedPriorBlit               :  1; ///< All windowed presents on this queue are notifications
                                                      ///  that the client has manually done a blit present
         uint32 tmzOnly                         :  1; ///< This queue allows only TMZ submissions. Required for
@@ -196,6 +177,9 @@ struct QueueCreateInfo
     };
 
     uint32 numReservedCu;           ///< The number of reserved compute units for RT CU queue
+#if PAL_CLIENT_DX
+    DxRuntimeHandle hDxRtQueue;     ///< DX runtime handle for the new queue.
+#endif
     uintptr_t aqlPacketList;        ///< Location of the HIP runtime's info about this queue
 };
 
@@ -279,14 +263,50 @@ struct MultiSubmitInfo
                                                   ///  multiply by 2 if a Wave64 shader that needs scratch is used.
                                                   ///  Note that the size will not shrink for the lifetime of the queue
                                                   ///  once it is grown and only affects compute scratch ring.
+#if PAL_BUILD_VIDEO
+    MmAffinity              mmAffinity;           ///< Multi-media affinity to be passed to kmd
+#endif
     const IGpuMemory*       pFreeMuxMemory;       ///< The gpu memory object of the private flip primary surface for the
                                                   ///  FreeMux feature.
 };
 
+//# When cleaning up interface versions < 572, remove this typedef and
+//# rename MultiSubmitInfo to SubmitInfo.
 typedef MultiSubmitInfo SubmitInfo;
 
 /// The value of blockIfFlippingCount in @ref SubmitInfo cannot be greater than this value.
 constexpr uint32 MaxBlockIfFlippingCount = 16;
+
+
+#if PAL_CLIENT_DX
+// Present private info. Those properties will be passed to DdiPresent.
+struct PresentPrivateInfo
+{
+    union
+    {
+        struct
+        {
+            uint32 frontBufferRenderingActive : 1;  ///< Indicates whether front-buffer-rendering is actived
+            uint32 freeMuxFakePresent         : 1;  ///< Indicates this is a fake present for FreeMux
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 962
+            uint32 frameIdValid               : 1;  ///< Indicate frameId value is valid
+#else
+            uint32 reserved962                : 1;
+#endif
+            uint32 noRenderPresent            : 1;  ///< Indicate whether it is NoRenderPresent or not
+            uint32 reserved                   : 28; ///< Reserved for future use.
+        };
+        uint32 u32All;
+    } commonFlags;
+
+    uint32      mSlsDataOffset;              ///< Offset to the Mgpu SLS data
+    uint64      freeMuxFrameReadyFenceValue; ///< Frame ready fence value for FreeMux.
+    DxKmtHandle freeMuxFrameReadyFence;      ///< Frame ready fence for FreeMux.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 962
+    uint64      frameId;                     ///< Present frame index for DXXP private data, incremented at each present
+#endif
+};
+#endif
 
 /// Specifies properties for the presentation of an image to the screen.  Input structure to IQueue::PresentDirect().
 struct PresentDirectInfo
@@ -331,6 +351,11 @@ struct PresentDirectInfo
 
     uint64               frameId;       ///< The frameId will be linearly incremented by the UMD at present time
 
+#if PAL_CLIENT_DX
+    DxContextHandle      hContext;             ///< Opaque DXGI handle passed down from DXGI runtime.
+    FlipIntervalOverride flipIntervalOverride; ///< Possible overrides for the flip interval.
+    PresentPrivateInfo*  pPresentPrivateInfo;  ///< Present private info pointer.
+#endif
 };
 
 /// Media stream counter information.
@@ -445,6 +470,36 @@ struct KernelContextInfo
     uint64 contextIdentifier;                ///< Kernel scheduler context identifier.
 };
 
+#if PAL_BUILD_VIDEO
+/// Defines the set of operations for bandwidth Management
+enum class VideoBandwidthOp : uint32
+{
+    Request = 0x00000000, ///< Request Resource
+    Release = 0x00000001, ///< Release the resource
+    Query   = 0x00000002, ///< Query the resource
+    Count
+};
+
+using VideoSessionId = uint32;
+
+/// Defines bandwidth Management input structure
+struct RequestReleaseVideoBandwidthParams
+{
+    VideoSessionId   sessionId;                 ///< Unique KMD Id associated with videoSession
+    VideoBandwidthOp mode;                      ///< Various Resource Management operations
+    uint32           sessionRequiredThroughput; ///< Required throughput for the session set by App in MacroBlocks/sec
+    uint32           instanceId;                ///< vcn instance id for bandwidth request.
+};
+
+/// Defines bandwidth info output structure
+struct VideoBandwidthInfo
+{
+    uint32 totalRequestedThroughput; ///< Total throughput requested so far in MacroBlocks/sec
+    uint32 maxThroughputSupported;   ///< Max Throughput supported in MacroBlocks/sec
+};
+
+#endif
+
 /**
  ***********************************************************************************************************************
  * @interface IQueue
@@ -515,6 +570,26 @@ public:
     ///          + ErrorUnknown if the OS scheduler rejects the wait for unknown reasons.
     virtual Result WaitQueueSemaphore(
         IQueueSemaphore* pQueueSemaphore, uint64 value = 0) = 0;
+
+#if PAL_BUILD_ANDROID
+    /// Creates a native fence and schedules it to be signaled when prior work on this queue has completed and all
+    /// specified queue semaphores are signaled.
+    /// This function will be called during vkQueuePresentWSI on the provided queue.  The OS compositor will wait for
+    /// this native fence to be signaled before it presents prior rendering results to the screen.
+    ///
+    /// @param [in]     waitSemaphoreCount    Number of the waitSemaphores
+    /// @param [in]     ppPalWaitSemaphores   The output native fence will not be signaled until all of these
+    ///                                       semaphores have been signaled
+    /// @param [out]    pNativeFenceFd        Newly created native fence, should be closed by the caller.
+    ///
+    /// @returns Success if the external native fence exported successful. Otherwise, one of the following errors may
+    ///          be returned:
+    ///          + ErrorInvalidValue if an unexpected conversion error occurs.
+    virtual Result SignalNativeFence(
+        uint32            waitSemaphoreCount,
+        IQueueSemaphore** ppPalWaitSemaphores,
+        int32*            pNativeFenceFd) = 0;
+#endif
 
 #if PAL_KMT_BUILD
     /// Acquire the keyed mutex of shared GPU memory object (CPU sync) and then wait for the synchronization object of
@@ -738,6 +813,48 @@ public:
     ///          + ErrorUnavailable if kernel context information is not available on the current platform.
     virtual Result QueryKernelContextInfo(KernelContextInfo* pKernelContextInfo) const = 0;
 
+#if PAL_BUILD_VIDEO
+    /// Requests/Releases bandwidth from KMD
+    ///
+    /// @param [in]  params  Input params for video Bandwidth Request
+    /// @param [out] pOutput Video Bandwidth info returned from KMD
+    ///
+    /// @returns Success if session Id can be retrieved/released. Errors where appropriate.
+    virtual Result RequestReleaseVideoBandwidth(
+        const RequestReleaseVideoBandwidthParams& params,
+        VideoBandwidthInfo*                       pOutput) = 0;
+
+    /// Requests/Releases unique session Id from KMD
+    ///
+    /// @param [in]     requestNewId If true, request new sesion Id.
+    ///                              Else,release current session Id.
+    /// @param [in/out] pSessionId   Unique session Id
+    ///
+    /// @returns Success if session Id can be retrieved/released. Errors where appropriate.
+    virtual Result RequestReleaseVideoSessionId(
+        bool    requestNewId,
+        uint32* pSessionId) = 0;
+
+#endif
+
+#if PAL_CLIENT_DX
+    /// Returns the value of the associated DX context handle (i.e. HCONTEXT).
+    ///
+    /// @note This function is only available for DX builds.
+    ///
+    /// @returns Return the context handle; null if handle not available.
+    virtual DxContextHandle GetContextHandle() const = 0;
+
+    /// Instructs this queue to wait until the paging operations gated by the specified fence value have completed.
+    /// Any further queue operations after this one will not begin until this wait has completed. FenceValue must
+    /// be from PAL's implicit paging queue, not a client paging queue.
+    ///
+    /// @param [in] fenceValue Fence value to wait for.
+    ///
+    /// @returns Success if the operation completed successfully, or other values if an error occurred.
+    virtual Result WaitForPagingFence(uint64 fenceValue) = 0;
+#endif
+
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
@@ -756,6 +873,52 @@ public:
     {
         m_pClientData = pClientData;
     }
+
+#if PAL_BUILD_INFINITY_STORAGE
+    /// Identifies an InfinityStorage file read request.
+    struct InfinityStorageKey
+    {
+        uint64 kmdKey; ///< Opaque KMD key value identifying the request.
+    };
+
+    /// Notify the KMD to cancel read requests on this queue
+    ///
+    /// @param  [in]    mask               The mask to be anded with the CancellationTag of the request
+    /// @param  [in]    value              Any request with ((CancellationTag & mask ) == value) will be cancelled...
+    /// @param  [in]    maxImportSeqNumber so long as the ImportSeqNumber is < maxImportSeqNumber
+    ///
+    /// @returns Result for error handling.
+    virtual Result CancelReadFileRequest(uint64 mask, uint64 value, uint64 maxImportSeqNumber) = 0;
+
+    /// Notify the KMD to track an opened file to be used by AMD storage engines
+    ///
+    /// @param  [in]    hFile   An opened file handle that we want to register
+    /// @param  [out]   pKey    An internal KMD key to be used for the request instead of the OS Handle
+    ///
+    /// @returns Result for error handling.
+    virtual Result OpenFile(OsExternalHandle hFile, InfinityStorageKey* pKey) = 0;
+
+    /// Notify the KMD that a file no longer needs to be tracked for use in the storage engines.
+    ///
+    /// @param  [in]    isKey  An internal KMD key for the file that we want to unregister
+    ///
+    /// @returns Result for error handling.
+    virtual Result CloseFile(InfinityStorageKey isKey) = 0;
+
+    /// Notify the KMD to signal an event upon completion of every storage operation.
+    ///
+    /// @param [in]     event  The handle of the win32 event object typed as a uint64.
+    ///
+    /// @returns Result for error handling.
+    virtual Result RegisterOnCompletionEvent(const Util::Event& event) = 0;
+
+    /// Notify the KMD that an event is no longer to be signaled upon completion of every storage operation.
+    ///
+    /// @param [in]     event  The handle of the win32 event object typed as a uint64.
+    ///
+    /// @returns Result for error handling.
+    virtual Result UnregisterOnCompletionEvent(const Util::Event& event) = 0;
+#endif
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

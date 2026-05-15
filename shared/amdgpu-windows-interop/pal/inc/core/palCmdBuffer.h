@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palCmdBuffer.h
@@ -40,6 +17,13 @@
 #include "palPipeline.h"
 #include "palQueryPool.h"
 #include "palStringView.h"
+
+#if PAL_WORK_GRAPHS_SUPPORT
+#include "palWorkGraph.h"
+#endif
+#if PAL_BUILD_SHADER_DBG
+#include "palPipelineAbi.h"
+#endif
 
 /// HSA kernel dispatch packet typedef
 typedef struct hsa_kernel_dispatch_packet_s hsa_kernel_dispatch_packet_t;
@@ -72,8 +56,61 @@ class IMsaaState;
 class IPerfExperiment;
 class IQueue;
 class IQueryPool;
+#if PAL_WORK_GRAPHS_SUPPORT
+class IWorkGraph;
+#endif
 enum class PerfTraceMarkerType : uint32;
 enum class PointOrigin : uint32;
+#if PAL_BUILD_VIDEO
+enum class VideoEncodeH264GopType : uint32;
+enum class VideoEncodeH264HeaderMode : uint32;
+enum class VideoEncodeH264IntraRefreshMode : uint32;
+enum class VideoEncodeH264SliceControlMode : uint32;
+enum class VideoEncodeH264RateControlMode : uint32;
+enum class VideoEncodeH264QualityPreset : uint32;
+enum class VideoEncodeH264VbaqMode : uint32;
+enum class VideoEncodeH264PictureType : uint32;
+enum class VideoEncodeH264PocType :uint32;
+enum class VideoEncodeH264QpMapType : uint32;
+enum class VideoEncodeH264TwoPassSearchCenterMapMode : uint32;
+enum class VideoEncodeH264PictureFormat : uint32;
+enum class VideoEncodeH264ColorVolume : uint32;
+enum class VideoEncodeH264ColorSpace : uint32;
+enum class VideoEncodeH264ColorIntegerRange : uint32;
+enum class VideoEncodeH264ChromaSubSampling : uint32;
+enum class VideoEncodeH264ChromaLocation : uint32;
+enum class VideoEncodeH264ColorBitDepth : uint32;
+enum class VideoEncodeH264ColorPackingFormat : uint32;
+enum class VideoEncodeH265GopType : uint32;
+enum class VideoEncodeH265HeaderMode : uint32;
+enum class VideoEncodeH265IntraRefreshMode : uint32;
+enum class VideoEncodeH265SliceControlMode : uint32;
+enum class VideoEncodeH265RateControlMode : uint32;
+enum class VideoEncodeH265QualityPreset : uint32;
+enum class VideoEncodeH265VbaqMode : uint32;
+enum class VideoEncodeH265PictureType : uint32;
+enum class VideoEncodeH265QpMapType : uint32;
+enum class VideoEncodeH265TwoPassSearchCenterMapMode : uint32;
+enum class VideoEncodeH265PictureFormat : uint32;
+enum class VideoEncodeH265ColorVolume : uint32;
+enum class VideoEncodeH265ColorSpace : uint32;
+enum class VideoEncodeH265ColorIntegerRange : uint32;
+enum class VideoEncodeH265ChromaSubSampling : uint32;
+enum class VideoEncodeH265ChromaLocation : uint32;
+enum class VideoEncodeH265ColorBitDepth : uint32;
+enum class VideoEncodeH265ColorPackingFormat : uint32;
+enum class VideoEncodeH265SeiInsertionMode : uint32;
+#endif
+
+#if PAL_BUILD_VPE
+enum class AlphaFillMode    : uint8;
+enum class ColorPrimaries   : uint8;
+enum class ColorRange       : uint8;
+enum class ColorSpaceType   : uint32;
+enum class ColorSpace       : uint8;
+enum class Cositing         : uint8;
+enum class GammaType        : uint8;
+#endif
 
 struct VideoCodecInfo;
 struct VideoCodecAuxInfo;
@@ -83,6 +120,9 @@ enum class PipelineBindPoint : uint32
 {
     Compute     = 0x0,
     Graphics    = 0x1,
+#if PAL_WORK_GRAPHS_SUPPORT
+    WorkGraph   = 0x2,
+#endif
     Count
 };
 
@@ -303,7 +343,13 @@ enum ImageLayoutUsageFlags : uint32
     LayoutSampleRate              = 0x00002000,  ///< CmdBindSampleRateImage() source.
     LayoutVideoEncodeRead         = 0x00004000,  ///< Video encoder input image layout, output is buffer so no layout.
     LayoutVideoDecodeWrite        = 0x00008000,  ///< Video decoder output image layout, input is buffer so no layout.
+#if PAL_BUILD_VPE
+    LayoutVideoProcessorRead      = 0x00010000,  ///< CmdBuildVideoProcessorFrame() source image layout.
+    LayoutVideoProcessorWrite     = 0x00020000,  ///< CmdBuildVideoProcessorFrame() destination image layout.
+    LayoutAllUsages               = 0x0003FFFF,
+#else
     LayoutAllUsages               = 0x0000FFFF,
+#endif
 };
 
 /// Bitmask values that can be ORed together to specify all potential engines an image might be used on.  Such a
@@ -326,7 +372,12 @@ enum ImageLayoutEngineFlags : uint32
     LayoutVideoEncodeEngine     = 0x8,
     LayoutVideoDecodeEngine     = 0x10,
     LayoutVideoJpegDecodeEngine = 0x20,
+#if PAL_BUILD_VPE
+    LayoutVideoProcessorEngine  = 0x40,
+    LayoutAllEngines            = 0x7F
+#else
     LayoutAllEngines            = 0x3F
+#endif
 };
 
 /// Bitmask values that can be ORed together to specify previous output usage and upcoming input usages of an image or
@@ -350,6 +401,9 @@ enum CacheCoherencyUsageFlags : uint32
     CoherMemory             = 0x00002000,     ///< Data read or written directly from/to memory
     CoherSampleRate         = 0x00004000,     ///< CmdBindSampleRateImage() source.
     CoherPresent            = 0x00008000,     ///< Source of present.
+#if PAL_WORK_GRAPHS_SUPPORT
+    CoherGraphBackingStore  = 0x00010000,     ///< Data used as the backing store for a GPU work graph.
+#endif
     CoherCp                 = 0x00020000,     ///< HW Command Processor (CP) encompassing the front - end command
                                               ///< processing of any queue, including SDMA.
     CoherAllUsages          = 0x0003FFFF,
@@ -362,6 +416,9 @@ enum CacheCoherencyUsageFlags : uint32
     CoherMemory             = 0x00004000,     ///< Data read or written directly from/to memory
     CoherSampleRate         = 0x00008000,     ///< CmdBindSampleRateImage() source.
     CoherPresent            = 0x00010000,     ///< Source of present.
+#if PAL_WORK_GRAPHS_SUPPORT
+    CoherGraphBackingStore  = 0x00020000,     ///< Data used as the backing store for a GPU work graph.
+#endif
     CoherCp                 = 0x00040000,     ///< HW Command Processor (CP) encompassing the front - end command
                                               ///< processing of any queue, including SDMA.
     CoherAllUsages          = 0x0007FFFF,
@@ -375,10 +432,13 @@ enum CacheCoherencyUsageFlags : uint32
     CoherMemory             = 0x00008000,     ///< Data read or written directly from/to memory
     CoherSampleRate         = 0x00010000,     ///< CmdBindSampleRateImage() source.
     CoherPresent            = 0x00020000,     ///< Source of present.
+#if PAL_WORK_GRAPHS_SUPPORT
+    CoherGraphBackingStore  = 0x00040000,     ///< Data used as the backing store for a GPU work graph.
+#endif
     CoherCp                 = 0x00080000,     ///< HW Command Processor (CP) encompassing the front - end command
                                               ///< processing of any queue, including SDMA.
     CoherAllUsages          = 0x000FFFFF,
-#endif
+#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION
 
     CoherShader             = CoherShaderRead | CoherShaderWrite,
     CoherCopy               = CoherCopySrc    | CoherCopyDst,
@@ -442,6 +502,10 @@ struct CmdBufferCreateInfo
                                    ///  This defines the set of allowed actions in the command buffer.
     QueuePriority   queuePriority; ///< Priority level of the queue this command buffer will target.
     EngineType      engineType;    ///< Type of engine the queue commands will run on.
+
+#if PAL_CLIENT_DX
+    DxRuntimeHandle dxHandle;
+#endif
 
     union
     {
@@ -554,8 +618,17 @@ union CmdBufferBuildFlags
         /// the optimizeExclusiveSubmit flag is also set. This flag is ignored for root command buffers.
         uint32 disallowNestedLaunchViaIb2      :  1;
 
+#if PAL_CLIENT_DX
+        /// Indicates that the client wants CmdSetMarker to insert an PipelineStageBottomOfPipe timestamp followed by an
+        /// PipelineStageTopOfPipe timestamp for each sequenceNumber.
+        uint32 enableFullPipelineMarkers       :  1;
+
+        /// Indicates that client wants to use the batched marker log type with submits
+        uint32 batchedMarkerMode               :  1;
+#else
         /// placeholder
         uint32 placeholder1                    :  2;
+#endif
 
         /// Enable TMZ mode to allow reading TMZ protected allocations. If this command buffer attempts to write
         /// non-TMZ memory, the results are undefined. Only valid for graphics and compute.
@@ -572,6 +645,10 @@ union CmdBufferBuildFlags
         /// Otherwise they may affect the results.
         uint32 disableQueryInternalOps         :  1;
 
+#if PAL_BUILD_LIGHT_SHAFT_OPT
+        /// Indicates that the client will set the ZPP area threshold in @ref CmdBufferBuildInfo::zppAreaThreshold
+        uint32 optimizeZppAreaThreshold        :  1;
+#endif
         uint32 optimizeContextStatesPerBin     :  1;
         uint32 optimizePersistentStatesPerBin  :  1;
 
@@ -640,6 +717,13 @@ struct CmdBufferBuildInfo
     /// Nested command buffers inherit this value from the primary.
     TessDistributionFactors clientTessDistributionFactors;
 
+#if PAL_BUILD_LIGHT_SHAFT_OPT
+    /// An 8-bit non-negative floating point threshold value for continuous primitive sequence area.
+    /// Both the exponent and the mantissa are 4 bits.
+    /// Client must also set @ref CmdBufferBuildFlags::optimizeZppAreaThreshold for this to take effect.
+    uint8 zppAreaThreshold;
+#endif
+
     /// Number of context states per PBB bin.
     /// Client must also set @ref CmdBufferBuildFlags::optimizeContextStatesPerBin for this to take effect.
     uint8 contextStatesPerBin;
@@ -706,7 +790,12 @@ struct DynamicGraphicsState
         DepthRange     depthRange                 : 1; ///< Specifies Z dimensions of screen space (i.e., post viewport
                                                        ///  transform: 0 to 1 or -1 to 1).
         DepthClampMode depthClampMode             : 2; ///< Depth clamping behavior.
+#if PAL_BUILD_LIGHT_SHAFT_OPT
+        uint32         multipleLightShaftsPerDraw : 1; ///< If Light shaft opt on and multiple light shafts / draw.
+        uint32         lightShaftDrawCallLimit    : 6; ///< Number of light shaft draws allowed per batch [1, 32].
+#else
         uint32         reserved1                  : 7; ///< Reserved
+#endif
         uint32         reserved                   : 5; ///< Reserved for future use.
     };
 
@@ -725,7 +814,24 @@ struct DynamicGraphicsState
             uint32 rasterizerDiscardEnable :  1;  ///< Whether to enable dynamic state rasterizerDiscardEnable.
             uint32 dualSourceBlendEnable   :  1;  ///< Whether to enable dynamic state dualSourceBlendEnable
             uint32 vertexBufferCount       :  1;  ///< Whether to enable dynamic state vertexBufferCount.
+#if PAL_BUILD_LIGHT_SHAFT_OPT
+            uint32 lightShaftOpt           :  1;  ///< Enable Light shaft optimization? It is important for the
+                                                  ///  client to detect several scenarios before attempting to
+                                                  ///  enable this:
+                                                  ///    - Application will draw convex, closed geometry
+                                                  ///    - Triangle culling = front face
+                                                  ///    - Read-only depth target
+                                                  ///    - Depth target bound as pixel shader texture
+                                                  ///    - ZCompare mode = GREATER_OR_EQUAL or GREATER
+                                                  ///    - Pixel shader kills all rasterized pixels where the Z value
+                                                  ///      read from the depth texture would not fall inside the
+                                                  ///      entire closed geometry (assuming no face culling)
+                                                  ///  The client must additionally guarantee draws only have a
+                                                  ///  single instance, splitting draws if necessary. The opt
+                                                  ///  will implicitly be disabled for indirect draws.
+#else
             uint32 reserved1               :  1;  ///< Reserved.
+#endif
             uint32 reserved                : 20;  ///< Reserved for future use.
         };
         uint32     u32All;
@@ -792,6 +898,25 @@ struct PipelineBindParams
         };
     };
 };
+
+#if PAL_WORK_GRAPHS_SUPPORT
+/// Specifies parameters for binding a work graph.
+/// @see ICmdBuffer::CmdBindWorkGraph
+struct WorkGraphBindParams
+{
+    const IWorkGraph*  pWorkGraph;  ///< Work Graph to use for the next @ref CmdDispatchGraph call.
+
+    uint64   apiGraphHash;          ///< 64-bit identifier provided by client driver based on the IWorkGraph object.
+                                    ///  There exists a many-to-one correlation for apiPsoHash to the internal hash of
+                                    ///  the IWorkGraph to map the two.
+    gpusize  backingStoreGpuVa;     ///< GPU virtual address to the backing store memory.
+    gpusize  backingStoreSize;      ///< Size of the backing store memory, in bytes.  This must be at least as large
+                                    ///  as the graph's minimum size, and no larger than the graphs's maximum.
+#if PAL_BUILD_WORK_GRAPH_TRACE
+    gpusize  workGraphTraceGpuVa;   ///< GPU virtual address to the Work Graph Trace buffer.
+#endif
+};
+#endif
 
 /// Specifies per-MRT color target view and current image state.  Used as input to ICmdBuffer::CmdBindTargets().
 struct ColorTargetBindInfo
@@ -1447,6 +1572,15 @@ struct DispatchIndirectArgs
     uint32 z;  ///< Threadgroups to dispatch in the Z dimension.
 };
 
+#if PAL_WORK_GRAPHS_SUPPORT
+/// Specifies layout of GPU memory used for passing index buffer data between nodes in a Work Graph.
+struct NodeDrawIndexBuffer
+{
+    gpusize                 ibAddr;
+    uint32                  ibBytes;
+};
+#endif
+
 /// Specifies layout of GPU memory used as an input to CmdDispatchMeshIndirect.
 using DispatchMeshIndirectArgs = DispatchIndirectArgs;
 
@@ -1471,6 +1605,85 @@ struct GpuVirtAddrAndStride
         uint64  _pad   : 32;    ///< Padding for structure alignment.
     };
 };
+
+#if PAL_WORK_GRAPHS_SUPPORT
+/// Specifies which type of input parameters to accept inside @ref CmdDispatchGraph().
+enum class DispatchGraphInputMode : uint32
+{
+    CpuInput,       ///< A single set of entry payloads provided to a single entry node via CPU data.
+    CpuInputMulti,  ///< Multiple sets of entry payloads provided to multiple entry nodes via CPU data.
+    GpuInput,       ///< A single set of entry payloads provided to a single entry node via GPU data.
+    GpuInputMulti,  ///< Multiple sets of entry payloads provided to multiple entry nodes via GPU data.
+    Count,
+};
+
+/// Specifies parameters for a single input payload stream in CPU memory for a GPU work graph.
+struct DispatchGraphCpuInput
+{
+    /// Identifies the node in the graph which receives the payload stream.
+    /// For DX clients, this is the "entrypoint index" which was assigned by the DX runtime and specified
+    /// for the node when it was created.
+    /// Otherwise, this is the ID assigned by PAL when the graph was constructed (accessible through
+    /// @ref IWorkGraph::GetNodeShaderId).
+    ShaderProgramId       shaderId;
+    uint32                payloadCount;     ///< Number of payloads in the stream.
+    CpuVirtAddrAndStride  payloadStream;    ///< Address and stride of the payload stream.
+};
+
+/// Specifies parameters for multiple input payload streams in CPU memory for a GPU work graph.
+struct DispatchGraphCpuInputMulti
+{
+    uint32                count;    ///< Number of payload streams.
+    CpuVirtAddrAndStride  streams;  ///< Array of @ref DispatchGraphCpuInput structures to feed into the graph.
+};
+
+/// Specifies parameters for a single input payload stream in GPU memory for a GPU work graph.
+struct DispatchGraphGpuArgs
+{
+    /// Identifies the node in the graph which receives the payload stream.
+    /// For DX clients, this is the "entrypoint index" which was assigned by the DX runtime and specified
+    /// for the node when it was created.
+    /// Otherwise, this is the ID assigned by PAL when the graph was constructed (accessible through
+    /// @ref IWorkGraph::GetNodeShaderId).
+    ShaderProgramId       shaderId;
+    uint32                payloadCount;     ///< Number of payloads in the stream.
+    GpuVirtAddrAndStride  payloadStream;    ///< Address and stride of the payload stream.
+};
+
+/// Specifies parameters for multiple input payload streams in GPU memory for a GPU work graph.
+struct DispatchGraphGpuMultiArgs
+{
+    uint32                count;    ///< Number of payload streams.
+    GpuVirtAddrAndStride  streams;  ///< Array of @ref DispatchGraphGpuArgs structures to feed into the graph.
+};
+
+/// Specifies the GPU address for a single input payload stream for a GPU work graph.
+struct DispatchGraphGpuInput
+{
+    /// GPU virtual address pointing to a single @ref DispatchGraphGpuArgs structure.
+    gpusize  gpuVirtAddr;
+};
+
+/// Specifies the GPU address for a series of multiple input payload streams for a GPU work graph.
+struct DispatchGraphGpuInputMulti
+{
+    /// GPU virtual address pointing to a single @ref DispatchGraphGpuMultiArgs structure.
+    gpusize  gpuVirtAddr;
+};
+
+/// Input data to @ref CmdDispatchGraph.
+struct DispatchGraphInput
+{
+    DispatchGraphInputMode  mode; ///< Which type of input the @ref CmdDispatchGraph call should expect.
+    union
+    {
+        DispatchGraphCpuInput       cpuInput;
+        DispatchGraphCpuInputMulti  cpuInputMulti;
+        DispatchGraphGpuInput       gpuInput;
+        DispatchGraphGpuInputMulti  gpuInputMulti;
+    };
+};
+#endif // PAL_WORK_GRAPHS_SUPPORT
 
 /// Flags to describe a dispatch
 union DispatchInfoFlags
@@ -1669,6 +1882,15 @@ typedef void (PAL_STDCALL *CmdDispatchOffsetFunc)(
     DispatchDims launchSize,
     DispatchDims logicalSize);
 
+#if PAL_WORK_GRAPHS_SUPPORT
+/// @internal Function pointer type definition for issuing graph dispatch operations.
+///
+/// @see ICmdBuffer::CmdDispatchGraph().
+typedef void (PAL_STDCALL* CmdDispatchGraphFunc)(
+    ICmdBuffer*               pCmdBuffer,
+    const DispatchGraphInput& graphInput);
+#endif
+
 /// @internal Function pointer type definition for issuing direct mesh dispatches.
 ///
 /// @see ICmdBuffer::CmdDispatchMesh().
@@ -1685,6 +1907,7 @@ typedef void (PAL_STDCALL *CmdDispatchMeshIndirectMultiFunc)(
     uint32               maximumCount,
     gpusize              countGpuAddr);
 
+#if PAL_CLIENT_OCL
 /// This struct provides the parameters of all the supported features for kernel dispatch
 struct DispatchAqlParams
 {
@@ -1712,6 +1935,11 @@ struct DispatchAqlParams
                                                                       ///  space memory required for a workitem.
     uint32                               aqlPacketIndex; ///< AQL ID in QueueCreateInfo.aqlPacketList for debugger.
                                                          ///  Note: debugger support enabled for Navi3x+
+#if PAL_BUILD_GFX13
+    uint8                                clusterSizeX;   ///< thread group size X in a cluster
+    uint8                                clusterSizeY;   ///< thread group size Y in a cluster
+    uint8                                clusterSizeZ;   ///< thread group size Z in a cluster
+#endif
 
 };
 
@@ -1728,6 +1956,7 @@ typedef void (PAL_STDCALL *CmdDispatchAqlFunc)(
     ICmdBuffer*                 pCmdBuffer,
     const DispatchAqlParams&    dispatchInfo,
     DispatchAqlFeedback*        pFeedback);
+#endif
 
 /// Specifies input assembler state for draws.
 /// @see ICmdBuffer::CmdSetInputAssemblyState
@@ -2068,6 +2297,1170 @@ enum ComputeStateFlags : uint32
 #endif
 };
 
+#if PAL_CLOSED_SOURCE
+/// DRM Flag details to get from ASPLIB.
+struct AspDecryptFlags
+{
+    uint32  destMemoryInvisible   :  1;    ///< Use invisible memory for decrypt destination.
+    uint32  useAspDecryptApi      :  1;    ///< Invoke ASPLib for content decryption.
+    uint32  useHwDrmAesCtr        :  1;    ///< Invoke HW DRM with AESCTR for content decryption.
+    uint32  useHwDrmBgAes         :  1;    ///< Invoke HW DRM with BGAES for content decryption.
+    uint32  useOnHostIdctXor      :  1;    ///< Invoke CPU base IDCT XOR for DCT Coeff descrambling.
+    uint32  useHwDrmAesCbc        :  1;    ///< 0x00000020: Invoke HW DRM with AESCBC for content decryption.
+    uint32  drmSessionId          :  4;    ///< DRM session ID.
+    uint32  reserved              : 22;
+};
+
+/// Flags to indicates encypted data information.
+struct AspDecryptFields
+{
+    uint32  eKc                   :  1;    ///< eKc & sizeEKc are present.
+    uint32  data1                 :  1;    ///< data1 & sizeData1 are present.
+    uint32  data2                 :  1;    ///< data2 & sizeData2 are present.
+    uint32  policy                :  1;    ///< HWTEECtxID is present.
+    uint32  maxResolution         :  1;    ///< MaxResolution is present.
+};
+
+/// Decrypt key data for asp case.
+struct AspDecryptKeys
+{
+    bool               aspDecrypt;
+    AspDecryptFields   fields;                ///< Indicates which fields are valid.
+    uint8              eKc[64];               ///< Encrypted Content Key
+    uint8              data1[64];             ///< Data associated to key dependent on cipher.
+    uint8              data2[64];             ///< Data associated to key dependent on cipher.
+    uint32             sizeEKc;               ///< Size of EKc in bytes.
+    uint32             sizeData1;             ///< Size of Data1 in bytes.
+    uint32             sizeData2;             ///< Size of Data2 in bytes.
+    uint8              policy[64];            ///< Signed Policy Information.
+    uint32             maxDecodeRes;          ///< Scrambled decode resoltuion.
+    uint32             drmSessionId;          ///< DRM session ID.
+    uint8              nativePolicy[168];     ///< Signed Native Policy
+};
+
+/// Configuration parameters for partial decryption.
+struct AspPartialDecryptParams
+{
+    uint32       enablePartialDecryption; ///< enable/disable partial decryption.
+    uint32       incCtrThroughClearBytes; ///< whether the AES counter is incremented
+                                          /// over clear region or not.
+    uint32       numEncryptedBytes;       ///< number of contiguous bytes encrypted in buffer.
+    uint32       numClearBytes;           ///< number of bytes that are left in clear.
+    uint32       numHeaderBytes;          ///< UVD 3.x: number of header bytes (max 256).
+    uint32       headerMode;              ///< UVD 3.x: header mode (PE_HDR_MODE_ENCR or PE_HDR_MODE_CLEAR).
+};
+#endif
+
+#if PAL_BUILD_VIDEO
+
+/// Maximum number of temporal layers
+constexpr uint32 VideoEncodeH264MaxNumTemporalLayers = 4;
+constexpr uint32 VideoEncodeH265MaxNumTemporalLayers = 4;
+
+/// H264 VUI parameters
+struct VideoEncodeH264VuiConfig
+{
+    union
+    {
+        struct
+        {
+            uint32    aspectRatioInfoPresentFlag       :  1; ///< Table E-1, insert VUI param "aspectRatioInfo",
+                                                             ///  0: not insert, 1: insert
+            uint32    overscanInfoPresentFlag          :  1; ///< Table E-1, insert VUI param "overScanInfo",
+                                                             ///  0: not insert, 1: insert
+            uint32    videoSignalTypePresentFlag       :  1; ///< Table E-1, insert VUI param "videoSignalTypeInfo",
+                                                             ///  0: not insert, 1: insert
+            uint32    chromaLocInfoPresentFlag         :  1; ///< Table E-1, insert VUI param "chromaLocInfo",
+                                                             ///  0: not insert, 1: insert
+            uint32    timingInfoPresentFlag            :  1; ///< Table E-1, insert VUI param "timingInfo",
+                                                             ///  0: not insert, 1: insert
+
+            uint32    reserved           : 27;    ///< Reserved for future use.
+        };
+        uint32    u32All;                         ///< Flags packed as 32-bit uint.
+    } flags;                                      ///< VUI flags.
+
+    /// Aspect ratio info
+    struct
+    {
+        uint32    aspectRatioIdc;              ///< Table E-1
+        uint32    sarWidth;                    ///< When aspectRatioIdc = 255 (Extended SAR)
+        uint32    sarHeight;                   ///< When aspectRatioIdc = 255 (Extended SAR)
+    } aspectRatioInfo;
+
+    /// Overscan info
+    struct
+    {
+        uint32    overscanAppropFlag;          ///< 0: overscan disabled, 1: enabled
+    } overScanInfo;
+
+    /// Video signal type
+    struct
+    {
+        uint32    videoFormat;                 ///< Table E-2. 5: Unspecified video format
+        uint32    videoFullRangeFlag;          ///< indicates the black level and range of the luma/chroma signals
+        uint32    colorDescriptionPresentFlag; ///< color_description_present
+
+        //color desc
+        uint32    colorPrim;                   ///< Table E-3
+        uint32    transferChar;                ///< Table E-4
+        uint32    matrixCoef;                  ///< Table E-5
+    } videoSignalTypeInfo;
+
+    /// Chroma loc info
+    struct
+    {
+        uint32    chromaLocTop;                ///< Fig. E-1
+        uint32    chromaLocBottom;             ///< Fig. E-1
+    } chromaLocInfo;
+
+    /// Timing info
+    struct
+    {
+        uint32    numUnitsInTick;              ///< Time numerator in Eq. C-1
+        uint32    timeScale;                   ///< Time denominator in Eq. C-1
+        uint32    fixedFrameRateFlag;          ///< Display frame rate
+    } timingInfo;
+};
+
+/// H265 VUI parameters
+struct VideoEncodeH265VuiConfig
+{
+    union
+    {
+        struct
+        {
+            uint32    aspectRatioInfoPresentFlag        :  1; ///< Insert VUI param "aspectRatioInfo",
+                                                              ///  0: not insert, 1: insert
+            uint32    overscanInfoPresentFlag           :  1; ///< Insert VUI param "overScanInfo",
+                                                              ///  0: not insert, 1: insert
+            uint32    videoSignalTypePresentFlag        :  1; ///< Insert VUI param "videoSignalType",
+                                                              ///  0: not insert, 1: insert
+            uint32    chromaLocInfoPresentFlag          :  1; ///< Insert VUI param "chromaLocInfo",
+                                                              ///  0: not insert, 1: insert
+            uint32    defaultDisplayWindowFlag          :  1; ///< Insert VUI param "defaultDisplayWindow",
+                                                              ///  0: not insert, 1: insert
+            uint32    simpleTimingInfoPresentFlag       :  1; ///< Insert VUI param "simpleTimingInfo",
+                                                              ///  0: not insert, 1: insert
+
+            uint32    reserved                          : 26; ///< Reserved for future use.
+        };
+        uint32    u32All;                                     ///< Flags packed as 32-bit uint.
+    } flags;                                                  ///< VUI flags.
+
+    /// Aspect ratio info
+    struct
+    {
+        uint32    aspectRatioIdc;               ///< aspect_ratio_idc syntax
+        struct
+        {
+            uint32    sarWidth;                 ///< sar_width syntax
+            uint32    sarHeight;                ///< sar_height syntax
+        } extendedSar;                          ///< Used when aspectRatioIdc = 255
+    } aspectRatioInfo;
+
+    /// Overscan info
+    struct
+    {
+        uint32    overscanAppropriateFlag;      ///< 0: overscan disabled, 1: enabled
+    } overScanInfo;
+
+    /// Video signal type
+    struct
+    {
+        uint32    videoFormat;                  ///< video_format syntax; 5: Unspecified video format
+        uint32    videoFullRangeFlag;           ///< Indicates the black level and range of the luma/chroma signals
+
+        uint32    colourDescriptionPresentFlag; ///< colour_description_present
+        struct
+        {
+            uint32    colourPrimaries;          ///< colour_primaries syntax
+            uint32    transferCharacteristics;  ///< transfer_characteristics syntax
+            uint32    matrixCoeffs;             ///< matrix_coeffs syntax
+        } colourDescription;                    ///< Used when colorDescriptionPresentFlag = 1
+    } videoSignalTypeInfo;
+
+    /// Chroma loc info
+    struct
+    {
+        uint32    chromaSampleLocTop;           ///< chroma_sample_loc_type_top_field syntax
+        uint32    chromaSampleLocBottom;        ///< chroma_sample_loc_type_bottom_field syntax
+    } chromaLocInfo;
+
+    /// Default display window
+    struct
+    {
+        uint32    defDispWinLeftOffset;         ///< def_disp_win_left_offset syntax
+        uint32    defDispWinRightOffset;        ///< def_disp_win_right_offset syntax
+        uint32    defDispWinTopOffset;          ///< def_disp_win_top_offset syntax
+        uint32    defDispWinBottomOffset;       ///< def_disp_win_bottom_offset syntax
+    } defaultDisplayWindow;
+
+    /// Simple version of timing info
+    struct
+    {
+        uint32    numUnitsInTick;               ///< num_units_in_tick syntax
+        uint32    timeScale;                    ///< time_scale syntax
+        uint32    pocProportionalToTimingFlag;  ///< poc_proportional_to_timing_flag syntax
+        uint32    numTicksPocDiffOneMinus1;     ///< num_ticks_poc_diff_one_minus1 syntax.
+                                                ///  Used when pocProportionalToTimingFlag = 1
+    } simpleTimingInfo;
+};
+
+constexpr uint32 NumSeiPrimariesColors = 3;        ///< Primary Colors green, blue, red
+
+/// Specifies information needed for supplemental enhancement information(SEI)
+/// nal unit for mastering display color volume
+struct VideoEncodeH265SeiConfig
+{
+    /// Mastering display color volume SEI metadata supporting high luminance and wide color gamut Images.
+    /// Specified by by UVE parameter list UVEHEVC_SEI_CATEGORY__MASTERING_DISPLAY_COLOUR_VOLUME
+    VideoEncodeH265SeiInsertionMode insertSeiDisplayColorVolumeMode;
+    struct
+    {
+        uint32    displayPrimariesX[NumSeiPrimariesColors]; ///< display_primaries_x syntax related to color primaries
+        uint32    displayPrimariesY[NumSeiPrimariesColors]; ///< display_primaries_y syntax related to color primaries
+        uint32    whitePointX;                              ///< white_point_x syntax
+        uint32    whitePointY;                              ///< white_point_x syntax
+        uint32    maxDisplayMasteringLuminance;             ///< max_display_mastering_luminance syntax
+        uint32    minDisplayMasteringLuminance;             ///< min_display_mastering_luminance syntax
+    } masteringDisplayColorVolume;
+
+    /// Content light level SEI metadata which conveys the maximum light level and average light level, in the linear
+    /// light domain used for instance to help better controlling the energy consumption for local display.
+    /// Specified by UVE parameter list UVEHEVC_SEI_CATEGORY__CONTENT_LIGHT_LEVEL_INFO
+    VideoEncodeH265SeiInsertionMode insertSeiContentLightLevelMode;
+    struct
+    {
+        uint32     maxContentLightLevel;     ///< max_content_light_level syntax
+        uint32     maxPicAverageLightLevel;  ///< max_pic_average_light_level syntax
+    } contentLightLevelInfo;
+};
+
+/// Specifies information needed to begin encoding a new video stream.
+struct VideoEncodeBeginInfo
+{
+    IVideoEncoder*              pEncoder;               ///< Encoder to use (must be currently bound)
+    float                       frameRate;              ///< Frame rate
+    uint32                      gopSize;                ///< Group-of-pictures size
+    bool                        fillerDataEnable;       ///< Enable filler data to be written (for CBR)
+    IGpuMemory*                 pDestBuffer;            ///< Buffer to use as output ring buffer
+    gpusize                     destBufferOffset;       ///< Offset within the buffer to use as output ring buffer
+    gpusize                     destBufferSize;         ///< Size of the output ring buffer
+    bool                        displayRemote;          ///< Flag enables some features of encoder in Firmware for Miracast scenario
+    uint32                      efcTableSize;           ///< Size of the efc table data buffer
+    const void*                 pEfcTableData;          ///< Efc table data buffer
+    union
+    {
+        /// H.264 specific parameters.
+        struct
+        {
+            union
+            {
+                struct
+                {
+                    uint32      deblockingFilterDisable     :  1;  ///< Disable deblocking filter
+                    uint32      cabacEnable                 :  1;  ///< Enable CABAC entropy coding
+                    uint32      constrainedIntraPredEnable  :  1;  ///< Enable constrained intra prediction
+                    uint32      motionEstHalfPixelEnable    :  1;  ///< Enable motion estimation half pixel
+                    uint32      motionEstQuarterPixelEnable :  1;  ///< Enable motion estimation quarter pixel
+                    uint32      reserved                    : 27;  ///< Reserved for future use
+                };
+                uint32          u32All;
+            } flags;
+
+            /// DPB control
+            uint32                    maxNumLongTermFrames; ///< Maximum number of long term reference frames
+
+            /// Layer control
+            uint32                    maxNumTemporalLayers; ///< Maximum number of temporal layers, must be >= 1
+
+            /// GOP control
+            VideoEncodeH264GopType    gopType;              ///< GOP type
+            uint32                    gopSize;              ///< The period to insert IDR in fixed size mode. 0
+                                                            ///  means only insert the first IDR (infinite GOP siz)
+            uint32                    gopSizeMin;           ///< The minimum period to insert IDR in min/max mode
+            uint32                    gopSizeMax;           ///< The maximum period to insert IDR in min/max mode
+            VideoEncodeH264HeaderMode headerInsertionMode;  ///< Determine when to insert headers SPS/PPS in bitstream
+
+            /// Intra refresh control
+            VideoEncodeH264IntraRefreshMode  intraRefreshMode;      ///< Intra-refresh mode
+            uint32                           intraRefreshNumFrames; ///< The number of frames within which the entire
+                                                                    ///  frame region is refreshed
+
+            /// Slice control
+            VideoEncodeH264SliceControlMode  sliceControlMode;      ///< Slice control mode
+            uint32                           sliceSize;             ///< Slice size
+
+
+            /// Quality control
+            VideoEncodeH264QualityPreset qualityPreset;          ///< Quality vs. speed encoding preset
+            VideoEncodeH264VbaqMode      vbaqMode;               ///< Variance-based adaptive quantization mode
+            uint32                       sceneChangeSensitivity; ///< Scene change sensitivity
+            uint32                       sceneChangeInterval;    ///< Scene change interval
+            /// Rate control
+            VideoEncodeH264RateControlMode   rateControlMode;       ///< Rate control mode
+            uint32                       vbvBufferInitialFullness;  ///< Initial VBV buffer fullness[0=empty, 64=full]
+
+            /// Per-layer Rate control
+            struct
+            {
+                bool        updated;               ///< If true, parameters are updated for this temporal layer index
+                uint32      targetBitrate;         ///< Target bitrate
+                uint32      peakBitrate;           ///< Peak bitrate
+                uint32      frameRateNumerator;    ///< Numerator of frame rate
+                uint32      frameRateDenominator;  ///< Denominator of frame rate
+                uint32      vbvBufferSizeInBits;   ///< VBV buffer size in bits
+            } layer[VideoEncodeH264MaxNumTemporalLayers];
+
+            /// Per-layer initial QP.
+            struct
+            {
+                bool        enabled;               ///< If true, client passes in the initial QP value.
+                uint32      qpI;                   ///< Initial QP for I frames
+                uint32      minQpI;                ///< Min QP for I frames
+                uint32      maxQpI;                ///< Max QP for I frames
+                uint32      qpP;                   ///< Initial QP for P frames
+                uint32      minQpP;                ///< Min QP for P frames
+                uint32      maxQpP;                ///< Max QP for P frames
+            } initQp[VideoEncodeH264MaxNumTemporalLayers];
+
+            /// VUI parameters config
+            struct
+            {
+                bool                     updated;    ///< If true, VUI parameters are updated for this stream
+                VideoEncodeH264VuiConfig vuiParams;  ///< VUI parameters
+            } vuiConfig;
+
+            uint32                 constraintSetFlags;   ///< Video encode set flags for constrained baseline
+            VideoEncodeH264PocType picOrderCntType;      ///< Video enocde picture order count type
+            /// Deblocking filter
+            uint32 sliceAlphaC0OffsetDiv2;      ///< slice_alpha_c0_offset_div2 in spec.
+                                                ///  Only used if deblocking filter is not disabled.
+            uint32 sliceBetaOffsetDiv2;         ///< slice_beta_offset_div2 in spec.
+                                                ///  Only used if deblocking filter is not disabled
+            uint32 deblockingCbQpOffset;        ///< Cb QP offset used for deblocking purpose.
+                                                ///  Correspond to chroma_qp_index_offset in spec
+            uint32 deblockingCrQpOffset;        ///< Cr QP offset used for deblocking purpose.
+                                                ///  Correspond to second_chroma_qp_index_offset in spec
+
+            uint32 cabacInitIdc;                ///< Video encode CABAC init idc
+            /// EFC parameters
+            VideoEncodeH264PictureFormat           inputPictureFormat;        ///< Encoder input picture format
+            VideoEncodeH264ColorVolume             inputColorVolume;          ///< Encoder input picture color volume
+            VideoEncodeH264ColorSpace              inputColorSpace;           ///< Encoder input picture color space
+            VideoEncodeH264ColorIntegerRange       inputColorIntegerRange;    ///< Encoder input picture color range
+            VideoEncodeH264ChromaSubSampling       inputChromaSubsampling;    ///< Encoder input picture subsampling type
+            VideoEncodeH264ChromaLocation          inputChromaLocation;       ///< Encoder input picture chroma location
+            VideoEncodeH264ColorBitDepth           inputColorBitDepth;        ///< Encoder input picture bit depth
+            VideoEncodeH264ColorPackingFormat      inputColorPackingFormat;   ///< Encoder input picture packing format
+            VideoEncodeH264ColorVolume             outputColorVolume;         ///< Encoder output picture color volume
+            VideoEncodeH264ChromaLocation          outputChromaLocation;      ///< Encoder output picture chroma location
+            VideoEncodeH264ColorIntegerRange       outputColorIntegerRange;   ///< Encoder output picture colour range
+        } h264;
+
+        /// H.265 specific parameters.
+        struct
+        {
+            union
+            {
+                struct
+                {
+                    uint32      deblockingFilterDisable        :  1;  ///< Disable deblocking filter
+                    uint32      loopFilterAcrossSlicesEnable   :  1;  ///< Enable loop filter across slices
+                    uint32      ampEnable                      :  1;  ///< Enable amp (asymmetric motion partitions)
+                    uint32      strongIntraSmoothingEnable     :  1;  ///< Enable strong intra smoothing
+                    uint32      constrainedIntraPredEnable     :  1;  ///< Enable constrained intra prediction
+                    uint32      motionEstHalfPixelEnable       :  1;  ///< Enable motion estimation half pixel
+                    uint32      motionEstQuarterPixelEnable    :  1;  ///< Enable motion estimation quarter pixel
+                    uint32      saoDisable                     :  1;  ///< Disable sample adaptive offset
+                    uint32      reserved                       : 24;  ///< Reserved for future use
+                };
+                uint32 u32All;                 ///< Flags packed as 32-bit uint.
+            } flags;                           ///< H265 features enabling/disabling flags.
+
+            uint32      ctbSize;               ///< CTB size
+            uint32      minCuSize;             ///< Minimum CU size
+
+            /// DPB control
+            uint32      maxNumLongTermFrames;  ///< Maximum number of long term reference frames
+
+            /// Layer control
+            uint32      maxNumTemporalLayers;  ///< Maximum number of temporal layers, must be >= 1
+
+            /// GOP control
+            VideoEncodeH265GopType  gopType;   ///< GOP type
+            uint32      numGopsPerIdr;         ///< The frequency to insert IDR as start of a GOP.
+                                               ///  0 means no IDR will be inserted
+            uint32      gopSize;               ///< The period to insert IDR/CRA in fixed size mode.
+                                               ///  0 means only insert the first IDR/CRA (infinite GOP size)
+            uint32      gopSizeMin;            ///< The minimum period to insert IDR/CRA in min/max mode
+            uint32      gopSizeMax;            ///< The maximum period to insert IDR/CRA in min/max mode
+            VideoEncodeH265HeaderMode  headerInsertionMode;    ///< Determine when to insert VPS/SPS/PPS in bitstream
+
+            /// Intra refresh control
+            VideoEncodeH265IntraRefreshMode  intraRefreshMode; ///< Intra-refresh mode
+            uint32                      intraRefreshNumFrames; ///< The number of frames within which the entire
+                                                               ///  frame region is refreshed
+
+            /// Slice control
+            VideoEncodeH265SliceControlMode  sliceControlMode; ///< Slice control mode
+            uint32      sliceSize;                             ///< Slice size
+            uint32      sliceSegmentSize;                      ///< Slice segment size
+
+            /// Quality control
+            VideoEncodeH265QualityPreset qualityPreset;          ///< Quality vs. speed encoding preset
+            VideoEncodeH265VbaqMode      vbaqMode;               ///< Variance-based adaptive quantization mode
+            uint32                       sceneChangeSensitivity; ///< Scene change sensitivity
+            uint32                       sceneChangeInterval;    ///< Scene change interval
+            /// Rate control
+            VideoEncodeH265RateControlMode   rateControlMode;  ///< Rate control mode
+            uint32      vbvBufferInitialFullness;              ///< Initial VBV buffer fullness [0 = empty, 64 = full]
+
+            /// Per-layer Rate control
+            struct
+            {
+                bool        updated;                 ///< If true, parameters are updated for this temporal layer index
+                uint32      targetBitrate;           ///< Target bitrate
+                uint32      peakBitrate;             ///< Peak bitrate
+                uint32      frameRateNumerator;      ///< Numerator of frame rate
+                uint32      frameRateDenominator;    ///< Denominator of frame rate
+                uint32      vbvBufferSizeInBits;     ///< VBV buffer size in bits
+            } layer[VideoEncodeH265MaxNumTemporalLayers];
+
+            /// Per-layer initial QP.
+            struct
+            {
+                bool        enabled;                 ///< If true, client passes in the initial QP value.
+                uint32      qpI;                     ///< Initial QP for I frames
+                uint32      minQpI;                  ///< Min QP for I frames
+                uint32      maxQpI;                  ///< Max QP for I frames
+                uint32      qpP;                     ///< Initial QP for P frames
+                uint32      minQpP;                  ///< Min QP for P frames
+                uint32      maxQpP;                  ///< Max QP for P frames
+            } initQp[VideoEncodeH265MaxNumTemporalLayers];
+
+            /// VUI parameters config
+            struct
+            {
+                bool                     updated;    ///< If true, VUI parameters are updated for this stream
+                VideoEncodeH265VuiConfig vuiParams;  ///< VUI parameters
+            } vuiConfig;
+            /// Deblocking filter
+            uint32 deblockingBetaOffsetDiv2;         ///< pps_beta_offset_div2 in spec
+            uint32 deblockingTcOffsetDiv2;           ///< pps_tc_offset_div2 in spec
+            uint32 deblockingCbQpOffset;             ///< Cb QP offset used for deblocking purpose.
+                                                     ///  Correspond to pps_cb_qp_offset used in deblocking in spec
+            uint32 deblockingCrQpOffset;             ///< Cr QP offset used for deblocking purpose.
+                                                     ///  Correspond to pps_cr_qp_offset used in deblocking in spec
+
+            uint32 cabacInitFlag;                    ///< Cabac init flag
+            uint32 parallelMergeLevel;               ///< Parallel merge level
+            /// EFC parameters
+            VideoEncodeH265PictureFormat           inputPictureFormat;        ///< Encoder input picture format
+            VideoEncodeH265ColorVolume             inputColorVolume;          ///< Encoder input picture color volume
+            VideoEncodeH265ColorSpace              inputColorSpace;           ///< Encoder input picture color space
+            VideoEncodeH265ColorIntegerRange       inputColorIntegerRange;    ///< Encoder input picture color range
+            VideoEncodeH265ChromaSubSampling       inputChromaSubsampling;    ///< Encoder input picture subsampling type
+            VideoEncodeH265ChromaLocation          inputChromaLocation;       ///< Encoder input picture chroma location
+            VideoEncodeH265ColorBitDepth           inputColorBitDepth;        ///< Encoder input picture bit depth
+            VideoEncodeH265ColorPackingFormat      inputColorPackingFormat;   ///< Encoder input picture packing format
+            VideoEncodeH265ColorVolume             outputColorVolume;         ///< Encoder output picture color volume
+            VideoEncodeH265ChromaLocation          outputChromaLocation;      ///< Encoder output picture chroma location
+            VideoEncodeH265ColorIntegerRange       outputColorIntegerRange;   ///< Encoder output picture colour range
+            VideoEncodeH265ColorBitDepth           outputColorBitDepth;       ///< Encoder output picture bit depth
+        } h265;
+    };
+};
+
+/// Specifies per-frame video encoding parameters.
+struct VideoEncodeFrameInfo
+{
+    IVideoEncoder*          pEncoder;           ///< Encoder to use (must be currently bound)
+    IImage*                 pSrcImage;          ///< Source image to encode
+    gpusize                 maxOutputSize;      ///< Maximum number of bytes to write to the output ring buffer
+    gpusize                 maxFeedbacks;       ///< Maximum number of feedbacks to collect
+
+    union
+    {
+        /// H.264 specific parameters.
+        struct
+        {
+            uint32      numTemporalLayers;      ///< Number of temporal layers, must be >= 1 && <= initial max number of
+                                                ///  temporal layers
+
+            union
+            {
+                struct
+                {
+                    /// Header insertion control
+                    uint32 insertAud               :  1;   ///< Add AUD NALU
+                    uint32 insertSps               :  1;   ///< Add SPS NALU
+                    uint32 insertPps               :  1;   ///< Add PPS NALU
+                    uint32 insertEndOfSequence     :  1;   ///< Add end of sequence NALU
+
+                    /// DPB control
+                    uint32 markLongTermReference   :  1;
+                    uint32 useLongTermForReference :  1;   ///< If true, forces use of one of the long term references
+                                                           ///  specified by allowedLongTermReferenceSlotBitfield
+                                                           ///  as reference
+
+                    uint32 reserved                : 26;   ///< Reserved for future use.
+                };
+                uint32 u32All;                             ///< Flags packed as 32-bit uint.
+            } flags;
+
+            /// DPB control
+            VideoEncodeH264PictureType forcePictureType;    ///< Picture type
+            uint32    inputPictureTimestamp;                ///< Input picture timestamp in milliseconds.
+                                                            ///  Only used when GOP size is in min/max mode
+            uint32    markLongTermFrameIndex;               ///< If flags.markLongTermReference is set,
+                                                            ///  this frame marked as a long term with this index
+            uint32    allowedLongTermReferenceSlotBitfield; ///< If flags.useLongTermForReference is set, LTR must be
+                                                            ///  chosen for reference from the LTR slots identified by
+                                                            ///  this bitfield. All unspecified LTRs and
+                                                            ///  all short-term references are removed from DPB.
+
+            /// Rate control
+            struct
+            {
+                union
+                {
+                    struct
+                    {
+                        uint32 updated            :  1;    ///< If true, parameters are updated by user for
+                                                           ///  this temporal layer index
+                        uint32 fillerDataEnable   :  1;    ///< Enable filler data NALU insertion
+                        uint32 skipFrameEnable    :  1;    ///< Enable skip frame
+                        uint32 enforceHrd         :  1;    ///< Disable constraints on QP variation within
+                                                           ///  a picture to meet HRD requirements
+
+                        uint32 reserved           : 28;    ///< Reserved for future use.
+                    };
+                    uint32 u32All;                         ///< Flags packed as 32-bit uint.
+                } flags;                                   ///< Rate control flags.
+
+                uint32      qpI;                 ///< Constant QP for I frames when no rate control is used
+                uint32      minQpI;              ///< Minimum QP for I frames when rate control is enabled
+                uint32      maxQpI;              ///< Maximum QP for I frames when rate control is enabled
+                uint32      qpP;                 ///< Constant QP for P frames when no rate control is used
+                uint32      minQpP;              ///< Minimum QP for P frames when rate control is enabled
+                uint32      maxQpP;              ///< Maximum QP for P frames when rate control is enabled
+                uint32      maxAuSize;           ///< Maximum access unit size
+            } layer[VideoEncodeH264MaxNumTemporalLayers];
+
+            /// Per-layer Rate control initialization
+            struct
+            {
+                bool        updated;               ///< If true, parameters are updated for this temporal layer index
+                uint32      targetBitrate;         ///< Target bitrate
+                uint32      peakBitrate;           ///< Peak bitrate
+                uint32      frameRateNumerator;    ///< Numerator of frame rate
+                uint32      frameRateDenominator;  ///< Denominator of frame rate
+                uint32      vbvBufferSizeInBits;   ///< VBV buffer size in bits
+            } layerRateControlInit[VideoEncodeH264MaxNumTemporalLayers];
+
+            VideoEncodeH264QpMapType qpMapType;         ///< Video encode QP map type
+            IGpuMemory*              pQpMapBuffer;      ///< Buffer for encode QP map data
+            gpusize                  qpMapBufferOffset; ///< Offset of qp map buffer
+            IGpuMemory*             pSearchCenterMapBuffer;      ///< Buffer for search center map data
+            gpusize                 searchCenterMapBufferOffset; ///< Offset of search center buffer
+        } h264;
+
+        /// H.265 specific parameters.
+        struct
+        {
+            uint32      numTemporalLayers;      ///< Number of temporal layers, must be >= 1 && <= initial max number of
+                                                ///  temporal layers
+
+            union
+            {
+                struct
+                {
+                    // Header insertion control
+                    uint32 insertAud               :  1;    ///< Add AUD NALU
+                    uint32 insertVps               :  1;    ///< Add VPS NALU
+                    uint32 insertSps               :  1;    ///< Add SPS NALU
+                    uint32 insertPps               :  1;    ///< Add PPS NALU
+                    uint32 insertEndOfSequence     :  1;    ///< Add end of sequence NALU
+
+                    // DPB control
+                    uint32 markLongTermReference   :  1;
+                    uint32 useLongTermForReference :  1;    ///< If true, forces use of one of the long term references
+                                                            ///  specified by allowedLongTermReferenceSlotBitfield
+                                                            ///  as reference
+
+                    uint32 reserved                : 25;    ///< Reserved for future use.
+                };
+                uint32 u32All;                              ///< Flags packed as 32-bit uint.
+            } flags;
+
+            /// DPB control
+            VideoEncodeH265PictureType forcePictureType;    ///< Picture type
+            uint32    inputPictureTimestamp;                ///< Input picture timestamp in milliseconds.
+                                                            ///  Only used when GOP size is in min/max mode
+            uint32    markLongTermFrameIndex;               ///< If flags.markLongTermReference is set,
+                                                            ///  this frame marked as a long term with this index
+            uint32    allowedLongTermReferenceSlotBitfield; ///< If flags.useLongTermForReference is set, LTR must be
+                                                            ///  chosen for reference from the LTR slots identified by
+                                                            ///  this bitfield. All unspecified LTRs and
+                                                            ///  all short-term references are removed from DPB.
+            /// SEI parameter config
+            VideoEncodeH265SeiConfig  seiConfig;
+
+            /// Rate control
+            struct
+            {
+                union
+                {
+                    struct
+                    {
+                        uint32 updated            :  1;    ///< If true, parameters are updated by user for
+                                                           ///  this temporal layer index
+                        uint32 fillerDataEnable   :  1;    ///< Enable filler data NALU insertion
+                        uint32 skipFrameEnable    :  1;    ///< Enable skip frame
+                        uint32 enforceHrd         :  1;    ///< Disable constraints on QP variation within
+                                                           ///  a picture to meet HRD requirements
+
+                        uint32 reserved           : 28;    ///< Reserved for future use.
+                    };
+                    uint32 u32All;                         ///< Flags packed as 32-bit uint.
+                } flags;                                   ///< Rate control flags.
+
+                uint32      qpI;                 ///< Constant QP for I frames when no rate control is used
+                uint32      minQpI;              ///< Minimum QP for I frames when rate control is enabled
+                uint32      maxQpI;              ///< Maximum QP for I frames when rate control is enabled
+                uint32      qpP;                 ///< Constant QP for P frames when no rate control is used
+                uint32      minQpP;              ///< Minimum QP for P frames when rate control is enabled
+                uint32      maxQpP;              ///< Maximum QP for P frames when rate control is enabled
+                uint32      maxAuSize;           ///< Maximum access unit size
+            } layer[VideoEncodeH265MaxNumTemporalLayers];
+
+            /// Per-layer Rate control initialization
+            struct
+            {
+                bool        updated;               ///< If true, parameters are updated for this temporal layer index
+                uint32      targetBitrate;         ///< Target bitrate
+                uint32      peakBitrate;           ///< Peak bitrate
+                uint32      frameRateNumerator;    ///< Numerator of frame rate
+                uint32      frameRateDenominator;  ///< Denominator of frame rate
+                uint32      vbvBufferSizeInBits;   ///< VBV buffer size in bits
+            } layerRateControlInit[VideoEncodeH265MaxNumTemporalLayers];
+
+            VideoEncodeH265QpMapType qpMapType;         ///< Video encode QP map type
+            IGpuMemory*              pQpMapBuffer;      ///< Buffer for encode QP map data
+            gpusize                  qpMapBufferOffset; ///< Offset of qp map buffer
+            IGpuMemory*             pSearchCenterMapBuffer;      ///< Buffer for search center map data
+            gpusize                 searchCenterMapBufferOffset; ///< Offset of search center buffer
+        } h265;
+    };
+};
+
+
+/// Input structure to @ref ICmdBuffer::CmdBeginVideoDecode.  Specifies parameters needed to begin decoding a new video
+/// stream.
+struct VideoDecodeBeginInfo
+{
+    Extent2d                srcExtent;              ///< Input resolution.
+};
+
+constexpr uint32 MaxDpbSliceCount = 16;             ///< Maximum number of DPB buffer count.
+constexpr uint8  MaxMjpegComponents = 4;     ///Max num of component supported in MJPEG profile
+
+enum class PictureFieldType : uint32
+{
+    // This enum gives details of MJPEG frame type like it is Frame or Field. In Field type, it is bottom or Top.
+    TopField = 1,   // Frame is interlaced and it is Even type
+    BottomField,    // Frame is interlaced and it is Odd type
+    FramePicture,   // Frame is progressive
+    PictureMax
+};
+
+/// Enumerates the different SecureProcessor types.
+enum class SecureProcessorType : uint32
+{
+    Unknown = 0,    ///< Unknown or no secure processor
+    PlayReady,      ///< PlayReady Secure Processor
+    Hmp             ///< HMP Secure Processor
+};
+
+enum class MjpegDxvaTierType : uint32
+{
+    StandardJpegStream = 0,      ///< Standard JPEG stream/Tier 1
+    DxvaTier2          = 1       ///< Tier 2
+};
+
+struct MjpegDecodeFrameInfoDxvaTier2
+{
+    uint8                   numComponents;
+    uint8                   bitDepth;
+    uint8                   quantizationTableSelector[MaxMjpegComponents];
+    uint8                   huffmanTableSelectorAC[MaxMjpegComponents];
+    uint8                   huffmanTableSelectorDC[MaxMjpegComponents];
+    uint32                  scanOffset[MaxMjpegComponents];
+    uint32                  scanSize[MaxMjpegComponents];
+    uint8                   componentIdentifier[MaxMjpegComponents];
+    uint16                  restartInterval;
+    uint32                  statusReportFeedbackNumber;
+    uint8                   horiYSample;
+    uint8                   vertYSample;
+    uint8                   horiUSample;
+    uint8                   vertUSample;
+    uint8                   horiVSample;
+    uint8                   vertVSample;
+
+    uint8                   dcEntropyTableDestSelector;
+    uint8                   acEntropyTableDestSelector;
+
+    const IGpuMemory*       pQMatrixBuffer;                 ///< Quantization Table to be used for decoding
+    gpusize                 qMatrixBufferSize;              ///< Size of the Quantization Table
+    gpusize                 qMatrixBufferOffset;            ///< Offset into the Quantization Table
+
+    const IGpuMemory*       pHuffmanTableBufferAC[MaxMjpegComponents];       ///< AC Huffman Table to be used
+    gpusize                 huffmanTableBufferSizeAC[MaxMjpegComponents];    ///< Size of the AC Huffman Table
+    gpusize                 huffmanTableBufferOffsetAC[MaxMjpegComponents];  ///< Offset into the AC Huffman Table
+
+    const IGpuMemory*       pHuffmanTableBufferDC[MaxMjpegComponents];       ///< DC Huffman Table to be used
+    gpusize                 huffmanTableBufferSizeDC[MaxMjpegComponents];    ///< Size of the DC Huffman Table
+    gpusize                 huffmanTableBufferOffsetDC[MaxMjpegComponents];  ///< Offset into the DC Huffman Table
+
+    uint32                  sosHeaderLength;
+};
+
+/// Input structure to @ref ICmdBuffer::CmdDecodeVideoFrame.  Specifies per-frame parameters for video decode.
+struct VideoDecodeFrameInfo
+{
+    VideoDecodeType         decodeType;             ///< Video decode type
+    Extent2d                srcExtent;              ///< Input resolution. The srcExtent can be smaller or equal to
+                                                    ///  the decode resolution stored in the decoder.
+    Extent2d                destExtent;             ///< Output resolution. If scaler is disabled, destExtent is
+                                                    ///  expected to be same as the srcExtent. The destExtent should
+                                                    ///  be always smaller or equal than the srcExtent. The client
+                                                    ///  should make sure destExtent is supported before making
+                                                    ///  the call.
+
+    const VideoCodecInfo*   pCodecInfoBuffer;       ///< Codec related information
+    const VideoCodecAuxInfo* pAuxiliaryBuffer;      ///< Codec auxiliary information
+
+    const IGpuMemory*       pBitstreamBuffer;       ///< Source bitstream to be decoded
+    gpusize                 bitstreamBufferSize;    ///< Size of the source bitstream
+    gpusize                 bitstreamBufferOffset;  ///< Offset into the source bitstream
+    const IGpuMemory*       pMBControlBuffer;       ///< Source MB control data to be decoded
+    uint32                  mbControlBufferSize;    ///< Size of the MB control data
+    gpusize                 mbControlBufferOffset;  ///< Offset into the MB control data
+
+    const IGpuMemory*       pSubsampleBuffer;       ///< Source subsample info
+    uint32                  subsampleBufferSize;    ///< Size of the subsample info
+    gpusize                 subsampleBufferOffset;  ///< Offset into the cenc subsample info
+
+    const IGpuMemory*       pPicParamsBuffer;       ///< Source picture params to be decoded
+    uint32                  picParamsBufferSize;    ///< Size of the picture params
+    gpusize                 picParamsBufferOffset;  ///< Offset into the picture params
+
+    const IGpuMemory*       pIdctBuffer;            ///< Source IDCT data to be decoded
+    uint32                  idctBufferSize;         ///< Size of the IDCT data
+    gpusize                 idctBufferOffset;       ///< Offset into the IDCT data
+
+    const IGpuMemory*       pHistogramBuffer;       ///< Histogram buffer
+    gpusize                 histogramBufferOffset;  ///< Offset into the histogram data
+
+    const IGpuMemory*       pDecoderHeapBuffer;     ///< Video decoder internal heap
+    gpusize                 decoderHeapOffset;      ///< Offset of the decoder heap
+
+    union
+    {
+       struct
+       {
+           uint32 dynamicDpbTier1 :  1; ///< Decode Tier 1 Support - Single Texture Array
+           uint32 dynamicDpbTier2 :  1; ///< Decode Tier 2 Support - Array of Texture Arrays
+           uint32 dynamicDpbTier3 :  1; ///< Decode Tier 3 Support - Dbp uses same buffer dbw
+           uint32 reserved        : 29; ///< Reserved for future features.
+       };
+       uint32 u32All;
+    } dpbConfig; ///< Config structure for DPB features.
+
+    IImage*                 pDpbCurrBuffer;         ///< Decoded picture buffer dependent on dpbConfig.
+                                                    ///  dynamicDpbTier1, Full DPB.
+                                                    ///  dynamicDpbTier2, Current Decode Frame.
+    IImage*                 pDpbRefBuffers[MaxDpbSliceCount]; ///< AOT Reference Frame Buffers dependent on dpbConfig.
+                                                              ///  dynamicDpbTier1, NULL.
+                                                              ///  dynamicDpbTier2, Reference frames for AOT.
+                                                              ///  tier3 , dbw reference frames.
+    uint8                   dbwIndex[MaxDpbSliceCount];       ///< Udt  feature. dependent on dpbConfig.
+                                                              ///  Tier3. dbwIndex[i] is index of applicaiton dbw.
+
+    uint8                   dpbArraySize;           ///< Dpb Array size.
+    uint8                   dpbCurArraySlice;       ///< Subresource index for the current frame.
+    uint8                   dpbRefArraySlices[MaxDpbSliceCount]; ///< Subresource indexes array for reference frames.
+                                                    ///  The unused ones should be marked as 0xFF.
+    IImage*                 pDecodeTargetBuffer;    ///< Decoded YUV buffer. Used for normal decode output.
+                                                    ///  It can be disable when scaler is enabled. But UVD can also
+                                                    ///  output both the decode target and scaler target at the
+                                                    ///  same time.
+    IImage*                 pScalerTargetBuffer;    ///< Scaled YUV buffer. Used for scaler output. When scaler
+                                                    ///  is disabled, this is set to null.
+    uint8                   decodeTargetArraySlice; ///< Output subresource index for the target frame
+    uint32                  statusReportNum;        ///< Decode status report number.
+    PictureFieldType        pictureFrameType;       ///< Informs Frame type whether it is frame or
+                                                    ///< TopField/BottomField,and this will be used only MJPEG decoder
+#if PAL_CLOSED_SOURCE
+    AspDecryptKeys          decryptKeys;            ///< DRM keys to be used in FW provided by ASP library
+    AspDecryptFlags         decryptFlags;           ///< Flags indicates various aspects of DRM
+    AspPartialDecryptParams partialDecryptParams;   ///< Parameters to indicate partially encypted data details
+    bool                    enableNativeCenc;       ///< Is Native CENC Enabled
+    uint32                  blocksStripeEncrypted;  ///< Number of encrypted 16-byte blocks
+    uint32                  blocksStripeClear;      ///< Number of clear 16-byte blocks
+#endif
+
+    union
+    {
+       struct
+       {
+           uint32 lowLatency     :  1;   ///< Decode Low Latency mode. 1: enabled, 0: disabled
+           uint32 forceFrameCopy :  1;   ///< Decode force frame copy mode. 1: enabled, 0: disabled
+           uint32 reserved       : 30;   ///< Reserved for future features
+       };
+       uint32 u32All;
+    } decodeMode;                       ///< Config structure for decode features
+
+    SecureProcessorType           secureProcessorType;    ///< Indicates which SecureProcessor is used.
+    MjpegDxvaTierType             videoDecodeMjpegDxvaTierSelector;
+    MjpegDecodeFrameInfoDxvaTier2 mjpegDecFrameInfoDxvaTier2;
+};
+
+/// Input structure to @ref ICmdBuffer::CmdBeginMotionEstimation and CmdMotionEstimationOperation
+/// Specifies per-frame parameters for video Motion estimation operation.
+struct MotionEstimationOperationInfo
+{
+    IImage*                 pInputFrame;                ///< Input frame for MEO. Cannot be nullptr.
+    uint32                  inputSubresourceIndex;      ///< Input frame subRes Index
+    IImage*                 pReferenceFrame;            ///< Reference frame for MEO. Cannot be nullptr
+    uint32                  referenceSubresourceIndex;  ///< Ref frame subRes Index
+    IGpuMemory*             pMotionVectorBuffer;        ///< The output motion vector buffer. Cannot be nullptr
+    gpusize                 motionVectorBufferOffset;   ///< Offset for ME to output motion vector data
+};
+
+/// Input structure to @ref ICmdBuffer::CmdMotionEstimationResolveOutput
+/// Specifies per-frame parameters for video Motion estimation resolve operation
+struct MotionEstimationResolveInfo
+{
+    IGpuMemory*             pMotionVectorBuffer;        ///< Input the motion vector buffer. Cannot be nullptr
+    gpusize                 motionVectorBufferOffset;   ///< Input Offset for resolve to output motion vector data.
+    MeBlockSizeType         blockSizeType;              ///< Input blocks size type
+    MePrecisionType         precision;                  ///< Input precision
+    uint32                  pixelWidth;                 ///< Input pixelWidth
+    uint32                  pixelHeight;                ///< Input pixelHeight
+    IImage*                 pOutputMotionVectorImage;   ///< Output client specific. Cannot be nullptr
+    Extent2d                motionVectorCoordinate;     ///< Output motion vector coordinate
+};
+
+/// Specifies resolve input type used in @ref EncoderOutputOptionalMetadataResolveInfo
+enum class VideoEncodeResolveOutputOptionalMetadataType : uint32
+{
+    BlockQpInt8Bit = 0,   ///< QpMap for input signed 8 bits per block.
+    BlockQpUInt8Bit = 1,  ///< QpMap for input unsigned 8 bits per block.
+    BitAllocation = 2,    ///< Bit allocation map.
+    FramePsnr = 3,        ///< Frame PSNR.
+    SubregionPsnr = 4,    ///< Subregion PSNR.
+    Count
+};
+
+/// Structure to @ref ICmdBuffer::CmdResolveEncoderOutputOptionalMetadata
+/// Specifies intput and output parameters for encoder output optional metadata resolve operation
+struct EncoderOutputOptionalMetadataResolveInfo
+{
+    IGpuMemory*             pFeedbackBuffer;                    ///< GPU memory of feedback buffer.
+                                                                ///  Cannot be nullptr, must be valid pointer.
+    uint32                  feedbackDataOffset;                 ///< The data offset in feedback buffer.
+    uint32                  outputFormatVersion;                ///< The version of output data format.
+    VideoEncodeResolveOutputOptionalMetadataType optionalMetadataType; ///< Type of optional metadata in
+                                                                ///  VideoEncodeResolveOutputOptionalMetadataType.
+    IImage*                 pOutputOptionalMetadataImage;       ///< Output image for optional metadata.
+                                                                ///  Must not be nullptr when optionalMetadataType
+                                                                ///  is BlockQpInt8Bit, BlockQpInt16Bit or
+                                                                ///  BitAllocation.
+                                                                ///  Must be nullptr when optionalMetadataType
+                                                                ///  is FramePsnr or SubregionPsnr.
+    IGpuMemory*             pOutputOptionalMetadataBuffer;      ///< Output memory buffer for optional metadata.
+                                                                ///  Must not be nullptr when optionalMetadataType
+                                                                ///  is FramePsnr or SubregionPsnr.
+                                                                ///  Must be nullptr when optionalMetadataType
+                                                                ///  is BlockQpInt8Bit, BlockQpInt16Bit or
+                                                                ///  BitAllocation.
+    uint32                  outputOptionalMetadataBufferOffset; ///< data offset in feedback buffer. Used when
+                                                                ///  pOutputOptionalMetadataBuffer is not nullptr.
+};
+
+/// Specifies resource type used in @ref VideoResourceDescriptor
+enum class VideoResourceType : uint32
+{
+    Image  = 0,    ///< Indicates image resource type
+    Buffer = 1,    ///< Indicates buffer resource type
+    Metadata = 2   ///< Indicate Metadata resource type
+};
+
+/// Specifies session status type used in @ref VideoEncodeMetadata
+enum class VideoSessionStatus : uint32
+{
+    Create = 1,
+    Destroy = 2,
+    Update = 3
+};
+
+/// Specifies resolve input type used in @ref CmdResolveEncoderInputParamLayout
+enum class VideoEncodeResolveInputType : uint32
+{
+    QPMap8Bit = 0,   ///< QPMap for input 8 bits per block.
+    QPMap16Bit = 1,  ///< QPMap for input 16 bits per block.
+    Count
+};
+
+/// Input structure to @ref ICmdBuffer::CmdRecordEncodeInstruction
+/// Specifies per-job parameters for video Enncode queue Record instruction operation
+/// and specifies the session information for video encode
+struct VideoResourceDescriptor
+{
+    VideoResourceType resourceType;       ///< Indicates video resource type
+    union
+    {
+        struct
+        {
+            IImage*        pImage;        ///< Input Image resource
+            uint32         arraySlice;    ///< The zero-based index for the array level
+        };
+
+        struct
+        {
+            IGpuMemory*  pBuffer;         ///< Input Buffer resource
+            gpusize      offset;          ///< Offset in the buffer
+            gpusize      size;            ///< Size of the buffer
+        };
+
+        struct
+        {
+            uint32              width;          ///< Encode image width
+            uint32              height;         ///< Encode image height
+            uint32              framerate;      ///< Encode framerate
+            VideoSessionStatus  sessionStatus;  ///< Encode session status (Create, Destroy, or Update)
+        };
+    };
+    uint32 internalResourceType;           ///< Internal resource type used by Firmware
+    uint32 extraInfo;                      //#  Information used for SMIBS path
+#if PAL_BUILD_SMIBS
+    size_t instOffsetHi;                ///< Offset for addressHi in the encode instruction buffer
+    size_t instOffsetLo;                ///< Offset for addressLo in the encode instruction buffer
+    gpusize subResOffset;               ///< Subresource offset
+#endif
+};
+#endif
+
+#if PAL_BUILD_VPE
+/// Color adjustment parameters
+struct ColorAdjustments
+{
+    float brightness;                           ///< brightness enhancement
+    float contrast;                             ///< contrast enhancement
+    float hue;                                  ///< hue enhancement
+    float saturation;                           ///< saturation enhancement
+};
+
+/// Background color space and color value
+struct BackgroundColor
+{
+    bool isYCbCr;                               ///< flag for YUV/RGB space
+    union
+    {
+        /// Colors for RGB background color space
+        struct
+        {
+            float r;
+            float g;
+            float b;
+            float a;
+        } rgba;
+        /// Colors for YUV background color space
+        struct
+        {
+            float y;
+            float cb;
+            float cr;
+            float a;
+        } ycbcr;
+    };
+};
+
+/// HDR streams' metadata parameters
+struct HdrMetadataInfo
+{
+    uint16 chromaticityRedX;            ///< Red point chromaticity X-value
+    uint16 chromaticityRedY;            ///< Red point chromaticity Y-value
+    uint16 chromaticityGreenX;          ///< Green point chromaticity X-value
+    uint16 chromaticityGreenY;          ///< Green point chromaticity Y-value
+    uint16 chromaticityBlueX;           ///< Blue point chromaticity X-value
+    uint16 chromaticityBlueY;           ///< Blue point chromaticity Y-value
+    uint16 chromaticityWhitePointX;     ///< White point chromaticity X-value
+    uint16 chromaticityWhitePointY;     ///< White point chromaticity Y-value
+    uint32 maxLuminance;                ///< max luminance value for HDR frame/stream
+    uint32 minLuminance;                ///< min luminance value for HDR frame/stream
+    uint32 maxContentLightLevel;        ///< max stream's content light level
+    uint32 maxFrameAverageLightLevel;   ///< average max light level per frame
+};
+
+
+/// Per Stream ToneMap Parameters
+struct VpeTonemapParams
+{
+    uint64          uniqueId;            ///< Unique Id for this 3D LUT
+    GammaType       shaperTf;            ///< Input  Transfer Function (Gamma Type)
+    GammaType       lutOutTf;            ///< Output Transfer Function (Gamma Type)
+    ColorPrimaries  lutInGamut;          ///< Input  gamut color space
+    ColorPrimaries  lutOutGamut;         ///< Output gamut color space
+    uint16          lutDim;              ///< Size of one dimension of the 3D LUT
+    uint16*         pLutData;            ///< pointer to the 3D LUT data implemented as an 1D buffer
+    uint16          lutType;             ///< 3D LUT type
+    const IImage*   pFormattedLutData;   ///< pointer to the 3D LUT data with 3D buffer
+    const IImage*   pShaperLutData;      ///< pointer to the shaper data buffer
+    const IImage*   pShaperLutConfig;    ///< pointer to the shaper config buffer
+    uint32*         pShaperLutDataCpu;   ///< CPU pointer to the shaper data buffer
+    uint32*         pShaperLutConfigCpu; ///< CPU pointer to the shaper config buffer
+    struct
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 964
+        uint16 memAlign;
+#endif
+        uint16 fp16Bias;
+        uint16 fp16Scale;
+    } dma3DLutParam;
+    uint16          inputPQNormFactor;  ///< value used in normalizedPQ for stretching the input
+    bool            enable3DLut;        ///< flag that Tone Mapping is enabled for the stream
+};
+
+/// Color Space Parameters
+struct ColorSpaceParams
+{
+    ColorSpace     cs;                          ///< YUV/RGB flag
+    ColorRange     range;                       ///< full or studio range of color components
+    GammaType      gamma;                       ///< gamma type
+    Cositing       chromaCositing;              ///< chroma cositing
+    ColorPrimaries primaries;                   ///< Color gamut type
+};
+
+/// Auxiliary information for Lut Compound as we reuse VpeTonemapParams to send in LUTs themselves
+struct VpeLutCompound
+{
+    Cositing         upsampledChromaInput; ///< Normally input stream DXGI_COLOR_SPACE indicates chroma
+                                           /// siting. MS spec requires DXGI_COLOR_SPACE_CUSTOM for LUT
+                                           /// compound case, so it is provided separately.
+    ColorSpaceParams csParams3D;           ///< LUT compound output color space (not same as output stream!)
+    float            cscMatrix[3][4];      ///< 3x4 conversion matrix
+};
+
+/// Scaling taps count (currently hardcoded)
+struct ScalingTapsCount
+{
+    uint32 vTapsLuma;       ///< 4 taps for luma polyphase scaling
+    uint32 hTapsLuma;       ///< 4 taps for luma polyphase scaling
+    uint32 vTapsChroma;     ///< 2 taps for chroma bilinear scaling
+    uint32 hTapsChroma;     ///< 2 taps for chroma bilinear scaling
+};
+
+/// Alpha blending information
+struct BlendingInfo
+{
+    bool   enableBlending;  ///< enable global blending flag
+    uint32 alpha;           ///< global alpha blending value
+};
+
+/// Video input stream information
+struct VideoInputStreamsInfo
+{
+    ColorSpaceType              colorSpaceType;            ///< Color Space type
+    ColorAdjustments            colorAdjustments;          ///< Color Adjustments
+    ColorSpaceParams            colorSpaceParams;          ///< Color Space parameters
+    HdrMetadataInfo             hdrMetadata;               ///< HDR metadata parameters
+    VpeTonemapParams            vpeTonemapParams;          ///< HDR Tone Mapping parameters (for 3D LUT implementation)
+    VpeLutCompound              vpeLutCompound;            ///< Lut compound auxilliary info
+    ScalingTapsCount            scalingTapsCount;          ///< Scaling filter taps count for luma/chroma
+    const IImage*               pSrcImage;                 ///< pointer to the source image struct
+    uint32                      srcSubResIndex;            ///< source subresource index
+    uint32                      clockWiseRotation;         ///< clockwise rotation of the frame parameter
+    uint32                      iSharpLevel;               ///< Adaptive sharpness parameters
+    Rect                        srcRect;                   ///< source rectangle offsets and size
+    Rect                        dstRect;                   ///< destination rectangle offsets and size
+    float                       lowerLuma;                 ///< lowest range of the luma
+    float                       upperLuma;                 ///< highest range of the luma
+    float                       alpha;                     ///< value for global alpha-blending
+
+    union
+    {
+        struct
+        {
+            uint32 useStreamHdrMetadata  : 1;              ///< flag if stream has HDR metadata
+            uint32 horizontalFlipEnabled : 1;              ///< flag if H-flip enabled
+            uint32 verticalFlipEnabled   : 1;              ///< flag if V-flip enabled
+            uint32 enableBlending        : 1;              ///< flag for alpha blending
+            uint32 enableLuma            : 1;              ///< flag for luma key
+            uint32 useGeometricScaling   : 1;              ///< flag if stream enable geometric scaling
+            uint32 lutCompoundEnabled    : 1;              ///< Is this LUT compound case
+#if PAL_BUILD_VPE20
+            // More detailed info for background replace / alpha combine features in vpe_types.h
+            uint32 isAlphaPlane          : 1;              ///< flag if stream is alpha thru luma plane
+            uint32 isAlphaCombine        : 1;              ///< flag if stream is part of bg replace alpha combine op
+            uint32 isBackgroundPlane     : 1;              ///< flag if stream is new background for background replacement
+            uint32 enableEasf            : 1;              ///< flag if stream enable edge adaptive scaling function
+            uint32 preferEasf            : 1;              ///< flag if stream prefer edge adaptive scaling function
+            uint32 enableISharp          : 1;              ///< flag if stream enable iSharp
+#else
+            uint32 placeholder           : 6;              ///< Reserved for future use.
+#endif
+            uint32 reserved              : 19;             ///< Reserved for future use.
+        };
+        uint32 u32All;                                     ///< Flags packed as 32-bit uint.
+    } flags;
+};
+
+/// Video output stream information
+struct VideoOutputStreamInfo
+{
+    AlphaFillMode               alphaFillMode;         ///< Alpha blending mode
+    ColorSpaceType              targetColorSpaceType;  ///< destination Color Space type
+    BackgroundColor             backgroundColor;       ///< background color
+    HdrMetadataInfo             targetHdrMetadata;     ///< HDR metadata parameters
+    ColorSpaceParams            targetColorSpaceParams;///< alpha-blending parameters
+    const IImage*               pDstImage;             ///< pointer to destination image
+#if PAL_BUILD_VPE20
+    const IImage*               pDstFrod[3];                    ///< pointer to FROD destinations
+    uint32                      dstFrodCount;                   ///< number of FROD destinations
+#endif
+#if PAL_BUILD_VPE30
+    uint32                      frodHorizontalTaps;        ///< FROD horizontal filter taps
+    uint32                      frodVerticalTaps;          ///< FROD vertical filter taps
+    float                       frodHorizontalCoeffs[5];    ///< FROD horizontal filter coefficients
+    float                       frodVerticalCoeffs[5];      ///< FROD vertical filter coefficients
+#endif
+    uint32                      dstSubResIndex;        ///< destinatin subresource index
+    Rect                        targetRect;            ///< target rectangle offset and size
+    union
+    {
+        struct
+        {
+            uint32 useTargetHdrMetadata : 1;           ///< flag if target stream has metadata
+            uint32 reserved             : 31;          ///< Reserved for future use.
+        };
+        uint32 u32All;                                 ///< Flags packed as 32-bit uint.
+    } flags;
+};
+
+/// Video processor frame info
+struct VideoProcessorFrameInfo
+{
+    IVideoProcessor*             pProcessor;        ///< Processor to use (must be currently bound)
+    uint32                       streamCount;       ///< Number of input Streams
+    const VideoInputStreamsInfo* pInputStreamsInfo; ///< Source stream parameters
+    VideoOutputStreamInfo        outputStreamInfo;  ///< destination stream parameters
+};
+#endif
+
 /// Provides dynamic command buffer flags during submission
 /// The following flags are used for Frame Pacing when delay time is configured to be calculated by KMD.
 /// (Currently DX clients require this).
@@ -2219,6 +3612,64 @@ struct CmdPostProcessFrameInfo
     Pal::ImageLayout srcImageLayout;
 };
 
+
+#if PAL_CLIENT_DX
+/// Specifies the input parameters for ICmdBuffer::CmdPresent.
+struct CmdPresentInfo
+{
+    union
+    {
+        struct
+        {
+            uint32 srcIsTypedBuffer : 1;  ///< True if the source is a typed buffer instead of an image.
+            uint32 dstIsTypedBuffer : 1;  ///< True if the destination is a typed buffer instead of an image.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 941
+            uint32 notifyOnly       : 1;  ///< True if it is a notify-only present
+#else
+            uint32 notifyOnly       : 1;  ///< Indicates that a present occurred outside of PAL. PAL must not execute
+                                          ///  a present if this is true but may update internal frame tracking state.
+#endif
+            uint32 reserved         : 29; ///< Reserved for future usage.
+        };
+        uint32     u32All;                ///< Flags packed as uint32.
+    } flags;
+
+    union
+    {
+        const IImage*     pSrcImage;       ///< The image to present.
+        const IGpuMemory* pSrcTypedBuffer; ///< The typed buffer to present.  Must have been created as a typed buffer.
+    };
+
+    union
+    {
+        const IImage*     pDstImage;       ///< An optional destination image for blt presentations.
+        const IGpuMemory* pDstTypedBuffer; ///< An optional destination typed buffer for blt presentations.  Must have
+                                           ///  been created as a typed buffer.
+    };
+
+    IQueue* pQueue; ///< The queue that will execute the presentation.
+};
+
+/// Specifies the output parameters for ICmdBuffer::CmdPresent.
+struct CmdPresentOutput
+{
+    union
+    {
+        struct
+        {
+            uint32 addedGpuWork : 1;  ///< True if commands were added to the command buffer.
+            uint32 reserved     : 31; ///< Reserved for future usage.
+        };
+        uint32     u32All;            ///< Flags packed as uint32.
+    } flags;
+
+    DxKmtHandle     hSrcAllocation;   ///< The DX allocation handle associated with the source resource.
+    DxKmtHandle     hDstAllocation;   ///< The DX allocation handle associated with the destination resource or NULL.
+    DxContextHandle hContext;         ///< The DX context handle of pQueue (the queue that will execute the present).
+    DxContextHandle hHwQueue;         ///< The DX HW queue handle of pQueue, if applicable.
+};
+#endif
+
 /// External flags for ScaledCopyImage.
 union ScaledCopyFlags
 {
@@ -2301,6 +3752,21 @@ struct PrimeGpuCacheRange
                                   ///  has no bearing on barrier execution or memory dependencies.
 };
 
+#if PAL_CLOSED_SOURCE
+/// Specifies AES parameters needed as input to execute @ref ICmdBuffer::CmdCopyMemoryAes.
+//# Refer to AES-CTR (Counter Mode) specs for some background on keys and counters.
+struct AesCopyConfig
+{
+    uint8  key[16];         ///< 128-bit key for AES encryption/decryption
+                            ///  where LSB to MSB is key[0] to key[15]
+    uint8  keyCounter[16];  ///< 128-bit counter for AES encryption/decryption
+                            ///  where LSB to MSB is keyCounter[0] to keyCounter[15]
+    uint8  dataCounter[16]; ///< 128-bit data counter for AES encryption/decryption
+                            ///  where LSB to MSB is dataCounter[0] to dataCounter[15]
+    uint32 counterOffset;   ///< Initial offset for the counter
+};
+#endif
+
 /// Magic number tag for payloads in command buffer dumps
 constexpr uint32 CmdBufferPayloadSignature = 0x1337F77D;
 
@@ -2348,6 +3814,34 @@ union RgpMarkerSubQueueFlags
     };
     uint32  u32All; ///< Flags packed into a uint32
 };
+
+#if PAL_BUILD_INFINITY_STORAGE
+struct InfinityStorageReadFileInfo
+{
+    uint64            importSeqNumber;
+    uint64            fileKmdKey;
+    uint64            fileOffset;
+    uint64            importDataSizeInBytes;
+    IGpuMemory*       pDstResource;
+    uint64            dstOffset;
+    IGpuMemory*       pStatusResource;
+    uint64            statusOffset;
+    uint64            completionOffset;
+    uint64            completionMask;
+    uint64            cancellationTag;
+};
+#endif
+
+#if PAL_BUILD_SMIBS
+enum class SmibsMemUsageType : uint32
+{
+    Internal = 0,   ///< Allocation is for internal use only.
+    Input,          ///< Allocated FPGA memory object is input to the Engine.
+    Output,         ///< Allocated FPGA memory object is output of the Engine.
+    InputOutput,    ///< Allocated FPGA memory object is input&output of the Engine.
+    Count
+};
+#endif
 
 /// Bitmask values for flags giving hints for commands that use GPU memory virtual addresses instead of GPU memory
 /// objects.
@@ -2449,7 +3943,7 @@ struct CaptureInfo
                                         ///  see @ref CaptureResourceInfo.
     CaptureFlags         flags;         ///< see @ref CaptureFlags.
 };
-#endif
+#endif  // PAL_DEVELOPER_BUILD
 
 /**
  ***********************************************************************************************************************
@@ -2548,6 +4042,23 @@ public:
     /// @param [in] params Parameters necessary to manage dynamic pipeline shader information.
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) = 0;
+
+#if PAL_WORK_GRAPHS_SUPPORT
+    /// Binds a work graph to the current command buffer state, along with a region of GPU memory to use as the backing
+    /// store for the graph during execution.  The memory region must have been initialized prior to the
+    /// @ref CmdDispatchGraph operation by calling @ref CmdInitGraphBackingStore.
+    ///
+    /// @param [in] params Parameters necessary to manage work graph information.
+    virtual void CmdBindWorkGraph(
+        const WorkGraphBindParams& params) = 0;
+
+    /// Binds a GPU memory address containing a table of VB SRDs to work graph execution.
+    /// These VB SRDs must be created with @ref IDevice::CreateUntypedBufferViewSrds
+    ///
+    /// @param gpuAddr [in] GPU virtual address of the VB SRD table.
+    virtual void CmdBindWorkGraphVertexBufferTable(
+        gpusize gpuAddr) = 0;
+#endif
 
     /// Binds the specified MSAA state object to the current command buffer state.
     ///
@@ -3248,6 +4759,41 @@ public:
         m_funcTable.pfnCmdDispatchMeshIndirectMulti(this, gpuVirtAddrAndStride, maximumCount, countGpuAddr);
     }
 
+#if PAL_WORK_GRAPHS_SUPPORT
+    /// Dispatches a set of input payloads which propagate work items through the currently bound @ref IWorkGraph.
+    /// It is an error if there is currently no bound graph backing store.  This dispatch will be ignored if the
+    /// number of input payloads is zero.
+    ///
+    /// This function requires use of the following barrier flags for the backing store:
+    /// - PipelineStage:  @ref PipelineStageFetchIndirectArgs
+    /// - CacheCoherency: @ref CoherGraphBackingStore
+    ///
+    /// @see DispatchGraphInput
+    ///
+    /// @param [in] graphInput  Defines input payloads to feed into the graph.
+    void CmdDispatchGraph(
+        const DispatchGraphInput& graphInput)
+    {
+        m_funcTable.pfnCmdDispatchGraph(this, graphInput);
+    }
+
+    /// Initializes a piece of memory for later use as the backing store for a graph layout.  Must be called at least
+    /// once prior to any @ref CmdDispatchGraph operation using this buffer as its backing store.
+    ///
+    /// This function requires use of the following barrier flags for @ref gpuVirtAddr.
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopyDst
+    ///
+    /// @param [in] workGraph    Work Graph which will use the backing store.
+    /// @param [in] gpuVirtAddr  GPU address of the backing store memory to initialize.
+    /// @param [in] sizeInBytes  Size of the backing store memory, in bytes.  Must meet the requirements for backing
+    ///                          store memory size described in @ref CmdBindWorkGraph().
+    virtual void CmdInitGraphBackingStore(
+        const IWorkGraph& workGraph,
+        gpusize           gpuVirtAddr,
+        gpusize           sizeInBytes) = 0;
+#endif // PAL_WORK_GRAPHS_SUPPORT
+
     /// Copies multiple regions from one GPU memory allocation to another.
     ///
     /// None of the destination regions are allowed to overlap each other, nor are destination and source regions
@@ -3278,6 +4824,10 @@ public:
     /// @note  The CmdCopyMemory() path should be preferred because it contains more optimizations due to more
     ///        knowledge about the memory itself that is lost when only virtual addresses are passed in.
     ///
+#if PAL_CLOSED_SOURCE
+    /// If the device associated with the command buffer requires the P2P PCI BAR work around then recording will
+    /// fail because not enough information about the destination memory is known.
+#endif
     ///
     /// None of the destination regions are allowed to overlap each other, nor are destination and source regions
     /// allowed to overlap when the source and destination GPU memory virtual address are the same.  Any illegal
@@ -3315,6 +4865,35 @@ public:
                              pRegions,
                              0);
     }
+#endif
+
+#if PAL_CLOSED_SOURCE
+    /// Copies multiple regions from one GPU memory allocation to another using secure AES decryption.
+    ///
+    /// None of the destination regions are allowed to overlap each other, nor are destination and source regions
+    /// allowed to overlap when the source and destination GPU memory allocations are the same.  Any illegal overlapping
+    /// will cause undefined results.
+    ///
+    /// The region offsets and copy sizes must be 4-byte aligned.
+    ///
+    /// This function requires use of the following barrier flags:
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for the source and @ref CoherCopyDst for the destination.
+    ///
+    /// @note This function is only supported on DMA engines.
+    ///
+    /// @param [in] srcGpuMemory  GPU memory allocation where the source regions are located.
+    /// @param [in] dstGpuMemory  GPU memory allocation where the destination regions are located.
+    /// @param [in] aesCopyConfig AES parameters needed to execute copy.
+    /// @param [in] regionCount   Number of regions to copy; size of the pRegions array.
+    /// @param [in] pRegions      Array of copy regions, each entry specifying a source offset, destination offset, and
+    ///                           copy size.
+    virtual void CmdCopyMemoryAes(
+        const IGpuMemory&       srcGpuMemory,
+        const IGpuMemory&       dstGpuMemory,
+        const AesCopyConfig&    aesCopyConfig,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) = 0;
 #endif
 
     /// Copies multiple regions from one image to another.
@@ -4107,6 +5686,7 @@ public:
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) = 0;
 
+
     /// Encodes a buffer into a Sampler Feedback image.
     ///
     /// This interface only supports encoding raw data from a buffer to an encoded Sampler Feedback map
@@ -4160,6 +5740,7 @@ public:
         const IGpuMemory&                        dstBuffer,
         uint32                                   regionCount,
         const PrtPlusImageToBufferResolveRegion* pRegions) = 0;
+
 
     /// Puts the specified event into the _set_ state when all prior GPU work has progressed past the given stages.
     ///
@@ -4706,6 +6287,27 @@ public:
         uint32   alignmentInDwords,
         gpusize* pGpuAddress) = 0;
 
+#if PAL_BUILD_SMIBS
+    /// Allocates a chunk of memory on FPGA simulation space corresponding to the provided GPU Memory.
+    /// The returned SMIBS address is valid until until ICmdBuffer::Reset() or ICmdBuffer::Begin().
+    /// The client may use the returned SMIBS address can use directly in the command buffer that must be
+    /// submitted to SMIBS Queue and must only be referenced by work contained within this command buffer.
+    ///
+    /// @param [in]  pGpuMemory         Object of the GPU Memory for which memory on FPGA is to be allocated.
+    /// @param [in]  usage              Usage of the allocated FPGA memory - input, output, internal or both.
+    /// @param [in]  offset             offset to the starting point of data in memory to be copied in/out.
+    /// @param [in]  size               size of the data to be copied to/from FPGA memory, in bytes.
+    /// @param [out] pSmibsAddress      64-bit address of the FPGA Simulation space.
+    ///
+    /// @returns Success, if the allocation of memory in FPGA were successful. Otherwise, errors may be returned.
+    virtual Result CmdAllocateSmibsMemory(
+        IGpuMemory*         pGpuMemory,
+        SmibsMemUsageType   usage,
+        gpusize             offset,
+        gpusize             size,
+        gpusize*            pSmibsAddress) = 0;
+#endif
+
     /// Get memory from scratch memory and bind to GPU event. For now only GpuEventPool and CmdBuffer's internal
     /// GpuEvent use this path to allocate and bind GPU memory. These usecases assume the bound GPU memory is GPU access
     /// only, so client is responsible for resetting the event from GPU, and cannot call Set(), Reset(), GetStatus().
@@ -4840,8 +6442,208 @@ public:
         uint32             firstMip,
         uint32             numMips) = 0;
 
+#if PAL_BUILD_VIDEO
+    /// Binds a video encoder to the command buffer. Only supported in video encode queues.
+    ///
+    /// @param [in] encoder       Video encoder to bind.
+    virtual void CmdBindVideoEncoder(
+        IVideoEncoder& encoder) = 0;
+
+    /// Begins video stream encode operation using the video encode pipeline currently bound to the command buffer.
+    /// Only supported in video encode queues.
+    ///
+    /// @param [in] beginInfo     Structure containing stream parameters.
+    virtual void CmdBeginVideoEncode(
+        const VideoEncodeBeginInfo&  beginInfo) = 0;
+
+    /// Encodes a single video frame into the current stream.
+    /// Only supported in video encode queues.
+    ///
+    /// See comment above definition of @ref ImageLayoutEngineFlags for detailed requirements of layout transition.
+    /// VCN only needs to care layout transition and inter-queue sync helps on the stall and cache sync, suggest
+    /// reusing existing pipeline stage and cache coherency flags for simple. So This function requires use of the
+    /// following barrier flags (destination is a buffer so not layout transition necessary):
+    ///
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for source.
+    /// - ImageLayout:    @ref LayoutVideoEncodeRead for source.
+    ///
+    /// @param [in] frameInfo     Structure containing information about the frame to be encoded and any per-frame
+    ///                           parameters.
+    virtual void CmdEncodeVideoFrame(
+        const VideoEncodeFrameInfo&  frameInfo) = 0;
+
+    /// Terminates encode of video stream.
+    /// Only supported in video encode queues.
+    virtual void CmdEndVideoEncode() = 0;
+
+    /// Binds a video decoder to the command buffer. Only supported in video decode queues.
+    ///
+    /// @param [in] decoder       Video decoder to bind.
+    virtual void CmdBindVideoDecoder(
+        IVideoDecoder& decoder) = 0;
+
+    /// Initializes a UVD session for decoding the current video stream.  A video decode pipeline must be bound when
+    /// this call is made, as that defines the current stream.  The UVD must execute this command for a stream before
+    /// any CmdDecodeVideoFrame() calls are executed.
+    /// Only supported in UVD.
+    ///
+    /// A CmdEndVideoDecode() command should be executed to destroy the UVD session once decode of all frames in
+    /// the stream is complete.
+    ///
+    /// @param [in] beginInfo     Structure containing stream parameters.
+    virtual void CmdBeginVideoDecode(
+        const VideoDecodeBeginInfo&  beginInfo) = 0;
+
+    /// Decodes a single frame in the current video stream.  A video decode pipeline must be bound when this call
+    /// is made, as that defines the current stream (and corresponding session on the UVD engine).
+    /// Only supported in UVD.
+    ///
+    /// @warning Due to UVD restrictions, only one CmdDecodeVideoFrame call is allowed in a single command buffer.
+    /// Decoding multiple frames will require 1 command buffer per frame, each with a single CmdDecodeVideoFrame call.
+    ///
+    /// See comment above definition of @ref ImageLayoutEngineFlags for detailed requirements of layout transition.
+    /// VCN only needs to care layout transition and inter-queue sync helps on the stall and cache sync, suggest
+    /// reusing existing pipeline stage and cache coherency flags for simple. So This function requires use of the
+    /// following barrier flags (source is a buffer so not layout transition necessary):
+    ///
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopyDst for destination.
+    /// - ImageLayout:    @ref LayoutVideoDecodeWrite for destination.
+    ///
+    /// @param [in] frameInfo     Structure containing information about the frame to be decoded and any per-frame
+    ///                           parameters.
+    virtual void CmdDecodeVideoFrame(
+        const VideoDecodeFrameInfo&  frameInfo) = 0;
+
+    /// Terminates decode of a video stream.  A video decode pipeline must be bound when this call is made,
+    /// as that defines the current stream.  @see CmdBeginVideoDecode().
+    /// Only supported in UVD.
+    ///
+    virtual void CmdEndVideoDecode() = 0;
+
+    /// Binds a motion estimator to the command buffer. Only supported in video encode queues.
+    ///
+    /// @param [in] me       Motion estimator to bind.
+    virtual void CmdBindMotionEstimator(
+        const IMotionEstimator& me) = 0;
+
+    /// Initializes a Motion Estimation session for ME operation. ME pipeline must be bound when
+    /// this call is made, as that defines the current stream.  The engine must execute this command for a stream
+    ///  before any CmdMotionEstimationOperation() calls are executed
+    ///
+    /// @param [in] meInfo       Structure containing motion estimation begin operation needed parameters..
+    virtual void CmdBeginMotionEstimation(
+        const MotionEstimationOperationInfo& meInfo) = 0;
+
+    /// Terminates Motion estimation session..  ME pipeline must be bound when this call is made,
+    ///.  @see CmdBeginMotionEstimation().
+    virtual void CmdEndMotionEstimation() = 0;
+
+    /// This call does the motion estimation operation.
+    /// @param [in] meInfo  Structure containing motion estimation operation needed parameters.
+    virtual void CmdMotionEstimationOperation(
+        const MotionEstimationOperationInfo& meInfo) = 0;
+
+    /// The  CmdMotionEstimationOperation produces AMD format motion vectors buffer, it needs to convert to
+    /// standard format, this resolve operation on a compute/3d queue will take this buffer as input and resolve
+    /// it to the API specified format.
+    /// @param [in/out]  resolveInfo Structure containing the resolve operation needed parameters.
+    virtual void CmdMotionEstimationResolveOutput(
+        MotionEstimationResolveInfo* pResolveInfo) = 0;
+
+    /// Encode core library loaded by clients prepares encode instructions and resources required for the encode
+    /// job. The instructions and resources are submitted to the encode queue using this interface
+    /// @param [in]  pEncodeInstruction Contains Encode instructions that can be executed in Firmware
+    /// @param [in]  dataSize           Size of the Encode instructions
+    /// @param [in]  numResources       Specifies number of the dependent resources required for this job
+    /// @param [in]  pResourceList      Contains the information of the resources
+    virtual void CmdRecordEncodeInstruction(
+        const uint32* pEncodeInstruction,
+        uint32                   dataSize,
+        uint32                   numResources,
+        VideoResourceDescriptor* pResourceList) = 0;
+
+    /// This call records the command to resolve encoder output metadata.<summary>
+    ///
+    /// @param [in]     pFeedbackBuffer       GPU memory of feedback buffer. Cannot be nullptr, must be valid pointer.
+    /// @param [in]     feedbackDataOffset    The data offset in feedback buffer.
+    /// @param [in/out] pOutputMetadataBuffer GPU memory of output metadata buffer. Cannot be nullptr.
+    /// @param [in]     metadataOffset        The data offset of metadata buffer
+    /// @param [in]     outputFormatVersion   The version of output data format
+    virtual void CmdResolveEncoderOutputMetadata(
+        IGpuMemory* pFeedbackBuffer,
+        uint32      feedbackDataOffset,
+        IGpuMemory* pOutputMetadataBuffer,
+        uint32      metadataOffset,
+        uint32      outputFormatVersion) = 0;
+
+    /// This call records the command to resolve encoder output optional metadata into a image or memory buffer.<summary>
+    ///
+    /// @param [in/out] optionalMetadataInfo    Type of optional metadata in VideoEncodeResolveOutputOptionalMetadataType
+    ///                                         and GPU Image or Memory Buffer resource of output metadata buffer.
+    virtual void CmdResolveEncoderOutputOptionalMetadata(
+        const EncoderOutputOptionalMetadataResolveInfo& optionalMetadataInfo) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 947
+    /// This call records the command to resolve encoder output optional metadata into a image or memory buffer.<summary>
+    ///
+    /// @param [in]     pFeedbackBuffer         GPU memory of feedback buffer. Cannot be nullptr, must be valid pointer.
+    /// @param [in]     feedbackDataOffset      The data offset in feedback buffer.
+    /// @param [in]     outputFormatVersion     The version of output data format.
+    /// @param [in]     optionalMetadataType    Type of optional metadata in VideoEncodeResolveOutputOptionalMetadataType.
+    /// @param [in/out] pOutputOptionalMetadata GPU Image resource of output metadata buffer. Cannot be nullptr.
+    void CmdResolveEncoderOutputOptionalMetadata(
+        IGpuMemory*                                  pFeedbackBuffer,
+        uint32                                       feedbackDataOffset,
+        uint32                                       outputFormatVersion,
+        VideoEncodeResolveOutputOptionalMetadataType optionalMetadataType,
+        IImage*                                      pOutputOptionalMetadata)
+    {
+        const EncoderOutputOptionalMetadataResolveInfo info
+        {
+            .pFeedbackBuffer = pFeedbackBuffer,
+            .feedbackDataOffset = feedbackDataOffset,
+            .outputFormatVersion = outputFormatVersion,
+            .optionalMetadataType = optionalMetadataType,
+            .pOutputOptionalMetadataImage = pOutputOptionalMetadata,
+            .pOutputOptionalMetadataBuffer = nullptr,
+            .outputOptionalMetadataBufferOffset = 0
+        };
+        CmdResolveEncoderOutputOptionalMetadata(info);
+    }
+#endif
+
+    /// This call records the command to copy encoder error code to feedback buffer.<summary>
+    ///
+    /// @param [in] pFeedbackBuffer       GPU memory of feedback buffer. Cannot be nullptr, must be valid pointer.
+    /// @param [in] feedbackDataOffset    The data offset in feedback buffer
+    /// @param [in] errorCode             The error code to copy
+    virtual void CmdCopyEncoderErrorCode(
+        IGpuMemory* pFeedbackBuffer,
+        uint32      offset,
+        uint32      errorCode) = 0;
+
+    /// This call records the command to resolve encoder input parameter layout.<summary>
+    ///
+    /// @param [in]     resolveType                     Type of the input parameter to be resolved.
+    /// @param [in]     pInputMapPictureBuffer          GPU memory of input parameter 2D buffer. Cannot be nullptr.
+    /// @param [in/out] pOutputResolveMapMemoryBuffer   GPU memory of output resolved buffer. Cannot be nullptr.
+    virtual void CmdResolveEncoderInputParamLayout(
+        VideoEncodeResolveInputType resolveType,
+        const IImage&               inputMapPictureBuffer,
+        IGpuMemory*                 pOutputResolvedMapMemoryBuffer) = 0;
+#endif
+
     /// Reserve @ref CommandDataAlloc space for external command packets up to a size of @ref sizeInDwords.
     /// This method is only supported on command buffers for the following queue types:
+#if PAL_BUILD_VIDEO
+    /// - QueueTypeVideoEncode
+    /// - QueueTypeVideoDecode
+#endif
+#if PAL_BUILD_VPE
+    //// - QueueTypeVideoProcessor
+#endif
     ///
     /// @warning @ref CmdCommitSpace must be called once after this function is called.
     //           Failing to pair up these function calls will result in undefined behavior.
@@ -4857,10 +6659,82 @@ public:
 
     /// Ensure data is committed to the command buffer and unused space is reclaimed.
     /// This method is only supported on command buffers for the following queue types:
+#if PAL_BUILD_VIDEO
+    /// - QueueTypeVideoEncode
+    /// - QueueTypeVideoDecode
+#endif
+#if PAL_BUILD_VPE
+    //// - QueueTypeVideoProcessor
+#endif
     ///
     /// @param [in] pCmdSpace  Pointer to the next unused dword in the command buffer.
     virtual void CmdCommitSpace(
         uint32* pCmdSpace) = 0;
+
+#if PAL_CLIENT_DX
+    /// Allocate space from the marker chunk.
+    /// This method is only supported on command buffers for the following queue types:
+#if PAL_BUILD_VIDEO
+    /// - QueueTypeVideoEncode
+    /// - QueueTypeVideoDecode
+#endif
+#if PAL_BUILD_VPE
+    //// - QueueTypeVideoProcessor
+#endif
+    ///
+    /// @param [in] sizeInDwords size of the marker data in Dwords.
+    ///
+    /// @returns gpu address of the marker data.
+    virtual gpusize CmdAllocateMarkerData(
+        uint32 sizeInDwords) = 0;
+#endif
+
+#if PAL_BUILD_SECURITY
+    /// Initializes the Secure Processor kernel.
+    /// @param [in] cmdInfo  Structure containing all related input parameters and data.
+    virtual void CmdInitSecureProcessorKernel(
+        const SecureProcessorCmdInfo& cmdInfo) = 0;
+
+    /// Loads a trusted application onto the Secure Processor.
+    /// @param [in] cmdInfo  Structure containing all related input parameters and data.
+    virtual void CmdLoadSecureProcessorApp(
+        const SecureProcessorCmdInfo& cmdInfo) = 0;
+
+    /// Unloads a trusted application from the Secure Processor.
+    /// @param [in] cmdInfo  Structure containing all related input parameters and data.
+    virtual void CmdUnloadSecureProcessorApp(
+        const SecureProcessorCmdInfo& cmdInfo) = 0;
+
+    /// Sends a message to a trusted application running on the Secure Processor.
+    /// @param [in] cmdInfo  Structure containing all related input parameters and data.
+    virtual void CmdSendSecureProcessorMsg(
+        const SecureProcessorCmdInfo& cmdInfo) = 0;
+#endif
+
+#if PAL_BUILD_VPE
+    /// Binds a video processor to the command buffer. Only supported in video process queues.
+    ///
+    /// @param [in] processor       Video processor to bind.
+    virtual void CmdBindVideoProcessor(
+        IVideoProcessor* processor) = 0;
+
+    /// Builds a single video processing job.
+    /// Only supported in video process queues.
+    ///
+    /// See comment above definition of @ref ImageLayoutEngineFlags for detailed requirements of layout transition.
+    /// VPE only needs to care layout transition and inter-queue sync helps on the stall and cache sync, suggest
+    /// reusing existing pipeline stage and cache coherency flags for simple. So This function requires use of the
+    /// following barrier flags:
+    ///
+    /// - PipelineStage:  @ref PipelineStageBlt
+    /// - CacheCoherency: @ref CoherCopySrc for source and @ref CoherCopyDst for destination.
+    /// - ImageLayout:    @ref LayoutVideoProcessorRead for source and LayoutVideoProcessorWrite for destination.
+    ///
+    /// @param [in] frameInfo     Structure containing information about the frame to be processed and any per-frame
+    ///                           parameters.
+    virtual void CmdBuildVideoProcessorFrame(
+        const VideoProcessorFrameInfo&  frameInfo) = 0;
+#endif
 
     /// Executes any internal postprocessing commands to be performed on a frame, such as drawing the dev driver
     /// overlay.  Calling this prior to presenting (via any path) is a requirement, and must be prior to or
@@ -4872,6 +6746,35 @@ public:
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,
         bool*                          pAddedGpuWork) = 0;
+
+#if PAL_CLIENT_DX
+    /// Inserts a high performance timestamp for profiling done by the DX runtime.
+    ///
+    /// @param [in] sequenceNumber  The current number of markers specified.
+    ///                             Starts at 1 and must monotonically increase within one command buffer.
+    virtual void CmdSetMarker(
+        uint64      sequenceNumber) = 0;
+
+    /// Executes any copies required by the DX runtime and queues the specified image for presentation on the screen.
+    ///
+    /// @note This function is only available for DX builds.
+    ///
+    /// @param [in]  presentInfo   Information needed to execute the present.
+    /// @param [out] pPresentOut   Information about the present that must be filled out for the DX runtime.
+    virtual void CmdPresent(
+        const CmdPresentInfo& presentInfo,
+        CmdPresentOutput*     pPresentOut) = 0;
+#endif
+
+#if PAL_BUILD_INFINITY_STORAGE
+    /// Inserts a read file command for a storage queue.
+    ///
+    /// @note This function is only available for storage builds.
+    ///
+    /// @param [in]  readFileInfo   Information needed to execute the file read.
+    virtual void CmdReadFile(
+        const InfinityStorageReadFileInfo& readFileInfo) = 0;
+#endif
 
     /// Inserts a string embedded inside a NOP packet with a signature that is recognized by tools and can be printed
     /// inside a command buffer disassembly. Note that this is a real NOP that will really be submitted to the GPU
@@ -4929,6 +6832,7 @@ public:
         const char*  pMarkerName,
         uint32       markerNameSize) = 0;
 
+#if PAL_CLIENT_OCL
     /// Performs the virtual queue handshake. The host queue will do the following:
     ///  - Wait until the parent kernel is done
     ///  - Change the parent kernel state
@@ -4993,6 +6897,7 @@ public:
         CmdDispatchAql(dispatchInfo, nullptr);
     }
 #endif
+#endif
 
     /// Starts thread-trace/counter-collection - used by GPS Shim's OpenShimInterface via DXCP
     /// Only valid for the GPU Profiler layer (which is enabled separately by the GPS Shim during usage of these
@@ -5013,6 +6918,16 @@ public:
     ///
     /// @param [in] mask     The mask to control which view instances are enabled.
     virtual void CmdSetViewInstanceMask(uint32 mask) = 0;
+
+#if PAL_BUILD_SHADER_DBG
+    /// Sets the GPU virtual addresses, per hardware shader stage, of the GPU memory that is used for shader debug
+    /// traces.
+    ///
+    /// @param [in] shaderTraceAddr GPU virtual addresses to GPU memory for each HW shader stage that is instrumented
+    ///                             for shader debug.
+    virtual void CmdSetShaderDbgData(
+        gpusize shaderTraceAddr[static_cast<uint32>(Util::Abi::HardwareStage::Count)]) = 0;
+#endif
 
     /// Get used size of all chunks in bytes for given CmdAllocType. For CommandDataAlloc with multi-queue scheme, the
     /// size reported will be the sum of all command streams associated with the command buffer. It's legal to call
@@ -5272,7 +7187,12 @@ protected:
         CmdDispatchOffsetFunc            pfnCmdDispatchOffset;            ///< CmdDispatchOffset function pointer.
         CmdDispatchMeshFunc              pfnCmdDispatchMesh;              ///< CmdDispatchmesh function pointer.
         CmdDispatchMeshIndirectMultiFunc pfnCmdDispatchMeshIndirectMulti; ///< CmdDispatchMeshIndirect function pointer.
+#if PAL_CLIENT_OCL
         CmdDispatchAqlFunc               pfnCmdDispatchAql;                ///< CmdDispatchAql function pointer.
+#endif
+#if PAL_WORK_GRAPHS_SUPPORT
+        CmdDispatchGraphFunc             pfnCmdDispatchGraph;              ///< CmdDispatchGraph function pointer.
+#endif
     } m_funcTable;     ///< Function pointer table for Cmd* functions.
 
 private:

@@ -23,6 +23,7 @@ Testcase Scenarios :
 #include "occupancy_common.hh"
 #include "distributed_shared_memory.hh"
 #include "resource_guards.hh"
+#ifdef CLUSTER_SUPPORT
 
 static __global__ void f1(float* a) { *a = 1.0; }
 static void host_f1(float* a) { *a = 1.0; }
@@ -36,7 +37,7 @@ static __global__ void reverse(int* d, int n) {
   d[t] = shBuf[tr];
 };
 
-TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Positive_RangeValidation") {
+HIP_TEST_CASE(Unit_hipOccupancyMaxPotentialClusterSize_Positive_RangeValidation) {
   int clusterSize;
   hipDeviceProp_t props;
   hipLaunchConfig_t config = {};
@@ -58,7 +59,7 @@ TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Positive_RangeValidation") {
 }
 
 // TODO gehernan enable this test (requires distributed shared memory)
-TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch") {
+HIP_TEST_CASE(Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch) {
   int numBytes;
   LinearAllocGuard<int> h_output;
   LinearAllocGuard<int> d_output;
@@ -127,7 +128,7 @@ TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch") {
   }
 }
 
-TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters") {
+HIP_TEST_CASE(Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters) {
   hipLaunchConfig_t config = {};
   hipError_t hip_error;
   int clusterSize = -1;
@@ -176,3 +177,4 @@ TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters") {
     REQUIRE(clusterSize == 0);
   }
 }
+#endif

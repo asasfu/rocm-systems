@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palCmdAllocator.h
@@ -77,6 +54,13 @@ enum CmdAllocType : uint32
     LargeEmbeddedDataAlloc, ///< Data allocated is for embedded data, allocation is >32kb
     GpuScratchMemAlloc,     ///< Data allocated is GPU-only accessible at command buffer execution-time.  Possible
                             ///  uses like GPU events.
+#if PAL_CLIENT_DX
+    MarkerDataAlloc,        ///< Data allocated is for markers. @see ICmdBuffer::CmdSetMarker.
+                            ///  Data allocated for markers must have the same allocSize and suballocSize.
+#endif
+#if PAL_BUILD_INFINITY_STORAGE
+    SwCommandDataAlloc,     ///< Data allocated is for commands parsed by KMD software.
+#endif
     CmdAllocatorTypeCount   ///< Number of allocation types for ICmdAllocator's.
 };
 
@@ -154,6 +138,24 @@ public:
     /// @param [in] dynamicThreshold Minimum count of free allocations that the allocator should keep around
 
     virtual Result Trim(uint32 allocTypeMask, uint32 dynamicThreshold) = 0;
+
+#if PAL_CLIENT_DX
+    /// Returns a list of GPU memory allocations used by this allocator.
+    ///
+    /// @param [in,out] pNumEntries    Input value specifies the available size in pAllocInfoList; output value
+    ///                                reports the number of GPU memory allocations.
+    /// @param [out]    pAllocInfoList If pAllocInfoList=nullptr, then pNumEntries is ignored on input.  On output it
+    ///                                will reflect the number of allocations that make up this allocator.  If
+    ///                                pAllocInfoList!=nullptr, then on input pNumEntries is assumed to be the number
+    ///                                of entries in the pAllocInfoList array.  On output, pNumEntries reflects the
+    ///                                number of entries in pAllocInfoList that are valid.
+    /// @returns Success if the allocation info was successfully written to the buffer.
+    ///          + ErrorInvalidValue if the caller provides a buffer size that is different from the size needed.
+    ///          + ErrorInvalidPointer if pNumEntries is nullptr.
+    virtual Result QueryAllocationInfo(
+        size_t*                    pNumEntries,
+        GpuMemSubAllocInfo* const  pAllocInfoList) const = 0;
+#endif
 
     /// Query the numbers of allocations and chunks of the given CmdAllocator type.
     /// This may help clients to decide whether they may apply trimming or not.

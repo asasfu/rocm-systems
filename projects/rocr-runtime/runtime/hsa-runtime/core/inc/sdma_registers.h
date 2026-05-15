@@ -65,6 +65,9 @@ const unsigned int SDMA_SUBOP_COPY_LINEAR = 0;
 const unsigned int SDMA_SUBOP_COPY_LINEAR_BROADCAST = SDMA_SUBOP_COPY_LINEAR;
 const unsigned int SDMA_SUBOP_COPY_LINEAR_RECT = 4;
 const unsigned int SDMA_SUBOP_COPY_SWAP = 9;
+const unsigned int SDMA_SUBOP_COPY_MULTICAST = 10;
+const unsigned int SDMA_SUBOP_FENCE_64B = 2;
+const unsigned int SDMA_SUBOP_POLL_MEM_64B = 5;
 const unsigned int SDMA_SUBOP_TIMESTAMP_GET_GLOBAL = 2;
 const unsigned int SDMA_SUBOP_USER_GCR = 1;
 const unsigned int SDMA_ATOMIC_ADD64 = 47;
@@ -75,6 +78,7 @@ const unsigned int SDMA_MEMORY_SCOPE_DEV = 2; /* device scope */
 const unsigned int SDMA_MEMORY_SCOPE_SYS = 3; /* system scope */
 
 // clang-format off
+// Copy Linear pre-GFX13
 typedef struct SDMA_PKT_COPY_LINEAR_TAG {
   union {
     struct {
@@ -302,6 +306,81 @@ typedef struct SDMA_PKT_COPY_LINEAR_SWAP_TAG {
   static const size_t kMaxSize_ = 0x3fffffe0;
   static const size_t kAlignment_ = 64;
 } SDMA_PKT_COPY_LINEAR_SWAP;
+
+// Copy Linear for GFX13
+typedef struct SDMA_PKT_COPY_LINEAR_GFX13_TAG {
+  union {
+    struct {
+      unsigned int op : 8;
+      unsigned int sub_op : 8;
+      unsigned int reserved_0 : 12;
+      unsigned int npd : 1;
+      unsigned int reserved_1 : 3;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int count : 22;
+      unsigned int reserved_0 : 10;
+    } count;
+    struct {
+      unsigned int count : 30;
+      unsigned int reserved_0 : 2;
+    } count_ext;
+    unsigned int DW_1_DATA;
+  } COUNT_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0 : 18;
+      unsigned int dst_scope : 2;
+      unsigned int dst_temporal_hint : 3;
+      unsigned int reserved_1 : 3;
+      unsigned int src_scope : 2;
+      unsigned int src_temporal_hint : 3;
+      unsigned int reserved_2 : 1;
+    };
+    unsigned int DW_2_DATA;
+  } PARAMETER_UNION;
+
+  union {
+    struct {
+      unsigned int unused:32;
+    };
+    unsigned int DW_3_DATA;
+  } COMPRESSION_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_31_0 : 32;
+    };
+    unsigned int DW_4_DATA;
+  } SRC_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_63_32 : 32;
+    };
+    unsigned int DW_5_DATA;
+  } SRC_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_31_0 : 32;
+    };
+    unsigned int DW_6_DATA;
+  } DST_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_63_32 : 32;
+    };
+    unsigned int DW_7_DATA;
+  } DST_ADDR_HI_UNION;
+
+} SDMA_PKT_COPY_LINEAR_GFX13;
 
 // linear sub-window (pre-GFX12)
 typedef struct SDMA_PKT_COPY_LINEAR_RECT_TAG {
@@ -552,6 +631,131 @@ typedef struct SDMA_PKT_COPY_LINEAR_RECT_TAG_GFX12 {
 
 } SDMA_PKT_COPY_LINEAR_RECT_GFX12;
 
+// linear sub-window (GFX13)
+typedef struct SDMA_PKT_COPY_LINEAR_RECT_TAG_GFX13 {
+  static const unsigned int pitch_bits   = 16;
+  static const unsigned int slice_bits   = 32;
+  static const unsigned int rect_xy_bits = 16;
+  static const unsigned int rect_z_bits  = 14;
+
+  union {
+    struct {
+      unsigned int op       :  8;
+      unsigned int sub_op   :  8;
+      unsigned int reserved : 12;
+      unsigned int npd      :  1;
+      unsigned int element  :  3;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_31_0 : 32;
+    };
+    unsigned int DW_1_DATA;
+  } SRC_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_63_32 : 32;
+    };
+    unsigned int DW_2_DATA;
+  } SRC_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int src_offset_x : 16;
+      unsigned int src_offset_y : 16;
+    };
+    unsigned int DW_3_DATA;
+  } SRC_PARAMETER_1_UNION;
+
+  union {
+    struct {
+      unsigned int src_offset_z : 14;
+      unsigned int reserved_1   : 2;
+      unsigned int src_pitch    : pitch_bits;
+    };
+    unsigned int DW_4_DATA;
+  } SRC_PARAMETER_2_UNION;
+
+  union {
+    struct {
+      unsigned int src_slice_pitch : slice_bits;
+    };
+    unsigned int DW_5_DATA;
+  } SRC_PARAMETER_3_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_31_0 : 32;
+    };
+    unsigned int DW_6_DATA;
+  } DST_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_63_32 : 32;
+    };
+    unsigned int DW_7_DATA;
+  } DST_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int dst_offset_x : 16;
+      unsigned int dst_offset_y : 16;
+    };
+    unsigned int DW_8_DATA;
+  } DST_PARAMETER_1_UNION;
+
+  union {
+    struct {
+      unsigned int dst_offset_z : 14;
+      unsigned int reserved_1   : 2;
+      unsigned int dst_pitch    : pitch_bits;
+    };
+    unsigned int DW_9_DATA;
+  } DST_PARAMETER_2_UNION;
+
+  union {
+    struct {
+      unsigned int dst_slice_pitch : slice_bits;
+    };
+    unsigned int DW_10_DATA;
+  } DST_PARAMETER_3_UNION;
+
+  union {
+    struct {
+      unsigned int rect_x : rect_xy_bits;
+      unsigned int rect_y : rect_xy_bits;
+      };
+    unsigned int DW_11_DATA;
+  } RECT_PARAMETER_1_UNION;
+
+  union {
+    struct {
+      unsigned int rect_z           : rect_z_bits;
+      unsigned int reserved_1       : 4;
+      unsigned int dst_scope        : 2;
+      unsigned int dst_temporal_hint: 3;
+      unsigned int reserved_2       : 3;
+      unsigned int src_scope        : 2;
+      unsigned int src_temporal_hint: 3;
+      unsigned int reserved_3       : 1;
+    };
+    unsigned int DW_12_DATA;
+  } RECT_PARAMETER_2_UNION;
+
+  union {
+    struct {
+      unsigned int unused : 32;
+    };
+    unsigned int DW_13_DATA;
+  } COMPRESSION_UNION;
+
+} SDMA_PKT_COPY_LINEAR_RECT_GFX13;
+
 typedef struct SDMA_PKT_CONSTANT_FILL_TAG {
   union {
     struct {
@@ -602,6 +806,64 @@ typedef struct SDMA_PKT_CONSTANT_FILL_TAG {
 
   static const size_t kMaxSize_ = 0x3fffe0;
 } SDMA_PKT_CONSTANT_FILL;
+
+// Constant Fill for GFX13
+typedef struct SDMA_PKT_CONSTANT_FILL_TAG_GFX13 {
+  union {
+    struct {
+      unsigned int op           : 8;
+      unsigned int sub_op       : 8;
+      unsigned int mtype        : 2;
+      unsigned int reserved_0   : 2;
+      unsigned int sys          : 1;
+      unsigned int reserved_1   : 1;
+      unsigned int snp          : 1;
+      unsigned int gpa          : 1;
+      unsigned int scope        : 2;
+      unsigned int temporal_hint: 3;
+      unsigned int npd          : 1;
+      unsigned int fillsize     : 2;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_31_0 : 32;
+    };
+    unsigned int DW_1_DATA;
+  } DST_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_63_32 : 32;
+    };
+    unsigned int DW_2_DATA;
+  } DST_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int src_data_31_0 : 32;
+    };
+    unsigned int DW_3_DATA;
+  } DATA_UNION;
+
+  union {
+    struct {
+      unsigned int count : 30;
+      unsigned int reserved_0 : 2;
+    };
+    unsigned int DW_4_DATA;
+  } COUNT_UNION;
+
+  union {
+    struct {
+      unsigned int unused : 32;
+    };
+    unsigned int DW_5_DATA;
+  } COMPRESSION_UNION;
+
+} SDMA_PKT_CONSTANT_FILL_GFX13;
 
 typedef struct SDMA_PKT_FENCE_TAG {
   union {
@@ -682,6 +944,57 @@ typedef struct SDMA_PKT_FENCE_TAG_GFX12 {
   } DATA_UNION;
 } SDMA_PKT_FENCE_GFX12;
 
+// Fence 64b (GFX1250)
+// MAS 3.4.5 - Writes 64-bit data to a QW-aligned address.
+// OP=0x5, SUBOP=0x2, 5 DWs.
+typedef struct SDMA_PKT_FENCE_64B_TAG_GFX1250 {
+  union {
+    struct {
+      unsigned int op             :  8;
+      unsigned int sub_op         :  8;
+      unsigned int mtype          :  2;
+      unsigned int reserved_0     :  2;
+      unsigned int sys            :  1;
+      unsigned int reserved_1     :  1;
+      unsigned int snp            :  1;
+      unsigned int gpa            :  1;
+      unsigned int scope          :  2;
+      unsigned int temporal_hint  :  3;
+      unsigned int reserved_2     :  3;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0  :  3;
+      unsigned int addr_31_3   : 29;
+    };
+    unsigned int DW_1_DATA;
+  } ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int addr_63_32 : 32;
+    };
+    unsigned int DW_2_DATA;
+  } ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int data_31_0 : 32;
+    };
+    unsigned int DW_3_DATA;
+  } DATA_LO_UNION;
+
+  union {
+    struct {
+      unsigned int data_63_32 : 32;
+    };
+    unsigned int DW_4_DATA;
+  } DATA_HI_UNION;
+} SDMA_PKT_FENCE_64B_GFX1250;
+
 typedef struct SDMA_PKT_POLL_REGMEM_TAG {
   union {
     struct {
@@ -734,6 +1047,84 @@ typedef struct SDMA_PKT_POLL_REGMEM_TAG {
     unsigned int DW_5_DATA;
   } DW5_UNION;
 } SDMA_PKT_POLL_REGMEM;
+
+// Poll Memory 64b (GFX1250)
+// MAS 3.4.9 - Polls a QW-aligned 64-bit memory location.
+// Condition: FUNC(mem_data_64b & MASK_64b, REFERENCE_64b) == TRUE
+// OP=0x8, SUBOP=0x5, 8 DWs.
+typedef struct SDMA_PKT_POLL_MEM_64B_TAG_GFX1250 {
+  union {
+    struct {
+      unsigned int op             :  8;
+      unsigned int sub_op         :  8;
+      unsigned int mtype          :  2;
+      unsigned int reserved_0     :  2;
+      unsigned int sys            :  1;
+      unsigned int reserved_1     :  1;
+      unsigned int snp            :  1;
+      unsigned int gpa            :  1;
+      unsigned int cache_policy   :  3;
+      unsigned int reserved_2     :  1;
+      unsigned int func           :  3;
+      unsigned int reserved_3     :  1;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0  :  3;
+      unsigned int addr_31_3   : 29;
+    };
+    unsigned int DW_1_DATA;
+  } ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int addr_63_32 : 32;
+    };
+    unsigned int DW_2_DATA;
+  } ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int reference_31_0 : 32;
+    };
+    unsigned int DW_3_DATA;
+  } REFERENCE_LO_UNION;
+
+  union {
+    struct {
+      unsigned int reference_63_32 : 32;
+    };
+    unsigned int DW_4_DATA;
+  } REFERENCE_HI_UNION;
+
+  union {
+    struct {
+      unsigned int mask_31_0 : 32;
+    };
+    unsigned int DW_5_DATA;
+  } MASK_LO_UNION;
+
+  union {
+    struct {
+      unsigned int mask_63_32 : 32;
+    };
+    unsigned int DW_6_DATA;
+  } MASK_HI_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0   : 16;
+      unsigned int retry_count  :  8;
+      unsigned int reserved_1   :  4;
+      unsigned int scope        :  2;
+      unsigned int reserved_2   :  2;
+    };
+    unsigned int DW_7_DATA;
+  } DW7_UNION;
+} SDMA_PKT_POLL_MEM_64B_GFX1250;
 
 typedef struct SDMA_PKT_ATOMIC_TAG {
   union {
@@ -988,6 +1379,1071 @@ typedef struct SDMA_PKT_GCR_TAG_GFX1250 {
     unsigned int DW_5_DATA;
   } WORD5_UNION;
 } SDMA_PKT_GCR_GFX1250;
+
+// Linear Swap Copy (GFX1250)
+// Atomically swaps data between Address A and Address B.
+// Addresses must be 32-byte aligned.
+typedef struct SDMA_PKT_COPY_LINEAR_SWAP_TAG_GFX1250 {
+  union {
+    struct {
+      unsigned int op          :  8;
+      unsigned int sub_op      :  8;
+      unsigned int reserved_0  :  2;
+      unsigned int tmz         :  1;
+      unsigned int reserved_1  : 13;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int count       : 30;
+      unsigned int reserved_0  :  2;
+    };
+    unsigned int DW_1_DATA;
+  } COUNT_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0       : 18;
+      unsigned int scope_b          :  2;
+      unsigned int temporal_hint_b  :  3;
+      unsigned int reserved_1       :  3;
+      unsigned int scope_a          :  2;
+      unsigned int temporal_hint_a  :  3;
+      unsigned int reserved_2       :  1;
+    };
+    unsigned int DW_2_DATA;
+  } PARAMETER_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0  :  5;
+      unsigned int addr_a_31_5 : 27;
+    };
+    unsigned int DW_3_DATA;
+  } ADDR_A_LO_UNION;
+
+  union {
+    struct {
+      unsigned int addr_a_63_32 : 32;
+    };
+    unsigned int DW_4_DATA;
+  } ADDR_A_HI_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0  :  5;
+      unsigned int addr_b_31_5 : 27;
+    };
+    unsigned int DW_5_DATA;
+  } ADDR_B_LO_UNION;
+
+  union {
+    struct {
+      unsigned int addr_b_63_32 : 32;
+    };
+    unsigned int DW_6_DATA;
+  } ADDR_B_HI_UNION;
+
+  static const size_t kMaxSize_ = 0x3fffffe0;
+  static const size_t kAlignment_ = 32;
+} SDMA_PKT_COPY_LINEAR_SWAP_GFX1250;
+
+// Linear Multicast Copy (GFX1250)
+// Copies from one source to multiple destinations.
+// Destination address pairs (lo/hi) follow contiguously for num_of_destination entries.
+typedef struct SDMA_PKT_COPY_LINEAR_MULTICAST_TAG_GFX1250 {
+  union {
+    struct {
+      unsigned int op          :  8;
+      unsigned int sub_op      :  8;
+      unsigned int reserved_0  :  2;
+      unsigned int tmz         :  1;
+      unsigned int reserved_1  :  9;
+      unsigned int npd         :  1;
+      unsigned int reserved_2  :  3;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int count       : 30;
+      unsigned int reserved_0  :  2;
+    };
+    unsigned int DW_1_DATA;
+  } COUNT_UNION;
+
+  union {
+    struct {
+      unsigned int num_of_destination :  10;
+      unsigned int reserved_0        :   8;
+      unsigned int dst_scope         :   2;
+      unsigned int dst_temporal_hint :   3;
+      unsigned int reserved_1        :   3;
+      unsigned int src_scope         :   2;
+      unsigned int src_temporal_hint :   3;
+      unsigned int reserved_2        :   1;
+    };
+    unsigned int DW_2_DATA;
+  } PARAMETER_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_31_0 : 32;
+    };
+    unsigned int DW_3_DATA;
+  } SRC_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_63_32 : 32;
+    };
+    unsigned int DW_4_DATA;
+  } SRC_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_31_0 : 32;
+    };
+    unsigned int DW_5_DATA;
+  } DST_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_63_32 : 32;
+    };
+    unsigned int DW_6_DATA;
+  } DST_ADDR_HI_UNION;
+
+} SDMA_PKT_COPY_LINEAR_MULTICAST_GFX1250;
+
+// Linear Copy with Wait/Signal (GFX1250)
+// Macro command combining optional wait, linear copy, and optional signal.
+// DW layout below assumes both WAIT=1 and SIGNAL=1 (maximum packet size).
+// When WAIT=0, DW1-DW7 are absent and copy DWs shift down.
+// When SIGNAL=0, DW14-DW18 are absent.
+typedef struct SDMA_PKT_COPY_LINEAR_WAITSIGNAL_TAG_GFX1250 {
+  union {
+    struct {
+      unsigned int op          :  8;
+      unsigned int sub_op      :  8;
+      unsigned int reserved_0  :  2;
+      unsigned int tmz         :  1;
+      unsigned int reserved_1  :  9;
+      unsigned int npd         :  1;
+      unsigned int reserved_2  :  1;
+      unsigned int wait        :  1;
+      unsigned int signal      :  1;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int wait_function      :  3;
+      unsigned int reserved_0         : 15;
+      unsigned int wait_scope         :  2;
+      unsigned int wait_temporal_hint :  3;
+      unsigned int reserved_1         :  9;
+    };
+    unsigned int DW_1_DATA;
+  } WAIT_FUNCTION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0     :  3;
+      unsigned int wait_addr_31_3 : 29;
+    };
+    unsigned int DW_2_DATA;
+  } WAIT_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_addr_63_32 : 32;
+    };
+    unsigned int DW_3_DATA;
+  } WAIT_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_31_0 : 32;
+    };
+    unsigned int DW_4_DATA;
+  } WAIT_REFERENCE_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_63_32 : 32;
+    };
+    unsigned int DW_5_DATA;
+  } WAIT_REFERENCE_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_31_0 : 32;
+    };
+    unsigned int DW_6_DATA;
+  } WAIT_MASK_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_63_32 : 32;
+    };
+    unsigned int DW_7_DATA;
+  } WAIT_MASK_HI_UNION;
+
+  union {
+    struct {
+      unsigned int copy_count  : 30;
+      unsigned int reserved_0  :  2;
+    };
+    unsigned int DW_8_DATA;
+  } COPY_COUNT_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0       : 18;
+      unsigned int dst_scope        :  2;
+      unsigned int dst_temporal_hint:  3;
+      unsigned int reserved_1       :  3;
+      unsigned int src_scope        :  2;
+      unsigned int src_temporal_hint:  3;
+      unsigned int reserved_2       :  1;
+    };
+    unsigned int DW_9_DATA;
+  } COPY_PARAMETER_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_31_0 : 32;
+    };
+    unsigned int DW_10_DATA;
+  } SRC_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_63_32 : 32;
+    };
+    unsigned int DW_11_DATA;
+  } SRC_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_31_0 : 32;
+    };
+    unsigned int DW_12_DATA;
+  } DST_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_63_32 : 32;
+    };
+    unsigned int DW_13_DATA;
+  } DST_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_operation    :  7;
+      unsigned int reserved_0          : 11;
+      unsigned int signal_scope        :  2;
+      unsigned int signal_temporal_hint:  3;
+      unsigned int reserved_1          :  9;
+    };
+    unsigned int DW_14_DATA;
+  } SIGNAL_OPERATION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0        :  3;
+      unsigned int signal_addr_31_3  : 29;
+    };
+    unsigned int DW_15_DATA;
+  } SIGNAL_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_addr_63_32 : 32;
+    };
+    unsigned int DW_16_DATA;
+  } SIGNAL_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_31_0 : 32;
+    };
+    unsigned int DW_17_DATA;
+  } SIGNAL_DATA_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_63_32 : 32;
+    };
+    unsigned int DW_18_DATA;
+  } SIGNAL_DATA_HI_UNION;
+
+} SDMA_PKT_COPY_LINEAR_WAITSIGNAL_GFX1250;
+
+// Linear Copy with Wait/Signal - Indirect Memory Address (GFX1250)
+// Like Linear Copy with Wait/Signal but source/destination addresses can be indirect pointers.
+// DW layout below assumes both WAIT=1 and SIGNAL=1 (maximum packet size).
+typedef struct SDMA_PKT_COPY_LINEAR_WAITSIGNAL_INDIRECT_TAG_GFX1250 {
+  union {
+    struct {
+      unsigned int op           :  8;
+      unsigned int sub_op       :  8;
+      unsigned int reserved_0   :  2;
+      unsigned int tmz          :  1;
+      unsigned int reserved_1   :  1;
+      unsigned int indirect_src :  1;
+      unsigned int indirect_dst :  1;
+      unsigned int reserved_2   :  6;
+      unsigned int npd          :  1;
+      unsigned int reserved_3   :  1;
+      unsigned int wait         :  1;
+      unsigned int signal       :  1;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int wait_function      :  3;
+      unsigned int reserved_0         : 15;
+      unsigned int wait_scope         :  2;
+      unsigned int wait_temporal_hint :  3;
+      unsigned int reserved_1         :  9;
+    };
+    unsigned int DW_1_DATA;
+  } WAIT_FUNCTION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0     :  3;
+      unsigned int wait_addr_31_3 : 29;
+    };
+    unsigned int DW_2_DATA;
+  } WAIT_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_addr_63_32 : 32;
+    };
+    unsigned int DW_3_DATA;
+  } WAIT_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_31_0 : 32;
+    };
+    unsigned int DW_4_DATA;
+  } WAIT_REFERENCE_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_63_32 : 32;
+    };
+    unsigned int DW_5_DATA;
+  } WAIT_REFERENCE_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_31_0 : 32;
+    };
+    unsigned int DW_6_DATA;
+  } WAIT_MASK_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_63_32 : 32;
+    };
+    unsigned int DW_7_DATA;
+  } WAIT_MASK_HI_UNION;
+
+  union {
+    struct {
+      unsigned int copy_count  : 30;
+      unsigned int reserved_0  :  2;
+    };
+    unsigned int DW_8_DATA;
+  } COPY_COUNT_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0              : 10;
+      unsigned int indirect_addr_scope     :  2;
+      unsigned int indirect_temporal_hint  :  3;
+      unsigned int reserved_1              :  3;
+      unsigned int copy_dst_scope          :  2;
+      unsigned int copy_dst_temporal_hint  :  3;
+      unsigned int reserved_2              :  3;
+      unsigned int copy_src_scope          :  2;
+      unsigned int copy_src_temporal_hint  :  3;
+      unsigned int reserved_3              :  1;
+    };
+    unsigned int DW_9_DATA;
+  } COPY_PARAMETER_UNION;
+
+  union {
+    struct {
+      unsigned int copy_src_addr_31_0 : 32;
+    };
+    unsigned int DW_10_DATA;
+  } SRC_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int copy_src_addr_63_32 : 32;
+    };
+    unsigned int DW_11_DATA;
+  } SRC_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int copy_dst_addr_31_0 : 32;
+    };
+    unsigned int DW_12_DATA;
+  } DST_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int copy_dst_addr_63_32 : 32;
+    };
+    unsigned int DW_13_DATA;
+  } DST_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_operation    :  7;
+      unsigned int reserved_0          : 11;
+      unsigned int signal_scope        :  2;
+      unsigned int signal_temporal_hint:  3;
+      unsigned int reserved_1          :  9;
+    };
+    unsigned int DW_14_DATA;
+  } SIGNAL_OPERATION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0        :  3;
+      unsigned int signal_addr_31_3  : 29;
+    };
+    unsigned int DW_15_DATA;
+  } SIGNAL_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_addr_63_32 : 32;
+    };
+    unsigned int DW_16_DATA;
+  } SIGNAL_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_31_0 : 32;
+    };
+    unsigned int DW_17_DATA;
+  } SIGNAL_DATA_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_63_32 : 32;
+    };
+    unsigned int DW_18_DATA;
+  } SIGNAL_DATA_HI_UNION;
+
+} SDMA_PKT_COPY_LINEAR_WAITSIGNAL_INDIRECT_GFX1250;
+
+// Linear Multicast Copy with Wait/Signal (GFX1250)
+// Macro command combining optional wait, multicast copy, and optional signal.
+// DW layout below assumes both WAIT=1 and SIGNAL=1 (maximum packet size).
+// Additional destination address pairs follow DST_ADDR for num_of_destination entries.
+typedef struct SDMA_PKT_COPY_LINEAR_MULTICAST_WAITSIGNAL_TAG_GFX1250 {
+  union {
+    struct {
+      unsigned int op          :  8;
+      unsigned int sub_op      :  8;
+      unsigned int reserved_0  :  2;
+      unsigned int tmz         :  1;
+      unsigned int reserved_1  :  9;
+      unsigned int npd         :  1;
+      unsigned int reserved_2  :  1;
+      unsigned int wait        :  1;
+      unsigned int signal      :  1;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int wait_function      :  3;
+      unsigned int reserved_0         : 15;
+      unsigned int wait_scope         :  2;
+      unsigned int wait_temporal_hint :  3;
+      unsigned int reserved_1         :  9;
+    };
+    unsigned int DW_1_DATA;
+  } WAIT_FUNCTION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0     :  3;
+      unsigned int wait_addr_31_3 : 29;
+    };
+    unsigned int DW_2_DATA;
+  } WAIT_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_addr_63_32 : 32;
+    };
+    unsigned int DW_3_DATA;
+  } WAIT_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_31_0 : 32;
+    };
+    unsigned int DW_4_DATA;
+  } WAIT_REFERENCE_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_63_32 : 32;
+    };
+    unsigned int DW_5_DATA;
+  } WAIT_REFERENCE_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_31_0 : 32;
+    };
+    unsigned int DW_6_DATA;
+  } WAIT_MASK_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_63_32 : 32;
+    };
+    unsigned int DW_7_DATA;
+  } WAIT_MASK_HI_UNION;
+
+  union {
+    struct {
+      unsigned int count       : 30;
+      unsigned int reserved_0  :  2;
+    };
+    unsigned int DW_8_DATA;
+  } COUNT_UNION;
+
+  union {
+    struct {
+      unsigned int num_of_destination :  10;
+      unsigned int reserved_0        :   8;
+      unsigned int dst_scope         :   2;
+      unsigned int dst_temporal_hint :   3;
+      unsigned int reserved_1        :   3;
+      unsigned int src_scope         :   2;
+      unsigned int src_temporal_hint :   3;
+      unsigned int reserved_2        :   1;
+    };
+    unsigned int DW_9_DATA;
+  } COPY_PARAMETER_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_31_0 : 32;
+    };
+    unsigned int DW_10_DATA;
+  } SRC_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int src_addr_63_32 : 32;
+    };
+    unsigned int DW_11_DATA;
+  } SRC_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_31_0 : 32;
+    };
+    unsigned int DW_12_DATA;
+  } DST_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int dst_addr_63_32 : 32;
+    };
+    unsigned int DW_13_DATA;
+  } DST_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_operation    :  7;
+      unsigned int reserved_0          : 11;
+      unsigned int signal_scope        :  2;
+      unsigned int signal_temporal_hint:  3;
+      unsigned int reserved_1          :  9;
+    };
+    unsigned int DW_14_DATA;
+  } SIGNAL_OPERATION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0        :  3;
+      unsigned int signal_addr_31_3  : 29;
+    };
+    unsigned int DW_15_DATA;
+  } SIGNAL_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_addr_63_32 : 32;
+    };
+    unsigned int DW_16_DATA;
+  } SIGNAL_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_31_0 : 32;
+    };
+    unsigned int DW_17_DATA;
+  } SIGNAL_DATA_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_63_32 : 32;
+    };
+    unsigned int DW_18_DATA;
+  } SIGNAL_DATA_HI_UNION;
+
+} SDMA_PKT_COPY_LINEAR_MULTICAST_WAITSIGNAL_GFX1250;
+
+// Linear Swap Copy with Wait/Signal (GFX1250)
+// Macro command combining optional wait, swap copy, and optional signal.
+// DW layout below assumes both WAIT=1 and SIGNAL=1 (maximum packet size).
+// Swap addresses must be 32-byte aligned.
+typedef struct SDMA_PKT_COPY_LINEAR_SWAP_WAITSIGNAL_TAG_GFX1250 {
+  union {
+    struct {
+      unsigned int op          :  8;
+      unsigned int sub_op      :  8;
+      unsigned int reserved_0  :  2;
+      unsigned int tmz         :  1;
+      unsigned int reserved_1  : 11;
+      unsigned int wait        :  1;
+      unsigned int signal      :  1;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int wait_function      :  3;
+      unsigned int reserved_0         : 15;
+      unsigned int wait_scope         :  2;
+      unsigned int wait_temporal_hint :  3;
+      unsigned int reserved_1         :  9;
+    };
+    unsigned int DW_1_DATA;
+  } WAIT_FUNCTION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0     :  3;
+      unsigned int wait_addr_31_3 : 29;
+    };
+    unsigned int DW_2_DATA;
+  } WAIT_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_addr_63_32 : 32;
+    };
+    unsigned int DW_3_DATA;
+  } WAIT_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_31_0 : 32;
+    };
+    unsigned int DW_4_DATA;
+  } WAIT_REFERENCE_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_63_32 : 32;
+    };
+    unsigned int DW_5_DATA;
+  } WAIT_REFERENCE_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_31_0 : 32;
+    };
+    unsigned int DW_6_DATA;
+  } WAIT_MASK_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_63_32 : 32;
+    };
+    unsigned int DW_7_DATA;
+  } WAIT_MASK_HI_UNION;
+
+  union {
+    struct {
+      unsigned int count       : 30;
+      unsigned int reserved_0  :  2;
+    };
+    unsigned int DW_8_DATA;
+  } COUNT_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0       : 18;
+      unsigned int scope_b          :  2;
+      unsigned int temporal_hint_b  :  3;
+      unsigned int reserved_1       :  3;
+      unsigned int scope_a          :  2;
+      unsigned int temporal_hint_a  :  3;
+      unsigned int reserved_2       :  1;
+    };
+    unsigned int DW_9_DATA;
+  } COPY_PARAMETER_UNION;
+
+  union {
+    struct {
+      unsigned int addr_a_31_0 : 32;
+    };
+    unsigned int DW_10_DATA;
+  } ADDR_A_LO_UNION;
+
+  union {
+    struct {
+      unsigned int addr_a_63_32 : 32;
+    };
+    unsigned int DW_11_DATA;
+  } ADDR_A_HI_UNION;
+
+  union {
+    struct {
+      unsigned int addr_b_31_0 : 32;
+    };
+    unsigned int DW_12_DATA;
+  } ADDR_B_LO_UNION;
+
+  union {
+    struct {
+      unsigned int addr_b_63_32 : 32;
+    };
+    unsigned int DW_13_DATA;
+  } ADDR_B_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_operation    :  7;
+      unsigned int reserved_0          : 11;
+      unsigned int signal_scope        :  2;
+      unsigned int signal_temporal_hint:  3;
+      unsigned int reserved_1          :  9;
+    };
+    unsigned int DW_14_DATA;
+  } SIGNAL_OPERATION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0        :  3;
+      unsigned int signal_addr_31_3  : 29;
+    };
+    unsigned int DW_15_DATA;
+  } SIGNAL_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_addr_63_32 : 32;
+    };
+    unsigned int DW_16_DATA;
+  } SIGNAL_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_31_0 : 32;
+    };
+    unsigned int DW_17_DATA;
+  } SIGNAL_DATA_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_63_32 : 32;
+    };
+    unsigned int DW_18_DATA;
+  } SIGNAL_DATA_HI_UNION;
+
+  static const size_t kMaxSize_ = 0x3fffffe0;
+  static const size_t kAlignment_ = 32;
+} SDMA_PKT_COPY_LINEAR_SWAP_WAITSIGNAL_GFX1250;
+
+// Linear Swap Copy (GFX1260) — OSS72 MAS section 3.2.8
+// Symmetric or asymmetric swap: COUNT_A bytes at ADDR_A swapped with COUNT_B
+// bytes at ADDR_B.  ADDR_B is 256-byte aligned relative to ADDR_A (bits [7:0]
+// of ADDR_B equal those of ADDR_A).
+// Total: 8 DWs.
+typedef struct SDMA_PKT_COPY_LINEAR_SWAP_TAG_GFX1260 {
+  union {
+    struct {
+      unsigned int op          :  8;  // OP code = 0x1
+      unsigned int sub_op      :  8;  // SUB-OP code = 0x9
+      unsigned int reserved_0  :  2;
+      unsigned int tmz         :  1;  // [18] TMZ mode
+      unsigned int reserved_1  :  9;
+      unsigned int npd         :  1;  // [28] Not Participant Dependency
+      unsigned int reserved_2  :  3;
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int count_a     : 30;  // [29:0] Copy size of A (1-based, bytes)
+      unsigned int reserved_0  :  2;
+    };
+    unsigned int DW_1_DATA;
+  } COUNT_A_UNION;
+
+  union {
+    struct {
+      unsigned int count_b     : 30;  // [29:0] Copy size of B (1-based, bytes)
+      unsigned int reserved_0  :  2;
+    };
+    unsigned int DW_2_DATA;
+  } COUNT_B_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0       : 18;
+      unsigned int scope_b          :  2;  // [19:18] Scope for addr B
+      unsigned int temporal_hint_b  :  3;  // [22:20] Cache policy for addr B
+      unsigned int reserved_1       :  3;
+      unsigned int scope_a          :  2;  // [27:26] Scope for addr A
+      unsigned int temporal_hint_a  :  3;  // [30:28] Cache policy for addr A
+      unsigned int reserved_2       :  1;
+    };
+    unsigned int DW_3_DATA;
+  } PARAMETER_UNION;
+
+  union {
+    struct {
+      unsigned int addr_a_31_0 : 32;  // [31:0] Virtual address A [31:0]
+    };
+    unsigned int DW_4_DATA;
+  } ADDR_A_LO_UNION;
+
+  union {
+    struct {
+      unsigned int addr_a_63_32 : 32;  // [31:0] Virtual address A [63:32]
+    };
+    unsigned int DW_5_DATA;
+  } ADDR_A_HI_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0   :  8;
+      unsigned int addr_b_31_8  : 24;  // [31:8] Virtual address B [31:8]
+                                        // addr_b[7:0] == addr_a[7:0] (256B aligned offset)
+    };
+    unsigned int DW_6_DATA;
+  } ADDR_B_LO_UNION;
+
+  union {
+    struct {
+      unsigned int addr_b_63_32 : 32;  // [31:0] Virtual address B [63:32]
+    };
+    unsigned int DW_7_DATA;
+  } ADDR_B_HI_UNION;
+
+  static const size_t kMaxSize_   = 0x3fffffe0;
+  static const size_t kAlignment_ = 32;
+} SDMA_PKT_COPY_LINEAR_SWAP_GFX1260;
+
+// Linear Swap Copy with Wait/Signal (GFX1260) — OSS72 MAS section 3.3.4
+// Macro combining optional wait poll, symmetric/asymmetric swap copy, and
+// optional 64-bit atomic signal.  ADDR_B is 256-byte aligned relative to
+// ADDR_A.  DW layout assumes WAIT=1 and SIGNAL=1 (maximum 20 DWs).
+typedef struct SDMA_PKT_COPY_LINEAR_SWAP_WAITSIGNAL_TAG_GFX1260 {
+  union {
+    struct {
+      unsigned int op          :  8;  // OP code = 0x3
+      unsigned int sub_op      :  8;  // SUB-OP code = 0x9
+      unsigned int reserved_0  :  2;
+      unsigned int tmz         :  1;  // [18] TMZ mode
+      unsigned int reserved_1  :  9;
+      unsigned int npd         :  1;  // [28] Not Participant Dependency
+      unsigned int reserved_2  :  1;
+      unsigned int wait        :  1;  // [30] 1 = poll before copy
+      unsigned int signal      :  1;  // [31] 1 = atomic signal after copy
+    };
+    unsigned int DW_0_DATA;
+  } HEADER_UNION;
+
+  union {
+    struct {
+      unsigned int wait_function      :  3;  // [2:0] Poll comparison function
+      unsigned int reserved_0         : 15;
+      unsigned int wait_scope         :  2;  // [19:18] Scope for wait
+      unsigned int wait_temporal_hint :  3;  // [22:20] Cache policy for wait
+      unsigned int reserved_1         :  9;
+    };
+    unsigned int DW_1_DATA;
+  } WAIT_FUNCTION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0     :  3;
+      unsigned int wait_addr_31_3 : 29;  // [31:3] Wait address [31:3]
+    };
+    unsigned int DW_2_DATA;
+  } WAIT_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_addr_63_32 : 32;  // [31:0] Wait address [63:32]
+    };
+    unsigned int DW_3_DATA;
+  } WAIT_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_31_0 : 32;  // [31:0] Wait reference [31:0]
+    };
+    unsigned int DW_4_DATA;
+  } WAIT_REFERENCE_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_reference_63_32 : 32;  // [31:0] Wait reference [63:32]
+    };
+    unsigned int DW_5_DATA;
+  } WAIT_REFERENCE_HI_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_31_0 : 32;  // [31:0] Wait mask [31:0]
+    };
+    unsigned int DW_6_DATA;
+  } WAIT_MASK_LO_UNION;
+
+  union {
+    struct {
+      unsigned int wait_mask_63_32 : 32;  // [31:0] Wait mask [63:32]
+    };
+    unsigned int DW_7_DATA;
+  } WAIT_MASK_HI_UNION;
+
+  union {
+    struct {
+      unsigned int copy_count_a : 30;  // [29:0] Copy size of A (1-based, bytes)
+      unsigned int reserved_0   :  2;
+    };
+    unsigned int DW_8_DATA;
+  } COPY_COUNT_A_UNION;
+
+  union {
+    struct {
+      unsigned int copy_count_b : 30;  // [29:0] Copy size of B (1-based, bytes)
+      unsigned int reserved_0   :  2;
+    };
+    unsigned int DW_9_DATA;
+  } COPY_COUNT_B_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0            : 18;
+      unsigned int copy_scope_b          :  2;  // [19:18] Scope for addr B
+      unsigned int copy_temporal_hint_b  :  3;  // [22:20] Cache policy for addr B
+      unsigned int reserved_1            :  3;
+      unsigned int copy_scope_a          :  2;  // [27:26] Scope for addr A
+      unsigned int copy_temporal_hint_a  :  3;  // [30:28] Cache policy for addr A
+      unsigned int reserved_2            :  1;
+    };
+    unsigned int DW_10_DATA;
+  } COPY_PARAMETER_UNION;
+
+  union {
+    struct {
+      unsigned int copy_addr_a_31_0 : 32;  // [31:0] Virtual address A [31:0]
+    };
+    unsigned int DW_11_DATA;
+  } ADDR_A_LO_UNION;
+
+  union {
+    struct {
+      unsigned int copy_addr_a_63_32 : 32;  // [31:0] Virtual address A [63:32]
+    };
+    unsigned int DW_12_DATA;
+  } ADDR_A_HI_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0        :  8;
+      unsigned int copy_addr_b_31_8  : 24;  // [31:8] Virtual address B [31:8]
+                                             // addr_b[7:0] == addr_a[7:0] (256B aligned offset)
+    };
+    unsigned int DW_13_DATA;
+  } ADDR_B_LO_UNION;
+
+  union {
+    struct {
+      unsigned int copy_addr_b_63_32 : 32;  // [31:0] Virtual address B [63:32]
+    };
+    unsigned int DW_14_DATA;
+  } ADDR_B_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_operation    :  7;  // [6:0] 32=write, 111=add, 112=sub
+      unsigned int reserved_0          : 11;
+      unsigned int signal_scope        :  2;  // [19:18] Scope for signal
+      unsigned int signal_temporal_hint:  3;  // [22:20] Cache policy for signal
+      unsigned int reserved_1          :  9;
+    };
+    unsigned int DW_15_DATA;
+  } SIGNAL_OPERATION_UNION;
+
+  union {
+    struct {
+      unsigned int reserved_0        :  3;
+      unsigned int signal_addr_31_3  : 29;  // [31:3] Signal address [31:3]
+    };
+    unsigned int DW_16_DATA;
+  } SIGNAL_ADDR_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_addr_63_32 : 32;  // [31:0] Signal address [63:32]
+    };
+    unsigned int DW_17_DATA;
+  } SIGNAL_ADDR_HI_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_31_0 : 32;  // [31:0] Signal data [31:0]
+    };
+    unsigned int DW_18_DATA;
+  } SIGNAL_DATA_LO_UNION;
+
+  union {
+    struct {
+      unsigned int signal_data_63_32 : 32;  // [31:0] Signal data [63:32]
+    };
+    unsigned int DW_19_DATA;
+  } SIGNAL_DATA_HI_UNION;
+
+  static const size_t kMaxSize_   = 0x3fffffe0;
+  static const size_t kAlignment_ = 32;
+} SDMA_PKT_COPY_LINEAR_SWAP_WAITSIGNAL_GFX1260;
 
 // clang-format on
 

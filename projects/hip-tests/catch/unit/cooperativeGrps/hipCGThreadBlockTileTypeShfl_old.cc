@@ -70,12 +70,6 @@ static __global__ void kernel_cg_group_partition_static(int* result,
   cg::thread_block thread_block_CG_ty = cg::this_thread_block();
   int input, output_sum;
 
-  // Choose a leader thread to print the results
-  if (thread_block_CG_ty.thread_rank() == 0) {
-    printf(" Creating %d groups, of tile size %d threads:\n\n",
-           (int)thread_block_CG_ty.size() / tile_size, tile_size);
-  }
-
   thread_block_CG_ty.sync();
 
   cg::thread_block_tile<tile_size> tiled_part = cg::tiled_partition<tile_size>(thread_block_CG_ty);
@@ -95,8 +89,6 @@ static __global__ void kernel_cg_group_partition_static(int* result,
   }
 
   if (tiled_part.thread_rank() == 0 && shfl_test != TiledGroupShflTests::shflUp) {
-    printf("   Sum of all ranks 0..%d in this tiled_part group is %d\n", tiled_part.size() - 1,
-           output_sum);
     result[thread_block_CG_ty.thread_rank() / (tile_size)] = output_sum;
   }
 }

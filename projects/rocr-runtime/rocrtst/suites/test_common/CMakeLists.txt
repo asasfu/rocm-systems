@@ -112,7 +112,8 @@ endif()
 set(DEFAULT_TARGETS "gfx700;gfx701;gfx702;gfx801;gfx802;gfx803;gfx805;gfx810"
                     "gfx900;gfx902;gfx904;gfx906;gfx908;gfx909;gfx90a;gfx90c;gfx942;gfx950"
                     "gfx1010;gfx1011;gfx1012;gfx1013;gfx1030;gfx1031;gfx1032;gfx1033;gfx1034;gfx1035;gfx1036"
-                    "gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx1200;gfx1201;gfx1250;gfx1251")
+                    "gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx115E;gfx1170;gfx1171"
+                    "gfx1200;gfx1201;gfx1250;gfx1251gfx1260;gfx1310;gfx131F;gfx1370")
 
 #
 # Currently support for Windows platform is not present
@@ -133,6 +134,72 @@ endif()
 # Required Defines first:
 find_package(hsa-runtime64 REQUIRED)
 find_package(amd_smi REQUIRED)
+
+# Find yaml-cpp library with proper target handling
+set(HAVE_YAML_CPP FALSE)
+set(YAML_CPP_TARGET "")
+
+# Try TheRock's yaml-cpp first (if building with TheRock)
+find_package(therock-yaml-cpp QUIET CONFIG)
+if(therock-yaml-cpp_FOUND)
+  if(TARGET therock-yaml-cpp::therock-yaml-cpp)
+    set(YAML_CPP_TARGET therock-yaml-cpp::therock-yaml-cpp)
+    set(HAVE_YAML_CPP TRUE)
+    message(STATUS "Found yaml-cpp via TheRock: therock-yaml-cpp::therock-yaml-cpp")
+  elseif(TARGET therock-yaml-cpp)
+    set(YAML_CPP_TARGET therock-yaml-cpp)
+    set(HAVE_YAML_CPP TRUE)
+    message(STATUS "Found yaml-cpp via TheRock: therock-yaml-cpp")
+  endif()
+endif()
+
+# If not found via TheRock, try regular yaml-cpp
+if(NOT HAVE_YAML_CPP)
+  find_package(yaml-cpp QUIET CONFIG)
+  if(yaml-cpp_FOUND)
+    # Check for modern target name
+    if(TARGET yaml-cpp::yaml-cpp)
+      set(YAML_CPP_TARGET yaml-cpp::yaml-cpp)
+      set(HAVE_YAML_CPP TRUE)
+      message(STATUS "Found yaml-cpp via CMake package: yaml-cpp::yaml-cpp")
+    elseif(TARGET yaml-cpp)
+      set(YAML_CPP_TARGET yaml-cpp)
+      set(HAVE_YAML_CPP TRUE)
+      message(STATUS "Found yaml-cpp via CMake package: yaml-cpp")
+    endif()
+  endif()
+endif()
+
+# Fallback to pkg-config if CMake package not found
+if(NOT HAVE_YAML_CPP AND PKG_CONFIG_FOUND)
+  pkg_check_modules(YAML_CPP_PC yaml-cpp)
+  if(YAML_CPP_PC_FOUND)
+    # Try to find the actual library file for SHARED IMPORTED target
+    find_library(YAML_CPP_LIBRARY_FILE
+      NAMES yaml-cpp
+      HINTS ${YAML_CPP_PC_LIBRARY_DIRS}
+      NO_DEFAULT_PATH
+    )
+
+    if(YAML_CPP_LIBRARY_FILE)
+      # Create SHARED IMPORTED target for proper RPATH handling
+      add_library(yaml-cpp_imported SHARED IMPORTED)
+      set_target_properties(yaml-cpp_imported PROPERTIES
+        IMPORTED_LOCATION "${YAML_CPP_LIBRARY_FILE}"
+        INTERFACE_INCLUDE_DIRECTORIES "${YAML_CPP_PC_INCLUDE_DIRS}"
+      )
+      set(YAML_CPP_TARGET yaml-cpp_imported)
+      set(HAVE_YAML_CPP TRUE)
+      message(STATUS "Found yaml-cpp via pkg-config (SHARED): ${YAML_CPP_LIBRARY_FILE}")
+      message(STATUS "  Include dirs: ${YAML_CPP_PC_INCLUDE_DIRS}")
+      message(STATUS "  Library dirs: ${YAML_CPP_PC_LIBRARY_DIRS}")
+    endif()
+  endif()
+endif()
+
+if(NOT HAVE_YAML_CPP)
+  message(FATAL_ERROR "yaml-cpp library not found. Install libyaml-cpp-dev (Debian/Ubuntu) or yaml-cpp-devel (RHEL/CentOS)")
+endif()
 
 set (ONLY64STR "64")
 
@@ -256,7 +323,10 @@ endif()
 
 # Target devices configuration
 if(NOT DEFINED TARGET_DEVICES OR TARGET_DEVICES STREQUAL "")
-  if(DEFINED GPU_TARGETS AND NOT GPU_TARGETS STREQUAL "")
+  if(DEFINED THEROCK_DIST_AMDGPU_TARGETS AND NOT THEROCK_DIST_AMDGPU_TARGETS STREQUAL "")
+    message(STATUS "Using THEROCK_DIST_AMDGPU_TARGETS from build system: ${THEROCK_DIST_AMDGPU_TARGETS}")
+    set(TARGET_DEVICES ${THEROCK_DIST_AMDGPU_TARGETS})
+  elseif(DEFINED GPU_TARGETS AND NOT GPU_TARGETS STREQUAL "")
     message(STATUS "Using GPU_TARGETS from build system: ${GPU_TARGETS}")
     set(TARGET_DEVICES ${GPU_TARGETS})
   elseif(DEFINED AMDGPU_TARGETS AND NOT AMDGPU_TARGETS STREQUAL "")
@@ -700,7 +770,7 @@ endif()
 target_compile_definitions(${ROCRTST} PRIVATE HAVE_HWLOC=$<BOOL:${HAVE_HWLOC}>)
 
 # Link libraries - CMake will automatically handle RPATH for imported targets
-target_link_libraries(${ROCRTST} ${ROCRTST_LIBS} c stdc++ dl pthread rt)
+target_link_libraries(${ROCRTST} ${ROCRTST_LIBS} ${YAML_CPP_TARGET} c stdc++ dl pthread rt)
 if(HAVE_NUMA)
   target_link_libraries(${ROCRTST} ${NUMA_TARGET})
 endif()
@@ -726,6 +796,10 @@ install(TARGETS ${ROCRTST}
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
+
+# Install platform configuration file
+install(FILES ${ROCRTST_ROOT}/config/platform_config.yaml
+        DESTINATION share/rocrtst)
 
 install ( DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/lib DESTINATION lib/rocrtst )
 

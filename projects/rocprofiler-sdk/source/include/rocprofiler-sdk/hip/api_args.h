@@ -3427,8 +3427,6 @@ typedef union rocprofiler_hip_api_args_t
         hipKernel_t           kernel;
         hipDevice_t           dev;
     } hipKernelGetAttribute;
-#endif
-#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 25
     struct
     {
         hipFunction_attribute attrib;
@@ -3442,7 +3440,7 @@ typedef union rocprofiler_hip_api_args_t
         hipKernel_t    kernel;
     } hipKernelGetFunction;
 #endif
-#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 26
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 25
     struct
     {
         void**             dev_ptrs;
@@ -3455,7 +3453,7 @@ typedef union rocprofiler_hip_api_args_t
         hipStream_t        stream;
     } hipMemPrefetchBatchAsync;
 #endif
-#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 27
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 26
     struct
     {
         int*                     clusterSize;

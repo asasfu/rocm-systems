@@ -86,9 +86,17 @@ def make_test_files_portable(filenames):
                 modified_content = re.sub(
                     exe_pattern, replace_exe_pattern, modified_content
                 )
-                # 6 include _ctest.cmake file with path
+                # 6 include _ctest.cmake file with path, guarded by existence
+                # check so that binaries with all tests disabled (0 visible
+                # tests) don't fail — CatchAddTests.cmake skips writing the
+                # _tests.cmake file when catch_discover_tests_impl finds no
+                # tests.
                 ctest_test_pattern = r'include\("(.*?_tests\.cmake)"\)'
-                replace_ctest_pattern = r'include("${CTEST_CURRENT_DIR}/\1")'
+                replace_ctest_pattern = (
+                    r'if(EXISTS "${CTEST_CURRENT_DIR}/\1")\n'
+                    r'    include("${CTEST_CURRENT_DIR}/\1")\n'
+                    r'  endif()'
+                )
                 modified_content = re.sub(
                     ctest_test_pattern, replace_ctest_pattern, modified_content
                 )

@@ -79,7 +79,7 @@ uint32_t HandleSQFlagsBlock(Pm4Factory* pm4_factory, const aqlprofile_pmc_event_
 }
 
 counter_des_t GetCounter(Pm4Factory* pm4_factory, EventRequest& event,
-                         std::map<block_des_t, uint32_t, lt_block_des>& index_map) {
+                         std::map<block_des_t, uint32_t, lt_block_des>& index_map, int num_sp_events) {
   const GpuBlockInfo* block_info = pm4_factory->GetBlockInfo(event.block_name);
   const block_des_t block_des = {block_info->id, event.block_index};
   const auto ret = index_map.insert({block_des, 0});
@@ -91,16 +91,24 @@ counter_des_t GetCounter(Pm4Factory* pm4_factory, EventRequest& event,
     return {visible_id, reg_index, block_des, block_info};
   }
 
-  if (reg_index >= block_info->counter_count)
-    throw std::string("Event is out of block counter registers number limit");
-
   if (event.flags.raw) {
-    if (event.block_name == HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ) {
+    if (event.block_name == HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ && reg_index < num_sp_events) {
       visible_id = HandleSQFlagsBlock(pm4_factory, event);
     } else {
       throw HSA_STATUS_ERROR_INVALID_ARGUMENT;
     }
   }
+
+  if (event.block_name == HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ)
+  {
+    if (reg_index < num_sp_events)
+      reg_index = 2*reg_index + 1;
+    else
+      reg_index += num_sp_events;
+  }
+
+  if (reg_index >= block_info->counter_count)
+    throw std::runtime_error("Event is out of block counter registers number limit");
 
   ret.first->second++;
   return {visible_id, reg_index, block_des, block_info};
@@ -111,12 +119,15 @@ pm4_builder::counters_vector CountersVec(std::vector<EventRequest>& events,
   pm4_builder::counters_vector vec;
   std::map<block_des_t, uint32_t, lt_block_des> index_map;
 
-  for (auto& event : events) vec.push_back(GetCounter(pm4_factory, event, index_map));
+  int num_sp_events = 0;
+  for (auto& event : events) num_sp_events += int(event.block_name) == AQLPROFILE_BLOCK_NAME_SP;
+
+  for (auto& event : events) vec.push_back(GetCounter(pm4_factory, event, index_map, num_sp_events));
 
   if (pm4_factory->IsGFX10() && (vec.get_attr() & CounterBlockGRBMAttr) == 0) {
     EventRequest grbm_event{0};
     grbm_event.block_name = HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_GRBM;
-    vec.push_back(GetCounter(pm4_factory, grbm_event, index_map));
+    vec.push_back(GetCounter(pm4_factory, grbm_event, index_map, 0));
   }
   return vec;
 }
@@ -132,6 +143,7 @@ hsa_status_t _internal_aqlprofile_pmc_iterate_data(aqlprofile_handle_t handle,
 
   aql_profile::Pm4Factory* pm4_factory = aql_profile::Pm4Factory::Create(memorymgr->AgentHandle());
   const uint32_t xcc_num = pm4_factory->GetXccNumber();
+  const uint32_t xcc_per_aid = pm4_factory->GetXccPerAid();
 
   uint64_t* samples = reinterpret_cast<uint64_t*>(memorymgr->GetOutputBuf());
   uint64_t* buffer_end_location = samples + memorymgr->GetOutputBufSize() / sizeof(uint64_t);
@@ -145,10 +157,10 @@ hsa_status_t _internal_aqlprofile_pmc_iterate_data(aqlprofile_handle_t handle,
       if (!(pm4_factory->GetBlockInfo(event.block_name)->attr & CounterBlockUmcAttr)) continue;
 
 #if DEBUG_TRACE == 2
-      printf("DATA: sample index(%u) id(%u) bloc id(%u) index(%u) counter id(%u) res(%lu)\n",
-             sample_index, sample_id, p->block_name, p->block_index, p->counter_id, *samples);
+      std::clog << std::dec << "DATA: id(" << umc_sample_id << ") block id(" << event.block_name
+                << ") index(" << event.block_index << ") counter id(" << event.event_id << ") res("
+                << *samples << ")" << std::endl;
 #endif
-
       hsa_status_t status = callback(event, event.block_index, *samples, userdata);
       samples++;
       umc_sample_id++;
@@ -162,6 +174,7 @@ hsa_status_t _internal_aqlprofile_pmc_iterate_data(aqlprofile_handle_t handle,
       if (samples >= buffer_end_location) return HSA_STATUS_ERROR;
 
       if (pm4_factory->GetBlockInfo(event.block_name)->attr & CounterBlockUmcAttr) continue;
+      if (pm4_factory->GetBlockInfo(event.block_name)->attr & CounterBlockGrbmaAttr) continue;
 
       // non-MI300A-AID counter event.
       uint32_t block_samples_count = pm4_factory->GetNumEvents(event.block_name);
@@ -170,14 +183,52 @@ hsa_status_t _internal_aqlprofile_pmc_iterate_data(aqlprofile_handle_t handle,
       size_t xcc_sample_count = attrib.get_num_instances() * block_samples_count;
       for (uint32_t blk = 0; blk < block_samples_count; ++blk) {
 #if DEBUG_TRACE == 2
-        printf("DATA: xcc(%u) blk(%u) bloc id(%u) index(%u) counter id(%u) res(%lu)\n", xcc_index,
-               blk, event.block_name, event.block_index, event.event_id, *samples);
+        std::clog << std::dec << "DATA: xcc(" << xcc_index << ") id(" << blk << ") block id("
+                  << event.block_name << ") index(" << event.block_index << ") counter id("
+                  << event.event_id << ") res(" << *samples << ")" << " @(" << samples << ")"
+                  << std::endl;
 #endif
         size_t xcc_sample_id = xcc_sample_count * xcc_index +
                                static_cast<size_t>(event.block_index) * block_samples_count + blk;
 
         if (!event.bInternal) {
           hsa_status_t status = callback(event, xcc_sample_id, *samples, userdata);
+          if (status == HSA_STATUS_INFO_BREAK)
+            return HSA_STATUS_SUCCESS;
+          else if (status != HSA_STATUS_SUCCESS)
+            return status;
+        }
+
+        samples++;
+      }
+    }
+
+  // AIGC blocks
+  for (uint32_t xcc_index = 0, aid_index = 0; xcc_index < xcc_num;
+       xcc_index += xcc_per_aid, aid_index++)
+    for (auto& event : events) {
+      // Skip non-AIGC blocks
+      if (!(pm4_factory->GetBlockInfo(event.block_name)->attr & CounterBlockGrbmaAttr)) continue;
+
+      if (samples >= buffer_end_location) return HSA_STATUS_ERROR;
+
+      // AIGC counter event.
+      uint32_t block_samples_count = pm4_factory->GetNumEvents(event.block_name);
+      const EventAttribDimension& attrib = EventAttribDimension::get(agent, event.block_name);
+      if (!attrib.get_num()) return HSA_STATUS_ERROR;
+      size_t aid_sample_count = attrib.get_num_instances() * block_samples_count;
+      for (uint32_t blk = 0; blk < block_samples_count; ++blk) {
+#if DEBUG_TRACE == 2
+        std::clog << std::dec << "DATA: xcc(" << xcc_index << ") id(" << blk << ") block id("
+                  << event.block_name << ") index(" << event.block_index << ") counter id("
+                  << event.event_id << ") res(" << *samples << ")" << " @(" << samples << ")"
+                  << std::endl;
+#endif
+        size_t aid_sample_id = aid_sample_count * aid_index +
+                               static_cast<size_t>(event.block_index) * block_samples_count + blk;
+
+        if (!event.bInternal) {
+          hsa_status_t status = callback(event, aid_sample_id, *samples, userdata);
           if (status == HSA_STATUS_INFO_BREAK)
             return HSA_STATUS_SUCCESS;
           else if (status != HSA_STATUS_SUCCESS)

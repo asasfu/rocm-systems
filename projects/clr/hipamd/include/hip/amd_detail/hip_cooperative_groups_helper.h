@@ -279,6 +279,13 @@ __CG_STATIC_QUALIFIER__ unsigned int masked_bit_count(lane_mask x, unsigned int 
 }  // namespace coalesced_group
 
 namespace cluster {
+
+// s_getreg encoding for HW_REG_STATUS.IN_WG (register 2, bit 11, width 1).
+// IN_WG == 1 when the wave belongs to a multi-wave workgroup; 0 otherwise.
+#define __CG_HW_REG_STATUS       2
+#define __CG_STATUS_IN_WG_OFF   11
+#define __CG_GETREG_IN_WG       GETREG_IMMED(0, __CG_STATUS_IN_WG_OFF, __CG_HW_REG_STATUS)
+
 __CG_STATIC_QUALIFIER__ void sync() {
   __builtin_amdgcn_fence(__ATOMIC_RELEASE, "cluster");
 #if __has_builtin(__builtin_amdgcn_s_cluster_barrier)
@@ -294,12 +301,24 @@ __CG_STATIC_QUALIFIER__ void barrier_arrive() {
   __builtin_amdgcn_fence(__ATOMIC_RELEASE, "cluster");
 #if __has_builtin(__builtin_amdgcn_s_barrier_signal) and                                           \
     __has_builtin(__builtin_amdgcn_s_barrier_wait)
-  bool isfirst = __builtin_amdgcn_s_barrier_signal_isfirst(-1);  // -1 is workgroup barrier
-  __builtin_amdgcn_s_barrier_wait(-1);
+  bool should_signal;
+#if defined(__GFX12__)
+  // s_barrier_signal_isfirst writes SCC=0 when !inWG, use IN_WG to bypass.
+  unsigned in_wg = __builtin_amdgcn_s_getreg(__CG_GETREG_IN_WG);
 
-  if (isfirst) {
-    // Signal the cluster barrier, -3 means user cluster barrier
-    __builtin_amdgcn_s_barrier_signal(-3);
+  if (in_wg) {
+    should_signal = __builtin_amdgcn_s_barrier_signal_isfirst(-1);  // -1 is workgroup barrier
+    __builtin_amdgcn_s_barrier_wait(-1);
+  } else {
+    should_signal = true;
+  }
+#else
+  should_signal = __builtin_amdgcn_s_barrier_signal_isfirst(-1);  // -1 is workgroup barrier
+  __builtin_amdgcn_s_barrier_wait(-1);
+#endif
+
+  if (should_signal) {
+    __builtin_amdgcn_s_barrier_signal(-3);  // -3 is user cluster barrier
   }
 #endif
 }

@@ -102,7 +102,8 @@ const amd::Kernel::KernelFieldMapV3Type amd::Kernel::kKernelFieldMapV3[] = {
     {".kind", KernelField::Kind},
     {".workgroup_processor_mode", KernelField::WgpMode},
     {".uniform_work_group_size", KernelField::UniformWrokGroupSize},
-    {".cluster_dims", KernelField::ClusterDims}};
+    {".cluster_dims", KernelField::ClusterDims},
+    {".laneshared_segment_fixed_size", KernelField::LanesharedSegmentFixedSize}};
 
 const amd::Kernel::ArgValueKindV3Type amd::Kernel::kArgValueKindV3[] = {
     {"by_value", amd::KernelParameterDescriptor::ValueObject},

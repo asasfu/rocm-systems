@@ -1063,13 +1063,18 @@ bool Device::populateOCLDeviceConstants() {
   info_.globalMemCacheLineSize_ =
       (info_.globalMemCacheLineSize_ != 0) ? info_.globalMemCacheLineSize_ : 64;
 
+
+  if (isa().versionMajor() >= 13 && info_.globalMemCacheLineSize_ < 256) {
+    info_.globalMemCacheLineSize_ = 256;
+  }
+
   uint32_t cachesize[4] = {0};
   if (HSA_STATUS_SUCCESS !=
       Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_CACHE_SIZE, cachesize)) {
     return false;
   }
 
-  if ((isa().versionMajor() == 12 && isa().versionMinor() == 5 && isa().versionStepping() == 0)
+  if ((isa().versionMajor() == 12 && (isa().versionMinor() == 5 || isa().versionMinor() == 6) && isa().versionStepping() == 0)
        && (info_.globalMemCacheLineSize_ < 256)) {
     info_.globalMemCacheLineSize_ = 256;
   }
@@ -1309,6 +1314,16 @@ bool Device::populateOCLDeviceConstants() {
   info_.maxWorkItemSizes_[1] = std::min(max_workgroup_size[1], max_work_item_size);
   info_.maxWorkItemSizes_[2] = std::min(max_workgroup_size[2], max_work_item_size);
   info_.preferredWorkGroupSize_ = settings().preferredWorkGroupSize_;
+
+  hsa_dim3_t grid_max_dim = {0, 0, 0};
+  if (HSA_STATUS_SUCCESS !=
+      Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_GRID_MAX_DIM, &grid_max_dim)) {
+    return false;
+  }
+  assert(grid_max_dim.x != 0 && grid_max_dim.y != 0 && grid_max_dim.z != 0);
+  info_.maxGridDim_[0] = std::min(grid_max_dim.x, static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
+  info_.maxGridDim_[1] = std::min(grid_max_dim.y, static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
+  info_.maxGridDim_[2] = std::min(grid_max_dim.z, static_cast<uint32_t>(std::numeric_limits<int32_t>::max()));
 
   info_.nativeVectorWidthChar_ = info_.preferredVectorWidthChar_ = 4;
   info_.nativeVectorWidthShort_ = info_.preferredVectorWidthShort_ = 2;
@@ -1726,10 +1741,9 @@ bool Device::populateOCLDeviceConstants() {
   // devices with no cluster support; max size is 0
   info_.clusterMaxSize_ = 0;
 
-  hsa_status_t hsaStatus = hsa_agent_get_info(
+  hsa_status_t hsaStatus = Hsa::agent_get_info(
       bkendDevice_, static_cast<hsa_agent_info_t>(HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE),
       &info_.clusterMaxSize_);
-
 
   // this is required for clustered kernel launches; but it might not be supported in older rocr,
   // so invalid argument might no be necessarily an error
@@ -1746,6 +1760,15 @@ bool Device::populateOCLDeviceConstants() {
   } else {
     info_.sgprsPerSimd_ =
         std::numeric_limits<uint32_t>::max();  // gfx10+ does not share SGPRs between waves
+  }
+
+  // Flag for fabric handle support
+  info_.fabric_handle_ = false;
+  if (HSA_STATUS_SUCCESS !=
+      Hsa::system_get_info(
+          static_cast<hsa_system_info_t>(HSA_AMD_SYSTEM_INFO_FABRIC_HANDLES_SUPPORTED),
+          &info_.fabric_handle_)) {
+    LogError("HSA_AMD_SYSTEM_INFO_FABRIC_HANDLES_SUPPORTED query failed ");
   }
 
   return true;
@@ -2472,30 +2495,41 @@ bool Device::GetMemAccess(void* va_addr, VmmAccess* access_flags_ptr) const {
 }
 
 // ================================================================================================
-bool Device::ExportShareableVMMHandle(amd::Memory& amd_mem_obj, int flags, void* shareableHandle) {
+bool Device::ExportShareableVMMHandle(amd::Memory& amd_mem_obj, int flags, void* shareableHandle,
+                                      amd::Memory::HandleType handle_type) {
   hsa_status_t hsa_status = HSA_STATUS_SUCCESS;
   hsa_amd_vmem_alloc_handle_t hsa_vmem_handle{};
   hsa_vmem_handle.handle = amd_mem_obj.getUserData().hsa_handle;
-  int dmabuf_fd = 0;
 
   if (hsa_vmem_handle.handle == 0) {
     LogError("HSA Handle is not valid");
     return false;
   }
 
-  if ((hsa_status = Hsa::vmem_export_shareable_handle(&dmabuf_fd, hsa_vmem_handle, flags)) !=
-      HSA_STATUS_SUCCESS) {
-    LogPrintfError("Failed hsa_vmem_export_shareable_handle with status: %d", hsa_status);
-    return false;
+  if (handle_type == amd::Memory::HandleType::kHandleFabric) { //handle type fabric
+    hsa_fabric_handle_t fabric_handle;
+    if ((hsa_status = hsa_amd_vmem_export_fabric_handle(&fabric_handle,
+                        hsa_vmem_handle, flags)) != HSA_STATUS_SUCCESS) {
+      LogPrintfError("Failed hsa_vmem_export_fabric_handle with status: %d \n", hsa_status);
+      return false;
+    }
+    *(reinterpret_cast<hsa_fabric_handle_t*>(shareableHandle)) = fabric_handle;
+  } else {
+    int dmabuf_fd = 0;
+    if ((hsa_status = Hsa::vmem_export_shareable_handle(&dmabuf_fd,
+                        hsa_vmem_handle, flags)) != HSA_STATUS_SUCCESS) {
+      LogPrintfError("Failed hsa_vmem_export_shareable_handle with status: %d \n", hsa_status);
+      return false;
+    }
+    *(reinterpret_cast<int*>(shareableHandle)) = dmabuf_fd;
   }
-
-  *(reinterpret_cast<int*>(shareableHandle)) = dmabuf_fd;
 
   return true;
 }
 
 // ================================================================================================
-bool Device::ImportShareableHSAHandle(void* osHandle, uint64_t* hsa_handle_ptr) const {
+bool Device::ImportShareableHSAHandle(void* osHandle, uint64_t* hsa_handle_ptr,
+                                      amd::Memory::HandleType handle_type) const {
   hsa_status_t hsa_status = HSA_STATUS_SUCCESS;
   hsa_amd_vmem_alloc_handle_t hsa_vmem_handle{};
 
@@ -2504,11 +2538,20 @@ bool Device::ImportShareableHSAHandle(void* osHandle, uint64_t* hsa_handle_ptr) 
     return false;
   }
 
-  int dmabuf_fd = static_cast<int>(reinterpret_cast<uintptr_t>(osHandle));
-  if ((hsa_status = Hsa::vmem_import_shareable_handle(dmabuf_fd, &hsa_vmem_handle)) !=
-      HSA_STATUS_SUCCESS) {
-    LogPrintfError("Failed hsa_amd_vmem_import_shareable_handle with status: %d", hsa_status);
-    return false;
+  if (handle_type == amd::Memory::HandleType::kHandleFabric) {
+    hsa_fabric_handle_t fabric_handle = *(reinterpret_cast<hsa_fabric_handle_t*>(osHandle));
+    if ((hsa_status = hsa_amd_vmem_import_fabric_handle(fabric_handle, &hsa_vmem_handle))
+                        != HSA_STATUS_SUCCESS) {
+      LogPrintfError("Failed hsa_amd_vmem_import_fabric_handle with status: %d \n", hsa_status);
+      return false;
+    }
+  } else {
+    int dmabuf_fd = static_cast<int>(reinterpret_cast<uintptr_t>(osHandle));
+    if ((hsa_status = Hsa::vmem_import_shareable_handle(dmabuf_fd, &hsa_vmem_handle))
+                        != HSA_STATUS_SUCCESS) {
+      LogPrintfError("Failed hsa_amd_vmem_import_shareable_handle with status: %d \n", hsa_status);
+      return false;
+    }
   }
 
   *hsa_handle_ptr = hsa_vmem_handle.handle;
@@ -2516,7 +2559,7 @@ bool Device::ImportShareableHSAHandle(void* osHandle, uint64_t* hsa_handle_ptr) 
 }
 
 // ================================================================================================
-amd::Memory* Device::ImportShareableVMMHandle(void* osHandle) {
+amd::Memory* Device::ImportShareableVMMHandle(void* osHandle, amd::Memory::HandleType handle_type) {
   amd::Memory* amd_mem_obj = new (context())
       amd::Buffer(context(), ROCCLR_MEM_PHYMEM | ROCCLR_MEM_INTERPROCESS, 0, osHandle);
   if (amd_mem_obj == nullptr) {
@@ -2524,6 +2567,7 @@ amd::Memory* Device::ImportShareableVMMHandle(void* osHandle) {
     return nullptr;
   }
 
+  amd_mem_obj->getUserData().hsa_handle_type = handle_type;
   if (!amd_mem_obj->create(nullptr, false)) {
     LogError("Failed to create mem_obj from imported fd");
     amd_mem_obj->release();
