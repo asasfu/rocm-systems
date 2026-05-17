@@ -563,6 +563,8 @@ inline constexpr char const kNotEnoughFreeGpuMemory[] =
 inline constexpr char const kNotEnoughFreeHostMemory[] =
     "not enough free host memory";
 inline constexpr char const kRequiresLinux[] = "this test requires Linux.";
+inline constexpr char const kSdmaSwapUnsupported[] =
+    "SDMA swap is not supported on this device.";
 inline constexpr char const kProgrammaticLaunchUnsupported[] =
     "programmatic dependent launch is not supported on this device.";
 }  // namespace SkipReason
