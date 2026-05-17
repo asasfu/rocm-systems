@@ -4278,6 +4278,10 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
       dispatchPacketExt.cluster_size_y = sizes.dimensions() > 1 ? sizes.cluster()[1] : 1;
       dispatchPacketExt.cluster_size_z = sizes.dimensions() > 2 ? sizes.cluster()[2] : 1;
 
+      if (vcmd != nullptr && vcmd->getDispatchAheadProgrammaticFlag()) {
+        dispatchPacketExt.perf_hint.reverse_dispatch_order = 1;
+      }
+
       // Already validated in HIP Launch Params that newGlobalSize is perfectly divisible by local
       // and it is divisible by cluster size.
       dispatchPacketExt.cluster_count_x = sizes.dimensions() > 0

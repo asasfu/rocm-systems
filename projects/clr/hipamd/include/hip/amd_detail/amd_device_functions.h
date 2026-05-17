@@ -874,6 +874,23 @@ unsigned __smid(void)
   return assemble_smid(xcc, se, sa, wgp, cu, se_bits, sa_bits, wgp_bits, cu_bits);
 }
 
+#if defined(__gfx1260__)
+#define __HIP_EARLY_DISPATCH_RELEASED_EVENT 0x04
+#define __HIP_SENDMSG_EARLY_EXIT_HINT 0x0A
+
+__device__ static inline void hipGridDependencySynchronize(void) {
+  __builtin_amdgcn_s_wait_event(__HIP_EARLY_DISPATCH_RELEASED_EVENT);
+}
+
+__device__ static inline void hipTriggerProgrammaticLaunchCompletion(void) {
+  __builtin_amdgcn_s_sendmsg(__HIP_SENDMSG_EARLY_EXIT_HINT, 0);
+}
+#else
+// No-op stubs for architectures that do not support programmatic dependent launch.
+__device__ static inline void hipGridDependencySynchronize(void) {}
+__device__ static inline void hipTriggerProgrammaticLaunchCompletion(void) {}
+#endif
+
 /**
  * Map HIP_DYNAMIC_SHARED to "extern __shared__" for compatibility with old HIP applications
  * To be removed in a future release.

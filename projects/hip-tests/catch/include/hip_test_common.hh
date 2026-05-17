@@ -332,6 +332,22 @@ static inline bool IsStrixHalo() {
 #endif
 }
 
+static inline bool IsProgrammaticLaunchSupported() {
+#if HT_NVIDIA
+  return true;
+#elif HT_AMD
+  int device = -1;
+  hipDeviceProp_t props{};
+  HIP_CHECK(hipGetDevice(&device));
+  HIP_CHECK(hipGetDeviceProperties(&props, device));
+  std::string arch = std::string(props.gcnArchName);
+  return arch.find("gfx1260") != std::string::npos;
+#else
+  std::cout << "Have to be either Nvidia or AMD platform, asserting" << std::endl;
+  assert(false);
+#endif
+}
+
 // Utility Functions
 namespace HipTest {
 static inline int getDeviceCount() {
@@ -547,6 +563,8 @@ inline constexpr char const kNotEnoughFreeGpuMemory[] =
 inline constexpr char const kNotEnoughFreeHostMemory[] =
     "not enough free host memory";
 inline constexpr char const kRequiresLinux[] = "this test requires Linux.";
+inline constexpr char const kProgrammaticLaunchUnsupported[] =
+    "programmatic dependent launch is not supported on this device.";
 }  // namespace SkipReason
 
 /**

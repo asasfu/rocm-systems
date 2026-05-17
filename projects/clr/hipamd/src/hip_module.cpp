@@ -438,6 +438,9 @@ hipError_t ihipLaunchKernelCommand(amd::Command*& command, hipFunction_t f,
   if (flags & hipExtAnyOrderLaunch) {
     params |= amd::NDRangeKernelCommand::AnyOrderLaunch;
   }
+  if (flags & hipExtDispatchAheadProgrammatic) {
+    params |= amd::NDRangeKernelCommand::DispatchAheadProgrammatic;
+  }
 
   amd::NDRangeKernelCommand* kernelCommand = new amd::NDRangeKernelCommand(
       *stream, waitList, *kernel, ndrange, launch_params.sharedMemBytes_, params, gridId, numGrids,
@@ -891,8 +894,9 @@ hipError_t hipGetFuncBySymbol(hipFunction_t* functionPtr, const void* symbolPtr)
 }
 
 hipError_t hipLaunchKernel_common(const void* hostFunction, dim3 gridDim, dim3 blockDim,
-                                  void** args, size_t sharedMemBytes, hipStream_t stream,
-                                  dim3 clusterDim = {1, 1, 1}) {
+                                             void** args, size_t sharedMemBytes,
+                                             hipStream_t stream, dim3 clusterDim = {1, 1, 1},
+                                             int launchFlags = 0) {
   // TODO: @cjatin refactor the isValid check in hot path
   // We do this check in `ihipLaunchKernel` as well, but the macro STREAM_CAPTURE dereferences the stream first.
   // So this shows up in the ASAN run.
@@ -902,7 +906,7 @@ hipError_t hipLaunchKernel_common(const void* hostFunction, dim3 gridDim, dim3 b
   }
   STREAM_CAPTURE(hipLaunchKernel, stream, hostFunction, gridDim, blockDim, args, sharedMemBytes);
   return ihipLaunchKernel(hostFunction, gridDim, blockDim, args, sharedMemBytes, stream, nullptr,
-                          nullptr, 0, clusterDim);
+                          nullptr, launchFlags, clusterDim);
 }
 
 hipError_t hipLaunchKernel(const void* hostFunction, dim3 gridDim, dim3 blockDim, void** args,
@@ -1293,7 +1297,8 @@ hipError_t hipLaunchKernelExC(const hipLaunchConfig_t* config, const void* fPtr,
                                                config->dynamicSmemBytes, config->stream));
   }
 
-  dim3 clusterDims = {0, 0, 0};
+  dim3 clusterDims = {1, 1, 1};
+  int launchFlags = 0;
   for (size_t attr_idx = 0; attr_idx < config->numAttrs; ++attr_idx) {
     hipLaunchAttribute& attr = config->attrs[attr_idx];
     switch (attr.id) {
@@ -1309,6 +1314,11 @@ hipError_t hipLaunchKernelExC(const hipLaunchConfig_t* config, const void* fPtr,
         clusterDims.y = attr.val.clusterDim.y;
         clusterDims.z = attr.val.clusterDim.z;
         break;
+      case hipLaunchAttributeProgrammaticStreamSerialization:
+        if (attr.val.programmaticStreamSerializationAllowed != 0) {
+          launchFlags |= hipExtDispatchAheadProgrammatic;
+        }
+        break;
       default:
         LogPrintfError("Attribute %u not supported", attr.id);
         break;
@@ -1321,7 +1331,7 @@ hipError_t hipLaunchKernelExC(const hipLaunchConfig_t* config, const void* fPtr,
 
   HIP_RETURN_DURATION(hipLaunchKernel_common(fPtr, config->gridDim, config->blockDim, args,
     config->dynamicSmemBytes, config->stream,
-    clusterDims));
+    clusterDims, launchFlags));
 }
 
 hipError_t hipDrvLaunchKernelEx(const HIP_LAUNCH_CONFIG* config, hipFunction_t f,
@@ -1355,13 +1365,14 @@ hipError_t hipDrvLaunchKernelEx(const HIP_LAUNCH_CONFIG* config, hipFunction_t f
   }
 
   dim3 clusterDim = {1, 1, 1};
+  uint32_t launchFlags = 0;
   for (size_t attr_idx = 0; attr_idx < config->numAttrs; ++attr_idx) {
     hipLaunchAttribute& attr = config->attrs[attr_idx];
     switch (attr.id) {
       case hipLaunchAttributeCooperative: {
         if (attr.value.cooperative != 0) {
           HIP_RETURN(ihipModuleLaunchKernel(f, launch_params, hStream, kernelParams,
-                                            nullptr, nullptr, nullptr, 0,
+                                            nullptr, nullptr, nullptr, launchFlags,
                                             amd::NDRangeKernelCommand::CooperativeGroups));
         }
         break;
@@ -1372,6 +1383,11 @@ hipError_t hipDrvLaunchKernelEx(const HIP_LAUNCH_CONFIG* config, hipFunction_t f
         clusterDim.z = attr.value.clusterDim.z;
         break;
       }
+      case hipLaunchAttributeProgrammaticStreamSerialization:
+        if (attr.value.programmaticStreamSerializationAllowed != 0) {
+          launchFlags |= hipExtDispatchAheadProgrammatic;
+        }
+        break;
       default:
         LogPrintfError("Attribute %u not supported", attr.id);
         break;
@@ -1388,7 +1404,7 @@ hipError_t hipDrvLaunchKernelEx(const HIP_LAUNCH_CONFIG* config, hipFunction_t f
                                           config->sharedMemBytes, *drvDevice, 0, 0, 0, clusterDim.x,
                                           clusterDim.y, clusterDim.z);
 
-  HIP_RETURN(ihipModuleLaunchKernel(f, launch_params_cluster, hStream, kernelParams, extra, nullptr,
-                                    nullptr));
+  HIP_RETURN(ihipModuleLaunchKernel(f, launch_params_cluster, hStream, kernelParams, extra,
+                                    nullptr, nullptr, launchFlags));
 }
 }  // namespace hip
