@@ -107,3 +107,15 @@ kernel:
   Unit_Validate_User_Sgpr_Count:
     <<: *level_2
     disabled: [gfx1260, gfx1310]
+  Unit_hipLaunchKernelEx_ProgrammaticLaunch:
+    <<: *level_2
+    disabled: [gfx1260]
+    tags: [launch, P1]
+  Unit_hipDrvLaunchKernelEx_ProgrammaticLaunch:
+    <<: *level_2
+    disabled: [gfx1260]
+    tags: [launch, P1]
+  Unit_hipLaunchKernelEx_ProgrammaticLaunch_Overlap:
+    <<: *level_2
+    disabled: [gfx1260]
+    tags: [launch, P1]
