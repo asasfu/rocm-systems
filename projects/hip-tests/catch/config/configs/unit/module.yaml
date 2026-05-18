@@ -22,7 +22,7 @@ module:
   Unit_hipModuleLaunchKernel_Positive_Basic:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1310]
+    disabled: [amd_windows]
     tags: [launch, P0]
   Unit_hipModuleLaunchKernel_Positive_Parameters:
     <<: *level_2
@@ -80,7 +80,6 @@ module:
     tags: [function, multigpu]
   Unit_hipModuleGetFunction_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [function, P0]
   Unit_hipModuleGetFunction_Negative_Parameters:
     <<: *level_2
@@ -120,7 +119,6 @@ module:
     tags: [function]
   Unit_hipHccModuleLaunchKernel_basic:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [launch, P0]
   Unit_hipHccModuleLaunchKernel_NegTst:
     <<: *level_2
@@ -162,7 +160,7 @@ module:
   Unit_hipModuleLoadData_Positive_Basic:
     <<: *level_2
     # Below tests tests fail in PSDB
-    disabled: [gfx1310, nvidia_windows]
+    disabled: [nvidia_windows]
     tags: [load, P0]
   Unit_hipModuleLoadData_Negative_Parameters:
     <<: *level_2
@@ -176,7 +174,7 @@ module:
   Unit_hipModuleLoad_Positive_Basic:
     <<: *level_2
     # Below tests tests fail in PSDB
-    disabled: [gfx1310, nvidia_windows]
+    disabled: [nvidia_windows]
     tags: [load, P0]
   Unit_hipModuleLoad_Negative_Parameters:
     <<: *level_2
@@ -312,7 +310,6 @@ module:
     tags: [resource, image]
   Unit_hipFuncSetAttribute_Basic:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [function, P0]
   Unit_hipExtModuleLaunchKernel_CheckCodeObjAttr:
     <<: *level_2

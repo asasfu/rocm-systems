@@ -2,7 +2,6 @@
 errorHandling:
   Unit_hipGetErrorName_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [P0]
   Unit_hipGetErrorName_Negative_Parameters:
     <<: *level_2

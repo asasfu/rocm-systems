@@ -32,11 +32,9 @@ device:
     tags: [query, P0]
   Unit_hipDeviceGetName_PartialFill:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [query, P0]
   Unit_hipDeviceName_gcnArchName_And_rocm_agent_enumerator:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [query, P0]
   Unit_hipDeviceGetPCIBusId_Check_PciBusID_WithAttr:
     <<: *level_2
@@ -157,11 +155,10 @@ device:
     tags: [query, P0]
   Unit_hipDeviceGetUuid_From_RocmInfo:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [query, P0]
   Unit_hipDeviceGetUuid_VerifyUuidFrm_hipGetDeviceProperties:
     <<: *level_2
-    disabled: [gfx1250, gfx1310]
+    disabled: [gfx1250]
     tags: [query, P0]
   Unit_Uuid_FntlTstsFor_SetEnv_HIP_VISIBLE_DEVICES:
     <<: *level_2
@@ -205,11 +202,9 @@ device:
     tags: [multigpu, P0]
   Unit_hipExtGetLinkTypeAndHopCount_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [query, P0]
   Unit_hipExtGetLinkTypeAndHopCount_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [query, P0]
   Unit_hipDeviceSetLimit_Positive_StackSize:
     <<: *level_2
@@ -368,7 +363,6 @@ device:
     tags: [config, multigpu]
   Unit_hipGetProcAddress_ValidateDeviceApis:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [P0]
   Unit_hipGetProcAddress_PeerDeviceAccessAPIs:
     <<: *level_2
@@ -400,7 +394,7 @@ device:
     <<: *level_2
     tags: [P0]
     # Note: Windows disabled
-    disabled: [amd_wsl, gfx1310]
+    disabled: [amd_wsl]
   Unit_hipIpcOpenMemHandle_Negative_Open_In_Two_Contexts_Same_Device:
     <<: *level_2
     tags: [P0]
@@ -410,15 +404,13 @@ device:
   Unit_hipIpcGetMemHandle_Positive_Unique_Handles_Separate_Allocations:
     <<: *level_2
     # Note: Test disabled due to defect - EXSWHTEC-207
-    disabled: [amd_wsl, gfx1310]
+    disabled: [amd_wsl]
     tags: [P0]
   Unit_hipIpcGetMemHandle_Negative_Handle_For_Freed_Memory:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [P0]
   Unit_hipIpcGetMemHandle_Negative_Out_Of_Bound_Pointer:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [P0]
   Unit_hipIpcCloseMemHandle_Positive_Reference_Counting:
     <<: *level_2
@@ -430,7 +422,7 @@ device:
     <<: *level_2
     tags: [P0]
     # Note: Windows disabled
-    disabled: [gfx1310, amd_wsl]
+    disabled: [amd_wsl]
   Unit_hipIpcOpenMemHandle_Multiproc:
     <<: *level_2
     disabled: [gfx1260, gfx1310]

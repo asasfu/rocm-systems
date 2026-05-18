@@ -33,7 +33,6 @@ kernel:
     tags: [launch, P1]
   Unit_hipLaunchParmFunctor:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [launch, P1]
   Unit_kernel_chkConstantViaKernel:
     <<: *level_2

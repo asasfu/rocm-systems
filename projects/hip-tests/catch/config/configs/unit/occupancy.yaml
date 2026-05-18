@@ -6,7 +6,6 @@ occupancy:
     disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
   Unit_hipOccupancyMaxActiveBlocksPerMultiprocessor_Positive_RangeValidation:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [P0]
   Unit_hipOccupancyMaxActiveBlocksPerMultiprocessor_Positive_TemplateInvocation:
     <<: *level_2
@@ -44,7 +43,7 @@ occupancy:
     <<: *level_2
     tags: [P0]
     # SWDEV-434878: Below tests failed in stress test on 24/11/23
-    disabled: [amd_windows, amd_wsl, gfx1310]
+    disabled: [amd_windows, amd_wsl]
   Unit_OccupancyAPIs_StreamCapture:
     <<: *level_2
     disabled: [gfx1260, gfx1310]

@@ -35,7 +35,7 @@ event:
   Unit_hipEventElapsedTime_NotReady_Negative:
     <<: *level_2
     # SWDEV-411303 fails in WSL. Profiling not support in WSL
-    disabled: [amd_wsl, gfx1310]
+    disabled: [amd_wsl]
     tags: [synchronization, P1]
   Unit_hipEventElapsedTime:
     <<: *level_2
@@ -46,7 +46,7 @@ event:
     tags: [synchronization]
   Unit_hipEventRecord:
     <<: *level_2
-    disabled: [amd_windows, gfx1310]
+    disabled: [amd_windows]
     tags: [synchronization, P0]
   Unit_hipEventRecord_Negative:
     <<: *level_2
@@ -59,12 +59,12 @@ event:
   Unit_hipEventDestroy_Unfinished:
     <<: *level_2
     # SWDEV-411303 fails in WSL. Profiling not support in WSL
-    disabled: [amd_wsl, gfx1310]
+    disabled: [amd_wsl]
     tags: [lifecycle, P0]
   Unit_hipEventDestroy_WithWaitingStream:
     <<: *level_2
     # SWDEV-402054 fails in external github build
-    disabled: [amd_windows, amd_wsl, gfx1310]
+    disabled: [amd_windows, amd_wsl]
     tags: [lifecycle, P1]
   Unit_hipEventDestroy_Negative:
     <<: *level_2
@@ -135,7 +135,6 @@ event:
     tags: [multigpu, P1]
   Unit_hipEventQuery_DifferentDevice:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [synchronization, P0]
   Unit_hipEventIpc_shm_cleanup:
     <<: *level_2
