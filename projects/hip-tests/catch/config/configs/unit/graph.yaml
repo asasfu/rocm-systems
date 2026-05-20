@@ -8,7 +8,7 @@ graph:
     tags: [node]
   Unit_hipGraphAddEmptyNode_BarrierFunc:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddDependencies_Positive_Functional:
     <<: *level_2
@@ -22,7 +22,7 @@ graph:
     tags: [dependency]
   Unit_hipGraphAddEventRecordNode_Functional_Simple:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddEventRecordNode_Functional_WithoutFlags:
     <<: *level_2
@@ -43,7 +43,7 @@ graph:
     <<: *level_2
     # (amd_windows) SWDEV-347670 - blocking tests have TDR, causing hangs
     # (amd_wsl) Note: Windows disabled
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddEventRecordNode_Functional_TimingDisabled:
     <<: *level_2
@@ -63,7 +63,7 @@ graph:
     tags: [node]
   Unit_hipGraphAddEventWaitNode_MultipleRun:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddEventWaitNode_MultGraphOneStrmDependency:
     <<: *level_2
@@ -81,27 +81,27 @@ graph:
     tags: [node]
   Unit_hipGraph_BasicFunctional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle, P0]
   Unit_hipGraph_SimpleGraphWithKernel:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphAddMemcpyNode_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [node, image]
   Unit_hipGraphAddMemcpyNode_Negative_Parameters:
     <<: *level_2
     # NOTE: The following test is disabled due to defect - EXSWHTEC-245
-    disabled: [amd_windows, gfx1310]
+    disabled: [amd_windows, gfx1310, gfx1370]
     tags: [node, image]
   Unit_hipGraphClone_Negative:
     <<: *level_2
     tags: [lifecycle]
   Unit_hipGraphClone_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphClone_MultiThreaded:
     <<: *level_2
@@ -129,27 +129,27 @@ graph:
   Unit_hipGraphInstantiateWithFlags_FlagAutoFreeOnLaunch_check:
     <<: *level_2
     # SWDEV-402082 - PAL Backend fails to reserve address on GPU except first one
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphInstantiateWithFlags_AutoFreeOnLaunchInLoop:
     <<: *level_2
     # SWDEV-517063 Below tests are temporarily disabled due to PSDB failure
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphInstantiateWithFlags_AutoFreeOnLaunchFillKernel:
     <<: *level_2
     # SWDEV-517063 Below tests are temporarily disabled due to PSDB failure
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphInstantiateWithFlags_AutoFreeOnLaunchDoubleKernel:
     <<: *level_2
     # SWDEV-517063 Below tests are temporarily disabled due to PSDB failure
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphInstantiateWithFlags_WithDefaultAndAutoFreeOnLaunch:
     <<: *level_2
     # SWDEV-517063 Below tests are temporarily disabled due to PSDB failure
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphInstantiateWithParams_Negative:
     <<: *level_2
@@ -201,7 +201,7 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemcpyNodeFromSymbol_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemcpyNodeFromSymbol_Negative_Parameters:
     <<: *level_2
@@ -253,11 +253,11 @@ graph:
     tags: [multigpu, node]
   Unit_hipGraphAddMemcpyNodeToSymbol_MemcpyToSymbolNodeWithKernel:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemcpyNodeToSymbol_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemcpyNodeToSymbol_Negative_Parameters:
     <<: *level_2
@@ -266,7 +266,7 @@ graph:
   Unit_hipGraphExecMemsetNodeSetParams_Positive_Basic: *level_2
   Unit_hipGraphExecMemsetNodeSetParams_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphExecMemsetNodeSetParams_Negative_Updating_Non1D_Node:
     <<: *level_2
@@ -280,7 +280,7 @@ graph:
   Unit_hipGraphMemcpyNodeSetParamsToSymbol_Positive_Basic:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphMemcpyNodeSetParamsToSymbol_Negative_Parameters:
     <<: *level_2
@@ -367,7 +367,6 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemcpyNode1D_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310]
     tags: [node, P0]
   Unit_hipGraphAddMemcpyNode1D_Negative_Parameters:
     <<: *level_2
@@ -396,11 +395,11 @@ graph:
     tags: [node]
   Unit_hipGraphAddChildGraphNode_Cmplx_NestedGraphs:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddChildGraphNode_CmplxClone_NestedGraphs:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddChildGraphNode_EmptyGraphAsChildNode:
     <<: *level_2
@@ -437,11 +436,11 @@ graph:
   Unit_hipGraphAddChildGraphNode_MultGraphsAsSingleGraph:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddChildGraphNode_CmplxNstGrph_MultGPU:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [multigpu, node]
   Unit_hipGraphAddChildGraphNode_CmplxGrph_SchedLogic:
     <<: *level_2
@@ -483,7 +482,7 @@ graph:
     tags: [exec]
   Unit_hipGraphExecMemcpyNodeSetParams1D_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphExecMemcpyNodeSetParams1D_Negative_Parameters:
     <<: *level_2
@@ -566,7 +565,7 @@ graph:
     <<: *level_2
     tags: [exec, multigpu]
     # SWDEV-446588 - Disable graph multi gpu testcases until graph has support for it
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
   Unit_hipGraphExecUpdate_Functional_KernelFunction_Changed:
     <<: *level_2
     disabled: [gfx1260]
@@ -580,7 +579,7 @@ graph:
     tags: [exec]
   Unit_hipGraphExecEventRecordNodeSetEvent_Positive_DifferentDevices:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec, multigpu]
   Unit_hipGraphExecEventRecordNodeSetEvent_Negative:
     <<: *level_2
@@ -601,7 +600,7 @@ graph:
   Unit_hipGraphMemsetNodeSetParams_Positive_Basic:
     <<: *level_2
     # Note: Following four tests disabled due to defect - EXSWHTEC-203
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipGraphMemsetNodeSetParams_Negative_Parameters:
     <<: *level_2
     tags: [node]
@@ -619,7 +618,7 @@ graph:
   Unit_hipGraphExecMemcpyNodeSetParamsFromSymbol_Positive_Basic:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphExecMemcpyNodeSetParamsFromSymbol_Negative_Parameters:
     <<: *level_2
@@ -649,27 +648,27 @@ graph:
     tags: [query]
   Unit_hipGraphExecMemcpyNodeSetParams_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphExecMemcpyNodeSetParams_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphExecMemcpyNodeSetParams_Negative_Changing_Memcpy_Direction:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphExecMemcpyNodeSetParams_Negative:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [exec, image]
   Unit_hipGraphExecMemcpyNodeSetParams_Functional:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [exec, image]
   Unit_hipStreamBeginCapture_Positive_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Negative_Parameters:
     <<: *level_2
@@ -679,27 +678,27 @@ graph:
     tags: [capture, P0]
   Unit_hipStreamBeginCapture_Positive_InterStrmEventSync_Flags:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_InterStrmEventSync_Priority:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_ColligatedStrmCapture_Flags:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_ColligatedStrmCapture_Prio:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_ColligatedStrmCaptureFunc:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_Multithreaded:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_Multiplestrms:
     <<: *level_2
@@ -731,7 +730,7 @@ graph:
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_MultiGPU:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture, multigpu]
   Unit_hipStreamBeginCapture_Positive_nestedStreamCapture:
     <<: *level_2
@@ -739,11 +738,11 @@ graph:
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_streamReuse:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_captureComplexGraph:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_captureEmptyStreams:
     <<: *level_2
@@ -762,7 +761,7 @@ graph:
     tags: [capture]
   Unit_hipGraphAddMemcpyNode1D_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemcpyNode1D_Negative:
     <<: *level_2
@@ -772,11 +771,11 @@ graph:
     tags: [node]
   Unit_hipStreamBeginCapture_BasicFunctional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_hipStreamPerThread:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Negative:
     <<: *level_2
@@ -798,7 +797,7 @@ graph:
     tags: [capture]
   Unit_hipStreamBeginCapture_InterStrmEventSync_diffprio:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_ColligatedStrmCapture_defaultflag:
     <<: *level_2
@@ -811,7 +810,7 @@ graph:
     tags: [capture]
   Unit_hipStreamBeginCapture_ColligatedStrmCapture_diffprio:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_multiplestrms:
     <<: *level_2
@@ -819,19 +818,19 @@ graph:
     tags: [capture]
   Unit_hipStreamBeginCapture_ColligatedStrmCapture_func:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Multithreaded_Global:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Multithreaded_ThreadLocal:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Multithreaded_Relaxed:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_CapturingFromWithinStrms:
     <<: *level_2
@@ -853,7 +852,7 @@ graph:
     tags: [capture]
   Unit_hipStreamBeginCapture_MultiGPU:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture, multigpu]
   Unit_hipStreamBeginCapture_nestedStreamCapture:
     <<: *level_2
@@ -867,7 +866,7 @@ graph:
     <<: *level_2
     # (amd_windows) SWDEV-347670 - blocking tests have TDR, causing hangs
     # (amd_wsl) Note: Windows disabled
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_captureEmptyStreams:
     <<: *level_2
@@ -880,7 +879,7 @@ graph:
     tags: [capture, P0]
   Unit_hipStreamIsCapturing_Positive_Functional:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamIsCapturing_Positive_Thread:
     <<: *level_2
@@ -894,7 +893,7 @@ graph:
     tags: [capture]
   Unit_hipGraphMemFreeNodeGetParams_ValidArgs:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipGraphMemFreeNodeGetParams_InvalidArgs:
     <<: *level_2
@@ -903,24 +902,24 @@ graph:
     tags: [query]
   Unit_hipGraphUserObj_Int_float_Objects:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [userobj]
   Unit_hipGraphUserObj_HostRegister:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [userobj]
   Unit_hipGraphUserObj_Struct_Class_Ojects:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [userobj]
   Unit_hipGraphUserObj_ClonedGraph:
     <<: *level_2
     # Test Unit_hipGraphUserObj_ClonedGraph disabled due to SWDEV-483112
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [userobj]
   Unit_hipGraphUserObj_ManualGraph:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [userobj]
   Unit_hipGraphExecBatchMemOpNodeSetParams_NegativeTsts:
     <<: *level_2
@@ -942,15 +941,15 @@ graph:
     tags: [exec]
   Unit_hipDrvGraphAddMemFreeNode_Negative_Params:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipDrvGraphAddMemFreeNode_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipStreamCapture_ExtModuleLaunchKernel:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCaptureToGraph_BasicFunctional:
     <<: *level_2
@@ -999,7 +998,7 @@ graph:
     tags: [capture]
   Unit_hipStreamBeginCaptureToGraph_MultipleFlags:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCaptureToGraph_CapturePartialInThreads:
     <<: *level_2
@@ -1044,7 +1043,7 @@ graph:
     tags: [query]
   Unit_hipGetProcAddress_GraphAPIs_MemAllocAndFree:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipGetProcAddress_GraphAPIs_ExecMemsetMemcpySetParams:
     <<: *level_2
@@ -1063,12 +1062,12 @@ graph:
     tags: [node]
   Unit_hipGraphExecGetFlags_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphExecGetFlags_Positive: *level_2
   Unit_hipStreamGetCaptureInfo_Positive_Functional:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamGetCaptureInfo_Positive_UniqueID:
     <<: *level_2
@@ -1125,7 +1124,7 @@ graph:
   Unit_hipGraphMemcpyNodeSetParamsFromSymbol_Positive_Basic:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphMemcpyNodeSetParamsFromSymbol_Negative_Parameters:
     <<: *level_2
@@ -1143,7 +1142,7 @@ graph:
     tags: [exec]
   Unit_hipGraphAddMemsetNode_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipGraphAddMemsetNode_Negative_Parameters:
     <<: *level_2
     tags: [node]
@@ -1190,19 +1189,19 @@ graph:
     tags: [query]
   Unit_hipGraphMemcpyNodeGetParams_Negative:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [query, image]
   Unit_hipGraphMemcpyNodeGetParams_Functional:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [query, image]
   Unit_hipGraphMemcpyNodeSetParams_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [node, image]
   Unit_hipGraphMemcpyNodeSetParams_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphKernelNodeGetParams_Negative:
     <<: *level_2
@@ -1242,7 +1241,7 @@ graph:
     tags: [exec]
   Unit_hipGraphLaunch_Functional_multidevice_test:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphLaunch_Functional_MultipleLaunch:
     <<: *level_2
@@ -1253,7 +1252,7 @@ graph:
     tags: [exec]
   Unit_hipGraphLaunch_ProfilingTimestamps_LargeGraph:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphLaunch_PerKernelTiming_SmallGraph:
     <<: *level_2
@@ -1263,11 +1262,11 @@ graph:
     tags: [exec]
   Unit_hipGraphLaunch_TimingConsistency_LargeGraph:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphMemcpyNodeSetParams1D_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphMemcpyNodeSetParams1D_Negative_Parameters:
     <<: *level_2
@@ -1281,7 +1280,7 @@ graph:
     tags: [node]
   Unit_hipGraphExecMemcpyNodeSetParamsToSymbol_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphExecMemcpyNodeSetParamsToSymbol_Functional:
     <<: *level_2
@@ -1291,11 +1290,11 @@ graph:
   Unit_hipGraphExecMemcpyNodeSetParamsToSymbol_Positive_Basic:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphExecMemcpyNodeSetParamsToSymbol_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphNodeGetDependentNodes_Positive_Functional:
     <<: *level_2
@@ -1316,7 +1315,7 @@ graph:
     tags: [query]
   Unit_hipGraphHostNodeGetParams_ClonedGraphWithHostNode:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipGraphHostNodeGetParams_BasicFunc:
     <<: *level_2
@@ -1338,7 +1337,7 @@ graph:
     tags: [exec]
   Unit_hipStreamGetCaptureInfo_v2_Positive_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamGetCaptureInfo_v2_Positive_UniqueID:
     <<: *level_2
@@ -1361,11 +1360,11 @@ graph:
   Unit_hipStreamSetCaptureDependencies_Positive_Functional:
     <<: *level_2
     # Note: Following four tests disabled due to defect - EXSWHTEC-203
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamAddCaptureDependencies_Positive_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamUpdateCaptureDependencies_Positive_Parameters:
     <<: *level_2
@@ -1375,7 +1374,7 @@ graph:
     tags: [capture]
   Unit_hipThreadExchangeStreamCaptureMode_Positive_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipThreadExchangeStreamCaptureMode_Negative_Parameters:
     <<: *level_2
@@ -1391,7 +1390,7 @@ graph:
     tags: [capture]
   Unit_hipLaunchHostFunc_H2D_Kernel_D2H_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipUserObjectCreate_Functional_1:
     <<: *level_2
@@ -1435,7 +1434,7 @@ graph:
     tags: [userobj]
   Unit_hipGraphDebugDotPrint_Functional:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipGraphDebugDotPrint_Argument_Check:
     <<: *level_2
@@ -1454,11 +1453,11 @@ graph:
     tags: [lifecycle]
   Unit_hipGraphClone_Test_hipGraphMemcpyNodeSetParams:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [lifecycle, image]
   Unit_hipGraphClone_Test_hipGraphExecMemcpyNodeSetParams:
     <<: *level_2
-    disabled: [amd_wsl, gfx1310]
+    disabled: [amd_wsl, gfx1310, gfx1370]
     # Below tests fail in stress test on 23/06/23
     tags: [lifecycle, image]
   Unit_hipGraphClone_Test_hipGraphMemcpyNodeSetParams1D_and_exec:
@@ -1487,23 +1486,23 @@ graph:
     tags: [lifecycle]
   Unit_hipGraphClone_Test_hipGraphEventRecordNodeSetEvent_and_Exec:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphClone_Test_hipGraphEventWaitNodeSetEvent_and_Exec:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphClone_address_change_in_loop:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphClone_address_change_in_thread:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphClone_multi_GPU_test:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [lifecycle, multigpu, image]
   Unit_hipGraphClone_hipUserObject_hipGraphUserObject:
     <<: *level_2
@@ -1562,7 +1561,7 @@ graph:
     disabled: [amd_linux, amd_windows]
   Unit_hipGraphUpload_Functional_With_Priority_Stream:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraphUpload_Negative_Parameters:
     <<: *level_2
@@ -1582,11 +1581,11 @@ graph:
     tags: [node]
   Unit_hipStreamEndCapture_later_and_add_a_node_inbetween:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipStreamEndCapture_first_and_add_a_node_later:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipStreamEndCapture_first_and_add_other_graph_node_later:
     <<: *level_2
@@ -1612,59 +1611,59 @@ graph:
     tags: [lifecycle]
   Unit_hipGraph_PerfCheck_MemcpyKernelMixCall:
     <<: *level_2
-    disabled: [gfx1260]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecKernelNodeSetParams:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecKernelNodeSetParams_inLoop:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemcpyNodeSetParams:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemcpyNodeSetParams_inLoop:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemcpyNodeSetParams1D_inLoop:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemcpyNodeSetParamsFrmSymbol:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemcpyNodeSetParamsToSymbol:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemsetNodeSetParams:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecChildGraphNodeSetParams:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecEventRecordNodeSetEvent:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecEventWaitNodeSetEvent:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecHostNodeSetParams:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecUpdate:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecUpdate_kernel_inLoop:
     <<: *level_2
@@ -1687,21 +1686,21 @@ graph:
     tags: [node]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional_MultiDevice:
     <<: *level_2
     tags: [query]
     # SWDEV-446588 - Disable graph multi gpu testcases until graph has support for it
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional_2:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional_3:
     <<: *level_2
     # Below tests are failing PSDB
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Negative:
     <<: *level_2
@@ -1718,43 +1717,43 @@ graph:
   Unit_hipGraphAddMemAllocNode_Positive_FreeInGraph:
     <<: *level_2
     # Below tests are failing PSDB
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Positive_FreeOutsideStream:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Positive_FreeOutsideGraph:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Positive_FreeSeparateGraph:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_1:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_2:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_3:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_4:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Argument_Check:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Instanciate_Graph_Again:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Free_Alloc_Memory_Again:
     <<: *level_2
@@ -1764,20 +1763,20 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_With_Cloneed_Graph:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemFreeNode_Negative_Params:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemFreeNode_Negative_NotSupported:
     <<: *level_2
     # SWDEV-457316 Below tests are disabled temporarily to avoid combined PSDB
-    disabled: [amd_windows, gfx1260, gfx1310]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemFreeNode_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipDrvGraphMemcpyNodeGetParams_Negative_Parameters:
     <<: *level_2
@@ -1791,7 +1790,7 @@ graph:
     tags: [node]
   Unit_hipDrvGraphMemcpyNodeSetParams_Positive_Array:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [node, image]
   Unit_hipDrvGraphMemcpyNodeSetParams_Negative_Parameters:
     <<: *level_2
@@ -1804,18 +1803,18 @@ graph:
     tags: [exec]
   Unit_hipDeviceGetGraphMemAttribute_Positive_DoubleMemory:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipDeviceGetGraphMemAttribute_Negative_Parameters:
     <<: *level_2
     tags: [query]
   Unit_hipDeviceGetGraphMemAttribute_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipDeviceGetGraphMemAttribute_Functional_Multi_Device:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipDeviceGetGraphMemAttribute_Negative:
     <<: *level_2
@@ -1837,7 +1836,7 @@ graph:
     tags: [exec]
   Unit_hipGraphAddNodeTypeMemset_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipGraphAddNodeTypeKernel_Positive_Basic:
     <<: *level_2
     disabled: [gfx1260]
@@ -1850,25 +1849,25 @@ graph:
     tags: [node]
   Unit_hipGraphAddNodeTypeMemcpy_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [node, image]
   Unit_hipGraphAddNodeTypeEventRecord_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddNodeTypeEventWait_Positive_Basic:
     <<: *level_2
     tags: [node]
   Unit_hipGraphAddNodeTypeMemAlloc_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddNode_Negative_Parameters:
     <<: *level_2
     tags: [node]
   Unit_hipDrvGraphAddMemsetNode_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipDrvGraphAddMemsetNode_Negative_Parameters:
     <<: *level_2
     tags: [node]
@@ -1922,7 +1921,7 @@ graph:
     tags: [node]
   Unit_hipGraph_SimpleGraphWithKernel_kernel_arg_prefetch:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipEventQuery_GlobalCapture_DefaultMode_NormalEvent: *level_2
   Unit_hipEventQuery_GlobalCapture_DefaultMode_CapturedEvent: *level_2
   Unit_hipEventSynchronize_GlobalCapture_DefaultMode_NormalEvent: *level_2
@@ -1943,15 +1942,15 @@ graph:
 
   Unit_hipGraphAddMemcpyNode_BasicFunctional:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
 
   Unit_hipGraphAddMemcpyNode_PeerAccessFunctional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
 
   Unit_hipGraphExecGetFlags_positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
 
   Unit_hipGraphGetEdges_Functionality:
     <<: *level_2
@@ -1975,7 +1974,7 @@ graph:
 
   Unit_hipGraphMemcpyNodeSetParams_Functional:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
 
   Unit_hipGraphNodeGetDependencies_Functional:
     <<: *level_2

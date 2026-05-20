@@ -22,8 +22,11 @@ else()
 
     if (HIP_PLATFORM MATCHES "amd")
         # TODO multiple arch support
+        # Skip empty elements from trailing semicolons in HIP_GPU_ARCH_LIST
         foreach(ARCH ${HIP_GPU_ARCH_LIST})
-            set(CONFIG_ARCH ${ARCH})
+            if(ARCH)
+                set(CONFIG_ARCH ${ARCH})
+            endif()
         endforeach()
     else()
         set(CONFIG_ARCH "linux")

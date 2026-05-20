@@ -2,4 +2,4 @@
 ABM:
   ABM_AddKernel_MultiTypeMultiSize:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
