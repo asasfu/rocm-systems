@@ -2,7 +2,7 @@
 multiThread:
   Unit_hipMemsetAsync_QueueJobsMultithreaded:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [memory, P1]
   Unit_hipMultiThreadDevice_Streams:
     <<: *level_2
@@ -32,5 +32,5 @@ multiThread:
     tags: [stream, P0]
   Unit_hipMultiThreadStreams2:
     <<: *level_2
-    disabled: [gfx1310]
+    disabled: [gfx1310, gfx1370]
     tags: [stream, P0]

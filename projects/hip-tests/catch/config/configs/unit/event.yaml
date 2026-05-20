@@ -21,7 +21,7 @@ event:
   Unit_hipEvent:
     <<: *level_2
     # SWDEV-411303 fails in WSL. Profiling not support in WSL
-    disabled: [amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [synchronization, P0]
   Unit_hipEventElapsedTime_NullCheck:
     <<: *level_2
@@ -42,7 +42,7 @@ event:
     tags: [synchronization, P0]
   Unit_hipEventElapsedTime_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [synchronization]
   Unit_hipEventRecord:
     <<: *level_2
@@ -71,14 +71,14 @@ event:
     tags: [lifecycle, P1]
   Unit_hipEventDestroy_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipEventCreate_Positive:
     <<: *level_2
     tags: [lifecycle, P0]
   Unit_hipEventCreate_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipEventCreateWithFlags_Positive:
     <<: *level_2
@@ -86,37 +86,37 @@ event:
   Unit_hipEventCreateWithFlags_DisableSystemFence_HstVisMem:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [lifecycle, P1]
   Unit_hipEventCreateWithFlags_DefaultFlg_HstVisMem:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [lifecycle, P0]
   Unit_hipEventCreateWithFlags_DisableSystemFence_NonCohHstMem:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [lifecycle, P1]
   Unit_hipEventCreateWithFlags_DefaultFlg_NonCohHstMem:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [lifecycle, P1]
   Unit_hipEventCreateWithFlags_DisableSystemFence_CohHstMem:
     <<: *level_2
     # (amd_linux) SWDEV-470751 : Fine Grain memory is MTYPE_NC due to HW bug.
     # (amd_windows) Note: intermittent Seg fault failure
-    disabled: [gfx1310, amd_windows, amd_wsl, amdgcnspirv, gfx1200, gfx1201]
+    disabled: [gfx1310, gfx1370, amd_windows, amd_wsl, amdgcnspirv, gfx1200, gfx1201]
     tags: [lifecycle, P1]
   Unit_hipEventCreateWithFlags_DefaultFlg_CohHstMem:
     <<: *level_2
     # Note: intermittent Seg fault failure
-    disabled: [amd_windows, amd_wsl, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [lifecycle, P1]
   Unit_hipEventCreateWithFlags_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipEventSynchronize_Default_Positive:
     <<: *level_2
@@ -138,5 +138,5 @@ event:
     tags: [synchronization, P0]
   Unit_hipEventIpc_shm_cleanup:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [ipc]

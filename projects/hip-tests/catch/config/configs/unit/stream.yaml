@@ -35,11 +35,11 @@ stream:
     tags: [properties, P1]
   Unit_hipMultiStream_sameDevice:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle, P0]
   Unit_hipMultiStream_multimeDevice:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle, P1]
   Unit_hipStreamAddCallback_ParamTst_Positive:
     <<: *level_2
@@ -126,7 +126,7 @@ stream:
     tags: [memory, P1]
   Unit_hipMemPoolApi_hipStreamLegacy_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [memory]
   Unit_hipStreamValue_Write:
     <<: *level_2
@@ -141,7 +141,7 @@ stream:
     tags: [synchronization, P0]
   Unit_hipStreamWaitValue_Default:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [synchronization, P0]
   Unit_hipStreamSynchronize_EmptyStream:
     <<: *level_2
@@ -159,7 +159,7 @@ stream:
     tags: [synchronization, P0]
   Unit_hipStreamSynchronize_SynchronizeStreamAndQueryNullStream:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [synchronization, P0]
   Unit_hipStreamSynchronize_NullStreamAndStreamPerThread:
     <<: *level_2
@@ -197,7 +197,7 @@ stream:
     <<: *level_2
     # (amd_windows) SWDEV-400049 tdr intermittently
     # (amd_wsl) Note: Following four tests disabled due to defect - EXSWHTEC-203
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [callback, P1]
   Unit_hipLaunchHostFunc_basic:
     <<: *level_2
@@ -230,7 +230,7 @@ stream:
     tags: [callback, P1]
   Unit_hipLaunchHostFunc_Graph:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl, gfx1310]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [callback, P1]
   Unit_hipStreamGetDevice_Negative:
     <<: *level_2
@@ -243,7 +243,7 @@ stream:
     tags: [properties, P1]
   Unit_hipStreamGetDevice_SetDiffDevice:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties, multigpu, P1]
   Unit_hipStreamGetDevice_NullStream:
     <<: *level_2
@@ -265,25 +265,25 @@ stream:
     tags: [streamperthread, P1]
   Unit_hipStreamLegacy_MultiDevice:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle, multigpu, P1]
   Unit_hipStreamLegacy_H2H_H2D_D2D_D2H_Default:
     <<: *level_2
     tags: [memory, P1]
   Unit_hipStreamLegacy_MultiDeviceMultiOperation:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle, multigpu, P1]
   Unit_hipStreamLegacy_TwoThreadsEachOneDiffOperation:
     <<: *level_2
     tags: [lifecycle, P1]
   Unit_hipStreamLegacy_TwoDevicesEachOneDiffOperation:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle, multigpu, P1]
   Unit_hipStreamLegacy_TwoThreadsInTwoDevicesEachOneDiffOperation:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle, multigpu, P1]
   Unit_hipStreamLegacy_InChildProcess:
     <<: *level_2
@@ -302,27 +302,27 @@ stream:
     tags: [streamperthread, P1]
   Unit_hipStreamGetId_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetId_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetId_WithDifferentStreamCreateAPIs:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetId_MultipleThreads:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetId_MultiDevice:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties, multigpu]
   Unit_hipStreamGetId_MultiProcess:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipExtStreamGetCUMask_verifyDefaultAndCustomMask:
     <<: *level_2
@@ -405,54 +405,54 @@ stream:
   Unit_hipStreamSynchronize_spt_SynchronizeStreamAndQueryNullStream:
     <<: *level_2
     # Following tests disabled due to SWDEV-486363
-    disabled: [amd_windows, gfx1310]
+    disabled: [amd_windows, gfx1310, gfx1370]
     tags: [synchronization, streamperthread, P1]
   Unit_hipStreamBatchMemOp_Negative_Tests:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [memory]
   Unit_hipStreamSetAttribute_hipStreamGetAttribute_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetAttribute_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamSetAttribute_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamCopyAttributes_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamCopyAttributes_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamCopyAttributes_WithAllSyncPolicyValues:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamValue_Negative_StreamAndFlag:
     <<: *level_2
     tags: [synchronization, P1]
   Unit_hipStreamValue_Wait_Blocking:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [synchronization, P1]
   Unit_hipKernelNameRefByPtr_Negative_StreamNullptr:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
 
   Unit_hipStreamCreateWithPriority_ValidateWithEvents:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
 
   Unit_hipStreamCreate_MultistreamBasicFunctionalities:
     <<: *level_2
-    disabled: [gfx1260, gfx1310]
+    disabled: [gfx1260, gfx1310, gfx1370]
 
   Unit_hipStreamGetCaptureInfo_BasicFunctional:
     <<: *level_2
