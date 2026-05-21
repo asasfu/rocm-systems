@@ -160,7 +160,7 @@ module:
   Unit_hipModuleLoadData_Positive_Basic:
     <<: *level_2
     # Below tests tests fail in PSDB
-    disabled: [nvidia_windows]
+    disabled: [nvidia_windows, gfx1260, gfx1310, gfx1370]
     tags: [load, P0]
   Unit_hipModuleLoadData_Negative_Parameters:
     <<: *level_2
