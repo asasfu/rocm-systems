@@ -115,7 +115,6 @@ module:
     tags: [function]
   Unit_hipFuncGetAttribute_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [function]
   Unit_hipHccModuleLaunchKernel_basic:
     <<: *level_2
