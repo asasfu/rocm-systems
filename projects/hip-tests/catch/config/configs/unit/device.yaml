@@ -248,7 +248,7 @@ device:
     tags: [config]
   Unit_hipDeviceGetSetLimit_Scratch_SetBeforeKernelLaunch:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [config]
   Unit_hipDeviceGetSetLimit_Scratch_MultiDevice:
     <<: *level_2
@@ -347,7 +347,6 @@ device:
     tags: [config, multigpu]
   Unit_hipSetValidDevices_WithAllDevicesInSystem:
     <<: *level_2
-    disabled: [gfx1260]
     tags: [config]
   Unit_hipSetValidDevices_Positive_Cases:
     <<: *level_2
@@ -378,22 +377,22 @@ device:
     tags: [multigpu, P0]
   Unit_hipGetDriverEntryPoint_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipGetDriverEntryPoint_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipGetDriverEntryPoint_spt_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipGetDriverEntryPoint_spt_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipGetProcAddress_IPC_Memory:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipGetProcAddress_IPC_Event:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipIpcOpenMemHandle_Negative_Open_In_Creating_Process:
     <<: *level_2
     tags: [P0]
@@ -429,7 +428,7 @@ device:
     disabled: [amd_wsl]
   Unit_hipIpcOpenMemHandle_Multiproc:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipIpcOpenMemHandle_Multiproc_Child:
     <<: *level_2
     disabled: [amd_linux, amd_windows, amd_wsl, nvidia_linux, nvidia_windows, gfx1250, gfx1260, gfx1310, gfx1370]

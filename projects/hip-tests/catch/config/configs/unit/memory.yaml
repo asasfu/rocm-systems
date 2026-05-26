@@ -76,7 +76,7 @@ memory:
     tags: [transfer, P1]
   Unit_hipMemcpy3D_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipMemcpy3D_multiDevice_Negative:
     <<: *level_2
@@ -99,7 +99,7 @@ memory:
     tags: [transfer, P1]
   Unit_hipMemcpy3DAsync_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipMemcpy3DAsync_multiDevice_Negative:
     <<: *level_2
@@ -134,7 +134,7 @@ memory:
     tags: [transfer, P1]
   Unit_hipMemcpyParam2D_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipMemcpyParam2DAsync_Positive_Basic:
     <<: *level_2
@@ -155,7 +155,7 @@ memory:
     tags: [transfer, P1]
   Unit_hipMemcpyParam2DAsync_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipMemcpyParam2DAsync_multiDevice_StreamOnDiffDevice:
     <<: *level_2
@@ -177,7 +177,7 @@ memory:
     tags: [transfer, P1]
   Unit_hipMemcpy2D_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipMemcpy2D_H2D_D2D_D2H:
     <<: *level_2
@@ -401,7 +401,7 @@ memory:
     tags: [P1]
   Unit_hipHostRegister_DirectReferenceFromKernel:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipHostRegister_DirectReferenceMultGpu:
     <<: *level_2
     tags: [P1]
@@ -440,7 +440,7 @@ memory:
     disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipHostRegister_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipHostUnregister_MemoryNotAccessibleAfterUnregister:
     <<: *level_2
@@ -459,7 +459,7 @@ memory:
     tags: [alloc, P1]
   Unit_hipHostUnregister_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipHostGetFlags_flagCombos:
     <<: *level_2
@@ -476,7 +476,7 @@ memory:
     tags: [query, P1]
   Unit_hipHostGetFlags_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipHostGetDevicePointer_Negative:
     <<: *level_2
@@ -488,11 +488,11 @@ memory:
     tags: [query, P0]
   Unit_hipHostGetDevicePointer_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipMallocHost_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipMallocHost_DataValidation:
     <<: *level_2
@@ -502,7 +502,7 @@ memory:
     tags: [alloc, P1]
   Unit_hipMallocHost_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipMemAllocHost_Positive:
     <<: *level_2
@@ -518,7 +518,7 @@ memory:
     tags: [alloc, P1]
   Unit_hipMemAllocHost_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipMallocManaged_HostDeviceConcurrent:
     <<: *level_2
@@ -591,10 +591,10 @@ memory:
     tags: [memset, P1]
   Unit_hipMemset_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemsetD8_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemset3D_BasicFunctional:
     <<: *level_2
     tags: [memset, P1]
@@ -604,11 +604,11 @@ memory:
   Unit_hipMemset3DAsync_capturehipMemset3DAsync:
     <<: *level_2
     # Below tests are failing PSDB
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]
     tags: [memset, P1]
   Unit_hipMemset3D_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemset2D_BasicFunctional:
     <<: *level_2
     tags: [memset, P1]
@@ -625,7 +625,7 @@ memory:
     tags: [memset, P1]
   Unit_hipMemset2D_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipHostMalloc_ArgValidation:
     <<: *level_2
     tags: [alloc, P1]
@@ -781,7 +781,7 @@ memory:
     tags: [memset, P1]
   Unit_hipMemsetD32_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemsetD16_ValidBuffer:
     <<: *level_2
     tags: [memset, P1]
@@ -793,7 +793,7 @@ memory:
     tags: [memset, P1]
   Unit_hipMemsetD16_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemsetD16Async_ValidBuffer:
     <<: *level_2
     tags: [memset, P1]
@@ -842,7 +842,7 @@ memory:
     tags: [image]
   Unit_hipMemcpy3DBatchAsync_NegativeTests:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipMemcpyBatchAsync_D2D_Functional:
     <<: *level_2
@@ -861,23 +861,23 @@ memory:
     disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemcpyBatchAsync_NegativeTsts:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipMemsetD2D8_BasicFunctional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D8_UnEvenRowsCols:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D8_NegTsts:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D8Async_BasicFunctional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D8Async_UnEvenRowsCols:
     <<: *level_2
@@ -885,55 +885,55 @@ memory:
     tags: [memset]
   Unit_hipMemsetD2D8Async_NegTsts:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D16_BasicFunctional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D16_UnEvenRowsCols:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D16_NegTsts:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D16Async_BasicFunctional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D16Async_UnEvenRowsCols:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D16Async_NegTsts:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D32_BasicFunctional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D32_UnEvenRowsCols:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D32_NegTsts:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D32Async_BasicFunctional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D32Async_UnEvenRowsCols:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemsetD2D32Async_NegTsts:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [memset]
   Unit_hipMemcpy3DPeer_BasicFunctional:
     <<: *level_2
@@ -957,18 +957,18 @@ memory:
     tags: [alloc, P1]
   Unit_hipMemPoolExportToShareableHandle_SameProc:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMemPoolExportToShareableHandle_ChldUseHdl:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMemPoolExportToShareableHandle_ChldCheckAccess:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolExportToShareableHandle_GrndChldUseHdl:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMemPoolExportToShareableHandle_Negative:
     <<: *level_2
@@ -984,7 +984,7 @@ memory:
     tags: [query, P0]
   Unit_hipMemPtrGetInfo_SizeZeroAllocation:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipPointerGetAttributes_Basic:
     <<: *level_2
@@ -1052,7 +1052,7 @@ memory:
     tags: [virtualMemoryManagement, P1]
   Unit_hipMemVmm_Uncached:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipArray_Valid:
     <<: *level_2
@@ -1101,10 +1101,8 @@ memory:
     tags: [P1]
   Unit_hipGetProcAddress_MemoryApisMemCopy:
     <<: *level_2
-    disabled: [gfx1260]
   Unit_hipGetProcAddress_MemoryApisMemCopyWithStreams:
     <<: *level_2
-    disabled: [gfx1260]
   Unit_hipGetProcAddress_MemoryApisMemset: *level_2
   Unit_hipGetProcAddress_MemoryApisMemset2D3D: *level_2
   Unit_hipGetProcAddress_MemoryApisGetMemInfoRelated: *level_2
@@ -1117,10 +1115,10 @@ memory:
   Unit_hipGetProcAddress_MemoryApisAddressRelated: *level_2
   Unit_hipGetProcAddress_MemoryApisManagedMemory:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipGetProcAddress_MemoryApisStreamOrderedMemory:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipGetProcAddress_MemoryApisPeerToPeer:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
@@ -1130,27 +1128,27 @@ memory:
   Unit_hipGetSymbolSize_Negative_Parameters: *level_2
   Unit_hipMemPrefetchAsync_v2_Device_Host:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipMemPrefetchAsync_v2_HostNuma_HostNumaCurrent:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipMemPrefetchAsync_v2_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipMemAdvise_v2_Device_Host:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipMemAdvise_v2_HostNuma_HostNumaCurrent:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipMemAdvise_v2_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipPointerSetAttribute_Positive_SyncMemops:
     <<: *level_2
@@ -1190,7 +1188,7 @@ memory:
     tags: [alloc, P1]
   Unit_hipMemPoolApi_Opportunistic:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipMemPoolApi_Default:
     <<: *level_2
@@ -1262,7 +1260,7 @@ memory:
     tags: [alloc, P1]
   Unit_hipMemPoolSetAttribute_Opportunistic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipMemPoolSetAttribute_EventDependencies:
     <<: *level_2
@@ -1480,7 +1478,7 @@ memory:
     tags: [transfer, P1]
   Unit_hipMemcpyWithStream_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipMemcpyWithStream_MultiThread:
     <<: *level_2
@@ -1522,7 +1520,7 @@ memory:
     tags: [alloc, P1]
   Unit_hipHostMalloc_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipMemcpy_KernelLaunch:
     <<: *level_2
@@ -1578,7 +1576,7 @@ memory:
     tags: [transfer, P1]
   Unit_hipMemcpyAsync_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipMemcpyAsync_H2H_H2D_D2H_H2PinMem:
     <<: *level_2
@@ -1887,7 +1885,7 @@ memory:
     tags: [transfer, P1]
   Unit_hipDrvMemcpy3D_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipDrvMemcpy3D_MultipleDataTypes:
     <<: *level_2
@@ -1933,7 +1931,7 @@ memory:
     tags: [transfer, P1]
   Unit_hipDrvMemcpy3DAsync_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [transfer]
   Unit_hipDrvMemcpy3DAsync_H2DDeviceContextChange:
     <<: *level_2
@@ -1969,7 +1967,7 @@ memory:
     tags: [query, P1]
   Unit_hipPointerGetAttribute_ipc_capable:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [query]
   Unit_hipDrvPtrGetAttributes_Negative:
     <<: *level_2
@@ -2090,7 +2088,7 @@ memory:
     tags: [alloc, P0]
   Unit_hipHostFree_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipMemcpySync:
     <<: *level_2
@@ -2481,7 +2479,7 @@ memory:
     tags: [alloc, P1]
   Unit_hipHostAlloc_Capture:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipDrvMemcpy2DUnaligned_NegTst:
     <<: *level_2
@@ -2580,19 +2578,19 @@ memory:
     <<: *level_2
   Unit_hipMemGetMemPool_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemGetMemPool_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemSetMemPool_Negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemSetMemPool_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipFreeHost_Capture_negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipHostAlloc_AllocateMoreThanTotalSystemMemory: *level_2
   Unit_hipHostMalloc_AllocateMoreThanTotalSystemMemory: *level_2
   Unit_hipGetProcAddress_MemoryApisMemcpy2DRelated_Array:
@@ -2605,7 +2603,7 @@ memory:
     tags: [query, image]
   Unit_hipMemPoolExportToShareableHandle_multiproc:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemPoolExportToShareableHandle_multiproc_child:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370, amd_linux, amd_windows, amd_wsl, nvidia_linux, nvidia_windows]
