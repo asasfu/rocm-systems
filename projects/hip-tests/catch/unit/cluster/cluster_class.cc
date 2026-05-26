@@ -22,7 +22,6 @@ THE SOFTWARE.
 #include <hip/hip_cooperative_groups.h>
 
 #include <array>
-#ifdef CLUSTER_SUPPORT
 
 struct cluster_output {
   dim3 block_index;
@@ -35,7 +34,7 @@ struct cluster_output {
   unsigned int num_threads;
 };
 
-static __global__ void __cluster_dims__(2, 1, 1) cluster_class_validation(cluster_output* out) {
+static __global__ void CLUSTER_DIMS(2, 1, 1) cluster_class_validation(cluster_output* out) {
   namespace cg = cooperative_groups;
   cg::cluster_group c = cg::this_cluster();
   size_t i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -97,4 +96,3 @@ HIP_TEST_CASE(Unit_cluster_coop_group_class) {
     }
   }
 }
-#endif
