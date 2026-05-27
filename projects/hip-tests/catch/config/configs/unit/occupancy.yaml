@@ -89,19 +89,19 @@ occupancy:
     disabled: [gfx1310, gfx1370]
   Unit_hipOccupancyMaxActiveClusters_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipOccupancyMaxActiveClusters_Negative_Zero_Cluster:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipOccupancyMaxActiveClusters_Positive_RangeValidation:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipOccupancyMaxPotentialClusterSize_Positive_RangeValidation:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch: *level_2
   Unit_hipOccupancyMaxActiveBlocksPerMultiprocessor_rangeValidation:
     <<: *level_2

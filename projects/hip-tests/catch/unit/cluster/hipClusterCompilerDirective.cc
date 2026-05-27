@@ -22,7 +22,6 @@ THE SOFTWARE.
 #include <hip/hip_ext.h>
 
 #include "ClusterHelper.hpp"
-#ifdef CLUSTER_SUPPORT
 
 /**
  * @addtogroup cluster
@@ -35,8 +34,7 @@ THE SOFTWARE.
 #define CLY 1
 #define CLZ 1
 
-__global__ void __cluster_dims__(CLX, CLY, CLZ)
-    ClusterLaunchKernelBasicCD(int* in, int* out, int n) {
+__global__ void CLUSTER_DIMS(CLX, CLY, CLZ) ClusterLaunchKernelBasicCD(int* in, int* out, int n) {
   int idx = blockDim.x * blockIdx.x + threadIdx.x;
   if (idx < n) {
     out[idx] = in[idx];
@@ -123,4 +121,3 @@ HIP_TEST_CASE(Unit_hipClusterLaunch_CompilerDirective_Basic) {
  * End doxygen group ClusterTest.
  * @}
  */
-#endif

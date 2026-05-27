@@ -1329,6 +1329,13 @@ hipError_t hipLaunchKernelExC(const hipLaunchConfig_t* config, const void* fPtr,
     HIP_RETURN (hipErrorInvalidConfiguration);
   }
 
+  // Check cluster size against device maximum
+  const auto& deviceInfo = hip::getCurrentDevice()->devices()[0]->info();
+  if (deviceInfo.clusterMaxSize_ > 0 &&
+      clusterDims.x * clusterDims.y * clusterDims.z > deviceInfo.clusterMaxSize_) {
+    HIP_RETURN(hipErrorInvalidClusterSize);
+  }
+
   HIP_RETURN_DURATION(hipLaunchKernel_common(fPtr, config->gridDim, config->blockDim, args,
     config->dynamicSmemBytes, config->stream,
     clusterDims, launchFlags));

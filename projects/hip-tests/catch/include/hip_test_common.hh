@@ -245,12 +245,14 @@ static void initHipCtx(hipCtx_t* pcontext) {
 
 #if defined(__gfx1250__) || defined(__gfx1251__) || defined(__gfx1260__) || defined (__gfx13__)
 // Everytime we use __cluster_dims__ in the tests, we need to wrap the symbol definition with an
-// ifdef checking this macro. It is defined when there is cluster compiler support for the
+// ifdef checking support. That attributed is defined when there is cluster compiler support for the
 // target. When not defined, the compiler would give an error if the attribute is used.
 // If we mix architectures in the offload-arch argument that have support with some that don't,
-// the test would not be compiled away, so checking this macro is always needed when using
+// the test would not be compiled away, so using these macros is always needed when using
 // __cluster_dims__
-#define CLUSTER_SUPPORT 1
+#define CLUSTER_DIMS(...) __cluster_dims__(__VA_ARGS__)
+#else
+#define CLUSTER_DIMS(...)
 #endif
 
 static inline int getWarpSize() {
