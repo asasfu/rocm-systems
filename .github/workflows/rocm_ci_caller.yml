@@ -1,25 +1,41 @@
-name: ROCm CI Caller  
-on:  
-  pull_request:  
-    branches: [amd-npi]  
-    types: [opened, reopened, synchronize]  
-  push:  
-    branches: [master-no-npi, amd-mainline]  
-  workflow_dispatch:  
-  issue_comment:  
-    types: [created]  
-  
-jobs:  
-  call-workflow:  
-    if: github.event_name != 'issue_comment' ||(github.event_name == 'issue_comment' && github.event.issue.pull_request && (startsWith(github.event.comment.body, '!verify') || startsWith(github.event.comment.body, '!verify release') || startsWith(github.event.comment.body, '!verify retest')))  
-    uses: AMD-ROCm-Internal/rocm_ci_infra/.github/workflows/rocm_ci.yml@mainline
-    secrets: inherit  
-    with:
-      input_sha: ${{((github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.head.sha) || (github.event_name == 'push' && github.sha) || (github.event_name == 'issue_comment' && github.event.issue.pull_request.head.sha) || github.sha}}  
-      input_pr_num: ${{ ((github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.number) || (github.event_name == 'issue_comment' && github.event.issue.number) || 0}}  
-      input_pr_url: ${{ ((github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.html_url) || (github.event_name == 'issue_comment' && github.event.issue.pull_request.html_url) || ''}}  
-      input_pr_title: ${{ ((github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.title ) || (github.event_name == 'issue_comment' && github.event.issue.pull_request.title) || ''}}  
-      repository_name: ${{ github.repository }}  
-      base_ref: ${{ ((github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.base.ref) || (github.event_name == 'issue_comment' && github.event.issue.pull_request.base.ref) || github.ref}}  
-      trigger_event_type: ${{ github.event_name }}  
-      comment_text: ${{ github.event_name == 'issue_comment' && github.event.comment.body || '' }} 
+name: Trigger ROCm CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [develop]
+
+jobs:
+  trigger-rocm-ci:
+    runs-on: azure-vms
+    steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ secrets.INTERNAL_ORG }}
+          repositories: ${{ secrets.INTERNAL_REPO }}
+
+      - name: Trigger ROCm CI workflow
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ steps.generate-token.outputs.token }}
+          script: |
+            const pr = context.payload.pull_request;
+            await github.rest.repos.createDispatchEvent({
+              owner: '${{ secrets.INTERNAL_ORG }}',
+              repo: '${{ secrets.INTERNAL_REPO }}',
+              event_type: 'public-psdb-run',
+              client_payload: {
+                input_sha: pr.head.sha,
+                input_pr_num: String(pr.number),
+                input_pr_url: pr.html_url,
+                input_pr_title: pr.title,
+                repository_name: context.payload.repository.full_name,
+                base_ref: pr.base.ref,
+                trigger_event_type: 'pull_request',
+                comment_text: ''
+              }
+            });
