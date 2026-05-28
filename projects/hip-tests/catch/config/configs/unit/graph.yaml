@@ -41,7 +41,7 @@ graph:
     <<: *level_2
     # (amd_windows) SWDEV-347670 - blocking tests have TDR, causing hangs
     # (amd_wsl) Note: Windows disabled
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddEventRecordNode_Functional_TimingDisabled:
     <<: *level_2
@@ -640,7 +640,7 @@ graph:
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_Multithreaded:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Positive_Multiplestrms:
     <<: *level_2
@@ -791,7 +791,7 @@ graph:
     <<: *level_2
     # (amd_windows) SWDEV-347670 - blocking tests have TDR, causing hangs
     # (amd_wsl) Note: Windows disabled
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_captureEmptyStreams:
     <<: *level_2
@@ -1367,11 +1367,11 @@ graph:
     tags: [lifecycle]
   Unit_hipGraphClone_Test_hipGraphEventRecordNodeSetEvent_and_Exec:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphClone_Test_hipGraphEventWaitNodeSetEvent_and_Exec:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphClone_address_change_in_loop:
     <<: *level_2
@@ -1479,7 +1479,6 @@ graph:
     tags: [lifecycle]
   Unit_hipGraph_PerfCheck_MemcpyKernelMixCall:
     <<: *level_2
-    disabled: [gfx1260]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecKernelNodeSetParams:
     <<: *level_2
@@ -1495,7 +1494,7 @@ graph:
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemcpyNodeSetParams_inLoop:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemcpyNodeSetParams1D_inLoop:
     <<: *level_2
@@ -1515,7 +1514,7 @@ graph:
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecChildGraphNodeSetParams:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1250, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecEventRecordNodeSetEvent:
     <<: *level_2

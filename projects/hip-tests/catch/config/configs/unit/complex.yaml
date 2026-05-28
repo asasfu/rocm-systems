@@ -34,10 +34,10 @@ complex:
     tags: [deviceLib, types]
   Unit_Device_make_hipComplex_Device_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_Device_make_hipComplex_Host_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_Device_Complex_Cast_Device_Sanity_Positive:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]

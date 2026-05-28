@@ -7,11 +7,11 @@ cooperativeGrps:
     tags: [cooperative, groups]
   Unit_Thread_Block_Getters_Via_Base_Type_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_Thread_Block_Getters_Via_Non_Member_Functions_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_Thread_Block_Sync_Positive_Basic:
     <<: *level_2
@@ -77,11 +77,11 @@ cooperativeGrps:
     tags: [cooperative, ops]
   Unit_hipCGThreadBlockType:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_hipCGMultiGridGroupType_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_hipCGMultiGridGroupType_Barrier:
     <<: *level_2
@@ -89,7 +89,7 @@ cooperativeGrps:
     tags: [cooperative, groups, multigpu]
   Unit_hipCGGridGroupType_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_hipCGGridGroupType_DataSharing:
     <<: *level_2
@@ -101,16 +101,16 @@ cooperativeGrps:
     tags: [cooperative, groups]
   Unit_hipCGThreadBlockTileType:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_hipCGThreadBlockTileType_Shfl:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coalesced_groups:
     <<: *level_2
     # Below tests hang in Jenkins PSDB
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_hipLaunchCooperativeKernel_Basic:
     <<: *level_2
@@ -122,15 +122,15 @@ cooperativeGrps:
     tags: [cooperative, launch]
   Unit_Multi_Grid_Group_Getters_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1250, gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_Multi_Grid_Group_Getters_Positive_Base_Type:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1250, gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_Multi_Grid_Group_Getters_Positive_Non_Member_Functions:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1250, gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_Multi_Grid_Group_Positive_Sync:
     <<: *level_2
@@ -139,12 +139,12 @@ cooperativeGrps:
   Unit_coalesced_groups_shfl_down:
     <<: *level_2
     # Below tests hang in Jenkins PSDB
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coalesced_groups_shfl_up:
     <<: *level_2
     # Below tests hang in Jenkins PSDB
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_Coalesced_Group_Getters_Positive_Basic:
     <<: *level_2
@@ -184,7 +184,7 @@ cooperativeGrps:
     tags: [cooperative, groups]
   Unit_Grid_Group_Getters_Via_Non_Member_Functions_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_Grid_Group_Sync_Positive_Basic:
     <<: *level_2
@@ -192,47 +192,47 @@ cooperativeGrps:
     tags: [cooperative, groups]
   Unit_tiled_groups_metagrp_basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_coalesced_groups_metagrp_basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_cg_binary_part:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_ballot:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_binary_part_ballot:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_any:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_coal_all:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_match_any_coal:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_match_all_coal:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coop_grids_split_barrier:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coop_thread_block_split_barrier:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_Thread_Block_Coalesced_Reduce_arithmetic:
     <<: *level_2
@@ -245,7 +245,7 @@ cooperativeGrps:
   Unit_Thread_Block_Tile_Reduce_All_Parameter_Sizes:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]
   Unit_Thread_Block_Tile_Reduce_Basic:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
@@ -253,11 +253,11 @@ cooperativeGrps:
   Unit_Thread_Block_Tile_Reduce_Custom_Op:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]
   Unit_Thread_Block_Tile_Reduce_Non_Participating_Threads:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]
   Unit_Thread_Block_Tile_Reduce_Random_arithmetic:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
@@ -269,8 +269,8 @@ cooperativeGrps:
   Unit_Thread_Block_Tile_Reduce_Standard_Op_Custom_Type:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]
   Unit_Thread_Block_Tile_Reduce_Trivially_Copyable_Parameters:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]

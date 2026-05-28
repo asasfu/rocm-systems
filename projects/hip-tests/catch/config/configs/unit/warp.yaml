@@ -14,39 +14,39 @@ warp:
     tags: [deviceLib, vote]
   Unit_hipMatchSync_All:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, vote]
   Unit_hipMatchSync_Any:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, vote]
   Unit_hipShflSync_Down:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, intrinsic, shuffle]
   Unit_hipShflSync_Up:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, intrinsic, shuffle]
   Unit_hipShflSync_Xor:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, intrinsic, shuffle]
   Unit_hipShflSync:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, intrinsic, shuffle]
   Unit_hipVoteSync_Any:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, vote]
   Unit_hipVoteSync_All:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, vote]
   Unit_hipVoteSync_Ballot:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, vote]
   Unit_Warp_Shfl_Positive_Basic:
     <<: *level_2
@@ -80,21 +80,21 @@ warp:
     tags: [deviceLib, reduce]
   Unit_runTestShfl_up:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, intrinsic, shuffle]
   Unit_runTestShfl_Down:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, intrinsic, shuffle]
   Unit_runTestShfl_Xor:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, intrinsic, shuffle]
   Unit_hipShflTests:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, intrinsic, shuffle]
   Unit_hipShflUndefArgs:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [deviceLib, intrinsic, shuffle]

@@ -204,6 +204,7 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) SWDEV-444031: This test fails in gfx1101 MGPU
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
+    # (gfx1260) Local instability observed during review; keep disabled pending investigation.
     disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemSetAccess_negative:
     <<: *level_2

@@ -182,7 +182,7 @@ module:
   Unit_hipModuleLoad_Negative_Load_From_A_File_That_Is_Not_A_Module:
     <<: *level_2
     # Below tests tests fail in PSDB
-    disabled: [gfx1260, gfx1310, gfx1370, nvidia_windows]
+    disabled: [gfx1310, gfx1370, nvidia_windows]
     tags: [load]
   Unit_hipFuncSetSharedMemConfig_functional:
     <<: *level_2
@@ -222,7 +222,7 @@ module:
   Unit_hip_linker_spirv_input:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1310, gfx1370]
     tags: [resource]
   Unit_hipLinkCreate_Negative:
     <<: *level_2
@@ -312,12 +312,12 @@ module:
     tags: [function, P0]
   Unit_hipExtModuleLaunchKernel_CheckCodeObjAttr:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
     tags: [launch]
   Unit_hipExtModuleLaunchKernel_NonUniformWorkGroup:
     <<: *level_2
     # Below tests fail in external CI for PR https://github.com/ROCm-Developer-Tools/hip-tests/pull/96
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
     tags: [launch]
   Unit_hipExtModuleLaunchKernel_UniformWorkGroup:
     <<: *level_2
