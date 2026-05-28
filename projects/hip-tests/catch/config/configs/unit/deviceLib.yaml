@@ -311,7 +311,8 @@ deviceLib:
   Unit_hipVectorTypes_test_on_device:
     <<: *level_2
     # SWDEV-444987 - Below tests fail in stress testing on 25/01/2023
-    disabled: [amd_windows, amd_wsl]
+    # gfx1260: FFM v_pk4_mov_b32 SGPR replication bug (AMD-GFX-Modeling/ffm#4036)
+    disabled: [amd_windows, amd_wsl, gfx1260]
     tags: [types, P0]
   Unit_hipTestHalf:
     <<: *level_2
