@@ -1593,7 +1593,6 @@ typedef struct _HsaStructureSizes {
   HSAuint16 SizeOfHsaExternalHandleDesc; // sizeof(HsaExternalHandleDesc)
   HSAuint16 Reserved[5];
 } HsaStructureSizes;
-#pragma pack(pop, hsakmttypes_h)
 
 typedef struct _HsaHandleExportDesc {
     HsaAMDGPUDeviceHandle device_handle;
