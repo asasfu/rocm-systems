@@ -310,6 +310,9 @@ class Flag {
     var = os::GetEnvVar("HSA_AGENT_CACHELINE_SIZE_OVERRIDE");
     cacheline_size_override_ = var.empty() ? -1 : atoi(var.c_str());
 
+    var = os::GetEnvVar("HSA_ENABLE_SDMA_FASTPATH_DEBUG");
+    enable_sdma_fastpath_debug_ = (var == "1") ? true : false;
+
     // NPI ONLY - DO NOT UPSTREAM
 #ifdef AMD_NPI_ONLY
     var = os::GetEnvVar("HSA_NPI_RAW_TIMESTAMPS");
@@ -320,9 +323,6 @@ class Flag {
 
     var = os::GetEnvVar("HSA_NPI_SET_RESOURCE_LIMITS");
     debug_set_resource_limits_ = var.empty() ? 0 : atoi(var.c_str());
-
-    var = os::GetEnvVar("HSA_NPI_ENABLE_SDMA_FASTPATH");
-    enable_sdma_fastpath_debug_ = (var == "1") ? true : false;
 #endif
 
     var = os::GetEnvVar("HSA_COREDUMP_SHOW_PROGRESS");
@@ -488,8 +488,9 @@ class Flag {
 #ifdef AMD_NPI_ONLY
   bool raw_timestamps() const  { return raw_timestamps_; }
   bool disable_coredump() const { return disable_coredump_; }
-  bool enable_sdma_fastpath_debug() const { return enable_sdma_fastpath_debug_; }
 #endif
+
+  bool enable_sdma_fastpath_debug() const { return enable_sdma_fastpath_debug_; }
 
   bool enable_dtif() const { return enable_dtif_; }
 
@@ -630,10 +631,11 @@ class Flag {
   // Map GPU index post RVD to its default cu mask.
   std::map<uint32_t, std::vector<uint32_t>> cu_mask_;
 
+  bool enable_sdma_fastpath_debug_;
+
 #ifdef AMD_NPI_ONLY
   bool raw_timestamps_;
   bool disable_coredump_;
-  bool enable_sdma_fastpath_debug_;
 #endif
 
   void parse_masks(std::string& args, uint32_t maxGpu, uint32_t maxCU);
