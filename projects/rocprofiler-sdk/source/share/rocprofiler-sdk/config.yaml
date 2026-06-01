@@ -29,6 +29,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx90a
+            - gfx1310
           expression: reduce(GRBM_GUI_ACTIVE,max)*CU_NUM
     - name: AvgNumActiveThreads
       description: 'Unit: percent'
@@ -43,6 +44,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx1250
+            - gfx1310
           block: CHA
           event: 0
     - name: CHA_CYCLE
@@ -53,12 +55,17 @@ rocprofiler-sdk:
             - gfx1250
           block: CHA
           event: 15
+        - architectures:
+            - gfx1310
+          block: CHA
+          event: 54
     - name: CHC_REQ_READ
       description: Sum of REQ_READ_32B, REQ_READ_64B, REQ_READ_128B, REQ_READ_256B
       properties: []
       definitions:
         - architectures:
             - gfx1250
+            - gfx1310
           block: CHC
           event: 11
     - name: CHC_REQ_READ_32B
@@ -67,6 +74,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx1250
+            - gfx1310
           block: CHC
           event: 12
     - name: CHC_REQ_READ_64B
@@ -75,6 +83,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx1250
+            - gfx1310
           block: CHC
           event: 13
     - name: CHC_REQ_READ_128B
@@ -83,6 +92,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx1250
+            - gfx1310
           block: CHC
           event: 14
     - name: CHC_REQ_READ_256B
@@ -91,6 +101,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx1250
+            - gfx1310
           block: CHC
           event: 15
     - name: CPC_CPC_STAT_BUSY
@@ -411,6 +422,7 @@ rocprofiler-sdk:
           event: 23
         - architectures:
             - gfx1250
+            - gfx1310
           block: CPF
           event: 24
     - name: CPF_CPF_STAT_IDLE
@@ -520,6 +532,7 @@ rocprofiler-sdk:
             - gfx941
             - gfx942
             - gfx950
+            - gfx1310
           expression: simd_count/simd_per_cu
     - name: SIMD_NUM
       description: SIMD Number
@@ -551,6 +564,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: simd_count
     - name: CpUtil
       description: 'Unit: percent'
@@ -696,6 +710,10 @@ rocprofiler-sdk:
             - gfx1201
           expression: 
             (GL2C_EA_RDREQ_32B_sum*32+GL2C_EA_RDREQ_64B_sum*64+GL2C_EA_RDREQ_128B_sum*128)/1024
+        - architectures:
+            - gfx1310
+          expression: 
+            (GL2C_EA_RDREQ_32B_sum*32+GL2C_EA_RDREQ_64B_sum*64+GL2C_EA_RDREQ_128B_sum*128+GL2C_EA_RDREQ_256B_sum*256)/1024
     - name: BANDWIDTH_EA
       description: Memory Bandwidth measured at the TCC_EA interface. In units of bytes/cycle.
       properties: []
@@ -733,6 +751,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: FETCH_SIZE
     - name: FlatLDSInsts
       description: The average number of FLAT instructions that read or write to LDS executed per 
@@ -813,6 +832,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx1250
+            - gfx1310
           block: GL1A
           event: 0
     - name: GL1A_CYCLE
@@ -823,6 +843,10 @@ rocprofiler-sdk:
             - gfx1250
           block: GL1A
           event: 77
+        - architectures:
+            - gfx1310
+          block: GL1A
+          event: 63
     - name: GL1C_GL2_REQ_READ_LEVEL
       description: Number of cycles in-flight for reads, atomics with return, NOP_RTN0. Average GL2 
         read latency = GL1C_PERF_SEL_GL2_REQ_READ_LEVEL/SUM_OF_REQ_COUNTERS
@@ -832,6 +856,10 @@ rocprofiler-sdk:
             - gfx1250
           block: GL1C
           event: 10
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 12
     - name: GL1C_GL2_REQ_WRITE_LEVEL
       description: Number of cycles in-flight for writes, atomics without return, NOP_ACK. Average 
         GL2 read latency = GL1C_PERF_SEL_GL2_REQ_WRITE_LEVEL/SUM_OF_REQ_COUNTERS
@@ -841,6 +869,10 @@ rocprofiler-sdk:
             - gfx1250
           block: GL1C
           event: 19
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 25
     - name: GL2C_EA_RDREQ
       description: Number of GL2C/EA read requests (either 32-byte or 64-byte or 128-byte) for all 
         clients.
@@ -852,6 +884,10 @@ rocprofiler-sdk:
             - gfx1201
           block: GL2C
           event: 140
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 141
     - name: GL2C_EA_RDREQ_sum
       description: Number of GL2C/EA read requests (either 32-byte or 64-byte or 128-byte). Sum over
         GL2C instances.
@@ -861,6 +897,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(GL2C_EA_RDREQ,sum)
     - name: GL2C_EA_RDREQ_128B
       description: Number of 128-byte GL2C/EA read requests
@@ -888,6 +925,10 @@ rocprofiler-sdk:
             - gfx1201
           block: GL2C
           event: 148
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 149
     - name: GL2C_EA_RDREQ_128B_sum
       description: Number of 128-byte GL2C/EA read requests. Sum over GL2C instances.
       properties: []
@@ -909,6 +950,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(GL2C_EA_RDREQ_128B,sum)
     - name: GL2C_EA_RDREQ_32B
       description: Number of 32-byte GL2C/EA read requests
@@ -936,6 +978,10 @@ rocprofiler-sdk:
             - gfx1201
           block: GL2C
           event: 146
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 147
     - name: GL2C_EA_RDREQ_32B_sum
       description: Number of 32-byte GL2C/EA read requests. Sum over GL2C instances.
       properties: []
@@ -957,6 +1003,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(GL2C_EA_RDREQ_32B,sum)
     - name: GL2C_EA_RDREQ_64B
       description: Number of 64-byte GL2C/EA read requests
@@ -984,6 +1031,10 @@ rocprofiler-sdk:
             - gfx1201
           block: GL2C
           event: 147
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 148
     - name: GL2C_EA_RDREQ_64B_sum
       description: Number of 64-byte GL2C/EA read requests. Sum over GL2C instances.
       properties: []
@@ -1005,6 +1056,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(GL2C_EA_RDREQ_64B,sum)
     - name: GL2C_EA_RDREQ_96B
       description: Number of 96-byte GL2C/EA read requests
@@ -1056,6 +1108,10 @@ rocprofiler-sdk:
             - gfx1201
           block: GL2C
           event: 108
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 109
     - name: GL2C_EA_WRREQ_sum
       description: Number of transactions (either 32-byte or 64-byte) going over the GL2C_EA_WRREQ 
         interface. Sum over GL2C instances.
@@ -1065,6 +1121,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(GL2C_EA_WRREQ,sum)
     - name: GL2C_EA_WRREQ_STALL
       description: Number of cycles a write request was stalled.
@@ -1076,6 +1133,10 @@ rocprofiler-sdk:
             - gfx1201
           block: GL2C
           event: 122
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 125
     - name: GL2C_EA_WRREQ_STALL_max
       description: Number of cycles a write request was stalled. Max over GL2C instances.
       properties: []
@@ -1084,6 +1145,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(GL2C_EA_WRREQ_STALL,max)
     - name: GL2C_EA_WRREQ_64B
       description: Number of 64-byte transactions going (64-byte write or CMPSWAP) over the 
@@ -1112,6 +1174,10 @@ rocprofiler-sdk:
             - gfx1201
           block: GL2C
           event: 114
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 115
     - name: GL2C_EA_WRREQ_64B_sum
       description: Number of 64-byte transactions going (64-byte write or CMPSWAP) over the 
         GL2C_EA_wrreq interface. Sum over GL2C instances.
@@ -1134,6 +1200,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(GL2C_EA_WRREQ_64B,sum)
     - name: GL2C_HIT
       description: Number of cache hits
@@ -1159,6 +1226,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           block: GL2C
           event: 41
     - name: GL2C_HIT_sum
@@ -1182,6 +1250,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(GL2C_HIT,sum)
     - name: GL2C_MC_RDREQ
       description: Number of GL2C/EA read requests (either 32-byte or 64-byte or 128-byte).
@@ -1315,6 +1384,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           block: GL2C
           event: 42
     - name: GL2C_MISS_sum
@@ -1338,6 +1408,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(GL2C_MISS,sum)
     - name: GL2C_WRREQ_STALL_max
       description: Number of cycles a write request was stalled. Max over GL2C instances.
@@ -1387,6 +1458,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: 100*reduce(GRBM_GUI_ACTIVE,max)/reduce(GRBM_COUNT,max)
     - name: GPU_UTIL
       description: Percentage of the time that GUI is active
@@ -1418,6 +1490,7 @@ rocprofiler-sdk:
             - gfx941
             - gfx942
             - gfx950
+            - gfx1310
           expression: 100*reduce(GRBM_GUI_ACTIVE,max)/reduce(GRBM_COUNT,max)
     - name: GRBM_COUNT
       description: Tie High - Count Number of Clocks
@@ -1450,6 +1523,7 @@ rocprofiler-sdk:
             - gfx941
             - gfx942
             - gfx950
+            - gfx1310
           block: GRBM
           event: 0
     - name: GRBM_CPC_BUSY
@@ -1570,6 +1644,7 @@ rocprofiler-sdk:
             - gfx941
             - gfx942
             - gfx950
+            - gfx1310
           block: GRBM
           event: 2
     - name: GRBM_SPI_BUSY
@@ -1672,6 +1747,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx90a
+            - gfx1310
           expression: 100*reduce(GRBM_GUI_ACTIVE,max)/reduce(GRBM_COUNT,max)
     - name: InstrFetchLatency
       description: 'Unit: cycles'
@@ -1690,6 +1766,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx90a
+            - gfx1310
           expression: 100*reduce(SQC_ICACHE_HITS,sum)/reduce(SQC_ICACHE_REQ,sum)
     - name: L2CacheHit
       description: 'The percentage of fetch, write, atomic, and other instructions that hit the data in
@@ -1720,6 +1797,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: 100*reduce(GL2C_HIT,sum)/(reduce(GL2C_HIT,sum)+reduce(GL2C_MISS,sum))
     - name: L2CacheTagRamStallRate
       description: 'Unit: percent'
@@ -1853,6 +1931,7 @@ rocprofiler-sdk:
             - gfx941
             - gfx942
             - gfx950
+            - gfx1310
           expression: wave_front_size
     - name: MeanOccupancyPerActiveCU
       description: Mean occupancy per active compute unit.
@@ -1870,6 +1949,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(SQ_WAVE_CYCLES,sum)/reduce(SQ_BUSY_CYCLES,sum)
         - architectures:
             - gfx90a
@@ -1894,6 +1974,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(SQ_WAVE_CYCLES,sum)/reduce(GRBM_GUI_ACTIVE,max)/CU_NUM
         - architectures:
             - gfx10
@@ -1929,6 +2010,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: 100*reduce(SQ_WAVE_CYCLES,sum)/reduce(GRBM_GUI_ACTIVE,max)/CU_NUM/32
         - architectures:
             - gfx90a
@@ -2113,6 +2195,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(SQ_INSTS_SALU,sum)/reduce(SQ_WAVES,sum)
     - name: SE_NUM
       description: SE_NUM
@@ -2144,6 +2227,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: array_count/simd_arrays_per_engine
     - name: SFetchInsts
       description: The average number of scalar fetch instructions from the video memory executed 
@@ -2171,6 +2255,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(SQ_INSTS_SMEM,sum)/reduce(SQ_WAVES,sum)
     - name: SPI_CSN_BUSY
       description: Number of clocks with outstanding waves (SPI or SH). Requires 
@@ -2188,6 +2273,10 @@ rocprofiler-sdk:
             - gfx950
           block: SPI
           event: 48
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 46
     - name: SPI_CSN_NUM_THREADGROUPS
       description: Number of threadgroups launched. Requires SPI_DEBUG_CNTL.DEBUG_PIPE_SEL to select
         source, DEBUG_PIPE_SEL = 1, source is CS1; DEBUG_PIPE_SEL = 2, source is CS2; DEBUG_PIPE_SEL
@@ -2203,6 +2292,10 @@ rocprofiler-sdk:
             - gfx950
           block: SPI
           event: 49
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 47
     - name: SPI_CSN_WAVE
       description: Number of waves. Requires SPI_DEBUG_CNTL.DEBUG_PIPE_SEL to select source, 
         DEBUG_PIPE_SEL = 1, source is CS1; DEBUG_PIPE_SEL = 2, source is CS2; DEBUG_PIPE_SEL = 3, 
@@ -2218,6 +2311,10 @@ rocprofiler-sdk:
             - gfx950
           block: SPI
           event: 52
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 50
     - name: SPI_CSN_WINDOW_VALID
       description: Clock count enabled by perfcounter_start event. Requires 
         SPI_DEBUG_CNTL.DEBUG_PIPE_SEL to select source, DEBUG_PIPE_SEL = 1, source is CS1; 
@@ -2980,6 +3077,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 291
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 663
     - name: SQC_DCACHE_INPUT_VALID_READYB
       description: Input stalled by SQC (per-SQ, nondeterministic, unwindowed)
       properties: []
@@ -3007,6 +3108,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 292
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 664
     - name: SQC_DCACHE_MISSES_DUPLICATE
       description: Number of misses that were duplicates (access to a non-resident, miss pending 
         CL). (per-SQ, per-Bank, nondeterministic)
@@ -3034,6 +3139,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 290
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 662
     - name: SQC_DCACHE_REQ_READ_1
       description: Number of constant cache 1 dw read requests. (per-SQ)
       properties: []
@@ -3132,6 +3241,7 @@ rocprofiler-sdk:
           event: 302
         - architectures:
             - gfx1250
+            - gfx1310
           block: SQ
           event: 642
     - name: SQC_ICACHE_MISSES
@@ -3213,6 +3323,7 @@ rocprofiler-sdk:
           event: 301
         - architectures:
             - gfx1250
+            - gfx1310
           block: SQ
           event: 641
     - name: SQC_LDS_BANK_CONFLICT
@@ -3300,6 +3411,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 264
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 654
     - name: SQC_TC_DATA_WRITE_REQ
       description: Number of data write requests to the TC (No-Masking, nondeterministic)
       properties: []
@@ -3326,6 +3441,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 263
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 653
     - name: SQC_TC_REQ
       description: Total number of TC requests that were issued by instruction and constant caches. 
         (No-Masking, nondeterministic)
@@ -3340,6 +3459,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 262
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 652
     - name: SQC_TC_STALL
       description: Valid request stalled TC request interface (no-credits). (No-Masking, 
         nondeterministic, unwindowed)
@@ -3673,6 +3796,7 @@ rocprofiler-sdk:
             - gfx941
             - gfx942
             - gfx950
+            - gfx1310
           block: SQ
           event: 3
     - name: SQ_CYCLES
@@ -3687,6 +3811,7 @@ rocprofiler-sdk:
             - gfx942
             - gfx950
             - gfx1250
+            - gfx1310
           block: SQ
           event: 2
     - name: SQ_IFETCH
@@ -3736,6 +3861,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 137
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 389
     - name: SQ_INSTS
       description: Total number of instructions issued. When used in combination with 
         SQ_ACTIVE_INST_ANY (cycle count for executing instructions) the average latency of 
@@ -3870,6 +3999,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 64
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 161
     - name: SQ_INSTS_FLAT_LDS_ONLY
       description: Total number of FLAT instructions issued that read/wrote only from/to LDS 
         (scratch memory). Values are only populated if EARLY_TA_DONE is enabled. This value is 
@@ -3990,6 +4123,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 67
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 162
     - name: SQ_INSTS_MFMA
       description: Total number of MFMA (Matrix-Fused-Multiply-Add) instructions issued. This value 
         is returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs for more 
@@ -4066,6 +4203,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 62
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 67
     - name: SQ_INSTS_SENDMSG
       description: Total number of Sendmsg (typically an interrupt to the CPU host) instructions 
         issued. This value is returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs
@@ -4085,6 +4226,7 @@ rocprofiler-sdk:
             - gfx941
             - gfx942
             - gfx1250
+            - gfx1310
           block: SQ
           event: 70
         - architectures:
@@ -4143,6 +4285,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 63
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 68
     - name: SQ_INSTS_SMEM_NORM
       description: Number of SMEM instructions issued normalized to match the level of memory 
         accessed (i.e. scratch, global, etc). This normalized value is designed to give a hint of 
@@ -4193,6 +4339,10 @@ rocprofiler-sdk:
             - gfx1201
           block: SQ
           event: 54
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 164
     - name: SQ_INSTS_TEX_STORE
       description: The number of buffer store, image store, or atomic (without return) texture 
         instructions issued. The value is returned per-SE (aggregate of values in SIMDs in the SE). 
@@ -4216,6 +4366,10 @@ rocprofiler-sdk:
             - gfx1201
           block: SQ
           event: 55
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 165
     - name: SQ_INSTS_VALU
       description: The number of VALU (Vector ALU) instructions issued. The value is returned per-SE
         (aggregate of values in SIMDs in the SE). See AMD ISAs for more information on VALU 
@@ -4259,6 +4413,10 @@ rocprofiler-sdk:
             - gfx1201
           block: SQ
           event: 50
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 128
     - name: SQ_INSTS_VALU_ADD_F16
       description: The number of VALU (Vector ALU) ADD/SUB instructions on float16. For maximum 
         performance lower precision floating point ops are preferred to higher precision ones. The 
@@ -5181,6 +5339,7 @@ rocprofiler-sdk:
           event: 14
         - architectures:
             - gfx1250
+            - gfx1310
           block: SQ
           event: 7
     - name: SQ_LDS_ADDR_CONFLICT
@@ -5558,6 +5717,10 @@ rocprofiler-sdk:
             - gfx1201
           block: SQ
           event: 70
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 170
     - name: SQ_WAVE64_INSTS
       description: Number of instructions issued by wave64 waves. Skipped instructions are not 
         counted. {emulated}
@@ -5624,6 +5787,7 @@ rocprofiler-sdk:
             - gfx941
             - gfx942
             - gfx950
+            - gfx1310
           block: SQ
           event: 4
     - name: SQ_WAVES_EQ_64
@@ -5811,6 +5975,7 @@ rocprofiler-sdk:
             - gfx941
             - gfx942
             - gfx950
+            - gfx1310
           expression: reduce(SQ_WAVES,sum)
     - name: SQ_WAVE_CYCLES
       description: The cycles spent executing waves in the CUs. This value is reported per-SE 
@@ -5862,6 +6027,7 @@ rocprofiler-sdk:
           event: 95
         - architectures:
             - gfx1250
+            - gfx1310
           block: SQ
           event: 32
     - name: SQ_INSTS_VALU_FLOPS_FP16
@@ -5961,6 +6127,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx1250
+            - gfx1310
           block: SQ
           event: 288
     - name: SQ_VALU_WMMA_FLOP_FP16
@@ -6039,6 +6206,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 75
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 192
     - name: SQ_INSTS_LDS_STORE
       description: Number of LDS store instructions issued . (per-simd, emulated)
       properties: []
@@ -6047,6 +6218,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 76
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 193
     - name: SQ_INSTS_LDS_ATOMIC
       description: Number of LDS atomic instructions issued . (per-simd, emulated)
       properties: []
@@ -6158,6 +6333,10 @@ rocprofiler-sdk:
             - gfx950
           block: SQ
           event: 69
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 160
     - name: SQ_EVENTS
       description: Number of events. (unwindowed, emulated, global)
       properties: []
@@ -6177,6 +6356,10 @@ rocprofiler-sdk:
             - gfx1200
           block: SQ
           event: 99
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 330
     - name: SQ_INSTS_VEC32_LEVEL_LDS
       description: Number of in-flight wave32 LDS (indexed, flat) instructions issued.{level, 
         nondeterministic}
@@ -6188,6 +6371,10 @@ rocprofiler-sdk:
             - gfx1200
           block: SQ
           event: 250
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 255
     - name: ScaPipeIssueUtil
       description: 'Unit: percent'
       properties: []
@@ -11084,6 +11271,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: 100*reduce(SQ_INST_CYCLES_VALU,sum)/(SIMD_NUM/4)/reduce(GRBM_GUI_ACTIVE,max)
     - name: VALUInsts
       description: The average number of vector ALU instructions executed per work-item (affected by
@@ -11111,6 +11299,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(SQ_INSTS_VALU,sum)/reduce(SQ_WAVES,sum)
     - name: VALUUtilization
       description: 'The percentage of active vector ALU threads in a wave. A lower number can mean either
@@ -11199,6 +11388,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: 100*reduce(SQ_INST_CYCLES_VALU,sum)/(reduce(GRBM_GUI_ACTIVE,max)*(SIMD_NUM/4))
     - name: VmemLatency
       description: 'Unit: cycles'
@@ -11331,6 +11521,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx90a
+            - gfx1310
           expression: 4*reduce(SQ_WAVE_CYCLES,sum)/reduce(SQ_WAVES,sum)
     - name: WaveExec
       description: 'Unit: percent'
@@ -11371,6 +11562,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
+            - gfx1310
           expression: reduce(SQ_WAVES,sum)
     - name: WriteSize
       description: The total kilobytes written to the video memory. This is measured with all extra 
@@ -11423,6 +11615,7 @@ rocprofiler-sdk:
       definitions:
         - architectures:
             - gfx90a
+            - gfx1310
           expression: 100*reduce(SQC_DCACHE_HITS,sum)/reduce(SQC_DCACHE_REQ,sum)
     - name: vL1dAtomicTagConfStallRate
       description: 'Unit: percent'
@@ -11534,6 +11727,2703 @@ rocprofiler-sdk:
             - gfx1200
             - gfx1201
           expression: (1-(reduce(TCP_REQ_MISS,sum)/reduce(TCP_REQ,sum)))*100
+    - name: GL1A_ARB
+      description: Number of cycles. Not windowable.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1A
+          event: 16
+    - name: GL2C_EA_RDREQ_256B
+      description: Number of 256-byte GL2C/EA read requests. Not public!
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 150
+    - name: GL2C_EA_RDREQ_256B_sum
+      description: Number of 256-byte GL2C/EA read requests. Sum over GL2C instances.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          expression: 
+            reduce(GL2C_EA_RDREQ_256B,sum)
+    - name: SPI_CSGN_BUSY
+      description: Number of clocks with outstanding waves (SPI or SH).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 38
+    - name: SPI_CSN_WAVE_INFLIGHT
+      description: Number of clocks with outstanding waves (SPI or SH).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 51
+    - name: SQ_VALU_WMMA_FLOP_FP64
+      description: DGEMM flop, only report 1 per issue cycle, it stands for 64 Ops per SIMD32. {emulated, windowed, deterministic}
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1250
+            - gfx1310
+          block: SQ
+          event: 289
+    - name: CHC_BUSY
+      description: Number of cycles with a request pending. Not windowable
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 1
+    - name: CHC_ARB_RET_LEVEL
+      description: Number of cycles in-flight for requests sent to CH arbiter for return arbitration. Average CHA return arbitration latency = CHC_PERF_SEL_ARB_RET_LEVEL/CHC_PERF_SEL_REQ
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 3
+    - name: CHC_GL2_REQ_READ_LEVEL
+      description: Number of cycles in-flight for reads, atomics with return, NOP_RTN0. Average GL2 read latency = CHC_PERF_SEL_GL2_REQ_READ_LEVEL/SUM_OF_REQ_COUNTERS
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 4
+    - name: CHC_GL2_REQ_WRITE_LEVEL
+      description: Number of cycles in-flight for writes, atomics without return, NOP_ACK. Average GL2 write latency = CHC_PERF_SEL_GL2_REQ_WRITE_LEVEL/SUM_OF_REQ_COUNTERS
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 5
+    - name: CHC_REQ
+      description: Number of reads, writes, atomics, NOPs. Invalids are not counted as requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 6
+    - name: CHC_REQ_ATOMIC_WITH_RET
+      description: Number of atomic requests with return
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 7
+    - name: CHC_REQ_ATOMIC_WITHOUT_RET
+      description: Number of atomic requests without returns
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 8
+    - name: CHC_REQ_WRITE
+      description: Sum of REQ_WRITE_0B, REQ_WRITE_32B, REQ_WRITE_64B, REQ_WRITE_128B, REQ_WRITE_256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 16
+    - name: CHC_REQ_WRITE_32B
+      description: Number of write requests with logical size 32B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 17
+    - name: CHC_REQ_WRITE_64B
+      description: Number of write requests with logical size 64B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 18
+    - name: CHC_REQ_WRITE_128B
+      description: Number of write requests with logical size 128B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 19
+    - name: CHC_REQ_WRITE_256B
+      description: Number of write requests with logical size 256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 20
+    - name: CHC_REQ_WRITE_32B_DATA_BEATS
+      description: Number of physical 32B beats of data going into CH (64B counted as 2, 128B counted as 4, 256B counted as 8)
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 21
+    - name: CHC_GL2_RET_ACK
+      description: Number of write acks returned by GL2 to CH
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 38
+    - name: CHC_GL2_RET_32B
+      description: Number of physical 32B beats of data returned by GL2 to CH
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 39
+    - name: CHC_CH_RET_ACK
+      description: Number of write acks returned by CH to client
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 40
+    - name: CHC_CH_RET_32B
+      description: Number of physical 32B beats of data returned by CH to client
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 41
+    - name: GL1C_BUSY
+      description: Number of cycles with a request pending. Not windowable
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 1
+    - name: GL1C_ARB_RET_LEVEL
+      description: Number of cycles in-flight for requests sent to GL1 arbiter for return arbitration. Average GL1A return arbitration latency = GL1C_PERF_SEL_ARB_RET_LEVEL/GL1C_PERF_SEL_REQ
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 3
+    - name: GL1C_GL2_REQ_READ
+      description: Sum of GL2_REQ_READ_32B, GL2_REQ_READ_64B, GL2_REQ_READ_128B, GL2_REQ_READ_256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 4
+    - name: GL1C_GL2_REQ_READ_32B
+      description: Number of read requests sent to GL2, with logical size 32B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 8
+    - name: GL1C_GL2_REQ_READ_64B
+      description: Number of read requests sent to GL2, with logical size 64B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 9
+    - name: GL1C_GL2_REQ_READ_128B
+      description: Number of read requests sent to GL2, with logical size 128B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 10
+    - name: GL1C_GL2_REQ_READ_256B
+      description: Number of read requests sent to GL2, with logical size 256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 11
+    - name: GL1C_GL2_REQ_WRITE
+      description: Sum of GL2_REQ_WRITE_0B, GL2_REQ_WRITE_32B, GL2_REQ_WRITE_64B, GL2_REQ_WRITE_128B, GL2_REQ_WRITE_256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 16
+    - name: GL1C_GL2_REQ_WRITE_0B
+      description: Number of write requests sent to GL2, with logical size 0B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 20
+    - name: GL1C_GL2_REQ_WRITE_32B
+      description: Number of write requests sent to GL2, with logical size 32B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 21
+    - name: GL1C_GL2_REQ_WRITE_64B
+      description: Number of write requests sent to GL2, with logical size 64B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 22
+    - name: GL1C_GL2_REQ_WRITE_128B
+      description: Number of write requests sent to GL2, with logical size 128B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 23
+    - name: GL1C_GL2_REQ_WRITE_256B
+      description: Number of write requests sent to GL2, with logical size 256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 24
+    - name: GL1C_GL2_REQ_WRITE_32B_DATA_BEATS
+      description: Number of physical 32B beats of data sent to GL2 (64B counted as 2, 128B counted as 4, 256B counted as 8)
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 29
+    - name: GL1C_REQ
+      description: Number of reads, writes, atomics, NOPs. Invalids are not counted as requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 30
+    - name: GL1C_REQ_ATOMIC_WITH_RET
+      description: Number of atomic requests with return
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 31
+    - name: GL1C_REQ_ATOMIC_WITHOUT_RET
+      description: Number of atomic requests without returns
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 32
+    - name: GL1C_REQ_ATOMIC_64B
+      description: Number of atomic requests with logical size 64B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 33
+    - name: GL1C_REQ_ATOMIC_128B
+      description: Number of atomic requests with logical size 128B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 34
+    - name: GL1C_REQ_READ
+      description: Sum of REQ_READ_32B, REQ_READ_64B, REQ_READ_128B, REQ_READ_256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 37
+    - name: GL1C_REQ_READ_32B
+      description: Number of read requests with logical size 32B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 38
+    - name: GL1C_REQ_READ_64B
+      description: Number of read requests with logical size 64B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 39
+    - name: GL1C_REQ_READ_128B
+      description: Number of read requests with logical size 128B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 40
+    - name: GL1C_REQ_READ_256B
+      description: Number of read requests with logical size 256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 41
+    - name: GL1C_REQ_WRITE
+      description: Sum of REQ_WRITE_0B, REQ_WRITE_32B, REQ_WRITE_64B, REQ_WRITE_128B, REQ_WRITE_256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 42
+    - name: GL1C_REQ_WRITE_0B
+      description: Number of write requests with logical size 0B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 43
+    - name: GL1C_REQ_WRITE_32B
+      description: Number of write requests with logical size 32B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 44
+    - name: GL1C_REQ_WRITE_64B
+      description: Number of write requests with logical size 64B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 45
+    - name: GL1C_REQ_WRITE_128B
+      description: Number of write requests with logical size 128B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 46
+    - name: GL1C_REQ_WRITE_256B
+      description: Number of write requests with logical size 256B
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 47
+    - name: GL1C_REQ_WRITE_32B_DATA_BEATS
+      description: Number of physical 32B beats of data going into GL1 (64B counted as 2, 128B counted as 4, 256B counted as 8)
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 48
+    - name: GL1C_GL2_RET_ACK
+      description: Number of write acks returned by GL2 to GL1
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 68
+    - name: GL1C_GL2_RET_32B
+      description: Number of physical 32B beats of data returned by GL2 to GL1
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 69
+    - name: GL1C_GL1_RET_ACK
+      description: Number of write acks returned by GL1 to client
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 70
+    - name: GL1C_GL1_RET_32B
+      description: Number of physical 32B beats of data returned by GL1 to client
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL1C
+          event: 71
+    - name: GL2C_BUSY
+      description: Number of cycles we have a request pending. Not windowable.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 2
+    - name: GL2C_REQ
+      description: Number of requests of all types. This is measured at the tag block. This may be more than the number of requests arriving at the GL2C, but it is a good indication of the total amount of work that needs to be performed.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 3
+    - name: GL2C_READ
+      description: Number of read requests. This is measured at output_fifos block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 5
+    - name: GL2C_WRITE
+      description: Number of write requests. This is measured at output_fifos block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 6
+    - name: GL2C_IO_READ
+      description: Number of read requests to GL2 from client. For requests to EA use GL2C_PERF_SEL_EA_IO_READ.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 7
+    - name: GL2C_IO_WRITE
+      description: Number of write/atomic requests to GL2 from client. For requests to EA use GL2C_PERF_SEL_EA_IO_WRITE.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 8
+    - name: GL2C_ATOMIC
+      description: Number of atomic requests of all types. This is measured at output_fifos block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 9
+    - name: GL2C_CLIENT0_REQ
+      description: Number of cycles client0 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 17
+    - name: GL2C_CLIENT1_REQ
+      description: Number of cycles client1 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 18
+    - name: GL2C_CLIENT2_REQ
+      description: Number of cycles client2 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 19
+    - name: GL2C_CLIENT3_REQ
+      description: Number of cycles client3 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 20
+    - name: GL2C_CLIENT4_REQ
+      description: Number of cycles client4 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 21
+    - name: GL2C_CLIENT5_REQ
+      description: Number of cycles client5 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 22
+    - name: GL2C_CLIENT6_REQ
+      description: Number of cycles client6 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 23
+    - name: GL2C_CLIENT7_REQ
+      description: Number of cycles client7 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 24
+    - name: GL2C_CLIENT8_REQ
+      description: Number of cycles client8 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 25
+    - name: GL2C_CLIENT9_REQ
+      description: Number of cycles client9 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 26
+    - name: GL2C_CLIENT10_REQ
+      description: Number of cycles client10 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 27
+    - name: GL2C_CLIENT11_REQ
+      description: Number of cycles client11 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 28
+    - name: GL2C_CLIENT12_REQ
+      description: Number of cycles client12 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 29
+    - name: GL2C_CLIENT13_REQ
+      description: Number of cycles client13 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 30
+    - name: GL2C_CLIENT14_REQ
+      description: Number of cycles client14 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 31
+    - name: GL2C_CLIENT15_REQ
+      description: Number of cycles client15 sent a request to this GL2C.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 32
+    - name: GL2C_UC_REQ
+      description: The number of Uncached requests. This is measured at the tag block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 33
+    - name: GL2C_RT_REQ
+      description: Number of cached RT requests. Exclude CCRT. This is measured at the tag block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 34
+    - name: GL2C_NT_REQ
+      description: Number of cached NT requests. Exclude CCNT. Exclude requests with another policy coverted to NT. This is measured at the tag block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 35
+    - name: GL2C_DEWRITE_ALLOCATE_HIT
+      description: Number of times a read was performed on a cache line that had only been written into before. This can only occur once for the life of a cache line.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 51
+    - name: GL2C_FULLY_WRITTEN_HIT
+      description: Number of times a 32-byte read from the EA was avoided because the cache sector was already fully written with data. This can only occur once for the life of a cache sector.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 52
+    - name: GL2C_UNCACHED_WRITE
+      description: Number of uncached write/atomic requests issued to main memory.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 53
+    - name: GL2C_WRITEBACK
+      description: Number of dirty lines written back to main memory.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 54
+    - name: GL2C_NORMAL_WRITEBACK
+      description: Number of writebacks due to requests that are not writeback requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 55
+    - name: GL2C_NORMAL_EVICT
+      description: Number of evictions due to requests that are not invalidate or probe requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 57
+    - name: GL2C_READ_32_REQ
+      description: Number of uncompressed 32 byte read requests. This is measured at the output_fifos block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 79
+    - name: GL2C_READ_64_REQ
+      description: Number of uncompressed 64 byte read requests. This is measured at the output_fifos block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 80
+    - name: GL2C_READ_128_REQ
+      description: Number of uncompressed 128 byte read requests. This is measured at the output_fifos block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 81
+    - name: GL2C_WRITE_32_REQ
+      description: Number of 32 byte write requests, includes re-compressed writes. This is measured at the output_fifos block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 83
+    - name: GL2C_WRITE_64_REQ
+      description: Number of 64 byte write requests, includes re-compressed writes. This is measured at the output_fifos block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 84
+    - name: GL2C_EA_DATA_IO_CREDIT_STALL
+      description: Number of cycles a EA write request was stalled because the interface was out of IO credits.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 126
+    - name: GL2C_EA_DATA_DRAM_CREDIT_STALL
+      description: Number of cycles a EA write request was stalled because the interface was out of DRAM credits.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 127
+    - name: GL2C_TOO_MANY_EA_WRREQS_STALL
+      description: Number of cycles the GL2C could not send a EA write request because it already reached its maximum number of pending EA write requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 128
+    - name: GL2C_EA_WRREQ_LEVEL
+      description: The sum of the number of EA write requests in flight for all clients. This is primarily meant for measure average EA write latency. Average write latency = GL2C_PERF_SEL_EA_WRREQ_LEVEL/GL2C_PERF_SEL_EA_WRREQ.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 129
+    - name: GL2C_EA_ATOMIC
+      description: Number of transactions going over the EA_wrreq interface that are actually atomic requests for all clients.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 133
+    - name: GL2C_EA_ATOMIC_LEVEL
+      description: The sum of the number of EA atomics in flight for all clients. This is primarily meant for measure average EA atomic latency. Average atomic latency = GL2C_PERF_SEL_EA_WRREQ_ATOMIC_LEVEL/GL2C_PERF_SEL_EA_WRREQ_ATOMIC.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 137
+    - name: GL2C_EA_REQ_IO_CREDIT_STALL
+      description: Number of cycles there was a stall because the read request interface was out of IO credits. Stalls occur regardless of whether a read needed to be performed or not.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 158
+    - name: GL2C_EA_REQ_DRAM_CREDIT_STALL
+      description: Number of cycles there was a stall because the read request interface was out of DRAM credits. Stalls occur regardless of whether a read needed to be performed or not.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 159
+    - name: GL2C_EA_RDREQ_LEVEL
+      description: The sum of the number of GL2C/EA read requests in flight for all clients. This is primarily meant for measure average EA read latency. Average read latency = GL2C_PERF_SEL_EA_RDREQ_LEVEL/GL2C_PERF_SEL_EA_RDREQ.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 160
+    - name: GL2C_EA_RDREQ_DRAM
+      description: Number of GL2C/EA read requests (either 32-byte, 64-byte, 96-byte or 128-byte) destined for DRAM (MC).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 164
+    - name: GL2C_EA_WRREQ_DRAM
+      description: Number of GL2C/EA write requests (either 32-byte, 64-byte, 96-byte or 128-byte) destined for DRAM (MC).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 165
+    - name: GL2C_EA_RDREQ_DRAM_32B
+      description: Number of 32-byte GL2C/EA read due to dram traffic. A 64-byte request will be counted as 2; 128-byte as 4 and 256-byte as 8.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 166
+    - name: GL2C_EA_WRREQ_DRAM_32B
+      description: Number of 32-byte GL2C/EA write due to dram traffic. A 64-byte request will be counted as 2;128-byte as 4 and 256-byte as 8.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 167
+    - name: GL2C_EA_IO_READ
+      description: Number of read requests to GL2 IO VC to EA.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 168
+    - name: GL2C_EA_IO_WRITE
+      description: Number of write requests to GL2 IO VC to EA.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 169
+    - name: GL2C_EA_OUTSTANDING
+      description: Number of cycles when there is any outstanding EA request.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 170
+    - name: GL2C_LATENCY_FIFO_FULL
+      description: Number of cycles the latency fifo was full.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 173
+    - name: GL2C_TAG_STALL
+      description: Number of cycles the normal request pipeline in the tag was stalled for any reason. Normally, stalls of this nature are measured exactly from one point the pipeline, but that is not the case for this counter. Probes can stall the pipeline at a variety of places, and there is no single point that can reasonably measure the total stalls accurately.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 175
+    - name: GL2C_TAG_WRITEBACK_FIFO_FULL_STALL
+      description: Number of cycles a writeback in the tag was stalled due to the cached ea fifo within the tag block being full.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 176
+    - name: GL2C_TAG_MISS_NOTHING_REPLACEABLE_STALL
+      description: Number of cycles the normal request pipeline in the tag was stalled due to a cache miss and unavailabiliyt of a replaceable cache line.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 178
+    - name: GL2C_TAG_HIT_INV_DIRTY_STALL
+      description: Number of cycles the normal request pipeline in the tag was stalled due to a self initialed wbinv
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 179
+    - name: GL2C_GL2A_LEVEL
+      description: The sum of the number of requests sent to the GL2A for output arbitration in flight. Average GL2A arbitration latency = GL2C_PERF_SEL_GL2A_LEVEL/GL2C_PERF_SEL_REQ.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 197
+    - name: GL2C_ALL_GL2C_OP_WB_OR_INV_START
+      description: Number of gcr writeback or invalidate all requests started.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 198
+    - name: GL2C_GCR_INV
+      description: Number of gcr requests has invalidate field set.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 199
+    - name: GL2C_GCR_WB
+      description: Number of gcr requests has writeback field set.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 200
+    - name: GL2C_ALL_GCR_INV_EVICT
+      description: Number of cache line evictions/invalidations due to gcr request.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 212
+    - name: GL2C_ALL_GCR_WB_OR_INV_CYCLE
+      description: Number of cycles spent performing gcr requests in tag pipeline.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 213
+    - name: GL2C_ALL_GCR_WB_WRITEBACK
+      description: Number of cache line writeback due to gcr request.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 214
+    - name: GL2C_GCR_INVL2_VOL_START
+      description: Number of gcr INVL2_VOL requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 215
+    - name: GL2C_GCR_INVL2_VOL_EVICT
+      description: Number of cache line evictions/invalidations due to INVL2_VOL requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 216
+    - name: GL2C_GCR_INVL2_VOL_CYCLE
+      description: Number of cycles spent performing gcr INVL2_VOL requests in tag pipeline.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 217
+    - name: GL2C_GCR_WBL2_VOL_START
+      description: Number of gcr WBL2_VOL requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 218
+    - name: GL2C_GCR_WBL2_VOL_EVICT
+      description: Number of cache line written back due to WBL2_VOL requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 219
+    - name: GL2C_GCR_WBL2_VOL_CYCLE
+      description: Number of gcr WBL2_VOL requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 220
+    - name: GL2C_ALL_GL2C_OP_WB_OR_INV_VOL_START
+      description: Number of gcr writeback or invalidate all volatile requests started.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 221
+    - name: GL2C_ALL_GCR_INV_VOL_EVICT
+      description: Number of volatile cache line evictions/invalidations due to gcr request.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 222
+    - name: GL2C_ALL_GCR_WB_OR_INV_VOL_CYCLE
+      description: Number of cycles spent performing gcr volatile requests in tag pipeline.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 223
+    - name: GL2C_GCR_WBINVL2_CYCLE
+      description: Number of cycles spent performing gcr WBINVL2 requests in tag pipeline.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 224
+    - name: GL2C_GCR_WBINVL2_EVICT
+      description: Number of cache line evictions/invalidations due to WBINVL2 requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 225
+    - name: GL2C_GCR_WBINVL2_START
+      description: Number of gcr WBINVL2 requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 226
+    - name: GL2C_VOL_REQ
+      description: Number of volatile requests. This is measured at the tag block.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 259
+    - name: GL2C_ONION_READ
+      description: Number of read requests to GL2 onion VC (resource<=1 and spa=1 and snoop=1 and io=1)
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 289
+    - name: GL2C_ONION_WRITE
+      description: Number of write requests to GL2 onion VC (resource<==1 and spa=1 and snoop=1 and io=1)
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 290
+    - name: GL2C_GARLIC_READ
+      description: Number of read requests to GL2 garlic VC (~IO & ~ONION)
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 291
+    - name: GL2C_GARLIC_WRITE
+      description: Number of write requests to GL2 garlic VC (~IO & ~ONION)
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2C
+          event: 292
+    - name: GL2A_CYCLE
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2A
+          event: 1
+    - name: GL2A_BUSY
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GL2A
+          event: 2
+    - name: VTS_BUSY
+      description: Cycles VTS block is busy. Perf_windowing not supported for this counter.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VTS
+          event: 1
+    - name: VMW_TA_REQ
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 2
+    - name: VMW_TA_READ_REQ
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 6
+    - name: VMW_TA_WRITE_REQ
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 7
+    - name: VMW_REQ
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 11
+    - name: VMW_REQ_READ
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 14
+    - name: VMW_REQ_WRITE
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 18
+    - name: VMW_GL1_REQ_READ
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 32
+    - name: VMW_GL1_REQ_READ_128B
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 33
+    - name: VMW_GL1_REQ_READ_64B
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 34
+    - name: VMW_GL1_REQ_WRITE
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 35
+    - name: VCA_BUSY
+      description: Cycles VCA block is busy. Perf_windowing not supported for this counter.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCA
+          event: 1
+    - name: VTF_BUSY
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VTF
+          event: 1
+    - name: VCD_BUSY
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCD
+          event: 1
+    - name: SPI_BUSY
+      description: Number of clocks SPI is busy.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 283
+    - name: SPI_ALL_WAVE
+      description: Number of clocks where any wave is launched
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 286
+    - name: SPI_CSN_NUM_CLUSTERS
+      description: Number of Clusters
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 371
+    - name: SPI_CSN_NUM_GROUPS_OF_GROUPS
+      description: Number of Groups
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 372
+    - name: SPI_CSN_WAVE_LAUNCH_ACTIVE
+      description: Number of clocks from the first wave and the last wave of dispatch
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 373
+    - name: CPC_MEC1_BUSY
+      description: Mec1 is active or stalled, RS84 only
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CPC
+          event: 110
+    - name: CPC_MEC2_BUSY
+      description: Mec2 is active or stalled, RS84 only
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CPC
+          event: 111
+    - name: CPC_MEC1_STALLED
+      description: Mec1 is unable to make progress, RS64 only
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CPC
+          event: 112
+    - name: CPC_MEC2_STALLED
+      description: Mec2 is unable to make progress, RS64 only
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CPC
+          event: 113
+    - name: CPF_ALWAYS_COUNT
+      description: Always Count.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CPF
+          event: 0
+    - name: SQ_WAVES_32
+      description: Count number of wave32s sent to SQs.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 5
+    - name: SQ_WAVE32_ITEMS
+      description: Number of valid wave32 work items in SQs.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 8
+    - name: SQ_PS_QUADS
+      description: 'Number of completely or partially covered pixel quads in SQs, note: not all kinds of quads.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 9
+    - name: SQ_WAVES_DYN_VGPR
+      description: Waves launched in Dynamic VGPR allocation mode.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 15
+    - name: SQ_ITEMS_PS
+      description: Number of items active in PS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 16
+    - name: SQ_ITEMS_GS
+      description: Number of items active in GS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 17
+    - name: SQ_ITEMS_HS
+      description: Number of items active in HS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 18
+    - name: SQ_ITEMS_CS
+      description: Number of items active in CS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 19
+    - name: SQ_WAVES_VEC32
+      description: Increment by 1 for wave32; 2 for wave64 if popexeccnt >=32.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 20
+    - name: SQ_WAVES_PS_VEC32
+      description: 'PS Waves: Increment by 1 for wave32; 2 for wave64 if popexeccnt >=32.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 21
+    - name: SQ_WAVES_GS_VEC32
+      description: 'GS Waves: Increment by 1 for wave32; 2 for wave64 if popexeccnt >=32.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 22
+    - name: SQ_WAVES_HS_VEC32
+      description: 'HS Waves: Increment by 1 for wave32; 2 for wave64 if popexeccnt >=32.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 23
+    - name: SQ_WAVES_CS_VEC32
+      description: 'CS Waves: Increment by 1 for wave32; 2 for wave64 if popexeccnt >=32.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 24
+    - name: SQ_INSTS_ALL
+      description: Number of all instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 64
+    - name: SQ_INSTS_CBRANCH_NOT_TAKEN
+      description: Number of Conditional-Branch instructions issued which were not taken.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 65
+    - name: SQ_INSTS_BRANCH_TAKEN
+      description: Number of branch instructions issued which were taken.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 66
+    - name: SQ_INSTS_DELAY_ALU
+      description: Number of delay alu instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 71
+    - name: SQ_INSTS_INTERNAL
+      description: Number of internal IB instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 72
+    - name: SQ_INSTS_BARRIER_LOCK
+      description: Number of all barrier and lock instructions, except barrier wait.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 74
+    - name: SQ_INSTS_WAKEUP
+      description: Number of wakeup instructions.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 75
+    - name: SQ_INSTS_SALU_PS
+      description: Number of SALU instructions issued by PS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 76
+    - name: SQ_INSTS_SALU_GS
+      description: Number of SALU instructions issued by GS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 77
+    - name: SQ_INSTS_SALU_HS
+      description: Number of SALU instructions issued by HS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 78
+    - name: SQ_INSTS_SALU_CS
+      description: Number of SALU instructions issued by CS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 79
+    - name: SQ_INSTS_SMEM_PS
+      description: Number of SMEM instructions issued by PS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 80
+    - name: SQ_INSTS_SMEM_GS
+      description: Number of SMEM instructions issued by GS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 81
+    - name: SQ_INSTS_SMEM_HS
+      description: Number of SMEM instructions issued by HS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 82
+    - name: SQ_INSTS_SMEM_CS
+      description: Number of SMEM instructions issued by CS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 83
+    - name: SQ_INSTS_SALU_FLOAT
+      description: Number of float SALU instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 84
+    - name: SQ_INSTS_BRANCH_TAKEN_HIT_IS
+      description: Number of Branch instructions issued which were taken and hit is the IS memory.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 88
+    - name: SQ_INSTS_VALU_TRANS32
+      description: Number of 32-bit transcendental VALU instructions issued (the type which can be co-executed with main-pipe instructions) excluding skipped instructions.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 129
+    - name: SQ_INSTS_VEC32_VALU_TRANS32
+      description: Number of wave32 valu instructions issued using the trans32 pipe only. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 131
+    - name: SQ_ITEM_CYCLES_VALU
+      description: Number of item-cycles used to execute VALU operations (similar to INST_CYCLES_VALU but multiplied by number of active workitems).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 132
+    - name: SQ_VALU_READWRITELANE_CYCLES
+      description: Number of cycles of readlane and writelane instructions issued. Counts 1 for readlane; counts 1 for writelane in wave32, 2 for writelane in wave64. For writelane instruction, count V_WRITELANE_B32 only excluding V_WRITELANE_REGWR_B32 as it only used during debug.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 133
+    - name: SQ_INSTS_VALU_TRANS
+      description: Number transcendental VALU instructions issued
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 135
+    - name: SQ_INSTS_VALU_VINTERP
+      description: Number of vinterp instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 137
+    - name: SQ_INSTS_VEC32_VALU_VINTERP
+      description: Number of vinterp instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 138
+    - name: SQ_INSTS_VALU_DP
+      description: Number of Double precision VALU instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 139
+    - name: SQ_INSTS_VALU_COISSUE
+      description: Number of 'VOPD' or '1-cycle wave64' VALU instructions.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 141
+    - name: SQ_INSTS_VALU_PERMUTE
+      description: Number of opcodes that use the permute pipe.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 145
+    - name: SQ_INSTS_TEX
+      description: Number of image,buffer,flat,global,scratch,block-load/store,rts_ray_save,dds instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 163
+    - name: SQ_WAVE32_INSTS_EXP
+      description: Number of wave32 export instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 166
+    - name: SQ_INSTS_VEC32_TEX
+      description: Number of wave32 buffer,image,flat,global,scratch,block-load/store,rts_ray_save,dds instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 167
+    - name: SQ_INSTS_VEC32_TEX_LOAD
+      description: Number of wave32 buffer load, image load, sample, or atomic (with return),global,scratch,block loads,dds instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 168
+    - name: SQ_INSTS_VEC32_TEX_STORE
+      description: Number of wave32 buffer store, image store, or atomic (without return),flat,global,scratch,rts_ray_save, discard instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 169
+    - name: SQ_INSTS_LDS_DIRECT_LOAD
+      description: Number of LDS_DIRECT_LOAD instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 171
+    - name: SQ_INSTS_LDS_PARAM_LOAD
+      description: Number of LDS_PARAM_LOAD instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 172
+    - name: SQ_INSTS_FLAT_LOAD
+      description: Number of flat load, and atomic with return instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 175
+    - name: SQ_INSTS_FLAT_STORE
+      description: Number of flat store, and atomic without return instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 176
+    - name: SQ_INSTS_TEX_BLOCK_LOAD
+      description: Number of block VGPR load instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 177
+    - name: SQ_INSTS_TEX_SAMPLE
+      description: Number of texture sample and gather instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 179
+    - name: SQ_INSTS_TEX_ATOMIC_RTN
+      description: Number of buffer, image, flat, global, scratch atomics with return issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 180
+    - name: SQ_INSTS_TEX_BLOCK_STORE
+      description: Number of block VGPR store instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 181
+    - name: SQ_INSTS_TEX_ATOMIC_NORTN
+      description: Number of buffer, image, flat, global, scratch atomics without return issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 182
+    - name: SQ_INSTS_GLOBAL_SCRATCH
+      description: Number of global and scratch instructions, including load, store and atomics.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 183
+    - name: SQ_INSTS_FLAT_ATOMIC
+      description: Number of flat atomic instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 184
+    - name: SQ_INSTS_BUFFER_LOAD
+      description: Number of buffer load instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 185
+    - name: SQ_INSTS_BUFFER_STORE
+      description: Number of buffer store instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 186
+    - name: SQ_INSTS_ASYNC_LOAD
+      description: Number of async load instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 188
+    - name: SQ_INSTS_ASYNC_STORE
+      description: Number of async store instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 189
+    - name: SQ_INSTS_TDM
+      description: Number of tensor dma instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 190
+    - name: SQ_INSTS_LDS_ATOMIC_RTN
+      description: Number of LDS atomics with return instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 194
+    - name: SQ_INSTS_LDS_ATOMIC_NORTN
+      description: Number of LDS atomics without return instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 195
+    - name: SQ_INSTS_LDS_OTHER
+      description: Number of LDS indexed non-memory instructions (permute,bpermute_nop,swizzle and other unrecognized opcodes) issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 197
+    - name: SQ_INSTS_GLOBAL_SCRATCH_LOAD
+      description: Number of scratch/global load, and atomic with return intructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 198
+    - name: SQ_INSTS_GLOBAL_SCRATCH_STORE
+      description: Number of scratch/global store, and atomic without return instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 199
+    - name: SQ_INSTS_GLOBAL_SCRATCH_ATOMIC
+      description: Number of scratch/global instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 200
+    - name: SQ_INSTS_GLOBAL_MCAST_WG_LOAD
+      description: Number of multicast loads just to one Workgroup (WGP).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 201
+    - name: SQ_INSTS_GLOBAL_MCAST_CLUSTER_LOAD
+      description: Number of multicast loads to multiple WGPs.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 202
+    - name: SQ_INSTS_DDS_LOAD
+      description: Number of DDS load to LDS or 1-4 SIMDs in same WGP.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 203
+    - name: SQ_INSTS_DDS_MCAST_CLUSTER_LOAD
+      description: Number of DDS load to multiple WGPs.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 204
+    - name: SQ_INSTS_SWC
+      description: Number of SWC instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 205
+    - name: SQ_INSTS_SWC_REORDER
+      description: Number of SWC_REORDER and SWC_REORDER_SWAP instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 206
+    - name: SQ_INSTS_RTS
+      description: Number of RTS instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 207
+    - name: SQ_INSTS_TEX_INDEXED
+      description: Number of TEX instructions issued with indexed resource or sampler.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 208
+    - name: SQ_INSTS_NEIGHBOR_DATA_NONREFL
+      description: Number of neighbor share instructions that are destined for neighbor SIMD (includes both 'next' and 'previous').
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 209
+    - name: SQ_INSTS_NEIGHBOR_DATA_REFL
+      description: Number of neighbor share instructions that are reflected to local SIMD (includes both 'next' and 'previous').
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 210
+    - name: SQ_INSTS_VEC32
+      description: Number of wave32 instructions issued, for flat, lds, valu, tex.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 224
+    - name: SQ_INSTS_VEC32_FLAT
+      description: Number of wave32 Flat instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 225
+    - name: SQ_INSTS_VEC32_LDS
+      description: Number of wave32 LDS (indexed,flat) instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 226
+    - name: SQ_INSTS_VEC32_VALU
+      description: Number of wave32 valu instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 227
+    - name: SQ_ITEMS_VALU
+      description: number of active threads per VALU instruction (0-64).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 228
+    - name: SQ_INSTS_VEC32_TEX_PS
+      description: Number of VEC32 passes for TEX instructions issued by PS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 229
+    - name: SQ_INSTS_VEC32_TEX_GS
+      description: Number of VEC32 passes for TEX instructions issued by GS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 230
+    - name: SQ_INSTS_VEC32_TEX_HS
+      description: Number of VEC32 passes for TEX instructions issued by HS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 231
+    - name: SQ_INSTS_VEC32_TEX_CS
+      description: Number of VEC32 passes for TEX instructions issued by CS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 232
+    - name: SQ_INSTS_VEC32_VALU_PS
+      description: Number of VEC32 passes for VALU instructions issued by PS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 233
+    - name: SQ_INSTS_VEC32_VALU_GS
+      description: Number of VEC32 passes for VALU instructions issued by GS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 234
+    - name: SQ_INSTS_VEC32_VALU_HS
+      description: Number of VEC32 passes for VALU instructions issued by HS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 235
+    - name: SQ_INSTS_VEC32_VALU_CS
+      description: Number of VEC32 passes for VALU instructions issued by CS waves.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 236
+    - name: SQ_INSTS_VEC32_LDS_LOAD
+      description: Number of wave32 LDS (indexed, flat) loads and atomics with return instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 238
+    - name: SQ_INSTS_VEC32_LDS_ATOMIC_RTN
+      description: Number of wave32 LDS atomics with return instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 239
+    - name: SQ_INSTS_VEC32_LDS_STORE
+      description: Number of wave32 LDS (indexed, flat) stores and atomics without return instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 240
+    - name: SQ_INSTS_VEC32_LDS_ATOMIC_NORTN
+      description: Number of wave32 LDS atomics without return instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 241
+    - name: SQ_INSTS_VEC32_LDS_OTHER
+      description: Number of wave32 LDS indexed non-memory instructions (permute,bpermute_nop,swizzle and other unrecognized opcodes) issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 243
+    - name: SQ_INSTS_VEC32_TEX_SAMPLE
+      description: Number of VEC32 Sample and gather instructions.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 245
+    - name: SQ_INSTS_VEC32_TEX_ATOMIC
+      description: Number of wave32 Tex atomic instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 246
+    - name: SQ_INSTS_VEC32_FLAT_LOAD
+      description: Number of wave32 Flat load, and atomic with return instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 247
+    - name: SQ_INSTS_VEC32_FLAT_STORE
+      description: Number of wave32 Flat store, and atomic without return instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 248
+    - name: SQ_INSTS_VEC32_FLAT_ATOMIC
+      description: Number of wave32 Flat atomic instructions issued. Wave64 may count 1 or 2, depending on what gets issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 249
+    - name: SQ_INSTS_VEC32_GLOBAL_SCRATCH
+      description: Number of wave32 scratch/global load intructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 250
+    - name: SQ_INSTS_VEC32_GLOBAL_SCRATCH_LOAD
+      description: Number of wave32 scratch/global load, and atomic with return intructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 251
+    - name: SQ_INSTS_VEC32_GLOBAL_SCRATCH_STORE
+      description: Number of wave32 scratch/global store, and atomic without return instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 252
+    - name: SQ_INSTS_VEC32_GLOBAL_SCRATCH_ATOMIC
+      description: Number of wave32 scratch/global instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 253
+    - name: SQ_INSTS_VEC32_VALU_DP
+      description: Number of dual-precision operations (FP64) per vec32. NOT all DPMACC instructions.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 254
+    - name: SQ_VALU_XDL_FLOP_FP16
+      description: HPGEMM flop, it stands for 2048 Ops per SIMD32, sparse will report twice per issue cycle..
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 290
+    - name: SQ_VALU_XDL_FLOP_BF16
+      description: BF16GEMM flop, it stands for 2048 Ops per SIMD32, sparse will report 2x per issue cycle..
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 291
+    - name: SQ_VALU_XDL_FLOP_FP8
+      description: FP8 GEMM flop, it stands for 4096 Ops per SIMD32, sparse will report 2x per issue cycle. Count as FP8 is the largest input data type (other input is FP4, FP6 or FP8)..
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 292
+    - name: SQ_VALU_XDL_FLOP_FP6
+      description: FP6 GEMM flop, it stands for 8192 Ops per SIMD32, sparse will report 2x per issue cycle (but there is no sparse currently). Count as FP6 is the largest input data type (other input is FP4 or FP6)..
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 293
+    - name: SQ_VALU_XDL_FLOP_FP4
+      description: FP4 GEMM flop, it stands for 8192 Ops per SIMD32, sparse will report 2x per issue cycle (but there is no sparse currently). Count as FP4 if both sources are FP4..
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 294
+    - name: SQ_VALU_XDL_FLOP_I8
+      description: I8GEMM flop, it stands for 4096 Ops per SIMD32, sparse will report 2x per issue cycle..
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 295
+    - name: SQ_VALU_XDL_FLOP_I4
+      description: I4GEMM flop, it stands for 8192 Ops per SIMD32, sparse will report 2x per issue cycle..
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 296
+    - name: SQ_VALU_XDL_FLOP_F6F4
+      description: F6 or F4 GEMM flop, only report 1 per issue cycle, it stands for 8192 Ops per SIMD32, sparse will report 2 per issue cycle. Mixed precision XDL counts as FLOP_F6F4 if input operands are only F6 and F4 (not F8). If any are F8, it counts as FLOP_F8.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 297
+    - name: SQ_INST_CYCLES_VALU_TRANS32
+      description: Number of cycles needed to execute VALU trans32 operations (SIMD cycles).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 331
+    - name: SQ_INST_CYCLES_VALU_CORE
+      description: Number of cycles of work sent to core pipe.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 356
+    - name: SQ_INST_CYCLES_VALU_SIDE
+      description: Number of cycles of work sent to side pipe.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 357
+    - name: SQ_INST_CYCLES_VALU_DP
+      description: Number of cycles of work sent to DP pipe.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 358
+    - name: SQ_INST_CYCLES_VALU_XDL
+      description: Number of cycles of work sent to XDL pipe.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 359
+    - name: SQ_INST_ISSUE_TDM_STALL
+      description: Cycles where one or more wave wants to issue a tendor DMA instruction, but fails to win arbitration.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 360
+    - name: SQ_INSTS_TEX_INDEXED_ITERATIONS
+      description: Number of waterfall iterations for TEX instructions issued with indexed resource or sampler.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 361
+    - name: SQ_INST_CYCLES_VALU_PERMUTE
+      description: Number of cycles of work sent to permute pipe.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 366
+    - name: SQ_INST_LEVEL_LDS_PARAM_DIRECT
+      description: Number of in-flight LDS (param, direct) instructions issued.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 393
+    - name: SQ_INST_LEVEL_TEX_INDEXED
+      description: Number of in-flight TEX instructions issued with indexed resource or sampler.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 394
+    - name: SQ_INST_SWC_REORDER_LEVEL
+      description: Number of in-flight SWC_REORDER and SWC_REORDER_SWAP instructions. Set next counter to ACCUM_PREV and divide by INSTS_SWC_REORDER for average latency.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 395
+    - name: SQ_INSTS_VALU_EMULATED_VINTRP
+      description: Number of VALU VINTRP instructions which use MULADD (back-compat only).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 508
+    - name: SQ_INSTS_VALU_EMULATED_SDWA
+      description: Number of VALU instructions which uses at least one 8b or 16b source/destination (back-compat only).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 509
+    - name: SQC_SMEM_LOAD_DWORDS
+      description: Number of dwords loaded based on instruction size, ignoring bounds check reductions.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 682
+    - name: SQC_PIT_UNDERSHOOT_LOCAL
+      description: Number of PIT UNDERSHOOT mitigation events local to SQC
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 704
+    - name: SQC_PIT_OVERSHOOT_LOCAL
+      description: Number of PIT OVERSHOOT mitigation events local to SQC
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 705
+    - name: SQC_DCACHE_INDEXED_REQ
+      description: Number of indexed data cache requests (post-bank-serialization).
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 706
+    - name: SQC_DCACHE_INDEXED_HITS
+      description: Number of indexed data cache hits.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 707
+    - name: SQC_DCACHE_INDEXED_MISSES
+      description: Number of indexed data cache misses, includes uncached requests.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQ
+          event: 708
+    - name: SP_VALU_PENDING_QUEUE_STALL
+      description: Number of cycle in which the pending FIFO is stalling.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SP
+          event: 916
+    - name: SP_VALU_COEXEC_WITH_TRANS
+      description: Trans op co-exec happen.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SP
+          event: 921
+    - name: SP_VALU_STALL
+      description: Stall when issue to ALU.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SP
+          event: 923
+    - name: SP_VGPR_VMEM_RD
+      description: Total VGPR write per cycle, incremented per SRAM.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SP
+          event: 930
+    - name: SP_SPI_WR
+      description: Total VGPR write per cycle, incremented per SRAM.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SP
+          event: 932
+    - name: SP_VGPR_TEX
+      description: Total VGPR write per cycle, incremented per SRAM.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SP
+          event: 933
+    - name: SP_VGPR_WR
+      description: Total VGPR write per cycle, incremented per SRAM.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SP
+          event: 934
+    - name: SP_VGPR_RD
+      description: Total VGPR read per cycle, incremented per SRAM.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SP
+          event: 935
+    - name: SP_VGPR_WR_KILL
+      description: Total VGPR bank write kill per cycle.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SP
+          event: 936
+    - name: VCD_TOTAL_INSTR
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCD
+          event: 10
+    - name: VCD_LDS_INSTR
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCD
+          event: 11
+    - name: VCA_TOTAL
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCA
+          event: 10
+    - name: VCA_LOAD
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCA
+          event: 11
+    - name: VCA_STORE
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCA
+          event: 12
+    - name: VCD_LDS_VGPR_BUSY
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCD
+          event: 22
+    - name: VCA_LOAD_BW
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCA
+          event: 123
+    - name: VCA_STORE_BW
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCA
+          event: 124
+    - name: VCA_LDS_CYCLES
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VCA
+          event: 113
+    - name: VTF_TOTAL_NUM_INSTR
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VTF
+          event: 75
+    - name: VTF_VCD_DATA_CYCLES
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VTF
+          event: 156
+    - name: VTF_VGPR_RETURN_BYTES
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VTF
+          event: 160
+    - name: VTF_VCLDS_BUFFER_SCLK_EN
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VTF
+          event: 165
+    - name: GC_UTCL1_REQS
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GC_UTCL1
+          event: 1
+    - name: GC_UTCL1_HIT
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GC_UTCL1
+          event: 2
+    - name: GC_UTCL1_MISS
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GC_UTCL1
+          event: 3
+    - name: CHC_CYCLE
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: CHC
+          event: 0
+    - name: GC_UTCL2_CYCLE
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GC_UTCL2
+          event: 0
+    - name: GC_UTCL2_EV1
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GC_UTCL2
+          event: 1
+    - name: GCR_PHY_REQ
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCR
+          event: 2
+    - name: GCR_VIR_REQ
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCR
+          event: 1
+    - name: GCR_ALL_REQ
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCR
+          event: 5
+    - name: GCR_PHY_CLOCKS
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCR
+          event: 6
+    - name: GCR_VIR_CLOCKS
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCR
+          event: 7
+    - name: GCR_REQ
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCR
+          event: 9
+    - name: GCR_RET
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCR
+          event: 10
+    - name: GCR_ALL_CLOCKS
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCR
+          event: 8
+    - name: GCEA_SE_CMD_POP
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCEA_SE
+          event: 15
+    - name: GCEA_SE_SARB_IDLE
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCEA_SE
+          event: 18
+    - name: GCEA_SE_REQ_RD_SIZE
+      description: 'WARNING: Non-public counter.'
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: GCEA_SE
+          event: 35
   fw-restriction-schema-version: 1
   firmware_restrictions:
     - affected_architectures:

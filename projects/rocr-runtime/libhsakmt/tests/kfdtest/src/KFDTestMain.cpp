@@ -67,7 +67,7 @@ GTEST_API_ int main(int argc, char **argv) {
     // Default values for run parameters
     g_TestRunProfile = TESTPROFILE_RUNALL;
     g_TestENVCaps = ENVCAPS_NOADDEDCAPS | ENVCAPS_64BITLINUX;
-    g_TestTimeOut = KFD_TEST_DEFAULT_TIMEOUT;
+    g_TestTimeOut = (g_IsEmuMode ?  KFD_TEST_DEFAULT_TIMEOUT * 12 : KFD_TEST_DEFAULT_TIMEOUT) ;
 
     testing::InitGoogleTest(&argc, argv);
 

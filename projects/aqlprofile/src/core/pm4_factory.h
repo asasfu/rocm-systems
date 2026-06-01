@@ -60,6 +60,7 @@ aqlprofile_agent_handle_t RegisterAgent(const aqlprofile_agent_info_v1_t* agent_
 
 // GPU enumeration
 enum gpu_id_t {
+
   INVAL_GPU_ID,  // invalid GPU id
   GFX9_GPU_ID,   // generic Gfx9 id
   MI100_GPU_ID,  // Mi100 GPU id
@@ -70,6 +71,7 @@ enum gpu_id_t {
   GFX11_GPU_ID,  // generic Gfx11 id
   GFX115X_GPU_ID,  // Gfx11.5x id
   GFX12_GPU_ID,  // generic Gfx12 id
+  GFX13_GPU_ID,  // generic Gfx13 id
   MI450_GPU_ID,  // Mi450 GPU id
 };
 
@@ -141,7 +143,7 @@ class Pm4Factory {
   pm4_builder::SqttBuilder* GetSqttBuilder() const { return sqtt_builder_; }
 
   // Return Shader Engines number
-  uint32_t GetShaderEnginesNumber() const { return agent_info_->se_num; }
+  uint32_t GetShaderEnginesNumber() const { return IsGFX13() ? 1 : agent_info_->se_num; }
   uint32_t GetShaderArraysNumber() const { return agent_info_->shader_arrays_per_se; }
   uint32_t GetComputeUnitNumber() const { return agent_info_->cu_num; }
   // Return SQTT buffer alignment
@@ -151,6 +153,7 @@ class Pm4Factory {
   virtual bool IsGFX10() const { return false; }
   virtual bool IsGFX11() const { return false; }
   virtual bool IsGFX12() const { return false; }
+  virtual bool IsGFX13() const { return false; }
   // Return number of XCC on the GPU
   uint32_t GetXccNumber() const { return agent_info_->xcc_num; }
   // Return number of XCC per AID
@@ -291,6 +294,8 @@ class Pm4Factory {
   static Pm4Factory* Mi350Create(const AgentInfo* agent_info);
   // Create MI450 factory
   static Pm4Factory* Mi450Create(const AgentInfo* agent_info);
+  // Create GFX13 factory
+  static Pm4Factory* Gfx13Create(const AgentInfo* agent_info);
   // Return GPU id for a given agent
   static gpu_id_t GetGpuId(std::string_view);
 
@@ -336,6 +341,9 @@ inline Pm4Factory* Pm4Factory::Create(const AgentInfo* agent_info, gpu_id_t gpu_
         break;
       case GFX12_GPU_ID:
         it->second = Gfx12Create(agent_info);
+        break;
+      case GFX13_GPU_ID:
+        it->second = Gfx13Create(agent_info);
         break;
       // Create MI100 generic factory
       case MI100_GPU_ID:
@@ -425,7 +433,7 @@ inline gpu_id_t Pm4Factory::GetGpuId(std::string_view gfx_ip) {
       {"gfx902", GFX9_GPU_ID},  {"gfx906", GFX9_GPU_ID},  {"gfx94", MI300_GPU_ID},
       {"gfx95", MI350_GPU_ID},  {"gfx10", GFX10_GPU_ID},
       {"gfx115", GFX115X_GPU_ID}, {"gfx11", GFX11_GPU_ID},
-      {"gfx125", MI450_GPU_ID}, {"gfx12", GFX12_GPU_ID},
+      {"gfx125", MI450_GPU_ID}, {"gfx12", GFX12_GPU_ID}, {"gfx13", GFX13_GPU_ID}
   };
 
   for (const auto& [name, id] : gfxip_map) {

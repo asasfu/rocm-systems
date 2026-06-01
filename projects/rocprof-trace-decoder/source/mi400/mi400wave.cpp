@@ -188,17 +188,19 @@ enum EINST
     tdm_other_simd,
     lds_async_barrier,
     cluster_barrier_signal,
-    reserved_valu_16,
-    reserved_valu_32,
+    wmma_dpfp_16,
+    wmma_dpfp_32,
     wmma_spfp_16,
     wmma_xdl_8,
     wmma_xdl_16,
-    reserved_valu_1,
-    reserved_valu_4,
-    reserved_valu_2,
+    valu_dpmacc_1,
+    valu_dpmacc_4,
+    valu_dpmacc_arb_b,
     wmma_ld_scale,
     valu_dpmacc_32 = 187,
     vmem_other_simd_start,
+    sema_signal = 279,
+    sema_wait,
     block_store = 222,
     block_store_end = 255,
     einst_final
@@ -318,10 +320,18 @@ static std::unordered_map<int, mapped_inst_t> table_map_to_common_type{
     {(int) EINST::vmpref,                 {WaveInstCategory::VMEM, 1}           },
     {(int) EINST::cluster_barrier_signal, {WaveInstCategory::MSG, 1}            },
 
+    {(int) EINST::wmma_dpfp_16,           {WaveInstCategory::VALU, 16}          },
+    {(int) EINST::wmma_dpfp_32,           {WaveInstCategory::VALU, 32}          },
     {(int) EINST::wmma_spfp_16,           {WaveInstCategory::VALU, 16}          },
     {(int) EINST::wmma_xdl_8,             {WaveInstCategory::VALU, 8}           },
     {(int) EINST::wmma_xdl_16,            {WaveInstCategory::VALU, 16}          },
+    {(int) EINST::valu_dpmacc_1,          {WaveInstCategory::DPMACC1, 1}        },
+    {(int) EINST::valu_dpmacc_4,          {WaveInstCategory::VALU, 4}           },
+    {(int) EINST::valu_dpmacc_32,         {WaveInstCategory::VALU, 32}          },
     {(int) EINST::wmma_ld_scale,          {WaveInstCategory::LD_SCALE, 1}       },
+
+    {(int) EINST::sema_signal,            {WaveInstCategory::MSG, 1}            },
+    {(int) EINST::sema_wait,              {WaveInstCategory::IMMED, 1}          },
 
     {(int) EINST::lds_other_simd_1,       {WaveInstCategory::LDS_OTHER_SIMD, 1} },
     {(int) EINST::lds_other_simd_2,       {WaveInstCategory::LDS_OTHER_SIMD, 2} },
@@ -336,16 +346,19 @@ static std::unordered_map<int, mapped_inst_t> table_map_to_common_type{
     {(int) EINST::flat_other_simd_3,      {WaveInstCategory::FLAT_OTHER_SIMD, 3}},
     {(int) EINST::flat_other_simd_4,      {WaveInstCategory::FLAT_OTHER_SIMD, 4}},
     {(int) EINST::flat_other_simd_5,      {WaveInstCategory::FLAT_OTHER_SIMD, 5}},
-    {(int) EINST::flat_other_simd_6,      {WaveInstCategory::FLAT_OTHER_SIMD, 6}},
-
-    {(int) EINST::reserved_valu_1,        {WaveInstCategory::VALU, 1}           },
-    {(int) EINST::reserved_valu_2,        {WaveInstCategory::VALU, 2}           },
-    {(int) EINST::reserved_valu_4,        {WaveInstCategory::VALU, 4}           },
-    {(int) EINST::reserved_valu_16,       {WaveInstCategory::VALU, 16}          },
-    {(int) EINST::reserved_valu_32,       {WaveInstCategory::VALU, 32}          }
+    {(int) EINST::flat_other_simd_6,      {WaveInstCategory::FLAT_OTHER_SIMD, 6}}
 };
 
-mapped_inst_t map_to_common_type(int einst, int trans2)
+std::pair<int, int> get_double_rate(uint64_t contents)
+{
+    int rate = (contents >> 28) & 0x7;
+    int dprate = 1 << (rate - 1);
+    int trans2 = (contents >> 60) & 1;
+
+    return {dprate, trans2};
+}
+
+mapped_inst_t map_to_common_type(int einst, int dpmacc, int trans2)
 {
     {
         auto it = table_map_to_common_type.find(einst);
@@ -354,6 +367,8 @@ mapped_inst_t map_to_common_type(int einst, int trans2)
 
     if (einst == (int) EINST::valut)
         return {WaveInstCategory::VALU, 4 >> trans2};
+    else if (einst == (int) EINST::valu_dpmacc_arb_b)
+        return {WaveInstCategory::VALU, dpmacc};
     else if (einst == (int) EINST::replay)
         throw std::exception();
 

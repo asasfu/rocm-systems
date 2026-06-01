@@ -264,15 +264,20 @@ release(uint, HIP_SKIP_ABORT_ON_GPU_ERROR, true,                              \
         "Set this to true, to avoid host side abort for GPU errors")          \
 release(bool, HIP_FORCE_SPIRV_CODEOBJECT, false,                              \
         "Force use of SPIRV instead of device specific code object.")         \
-release(uint, DEBUG_CLR_BATCH_CPU_SYNC_SIZE, 16,                               \
+release(bool, HIP_VALIDATE_GFX1250_CODEOBJECT, false,                         \
+        "Validate code object for gfx1250.")                                  \
+release(uint, DEBUG_CLR_BATCH_CPU_SYNC_SIZE, 16,                              \
         "Forces the minimum batch size for CPU sync")                         \
 release(bool, DEBUG_CLR_DISABLE_IMAGE, false,                                 \
-        "1 = Disable Image support for ROC path")                             \
-release(bool, DEBUG_CLR_ENABLE_PREFETCH_METADATA, true,                       \
-        "Enable metadata prefetch for some Aql packets")                      \
+        "1 = Disable Image support for ROC path")  /* clang-format on */      \
 release(uint, DEBUG_CLR_DOORBELL_SKIP, 16,                                    \
-        "Number of consecutive dispatches that may skip the doorbell flush.")
-
+        "Number of consecutive dispatches that may skip the doorbell flush.") \
+release(bool, DEBUG_CLR_ENABLE_PREFETCH_METADATA, true,                       \
+        "Enable metadata prefetch for some Aql packats")                      \
+release(bool, DEBUG_CLR_GROUP_MEM_CARVEOUT_WAR, true,                         \
+        "Enable group memory carveout workaround")                            \
+release(bool, HIP_DISABLE_EXT_PACKET, false,                                  \
+        "Disable extended packet support even if the device supports it")
 
 namespace amd {
 

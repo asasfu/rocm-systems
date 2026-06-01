@@ -16,7 +16,6 @@
 #include <iostream>
 #include <iomanip>
 #include <mutex>
-#include <cstdlib>
 #include <thread>
 #include "hip_test_features.hh"
 #include "hip_test_params.hh"
@@ -267,6 +266,18 @@ static void initHipCtx(hipCtx_t* pcontext) {
 #define HIP_TEST_DRIVER_INIT()
 #endif
 
+#if defined(__gfx1250__) || defined(__gfx1251__) || defined(__gfx1260__) || defined (__gfx13__)
+// Everytime we use __cluster_dims__ in the tests, we need to wrap the symbol definition with an
+// ifdef checking support. That attributed is defined when there is cluster compiler support for the
+// target. When not defined, the compiler would give an error if the attribute is used.
+// If we mix architectures in the offload-arch argument that have support with some that don't,
+// the test would not be compiled away, so using these macros is always needed when using
+// __cluster_dims__
+#define CLUSTER_DIMS(...) __cluster_dims__(__VA_ARGS__)
+#else
+#define CLUSTER_DIMS(...)
+#endif
+
 static inline int getWarpSize() {
 #if HT_NVIDIA
   return 32;
@@ -340,6 +351,22 @@ static inline bool IsStrixHalo() {
   } else {
     return false;
   }
+#else
+  std::cout << "Have to be either Nvidia or AMD platform, asserting" << std::endl;
+  assert(false);
+#endif
+}
+
+static inline bool IsProgrammaticLaunchSupported() {
+#if HT_NVIDIA
+  return true;
+#elif HT_AMD
+  int device = -1;
+  hipDeviceProp_t props{};
+  HIP_CHECK(hipGetDevice(&device));
+  HIP_CHECK(hipGetDeviceProperties(&props, device));
+  std::string arch = std::string(props.gcnArchName);
+  return arch.find("gfx1260") != std::string::npos;
 #else
   std::cout << "Have to be either Nvidia or AMD platform, asserting" << std::endl;
   assert(false);
@@ -567,6 +594,10 @@ inline constexpr char const kNotEnoughFreeGpuMemory[] =
 inline constexpr char const kNotEnoughFreeHostMemory[] =
     "not enough free host memory";
 inline constexpr char const kRequiresLinux[] = "this test requires Linux.";
+inline constexpr char const kSdmaSwapUnsupported[] =
+    "SDMA swap is not supported on this device.";
+inline constexpr char const kProgrammaticLaunchUnsupported[] =
+    "programmatic dependent launch is not supported on this device.";
 }  // namespace SkipReason
 
 /**

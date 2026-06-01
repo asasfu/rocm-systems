@@ -147,6 +147,67 @@ struct formatter<hsa_amd_ext_kernel_dispatch_packet_t>
 #endif
 
 template <>
+struct formatter<hsa_amd_ext_perf_hint_t>
+{
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename Ctx>
+    auto format(hsa_amd_ext_perf_hint_t const& hint, Ctx& ctx) const
+    {
+        return fmt::format_to(ctx.out(),
+                              "[EXT_PERF_HINT, group_mem_carveout={}, reverse_dispatch_order={}, "
+                              "hint_val={}]",
+                              hint.group_mem_carveout,
+                              hint.reverse_dispatch_order,
+                              hint.hint_val);
+    }
+};
+
+template <>
+struct formatter<hsa_amd_ext_kernel_dispatch_packet_t>
+{
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename Ctx>
+    auto format(hsa_amd_ext_kernel_dispatch_packet_t const& pkt, Ctx& ctx) const
+    {
+        return fmt::format_to(ctx.out(),
+                              "[EXT_KERNEL_DISPATCH, header={}, amd_format={}, setup={}, "
+                              "workgroup_size=[{}, {}, {}], cluster_count=[{}, {}, {}], "
+                              "cluster_size=[{}, {}, {}], perf_hint={}, private_size={}, "
+                              "group_size={}, kernel_object={:x}, kern_arg={}, dep_signal={}, "
+                              "completion_signal={}]",
+                              pkt.header,
+                              pkt.amd_format,
+                              pkt.setup,
+                              pkt.workgroup_size_x,
+                              pkt.workgroup_size_y,
+                              pkt.workgroup_size_z,
+                              pkt.cluster_count_x,
+                              pkt.cluster_count_y,
+                              pkt.cluster_count_z,
+                              pkt.cluster_size_x,
+                              pkt.cluster_size_y,
+                              pkt.cluster_size_z,
+                              pkt.perf_hint,
+                              pkt.private_segment_size,
+                              pkt.group_segment_size,
+                              pkt.kernel_object,
+                              pkt.kernarg_address,
+                              pkt.dep_signal.handle,
+                              pkt.completion_signal.handle);
+    }
+};
+
+template <>
 struct formatter<hsa_barrier_and_packet_t>
 {
     template <typename ParseContext>
@@ -258,6 +319,33 @@ struct formatter<hsa_amd_ais_file_handle_t>
 };
 #endif
 #if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x0A
+template <>
+struct formatter<hsa_fabric_handle_t>
+{
+    // No custom format specifiers for now
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(hsa_fabric_handle_t const& h, FormatContext& ctx) const
+    {
+        auto out = ctx.out();
+        fmt::format_to(out, "{{handle=");
+
+        // Print as 16 hex bytes separated by ':'
+        for(int i = 0; i < 16; ++i)
+        {
+            if(i != 0) fmt::format_to(out, ":");
+            fmt::format_to(out, "{:02x}", static_cast<unsigned>(h.handle[i]));
+        }
+
+        return fmt::format_to(out, "}}");
+    }
+};
+
 template <>
 struct formatter<hsa_amd_memory_copy_op_type_t>
 {

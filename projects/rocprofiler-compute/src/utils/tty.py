@@ -14,7 +14,9 @@ from tabulate import tabulate
 import config
 from utils import mem_chart_gfx9, mem_chart_gfx11, parser, schema
 from utils.kernel_name_shortener import (
+    MAX_SHORTENING_LEVEL,
     kernel_name_shortener,
+    process_single_kernel_name,
 )
 from utils.logger import console_error, console_log, console_warning
 from utils.utils_analysis import (

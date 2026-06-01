@@ -83,6 +83,8 @@ void PrintCommand(const char* function_name, Ts&&... packets) {
 
 }  // namespace
 
+typedef void (*pred_exec_flush_callback_t)(void* userdata);
+
 /// @brief Implements the interface CmdBuffer and thus can be used to
 /// translate various Gpu commands as byte stream.
 /// @note: The Api does not require implementations to be thread safe.
@@ -94,7 +96,9 @@ class CmdBuffer {
   template <typename T, typename std::enable_if<sizeof(T) % sizeof(uint32_t) == 0, int>::type = 0>
   void Append(T&& packet) {
     size_t pos = data_.size();
-    data_.resize(pos + sizeof(packet) / sizeof(uint32_t));
+    uint32_t num_dwords = sizeof(packet) / sizeof(uint32_t);
+    CheckPredExec(pos, num_dwords);
+    data_.resize(pos + num_dwords);
     memcpy(&data_[pos], &packet, sizeof(T));
   }
   template <typename... Ts>
@@ -108,6 +112,7 @@ class CmdBuffer {
   /// @param num_dwords number of dwords
   void Append(uint32_t* data_pointer, uint32_t num_dwords) {
     size_t pos = data_.size();
+    CheckPredExec(pos, num_dwords);
     data_.resize(pos + num_dwords);
     memcpy(&data_[pos], data_pointer, num_dwords);
   }
@@ -126,9 +131,48 @@ class CmdBuffer {
   /// @brief Clear buffer.
   void Clear() { return data_.clear(); }
 
+  void RegisterPredExecFlush(pred_exec_flush_callback_t cb = nullptr, size_t end_pos = 0,
+                             void* userdata = nullptr) {
+    // Nested PRED_EXEC unsupported in aqlprofile
+    assert(!pred_exec_.cb || !cb);
+
+    pred_exec_.cb = cb;
+    pred_exec_.end_pos = end_pos;
+    pred_exec_.userdata = userdata;
+  }
+
  private:
   /// @brief Defines Gpu command buffer as a vector of uint32_t
   std::vector<uint32_t> data_;
+
+  void CheckPredExec(size_t& pos, uint32_t num_dwords) {
+    if (pred_exec_.cb && pos + num_dwords > pred_exec_.end_pos) {
+      pred_exec_.cb(pred_exec_.userdata);
+      pos = data_.size();
+    }
+  }
+  struct {
+    pred_exec_flush_callback_t cb;
+    size_t end_pos;
+    void* userdata;
+  } pred_exec_{nullptr, 0, nullptr};
+};
+
+enum ChipletId {
+  CHIPLET_XCD0 = 0,
+  CHIPLET_XCD1 = 1,
+  CHIPLET_XCD2 = 2,
+  CHIPLET_XCD3 = 3,
+  CHIPLET_XCD4 = 4,
+  CHIPLET_XCD5 = 5,
+  CHIPLET_XCD6 = 6,
+  CHIPLET_XCD7 = 7,
+  CHIPLET_AID0 = 8,
+  CHIPLET_AID1 = 9,
+  CHIPLET_AID2 = 10,
+  CHIPLET_AID3 = 11,
+  CHIPLET_MID0 = 12,
+  CHIPLET_MID1 = 13,
 };
 
 enum ChipletId {

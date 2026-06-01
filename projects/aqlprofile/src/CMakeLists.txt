@@ -21,6 +21,7 @@ set ( LIB_SRC
   ${LIB_DIR}/core/gfx115x_factory.cpp
   ${LIB_DIR}/core/gfx12_factory.cpp
   ${LIB_DIR}/core/gfx1250_factory.cpp
+  ${LIB_DIR}/core/gfx13_factory.cpp
   ${LIB_DIR}/core/vega20_reg_init.cpp
   ${LIB_DIR}/core/parse_ip_discovery.cpp
   ${LIB_DIR}/core/navi_reg_init.cpp
@@ -77,6 +78,9 @@ set ( GFX11_HEADER "${DEF_DIR}/gfx11_def.h" )
 set ( GFX12_TEMPL "${SCRIPT_DIR}/gfx12_def.h" )
 set ( GFX12_DEF "${GFXIP_DIR}/gfx12_def.h" )
 set ( GFX12_HEADER "${DEF_DIR}/gfx12_def.h" )
+set ( GFX13_TEMPL "${SCRIPT_DIR}/gfx13_def.h" )
+set ( GFX13_DEF "${GFXIP_DIR}/gfx13_def.h" )
+set ( GFX13_HEADER "${DEF_DIR}/gfx13_def.h" )
 include_directories ( ${ROOT_DIR} )
 add_custom_target( mygenreset
   COMMAND sh -xc "cp ${BINFO_TEMPL} ${BINFO_HEADER}"
@@ -84,6 +88,7 @@ add_custom_target( mygenreset
   COMMAND sh -xc "cp ${GFX10_TEMPL} ${GFX10_HEADER}"
   COMMAND sh -xc "cp ${GFX11_TEMPL} ${GFX11_HEADER}"
   COMMAND sh -xc "cp ${GFX12_TEMPL} ${GFX12_HEADER}"
+  COMMAND sh -xc "cp ${GFX13_TEMPL} ${GFX13_HEADER}"
 )
 add_custom_target( mygen
   COMMAND sh -xc "cp ${BINFO_TEMPL} ${BINFO_HEADER}"
@@ -91,6 +96,7 @@ add_custom_target( mygen
   COMMAND sh -xc "cp ${GFX10_TEMPL} ${GFX10_HEADER}"
   COMMAND sh -xc "cp ${GFX11_TEMPL} ${GFX11_HEADER}"
   COMMAND sh -xc "cp ${GFX12_TEMPL} ${GFX12_HEADER}"
+  COMMAND sh -xc "cp ${GFX13_TEMPL} ${GFX13_HEADER}"
   COMMAND sh -xc "sed '/gfx9_def/ s/.*//' ${GFX9_TEMPL} >${GFX9_HEADER}"
   COMMAND sh -xc "${ROOT_DIR}/script/errextr.sh ${GFX9_HEADER} ${GFX9_DEF}"
   COMMAND sh -xc "sed '/gfx10_def/ s/.*//' ${GFX10_TEMPL} >${GFX10_HEADER}"
@@ -99,6 +105,8 @@ add_custom_target( mygen
   COMMAND sh -xc "${ROOT_DIR}/script/errextr.sh ${GFX11_HEADER} ${GFX11_DEF}"
   COMMAND sh -xc "sed '/gfx12_def/ s/.*//' ${GFX12_TEMPL} >${GFX12_HEADER}"
   COMMAND sh -xc "${ROOT_DIR}/script/errextr.sh ${GFX12_HEADER} ${GFX12_DEF}"
+  COMMAND sh -xc "sed '/gfx13_def/ s/.*//' ${GFX13_TEMPL} >${GFX13_HEADER}"
+  COMMAND sh -xc "${ROOT_DIR}/script/errextr.sh ${GFX13_HEADER} ${GFX13_DEF}"
   COMMAND sh -xc "head -n1 ${BINFO_TEMPL} >${BINFO_HEADER}"
   COMMAND sh -xc "sed 's/_GPU_BLOCKINFO_H_/SRC_DEF_GPU_BLOCK_INFO_H_/' ${BINFO_DEF} >>${BINFO_HEADER}"
 )

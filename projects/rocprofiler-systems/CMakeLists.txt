@@ -200,15 +200,15 @@ if(ROCPROFSYS_BUILD_FOR_THEROCK AND NOT DEFINED ROCPROFSYS_USE_PYTESTS)
     # Lulesh does not build with TheRock
     if(NOT DEFINED ROCPROFSYS_DISABLE_EXAMPLES)
         set(ROCPROFSYS_DISABLE_EXAMPLES
-            "lulesh"
+            ${_DISABLE_EXAMPLES}
             CACHE STRING
             "Disable building examples"
             FORCE
         )
     else()
-        if(NOT "lulesh" IN_LIST ROCPROFSYS_DISABLE_EXAMPLES)
-            list(APPEND ROCPROFSYS_DISABLE_EXAMPLES "lulesh")
-        endif()
+        list(APPEND ROCPROFSYS_DISABLE_EXAMPLES "${_DISABLE_EXAMPLES}")
+        list(SORT ROCPROFSYS_DISABLE_EXAMPLES)
+        list(REMOVE_DUPLICATES ROCPROFSYS_DISABLE_EXAMPLES)
     endif()
 else()
     set(ROCPROFSYS_USE_PYTESTS OFF CACHE BOOL "Enable pytest suite" FORCE)

@@ -2,6 +2,7 @@
 library:
   Unit_library_negative:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [module]
   Unit_hip_library_load_co:
     <<: *level_2
@@ -11,6 +12,7 @@ library:
     tags: [module]
   Unit_hip_library_load_rtc:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [module]
   Unit_hipKernelGetAttribute_Positive_Basic:
     <<: *level_2

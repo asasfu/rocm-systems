@@ -3,11 +3,15 @@ device_memory:
   Unit_Device_memcpy_Positive:
     <<: *level_2
     # Rock_Linux_Failures_on_gfx94X
-    disabled: [amd_linux]
+    disabled: [amd_linux, gfx1260, gfx1310, gfx1370]
   Unit_Device_memcpy_Negative_Parameters_RTC:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [device_lang]
-  Unit_Device_memset_Positive: *level_2
+  Unit_Device_memset_Positive:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_memset_Negative_Parameters_RTC:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [device_lang]

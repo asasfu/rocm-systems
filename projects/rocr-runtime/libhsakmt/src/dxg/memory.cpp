@@ -1093,7 +1093,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtReturnAsanHeaderPage(void *addr) {
 }
 
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtHandleImport(const HsaExternalHandleDesc* import_desc,
+HSAKMT_STATUS HSAKMTAPI hsaKmtHandleImport(const HsaHandleImportDesc* import_desc,
     					HsaHandleImportResult* import_res, HsaHandleImportFlags* flags)
 {
 	CHECK_DXG_OPEN();
@@ -1136,6 +1136,17 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtHandleImport(const HsaExternalHandleDesc* import_d
     import_res->buf_handle = reinterpret_cast<HsaMemoryObjectHandle>(mem_handle);
     return HSAKMT_STATUS_SUCCESS;
   }
+  return HSAKMT_STATUS_ERROR;
+}
+
+HSAKMT_STATUS HSAKMTAPI hsaKmtHandleExport(const HsaHandleExportDesc* desc,
+                                          HsaMemoryExportResult* res,
+                                          HsaHandleExportFlags* flags)
+{
+  (void)desc;
+  (void)res;
+  (void)flags;
+  // TODO: Implement me
   return HSAKMT_STATUS_ERROR;
 }
 
@@ -1207,11 +1218,16 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryCpuMap(HsaMemoryObjectHandle Handle,
 }
 
 HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryGetCpuAddr(HsaAMDGPUDeviceHandle DeviceHandle,
-              HsaMemoryObjectHandle MemoryHandle, HSAint32* fd, HSAuint64* cpu_addr)
+              HsaMemoryObjectHandle MemoryHandle, HSAuint64* cpu_addr)
 {
-	CHECK_DXG_OPEN();
+  CHECK_DXG_OPEN();
   wsl::thunk::GpuMemory* gpu_mem = reinterpret_cast<wsl::thunk::GpuMemory*>(MemoryHandle);
   assert(gpu_mem != nullptr);
-  cpu_addr =  static_cast<HSAuint64*>(gpu_mem->CpuAddress());
+  *cpu_addr = reinterpret_cast<HSAuint64>(gpu_mem->CpuAddress());
   return HSAKMT_STATUS_SUCCESS;
+}
+
+HSAKMT_STATUS HSAKMTAPI hsaKmtGetAmdGPUDeviceFd(HsaAMDGPUDeviceHandle DeviceHandle, HSAint32* fd)
+{
+  return HSAKMT_STATUS_NOT_SUPPORTED;
 }

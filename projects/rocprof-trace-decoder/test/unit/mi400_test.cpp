@@ -111,16 +111,38 @@ TEST(MI400LookupTableTest, GetTimeForTimeToken)
 // MI400 Wave Tests
 //=============================================================================
 
+TEST(MI400WaveTest, GetDoubleRateExtracts)
+{
+    uint64_t contents = 0;
+    contents |= (4ull << 28); // DPRate = 4 (1<<3 = 8)
+    contents |= (1ull << 60); // trans2 = 1
+
+    auto [dprate, trans2] = mi400::get_double_rate(contents);
+    EXPECT_EQ(dprate, 8);
+    EXPECT_EQ(trans2, 1);
+}
+
+TEST(MI400WaveTest, GetDoubleRateMinValue)
+{
+    uint64_t contents = 0;
+    contents |= (1ull << 28); // DPRate = 1 (1<<0 = 1)
+    contents |= (0ull << 60);
+
+    auto [dprate, trans2] = mi400::get_double_rate(contents);
+    EXPECT_EQ(dprate, 1);
+    EXPECT_EQ(trans2, 0);
+}
+
 TEST(MI400WaveTest, MapToCommonTypeSalu)
 {
-    auto mapped = mi400::map_to_common_type(0, 0); // salu
+    auto mapped = mi400::map_to_common_type(0, 0, 0); // salu
     EXPECT_EQ(mapped.category, WaveInstCategory::SALU);
     EXPECT_EQ(mapped.cycles, 1);
 }
 
 TEST(MI400WaveTest, MapToCommonTypeTrap)
 {
-    auto mapped = mi400::map_to_common_type(6, 0); // trap
+    auto mapped = mi400::map_to_common_type(6, 0, 0); // trap
     EXPECT_EQ(mapped.category, WaveInstCategory::TRAP);
     EXPECT_EQ(mapped.cycles, 1);
 }
@@ -128,13 +150,21 @@ TEST(MI400WaveTest, MapToCommonTypeTrap)
 TEST(MI400WaveTest, MapToCommonTypeValutWithTrans2)
 {
     // valut (11) returns 4 normally, but 2 with trans2=1
-    auto mapped1 = mi400::map_to_common_type(11, 0);
+    auto mapped1 = mi400::map_to_common_type(11, 0, 0);
     EXPECT_EQ(mapped1.category, WaveInstCategory::VALU);
     EXPECT_EQ(mapped1.cycles, 4);
 
-    auto mapped2 = mi400::map_to_common_type(11, 1);
+    auto mapped2 = mi400::map_to_common_type(11, 0, 1);
     EXPECT_EQ(mapped2.category, WaveInstCategory::VALU);
     EXPECT_EQ(mapped2.cycles, 2);
+}
+
+TEST(MI400WaveTest, MapToCommonTypeDpmaccArbBWithDpmacc)
+{
+    // valu_dpmacc_arb_b (182) uses dpmacc parameter
+    auto mapped = mi400::map_to_common_type(182, 8, 0);
+    EXPECT_EQ(mapped.category, WaveInstCategory::VALU);
+    EXPECT_EQ(mapped.cycles, 8);
 }
 
 TEST(MI400WaveTest, MapToCommonTypeOtherSimdLds)
@@ -142,7 +172,7 @@ TEST(MI400WaveTest, MapToCommonTypeOtherSimdLds)
     // einst 80-84 → LDS_OTHER_SIMD
     for (int einst = 80; einst <= 84; einst++)
     {
-        auto mapped = mi400::map_to_common_type(einst, 0);
+        auto mapped = mi400::map_to_common_type(einst, 0, 0);
         EXPECT_EQ(mapped.category, WaveInstCategory::LDS_OTHER_SIMD) << "Failed for einst=" << einst;
         EXPECT_GT(mapped.cycles, 0) << "Failed for einst=" << einst;
     }
@@ -153,7 +183,7 @@ TEST(MI400WaveTest, MapToCommonTypeOtherSimdFlat)
     // einst 85-89 → FLAT_OTHER_SIMD
     for (int einst = 85; einst <= 89; einst++)
     {
-        auto mapped = mi400::map_to_common_type(einst, 0);
+        auto mapped = mi400::map_to_common_type(einst, 0, 0);
         EXPECT_EQ(mapped.category, WaveInstCategory::FLAT_OTHER_SIMD) << "Failed for einst=" << einst;
         EXPECT_GT(mapped.cycles, 0) << "Failed for einst=" << einst;
     }
@@ -164,7 +194,7 @@ TEST(MI400WaveTest, MapToCommonTypeOtherSimdRemainder)
     // einst 90-102 → NONE (no range matches)
     for (int einst = 90; einst <= 102; einst++)
     {
-        auto mapped = mi400::map_to_common_type(einst, 0);
+        auto mapped = mi400::map_to_common_type(einst, 0, 0);
         EXPECT_EQ(mapped.category, WaveInstCategory::NONE) << "Failed for einst=" << einst;
         EXPECT_EQ(mapped.cycles, 0) << "Failed for einst=" << einst;
     }
@@ -175,7 +205,7 @@ TEST(MI400WaveTest, MapToCommonTypeVmemOtherSimd)
     // vmem_other_simd range (188 to 221) returns VMEM_OTHER_SIMD
     for (int einst = 188; einst < 222; einst++)
     {
-        auto mapped = mi400::map_to_common_type(einst, 0);
+        auto mapped = mi400::map_to_common_type(einst, 0, 0);
         EXPECT_EQ(mapped.category, WaveInstCategory::VMEM_OTHER_SIMD) << "Failed for einst=" << einst;
         EXPECT_GT(mapped.cycles, 0) << "Failed for einst=" << einst;
     }
@@ -183,11 +213,11 @@ TEST(MI400WaveTest, MapToCommonTypeVmemOtherSimd)
 
 TEST(MI400WaveTest, MapToCommonTypeBlockStore)
 {
-    auto mapped = mi400::map_to_common_type(222, 0);
+    auto mapped = mi400::map_to_common_type(222, 0, 0);
     EXPECT_EQ(mapped.category, WaveInstCategory::VMEM);
     EXPECT_EQ(mapped.cycles, 1);
 
-    auto mapped2 = mi400::map_to_common_type(225, 0);
+    auto mapped2 = mi400::map_to_common_type(225, 0, 0);
     EXPECT_EQ(mapped2.category, WaveInstCategory::VMEM);
     EXPECT_EQ(mapped2.cycles, 4);
 }
@@ -403,12 +433,12 @@ TEST(MI400TokenGeneratorTest, EmptyBufferTerminates)
 //=============================================================================
 
 // Helper: simulate what rdna_sqtt.cpp does for an MI400 INST token
-static void apply_mi400_inst(gfx10::wave_t& wave, int einst, int64_t time, int derate)
+static void apply_mi400_inst(gfx10::wave_t& wave, int einst, int64_t time, int dprate, int derate)
 {
     mapped_inst_t mapped{WaveInstCategory::NONE, 0};
     try
     {
-        mapped = mi400::map_to_common_type(einst, derate);
+        mapped = mi400::map_to_common_type(einst, dprate, derate);
     }
     catch (std::exception&)
     {
@@ -433,7 +463,10 @@ static void apply_mi400_inst(gfx10::wave_t& wave, int einst, int64_t time, int d
     wave.apply_inst(inst_time, einst, mapped, 5);
 }
 
-TEST(MI400xnack, InstReplayThrowsForXnack) { EXPECT_THROW(mi400::map_to_common_type(79, 0), std::exception); }
+TEST(MI400xnack, InstMapToGfx9ReplayThrowsForXnack)
+{
+    EXPECT_THROW(mi400::map_to_common_type(79, 0, 0), std::exception);
+}
 
 TEST(MI400xnack, XnackRewindRemovesImmedInstructions)
 {
@@ -446,14 +479,14 @@ TEST(MI400xnack, XnackRewindRemovesImmedInstructions)
     wave.trap_status = WaveTrapStatus::TRAP_RESTORED;
 
     // SALU
-    apply_mi400_inst(wave, 0, 150, 0);
+    apply_mi400_inst(wave, 0, 150, 1, 0);
 
     // VMEM (buf_rd_1 = 47)
-    apply_mi400_inst(wave, 47, 200, 0);
+    apply_mi400_inst(wave, 47, 200, 1, 0);
 
     // IMMED (barrier_wait = 19)
-    apply_mi400_inst(wave, 19, 300, 0);
-    apply_mi400_inst(wave, 19, 400, 0);
+    apply_mi400_inst(wave, 19, 300, 1, 0);
+    apply_mi400_inst(wave, 19, 400, 1, 0);
 
     size_t instCountBefore = wave.instructions.size();
     EXPECT_GE(instCountBefore, 1);
@@ -463,7 +496,7 @@ TEST(MI400xnack, XnackRewindRemovesImmedInstructions)
         if (instr.category == (uint32_t) WaveInstCategory::IMMED) immedCountBefore++;
 
     // Trigger XNACK rewind with replay instruction (79)
-    apply_mi400_inst(wave, 79, 500, 0);
+    apply_mi400_inst(wave, 79, 500, 1, 0);
 
     int immedCountAfter = 0;
     for (const auto& instr : wave.instructions)
@@ -473,7 +506,7 @@ TEST(MI400xnack, XnackRewindRemovesImmedInstructions)
     EXPECT_EQ(wave.cur_state, WaveslotState::WS_STALL) << "Wave should be stalled after XNACK rewind";
 
     // Now add a VMEM instruction after the stall
-    apply_mi400_inst(wave, 47, 700, 0);
+    apply_mi400_inst(wave, 47, 700, 1, 0);
 
     ASSERT_FALSE(wave.instructions.empty());
     const auto& lastInst = wave.instructions.back();
@@ -495,18 +528,18 @@ TEST(MI400xnack, XnackRecoversFromWaveReady)
     wave.apply_immediate(20);
 
     // salu
-    apply_mi400_inst(wave, 0, 30, 1);
+    apply_mi400_inst(wave, 0, 30, 1, 1);
 
     // buf_rd_1
     wave.apply_wave_rdy(40);
-    apply_mi400_inst(wave, 47, 40, 1);
+    apply_mi400_inst(wave, 47, 40, 1, 1);
     wave.apply_wave_rdy(40);
 
     wave.apply_immediate(50);
     wave.apply_immediate(60);
 
     // replay -> XNACK rewind
-    apply_mi400_inst(wave, 79, 70, 0);
+    apply_mi400_inst(wave, 79, 70, 1, 0);
 
     int immedCountAfter = 0;
     for (const auto& instr : wave.instructions)
@@ -530,22 +563,22 @@ TEST(MI400xnack, MultipleXnack)
     wave.trap_status = WaveTrapStatus::TRAP_RESTORED;
 
     // salu
-    apply_mi400_inst(wave, 0, 10, 1);
+    apply_mi400_inst(wave, 0, 10, 1, 1);
 
     for (int i = 0; i < 19; i++)
     {
         int64_t base_time = i * 20 + 20;
         // buf_rd_1
         if (i % 2) wave.apply_wave_rdy(base_time);
-        apply_mi400_inst(wave, 47, base_time, 1);
+        apply_mi400_inst(wave, 47, base_time, 1, 1);
         if (i % 3) wave.apply_wave_rdy(base_time);
 
         if (i % 4) wave.apply_immediate(base_time + 5);
 
         // replay -> XNACK rewind
-        apply_mi400_inst(wave, 79, base_time + 19, 0);
+        apply_mi400_inst(wave, 79, base_time + 19, 1, 0);
         // buf_rd_1 after XNACK
-        apply_mi400_inst(wave, 47, base_time + 19, 1);
+        apply_mi400_inst(wave, 47, base_time + 19, 1, 1);
     }
 
     int immedCountAfter = 0;
@@ -576,14 +609,14 @@ TEST(MI400xnack, WaveReadyAfterXnack)
     wave.trap_status = WaveTrapStatus::TRAP_RESTORED;
 
     // salu
-    apply_mi400_inst(wave, 0, 20, 0);
+    apply_mi400_inst(wave, 0, 20, 1, 0);
 
     // replay -> XNACK rewind
-    apply_mi400_inst(wave, 79, 30, 0);
+    apply_mi400_inst(wave, 79, 30, 1, 0);
 
     // buf_rd_1 with wave_rdy
     wave.apply_wave_rdy(30);
-    apply_mi400_inst(wave, 47, 30, 1);
+    apply_mi400_inst(wave, 47, 30, 1, 1);
     wave.apply_wave_rdy(30);
 
     EXPECT_EQ(wave.cur_state, WaveslotState::WS_EXEC);

@@ -708,6 +708,12 @@ hsa_status_t hsa_amd_profiling_get_dispatch_time(
   }
 
   AMD::GpuAgentInt* gpu_agent = static_cast<AMD::GpuAgentInt*>(agent);
+#ifdef AMD_NPI_ONLY
+    if (core::Runtime::runtime_singleton_->flag().raw_timestamps()) {
+      signal->GetRawTs(false, time->start, time->end);
+      return HSA_STATUS_SUCCESS;
+    }
+#endif
 
   // Translate timestamp from GPU to system domain.
   gpu_agent->TranslateTime(signal, *time);
@@ -734,8 +740,15 @@ hsa_status_t hsa_amd_profiling_get_async_copy_time(
   }
 
   if (agent->device_type() == core::Agent::DeviceType::kAmdGpuDevice) {
+#ifdef AMD_NPI_ONLY
+    if (core::Runtime::runtime_singleton_->flag().raw_timestamps()) {
+      signal->GetRawTs(false, time->start, time->end);
+      return HSA_STATUS_SUCCESS;
+    }
+#endif
     // Translate timestamp from GPU to system domain.
     static_cast<AMD::GpuAgentInt*>(agent)->TranslateTime(signal, *time);
+
     return HSA_STATUS_SUCCESS;
   }
 
@@ -1926,6 +1939,27 @@ hsa_status_t hsa_amd_enable_logging(uint8_t* flags, void *file) {
   return core::Runtime::runtime_singleton_->EnableLogging(flags, file);
   CATCH;
 }
+
+hsa_status_t hsa_amd_vmem_export_fabric_handle(hsa_fabric_handle_t *fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t handle,
+                                               uint64_t flags) {
+  TRY;
+  IS_OPEN();
+  return core::Runtime::runtime_singleton_->VMemoryExportFabricHandle(fabric_handle,
+                                                handle, flags);
+  CATCH;
+}
+
+
+hsa_status_t hsa_amd_vmem_import_fabric_handle(hsa_fabric_handle_t fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t* handle) {
+  TRY;
+  IS_OPEN();
+  return core::Runtime::runtime_singleton_->VMemoryImportFabricHandle(fabric_handle,
+                                                handle);
+  CATCH;
+}
+
 
 }   //  namespace amd
 }   //  namespace rocr

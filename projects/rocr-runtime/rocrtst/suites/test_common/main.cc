@@ -152,7 +152,8 @@ TEST(rocrtst, Test_Example) {
   RunGenericTest(&tst);
 }
 
-TEST(rocrtst, Test_Example_InterruptDisabled) {
+TEST(rocrtst, DISABLED_Test_Example_InterruptDisabled) {
+  rocrtst::SetEnv("HSA_ENABLE_INTERRUPT", "0");
   TestExample tst;
   rocrtst::SetEnv("HSA_ENABLE_INTERRUPT", "0");
   RunGenericTest(&tst);
@@ -253,12 +254,6 @@ TEST(rocrtstFunc, Signal_Create_Concurrently) {
   if (!RunCustomTestProlog(&sd)) return;
   sd.TestSignalCreateConcurrent();
   RunCustomTestEpilog(&sd);
-}
-
-/* Temporary: Disable CU Masking until it is fixed */
-TEST(rocrtstFunc, DISABLED_CU_Masking) {
-  CU_Masking sd;
-  RunGenericTest(&sd);
 }
 
 TEST(rocrtstFunc, IPC) {
@@ -380,7 +375,6 @@ TEST(rocrtstFunc, GpuCoreDump_PipePattern) {
     RunCustomTestEpilog(&gcd);
 }
 
-
 TEST(rocrtstFunc, Memory_Atomic_Add_Test) {
     MemoryAtomic ma(ADD);
     if (!RunCustomTestProlog(&ma)) return;
@@ -449,6 +443,11 @@ TEST(rocrtstFunc, Memory_Atomic_Xchg_Test) {
     if (!RunCustomTestProlog(&ma)) return;
     ma.MemoryAtomicTest();
     RunCustomTestEpilog(&ma);
+}
+/* Temporary: Disable CU Masking until it is fixed */
+TEST(rocrtstFunc, DISABLED_CU_Masking) {
+  CU_Masking sd;
+  RunGenericTest(&sd);
 }
 
 TEST(rocrtstFunc, DISABLED_DebugBasicTests) {

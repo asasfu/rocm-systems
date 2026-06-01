@@ -75,6 +75,8 @@
  * - 1.21 - hsa_amd_signal_get_event_id
  * - 1.22 - hsa_amd_queue_get_info: per-queue VM fault state queries
  * - 1.23 - hsa_amd_agent_info_t: HSA_AMD_AGENT_INFO_MAX_DATA_PREFETCH_REGIONS
+ * - 1.24 - Metadata Prefetch
+ * - 1.25 - hsa_amd_vmem_export_fabric_handle/hsa_amd_vmem_import_fabric_handle
  */
 #define HSA_AMD_INTERFACE_VERSION_MAJOR 1
 #define HSA_AMD_INTERFACE_VERSION_MINOR 23
@@ -966,6 +968,17 @@ typedef enum hsa_amd_agent_info_s {
    * Returns uint32_t. Zero if the device does not support dynamic data prefetch.
    */
   HSA_AMD_AGENT_INFO_MAX_DATA_PREFETCH_REGIONS = 0xA123,
+
+  // ====================================================================
+  // RANGE 0xA130-0xA1FF: Reserved for future NPI-specific features
+  //
+  // When adding NPI-only enums, start from 0xA130 to leave buffer space
+  // for potential develop branch additions (0xA123-0xA12F).
+  //
+  // When NPI features are released to public develop branch, they should
+  // be reassigned values from the develop range starting after the last
+  // develop enum (currently 0xA122). Update this comment accordingly.
+  // ====================================================================
 } hsa_amd_agent_info_t;
 
 /**
@@ -2384,6 +2397,8 @@ hsa_amd_memory_copy_engine_status(hsa_agent_t dst_agent, hsa_agent_t src_agent,
  *
  * @retval ::HSA_STATUS_SUCCESS For mask returned
  *
+ * @retval ::HSA_STATUS_ERROR_INVALID_AGENT dst_agent and src_agent are the same as
+ * dst_agent == src_agent is generally used for shader copies.
  */
 hsa_status_t HSA_API
 hsa_amd_memory_get_preferred_copy_engine(hsa_agent_t dst_agent, hsa_agent_t src_agent,
@@ -4171,7 +4186,7 @@ hsa_status_t hsa_amd_vmem_get_access(void* va, hsa_access_permission_t* perms,
                                      hsa_agent_t agent_handle);
 
 /**
- * @brief Get an exportable shareable handle
+ * @brief Get an exportable locally unique shareable handle
  *
  * Get an exportable shareable handle for a memory_handle. This shareabl handle can then be used to
  * re-create a virtual memory handle using hsa_amd_vmem_import_shareable_handle. The shareable
@@ -4247,6 +4262,56 @@ hsa_status_t hsa_amd_vmem_get_alloc_properties_from_handle(
     hsa_amd_vmem_alloc_handle_t memory_handle, hsa_amd_memory_pool_t* pool,
     hsa_amd_memory_type_t* type);
 
+/**
+ * @brief 128-bit globally unique identifier for a ROCr shared memory
+ * allocation.
+ */
+typedef struct hsa_fabric_handle_s {
+  uint8_t handle[16];
+} hsa_fabric_handle_t;
+
+
+/**
+ * Get a globaly-unique exportable shareable handle for a memory_handle.
+ * This shareable handle can then be used to re-create a virtual memory handle
+ * using hsa_amd_vmem_import_shareable_handle. Once all shareable handles are
+ * closed, the memory_handle is released.
+ *
+ * @param[out] fabric_handle fabric handle
+ * @param[in] handle previously allocated virtual memory handle
+ * @param[in] flags Currently unsupported
+ *
+ * @retval ::HSA_STATUS_SUCCESS
+ *
+ * @retval ::HSA_STATUS_ERROR_INVALID_ALLOCATION Invalid memory handle
+ *
+ * @retval ::HSA_STATUS_ERROR_OUT_OF_RESOURCES Out of resources
+ *
+ * @retval ::HSA_STATUS_ERROR Unexpected internal error
+ */
+hsa_status_t hsa_amd_vmem_export_fabric_handle(hsa_fabric_handle_t *fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t handle,
+                                               uint64_t flags);
+
+/**
+ * @brief Import a globally-unique shareable handle
+ *
+ * Import a shareable handle for a memory handle. Importing a shareable handle that has been closed
+ * and released results in undefined behavior.
+ *
+ * @param[in] fabric_handle shareable handle exported with hsa_amd_vmem_export_shareable_handle
+ * @param[out] handle virtual memory handle
+ *
+ * @retval ::HSA_STATUS_SUCCESS
+ *
+ * @retval ::HSA_STATUS_ERROR_INVALID_ALLOCATION Invalid memory handle
+ *
+ * @retval ::HSA_STATUS_ERROR_OUT_OF_RESOURCES Out of resources
+ *
+ * @retval ::HSA_STATUS_ERROR Unexpected internal error
+ */
+hsa_status_t hsa_amd_vmem_import_fabric_handle(hsa_fabric_handle_t fabric_handle,
+                                               hsa_amd_vmem_alloc_handle_t* handle);
 /** @} */
 
 /** \addtogroup queue Queues

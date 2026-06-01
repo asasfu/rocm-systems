@@ -45,6 +45,7 @@ static uint32_t get_hwreg_size_per_cu(uint32_t gfxv);
 #define WG_CONTEXT_DATA_SIZE_PER_CU(gfxv, node)	\
 	(hsakmt_get_vgpr_size_per_cu(gfxv) +	\
 	 hsakmt_get_sgpr_size_per_cu(gfxv) +	\
+	 hsakmt_get_mreg_size_per_cu(gfxv) +	\
 	 (node.LDSSizeInKB << 10) +		\
 	 get_hwreg_size_per_cu(gfxv))
 
@@ -73,6 +74,7 @@ struct queue {
 	 * cu_mask bits array.
 	 */
 	uint32_t cu_mask_count; /* in bits */
+	uint32_t queue_type;
 	uint32_t cu_mask[0];
 };
 
@@ -105,12 +107,27 @@ int hsakmt_kfdcontext_init_queue_context(HsaKFDContext *ctx)
 	return 0;
 }
 
+static unsigned int num_xcc;
+
+static void updateQueuePercentage(uint32_t *QueuePercentage,
+				  int pm4_target_xcc, int xcc_count, struct queue *q) {
+	if (q->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE && xcc_count > 1 &&
+		pm4_target_xcc > 0 && pm4_target_xcc < xcc_count) {
+		// Set bits 8-15 of QueuePercentage
+		*QueuePercentage |= (pm4_target_xcc << 8);
+	}
+}
+
 static uint32_t get_hwreg_size_per_cu(uint32_t gfxv)
 {
 	uint32_t hwreg_size = 0;
 
-	if (gfxv < GFX_VERSION_GFX1250)
+	if (gfxv < GFX_VERSION_GFX1250 || gfxv == GFX_VERSION_GFX1260)
 		hwreg_size = 0x1000; /* 128 bytes per wave, 32 waves per CU */
+	else if (gfxv <= GFX_VERSION_GFX1251)
+		hwreg_size = 0x8000; /* 512 bytes per wave, 64 waves per CU */
+	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
+		hwreg_size = 0x4000; /* 512 bytes per wave, 32 waves per CU */
 
 	assert(hwreg_size);
 
@@ -131,8 +148,14 @@ uint32_t hsakmt_get_vgpr_size_per_cu(uint32_t gfxv)
 		vgpr_size = 0x80000;
 	else if (gfxv < GFX_VERSION_PLUM_BONITO)
 		vgpr_size = 0x40000;
-	else if (gfxv <= GFX_VERSION_GFX1201)
+	else if (gfxv <= GFX_VERSION_GFX1201 || gfxv == GFX_VERSION_GFX1260)
 		vgpr_size = 0x60000;
+	else if (gfxv <= GFX_VERSION_GFX1251)
+		vgpr_size = 0x80000;
+	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
+		vgpr_size = 0x40000; /* 128kiB per SIMD */
+
+	assert(vgpr_size);
 
 	assert(vgpr_size);
 
@@ -143,14 +166,31 @@ uint32_t hsakmt_get_sgpr_size_per_cu(uint32_t gfxv)
 {
 	uint32_t sgpr_size = 0;
 
-	if (gfxv < GFX_VERSION_GFX1250)
+	if (gfxv < GFX_VERSION_GFX1250 || gfxv == GFX_VERSION_GFX1260)
 		sgpr_size = 0x4000;
+	else if (gfxv <= GFX_VERSION_GFX1251)
+		sgpr_size = 0x8000;
+	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
+		sgpr_size = 0x4000; /* 32 waves * 128 SGPRs */
 
 	assert(sgpr_size);
 
 	return sgpr_size;
 }
 
+static uint32_t hsakmt_get_mreg_size_per_cu(uint32_t gfxv)
+{
+	uint32_t mreg_size = 0;
+
+	if (gfxv == GFX_VERSION_GFX1260) {
+		mreg_size = 0x20000;
+	}
+
+	// Don't assert for 0 size; many devices do not have mregs
+	// assert(mreg_size);
+
+	return mreg_size;
+}
 static uint32_t get_num_waves(HsaNodeProperties *node, uint32_t gfxv,
 			      uint32_t cu_num)
 {
@@ -678,8 +718,7 @@ static int handle_concrete_asic(HsaKFDContext *ctx,
  */
 static uint32_t priority_map[] = {0, 3, 5, 7, 9, 11, 15};
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueV2Ctx(
-							HsaKFDContext *ctx,
+HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2Ctx(HsaKFDContext *ctx,
 							HSAuint32 NodeId,
 					        HSA_QUEUE_TYPE Type,
 					        HSAuint32 QueuePercentage,
@@ -782,6 +821,10 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueV2Ctx(
 		return err;
 	}
 
+	num_xcc=props.NumXcc;
+	q->queue_type = args.queue_type;
+	updateQueuePercentage(&QueuePercentage, hsakmt_pm4_target_xcc, num_xcc, q);
+
 	args.read_pointer_address = QueueResource->QueueRptrValue;
 	args.write_pointer_address = QueueResource->QueueWptrValue;
 	args.ring_base_address = (uintptr_t)QueueAddress;
@@ -845,7 +888,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueCtx(HsaKFDContext *ctx,
 	if (Type == HSA_QUEUE_SDMA_BY_ENG_ID)
 		return HSAKMT_STATUS_ERROR;
 
-	return hsaKmtCreateQueueV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority, 0,
+	return hsaKmtCreateQueueExtV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority, 0,
 				    QueueAddress, QueueSizeInBytes, 0, Event, QueueResource);
 }
 
@@ -860,7 +903,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtCtx(HsaKFDContext *ctx,
 					     HsaEvent *Event,
 					     HsaQueueResource *QueueResource)
 {
-	return hsaKmtCreateQueueV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority,
+	return hsaKmtCreateQueueExtV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority,
 				      SdmaEngineId, QueueAddress, QueueSizeInBytes, 0,
 				      Event, QueueResource);
 }
@@ -875,6 +918,8 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtUpdateQueueCtx(HsaKFDContext *ctx,
 {
 	struct kfd_ioctl_update_queue_args arg = {0};
 	struct queue *q = PORT_UINT64_TO_VPTR(QueueId);
+
+	updateQueuePercentage(&QueuePercentage, hsakmt_pm4_target_xcc, num_xcc, q);
 
 	CHECK_KFD_OPEN();
 
@@ -1101,21 +1146,21 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExt(HSAuint32 NodeId,
 					QueueSizeInBytes, Event, QueueResource);
 }
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueV2(HSAuint32 NodeId,
-    					 HSA_QUEUE_TYPE Type,
-    					 HSAuint32 QueuePercentage,
-    					 HSA_QUEUE_PRIORITY Priority,
-    					 HSAuint32 SdmaEngineId,
-    					 void* QueueAddress,
-    					 HSAuint64 QueueSizeInBytes,
-    					 HSAuint64 MetaDataPrefetchSizeInBytes,
-    					 HsaEvent* Event,
-    					 HsaQueueResource* QueueResource)
+HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2(HSAuint32 NodeId,
+					     HSA_QUEUE_TYPE Type,
+					     HSAuint32 QueuePercentage,
+					     HSA_QUEUE_PRIORITY Priority,
+					     HSAuint32 SdmaEngineId,
+					     void *QueueAddress,
+					     HSAuint64 QueueSizeInBytes,
+					     HSAuint64 MetaDataQueueSizeInBytes,
+					     HsaEvent *Event,
+					     HsaQueueResource *QueueResource)
 {
-	return hsaKmtCreateQueueV2Ctx(&hsakmt_primary_kfd_ctx, NodeId, Type,
-						 QueuePercentage, Priority, SdmaEngineId, QueueAddress,
-						 QueueSizeInBytes, MetaDataPrefetchSizeInBytes,
-						 Event, QueueResource);
+	return hsaKmtCreateQueueExtV2Ctx(&hsakmt_primary_kfd_ctx,
+				       NodeId, Type, QueuePercentage, Priority,
+				       SdmaEngineId, QueueAddress, QueueSizeInBytes,
+				       MetaDataQueueSizeInBytes, Event, QueueResource);
 }
 
 HSAKMT_STATUS HSAKMTAPI hsaKmtUpdateQueue(HSA_QUEUEID QueueId,

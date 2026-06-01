@@ -221,6 +221,10 @@ std::pair<size_t, barrier_list_t> Stitcher::stitchWave(class WaveDataInternal& w
         {
             inst.duration = std::max(inst.duration, inst.stall + 2);
         }
+        else if (gfxip == 12 && inst.category == WaveInstCategory::DPMACC1)
+        {
+            bMatched = line->cat == InstCategory::V_MOV_B64 || line->cat == InstCategory::VALU;
+        }
         else if (gfxip == 9 && line->cat == InstCategory::MFMA_SCALE && inst.category == WaveInstCategory::VALU)
         {
             // MFMA_SCALE requires manual intervation for the scale part

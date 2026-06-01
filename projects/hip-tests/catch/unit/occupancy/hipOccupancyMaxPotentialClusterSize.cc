@@ -36,7 +36,7 @@ static __global__ void reverse(int* d, int n) {
   d[t] = shBuf[tr];
 };
 
-TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Positive_RangeValidation") {
+HIP_TEST_CASE(Unit_hipOccupancyMaxPotentialClusterSize_Positive_RangeValidation) {
   int clusterSize;
   hipDeviceProp_t props;
   hipLaunchConfig_t config = {};
@@ -51,14 +51,14 @@ TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Positive_RangeValidation") {
     INFO("Max potential cluster size is: " << clusterSize);
     // at the time of this writing a SPI could be drive up to 15 CUs. The number of CUs per SE
     // varies per silicon, but any AMD silicon should have at least 8
-    REQUIRE((clusterSize > 8 && clusterSize <= 16));
+    REQUIRE((clusterSize >= 8 && clusterSize <= 16));
   } else {
     REQUIRE(hip_error == hipErrorInvalidClusterSize);
   }
 }
 
 // TODO gehernan enable this test (requires distributed shared memory)
-TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch") {
+HIP_TEST_CASE(Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch) {
   int numBytes;
   LinearAllocGuard<int> h_output;
   LinearAllocGuard<int> d_output;
@@ -99,6 +99,15 @@ TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch") {
   numBytes = clusterSize * config.dynamicSmemBytes;
 
   SECTION("launch with maximum size shmem") {
+    // This section uses distributed shared memory (cluster.map_shared_rank)
+    // which is not yet supported on gfx1260.
+    hipDeviceProp_t devProps;
+    HIP_CHECK(hipGetDeviceProperties(&devProps, 0));
+    if (std::string(devProps.gcnArchName).find("gfx1260") != std::string::npos) {
+      SUCCEED("distributed shared memory not supported on gfx1260");
+      return;
+    }
+
     int expected = 0;
 
     d_output = LinearAllocGuard<int>(LinearAllocs::hipMalloc, numBytes);
@@ -127,7 +136,7 @@ TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch") {
   }
 }
 
-TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters") {
+HIP_TEST_CASE(Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters) {
   hipLaunchConfig_t config = {};
   hipError_t hip_error;
   int clusterSize = -1;

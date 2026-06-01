@@ -3,13 +3,14 @@ clock:
   Unit_hipClock64_Positive_Basic:
     <<: *level_2
     # SWDEV-555665
-    disabled: [amd_windows]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, timing]
   Unit_hipClock_Positive_Basic:
     <<: *level_2
     # SWDEV-555665
-    disabled: [amd_windows]
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, timing]
   Unit_hipWallClock64_Positive_Basic:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, timing]

@@ -8345,6 +8345,16 @@ public:
   }
 };
 
+class gfx1251_t final : public gfx12_5_architecture_t
+{
+public:
+  gfx1251_t ()
+    : gfx12_5_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX1251,
+                              "amdgcn-amd-amdhsa--gfx1251")
+  {
+  }
+};
+
 architecture_t::architecture_t (elf_amdgpu_machine_t e_machine,
                                 std::string target_triple)
   : m_architecture_id (
@@ -8534,6 +8544,7 @@ decltype (architecture_t::s_architecture_map)
       map.emplace (make_architecture<gfx1200_t> ());
       map.emplace (make_architecture<gfx1201_t> ());
       map.emplace (make_architecture<gfx1250_t> ());
+      map.emplace (make_architecture<gfx1251_t> ());
       return map;
     }()
   };

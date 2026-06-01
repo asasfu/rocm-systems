@@ -68,7 +68,7 @@ struct PalDevice {
 };
 
 static constexpr PalDevice supportedPalDevices[] = {
-    // GFX Version  PAL Name   PAL ASIC Revision
+    // GFX Version PAL GFX IP Level            PAL Name         PAL ASIC Revision
     {10, 1, 0, "gfx1010", Pal::AsicRevision::Navi10},
     {10, 1, 1, "gfx1011", Pal::AsicRevision::Navi12},
     {10, 1, 2, "gfx1012", Pal::AsicRevision::Navi14},
@@ -89,8 +89,15 @@ static constexpr PalDevice supportedPalDevices[] = {
     {11, 5, 1, "gfx1151", Pal::AsicRevision::StrixHalo},
     {11, 5, 2, "gfx1152", Pal::AsicRevision::Krackan1},
     {11, 5, 3, "gfx1153", Pal::AsicRevision::Krackan2},
+    {11, 5, 14, "gfx115E", Pal::AsicRevision::Medusa1_A0},
+    {11, 7, 0, "gfx1170", Pal::AsicRevision::Medusa1},
+    {11, 7, 1, "gfx1171", Pal::AsicRevision::Medusa2},
     {12, 0, 0, "gfx1200", Pal::AsicRevision::Navi44},
     {12, 0, 1, "gfx1201", Pal::AsicRevision::Navi48},
+#if PAL_BUILD_ALPHA_TRION2
+    {13, 1, 0, "gfx1310", Pal::AsicRevision::AlphaTrion2},
+    {13, 1, 15, "gfx131F", Pal::AsicRevision::AlphaTrion2},
+#endif
 };
 
 static std::tuple<const amd::Isa*, const char*> findIsa(uint32_t gfxipMajor, uint32_t gfxipMinor,
@@ -218,6 +225,7 @@ bool NullDevice::create(const char* palName, const amd::Isa& isa, Pal::AsicRevis
   properties.gfxTriple.major = isa.versionMajor();
   properties.gfxTriple.minor = isa.versionMinor();
   properties.gfxTriple.stepping = isa.versionStepping();
+  properties.gfxipProperties.shaderCore.ldsSizePerCu = 64 * Ki;
   uint subtarget = 0;
 
   pal::Settings* palSettings = new pal::Settings();
@@ -496,7 +504,7 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
   info_.maxGridDim_[2] = std::numeric_limits<uint16_t>::max();
 
   info_.localMemType_ = CL_LOCAL;
-  info_.localMemSize_ = settings().hwLDSSize_;
+  info_.localMemSize_ = palProp.gfxipProperties.shaderCore.ldsSizePerCu;
   info_.extensions_ = getExtensionString();
 
   // OpenCL1.2 device info fields
@@ -612,6 +620,7 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
     info_.largeBar_ = false;
 #endif  // _WIN64
   }
+  info_.shareLocalMemInWGP_ = isa().versionMajor() >= 13;
   info_.virtualMemoryManagement_ = true;
   info_.gpuDirectRdmaWithHipVmmSupported_ =
       info_.virtualMemoryManagement_ && info_.dmabufSupported_;
@@ -2157,6 +2166,13 @@ bool Device::allocScratch(uint regNum, const VirtualGPU* vgpu, uint vgprs) {
 
     // Calculate the size of the scratch buffer for a queue
     uint32_t numTotalCUs = properties().gfxipProperties.shaderCore.numAvailableCus;
+#if PAL_BUILD_GFX13
+    if(properties().gfxTriple.major == 13)
+    {
+      // SPI on gfx13 use physical cu count for scratch space
+      numTotalCUs = properties().gfxipProperties.shaderCore.numPhysicalCus;
+    }
+#endif
     // Find max waves based on VGPR per SIMD
     uint32_t numMaxWaves = properties().gfxipProperties.shaderCore.vgprsPerSimd / vgprs;
     // Find max waves per CU

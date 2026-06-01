@@ -357,7 +357,7 @@ void MemoryAccessTest::GPUAccessToCPUMemoryTest(hsa_agent_t cpuAgent,
   } else {
     if (verbosity() > 0) {
       std::cout<< "Test not applicable as system is not large bar."
-                   "Skipping."<< std::endl;
+                   " Skipping."<< std::endl;
       std::cout << kSubTestSeparator << std::endl;
     }
     return;

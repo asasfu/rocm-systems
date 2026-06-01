@@ -30,6 +30,7 @@
 #include "gfx10wave.h"
 #include "gfx11/gfx11wave.h"
 #include "gfx12/gfx12wave.h"
+#include "gfx13/gfx13wave.h"
 #include "mi400/mi400token.h"
 #include "mi400/mi400wave.h"
 #include "segment.hpp"
@@ -121,7 +122,7 @@ void RDNASQTParser::sqtt_simd_analysis(CppReturnInfo& info, TokenGenerator& _gen
                     DEBUGPRINT(header);
                     target_sa_wgp = get_sa_wgp(header.DSA, header.DWGP);
                     target_simd = header.DSIMD;
-                    derate = header.trans2;
+                    std::tie(dprate, derate) = mi400::get_double_rate(token.contents);
                 }
                 else
                 {
@@ -272,12 +273,17 @@ void RDNASQTParser::sqtt_simd_analysis(CppReturnInfo& info, TokenGenerator& _gen
                 inst_type_common inst;
                 auto mapped = mapped_inst_t{WaveInstCategory::NONE, 0};
 
-                if (tt_version >= 5)
+                if (tt_version == 6)
+                {
+                    inst = mi400::inst_type{.raw = token.contents}.get();
+                    mapped = gfx13::map_to_common_type(inst.inst, dprate, derate);
+                }
+                else if (tt_version >= 5)
                 {
                     inst = mi400::inst_type{.raw = token.contents}.get();
                     try
                     {
-                        mapped = mi400::map_to_common_type(inst.inst, derate);
+                        mapped = mi400::map_to_common_type(inst.inst, dprate, derate);
                     }
                     catch (std::exception&)
                     {
@@ -440,6 +446,14 @@ void RDNASQTParser::sqtt_simd_analysis(CppReturnInfo& info, TokenGenerator& _gen
                 shaderdata.emplace_back(shader);
                 if (shaderdata.size() >= MAX_ACCUM_RECORDS) stitch.sendShaderdata(shaderdata);
 
+                break;
+            }
+            case RdnaType::EXEC_POPCOUNT1:
+            {
+                break;
+            }
+            case RdnaType::EXEC_POPCOUNT3:
+            {
                 break;
             }
             default:

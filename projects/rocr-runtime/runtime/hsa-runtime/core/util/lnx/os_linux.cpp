@@ -966,6 +966,8 @@ uint64_t HostTotalPhysicalMemory() {
 
 int Ffs(int i) { return ffs(i); }
 
+int Popcount(uint32_t i) { return __builtin_popcount(i); }
+
 int Ctz(uint64_t i) { return __builtin_ctz(i); }
 
 int Popcount(uint32_t i) { return __builtin_popcount(i); }

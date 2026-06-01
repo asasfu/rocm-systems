@@ -27,6 +27,7 @@ class tui_analysis(OmniAnalyze_Base):
         self.path = path
         self.args = self.get_args()
 
+    
     @demarcate
     def pre_processing(self) -> None:
         self._profiling_config = file_io.load_profiling_config(self.path)

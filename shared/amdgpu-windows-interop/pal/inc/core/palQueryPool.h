@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palQueryPool.h
@@ -45,6 +22,10 @@ enum class QueryPoolType : uint32
                              ///  such as a count of prims generated, shader invocations, etc.
     StreamoutStats   = 0x2,  ///< Streamout query pool. Supports queries based on statistics from the GPU's execution
                              ///  such as number of primitives written to SO buffer and storage needed.
+#if PAL_BUILD_VIDEO
+    VideoDecodeStats = 0x3,  ///< Video decode stats query pool. Supports queries for the video decoding status
+                             ///  such as decode status, the number of macroblock affected and the max bitrate.
+#endif
     Count,
 };
 
@@ -58,6 +39,9 @@ enum class QueryType : uint32
     StreamoutStats1  = 0x4, ///< SO1 statistics tracked by CP/VGT including primitives written and storage needed.
     StreamoutStats2  = 0x5, ///< SO2 statistics tracked by CP/VGT including primitives written and storage needed.
     StreamoutStats3  = 0x6, ///< SO3 statistics tracked by CP/VGT including primitives written and storage needed.
+#if PAL_BUILD_VIDEO
+    VideoDecodeStats = 0x7, ///< Video decode statistics by the given video decode stats query pool.
+#endif
     Count,
 };
 

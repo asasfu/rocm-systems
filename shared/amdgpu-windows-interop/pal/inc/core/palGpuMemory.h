@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palGpuMemory.h
@@ -169,7 +146,11 @@ union GpuMemoryCreateFlags
                                                   ///  (Hybrid Secure Framebuffer). It is not CPU accessible,
                                                   ///  and GPU access is restricted by the hardware such that data
                                                   ///  cannot be copied from protected memory into unprotected memory.
+#if PAL_CLIENT_DX
+        uint64 dwmAllocation                :  1; ///< Specifies the GPUMemory is DWM allocation.
+#else
         uint64 placeholder0                 :  1; ///< Placeholder.
+#endif
         uint64 externalOpened               :  1; ///< Specifies the GPUMemory is opened.
         uint64 restrictedContent            :  1; ///< Specifies the GPUMemory is protected content.
         uint64 restrictedAccess             :  1; ///< Specifies the GPUMemory is restricted shared access resource.
@@ -193,7 +174,11 @@ union GpuMemoryCreateFlags
         uint64 kmdShareUmdSysMem            :  1; ///< UMD will allocate/free a memory buffer to be shared with KMD.
         uint64 deferCpuVaReservation        :  1; ///< KMD will allocate with the "CpuVisibleOnDemand" alloc flag.
                                                   ///  Ignored for non-CPU-visible allocations.
+#if PAL_BUILD_INFINITY_STORAGE
+        uint64 infinityStorageDst           :  1; ///< This allocation is a destination for InfiniyStorage
+#else
         uint64 placeholder1                 :  1;
+#endif
         uint64 startVaHintFlag              :  1; ///< startVaHintFlag is set to 1 for passing startVaHint address
                                                   ///  to set baseVirtAddr as startVaHint for memory allocation.
 #if PAL_AMDGPU_BUILD
@@ -266,6 +251,7 @@ struct GpuMemoryCreateInfo
                                                ///  set baseVirtAddr as normal.
     };
 
+
     GpuMemPriority       priority;       ///< Hint to the OS paging process on how important it is to keep this
                                          ///  allocation in its preferred heap.
     GpuMemPriorityOffset priorityOffset; ///< Offset from the base level priority. A higher offset means higher priority
@@ -296,6 +282,24 @@ struct GpuMemoryCreateInfo
 
     TypedBufferCreateInfo typedBufferInfo; ///< This struct must be filled out if the @tref typedBuffer flag is set.
                                            ///  This GPU memory will be permanently considered a typed buffer.
+
+#if PAL_CLIENT_DX
+    DxRuntimeHandle hDxRtResource;     ///< If the memory object will be associated with a runtime object this specifies
+                                       ///  a handle to that runtime object, otherwise it must be null.
+    bool            isChildAllocation; ///< A child allocation must share its hDxRtResource with an existing GPU memory
+                                       ///  object. The child allocation will be freed when the parent GPU memory object
+                                       ///  is destroyed; when that occurs you cannot use a child GPU memory.
+
+    /// Number of multi device GPU memories to be created. Certain OSes require certain IGpuMemory objects to be created
+    /// with a single AllocateCb kernel call despite being associated with different IDevices. No entry is included here
+    /// for the original GpuMemory, as it is always created on the "this" pointer for the creation call. This is a
+    /// temporary PAL feature until MGPU broadcast support is added.
+    uint32          multiDeviceGpuMemoryCount;
+    IDevice*const*  ppMultiDevice;       ///< Pointer to an array of device pointers, on which the multi device GPU
+                                         ///  memories are created. The size of the array is multiDeviceGpuMemoryCount.
+    IImage*const*   ppMultiDeviceImage;  ///< Pointer to an array of image pointers, based on which the multi device GPU
+                                         ///  memories are created. The size of the array is multiDeviceGpuMemoryCount.
+#endif
 
     VirtualGpuMemAccessMode virtualAccessMode; ///< Access mode for virtual GPU memory's unmapped pages, WDDM only.
     gpusize                 surfaceBusAddr;    ///< Surface bus address of Bus Addressable Memory.
@@ -344,6 +348,18 @@ struct PinnedGpuMemoryCreateInfo
     GpuMemMallRange   mallRange;  ///< These parameters are only meaningful if flags.mallRangeActive
                                   ///  is set.  Any pages outside of this range will use the opposite
                                   ///  MALL policy from what is specified in "mallPolicy".
+#if PAL_DGMA_SUPPORT
+    union
+    {
+        struct
+        {
+            uint32 hostMappedForeign : 1;   ///< Indicates pSysMem is a host-mapped pointer to physical memory residing
+                                            ///  on an external device
+            uint32 reserved          : 31;  ///< Reserved for future use.
+        };
+        uint32 u32All;                      ///< Flags packed as 32-bit uint.
+    } flags;                                ///< Pinned Gpu memory create info flags.
+#endif
 };
 
 /// Specifies properties for @ref IGpuMemory creation.  Input structure to IDevice::CreateSvmGpuMemory().
@@ -380,6 +396,16 @@ struct PeerGpuMemoryOpenInfo
 {
     IGpuMemory* pOriginalMem; ///< GPU memory object from another device to open for peer-to-peer memory transfers.
 };
+
+#if PAL_CLIENT_DX
+/// Specifies parameters for opening a GPU memory object for multi device memory.
+struct MultiDeviceGpuMemoryOpenInfo
+{
+    IGpuMemory* pOriginalMem;            ///< GPU memory object from which to open multi device memory.
+    uint32      multiDeviceGpuMemoryIdx; ///< This is an index into the ppMultiDevice array specified when
+                                         ///  "pOriginalMem" was created.
+};
+#endif
 
 /// Specifies parameters for opening another non-PAL device's gpu memory for access from this device.  Input structure to
 /// IDevice::OpenExternalSharedGpuMemory().
@@ -443,7 +469,11 @@ struct GpuMemoryDesc
             uint32 isExecutable :  1; ///< GPU memory is used for execution. Valid only when IOMMUv2 is supported
             uint32 isExternPhys :  1; ///< GPU memory is External Physical memory
 
+#if PAL_DGMA_SUPPORT
+            uint32 isHostMappedForeign :  1; ///< GPU memory is host-mapped from foreign device memory
+#else
             uint32 placeholder0        :  1; ///< Reserved for future memory flag
+#endif
 
             uint32 isCompressed :  1; ///< Set for physical allocations where UMD requested PTE.D=1 to enable
                                       ///  GFX12-style distributed compression.
@@ -462,6 +492,9 @@ struct GpuMemSubAllocInfo
     gpusize     address;     ///< Start address of the memory, not including the offset.
     gpusize     offset;      ///< Offset from the start address of the memory.
     gpusize     size;        ///< Size of the memory.
+#if PAL_CLIENT_DX
+    DxKmtHandle hAllocation; ///< The DX allocation handle associated with this GPU memory object.
+#endif
 };
 
 /// Specifies a GPU memory object and flags with more specific usage details.  An array of these structures is specified
@@ -643,6 +676,20 @@ public:
     ///          + ErrorGpuMemoryUnmapFailed if the GPU memory object cannot be unlocked.
     ///          + ErrorUnavailable if the GPU memory object is not a real allocation.
     virtual Result Unmap() = 0;
+
+#if PAL_CLIENT_DX
+    /// Returns the DX allocation handle associated with this GPU memory object.
+    ///
+    /// @note This function is only available for DX builds.
+    ///
+    /// @returns The DX allocation handle associated with this GPU memory object.
+    virtual DxKmtHandle AllocationHandle() const = 0;
+
+    /// Swaps the DX Runtime handle associated with this GPU memory object.
+    ///
+    /// @note This function is only available for DX builds.
+    virtual void SwapDxRuntimeHandle(IGpuMemory* pGpuMemory) = 0;
+#endif
 
 #if PAL_KMT_BUILD || PAL_AMDGPU_BUILD
     /// Returns an OS-specific handle which can be used to refer to this GPU memory object across processes. This will
