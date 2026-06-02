@@ -32,14 +32,14 @@
 namespace Util
 {
 #if defined(_WIN32)
-/// Wide-character of the platform's preferred path separator.
+/// Wide-character of the platform's prefered path separator.
 static constexpr wchar_t PathSepW = L'\\';
-/// Narrow-character of the platform's preferred path separator.
+/// Narrow-character of the platform's prefered path separator.
 static constexpr  char   PathSep = '\\';
 #else
-/// Wide-character of the platform's preferred path separator.
+/// Wide-character of the platform's prefered path separator.
 static constexpr wchar_t PathSepW = L'/';
-/// Narrow-character of the platform's preferred path separator.
+/// Narrow-character of the platform's prefered path separator.
 static constexpr  char   PathSep = '/';
 #endif
 

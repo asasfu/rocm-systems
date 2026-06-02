@@ -121,7 +121,7 @@ namespace DevDriver
             return ret;
         }
 
-        /// Rounds the specified uint 'value' up to the nearest power of 2. Constexpr variant.
+        /// Rounds the specified uint 'value' up to the nearest power of 2. Constexpr varient.
         ///
         /// @returns Power of 2 padded value.
         template<typename T>
@@ -130,7 +130,7 @@ namespace DevDriver
             return (padded < value) ? _ConstPow2Pad(value, padded << 1) : padded;
         }
 
-        /// Rounds the specified uint 'value' up to the nearest power of 2. Constexpr variant.
+        /// Rounds the specified uint 'value' up to the nearest power of 2. Constexpr varient.
         ///
         /// @returns Power of 2 padded value.
         template<typename T>

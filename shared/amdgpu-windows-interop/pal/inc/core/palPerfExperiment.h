@@ -527,7 +527,7 @@ public:
     virtual Result GetGlobalCounterLayout(
         GlobalCounterLayout* pLayout) const = 0;
 
-    /// Adds the specified thread trace to be recorded as part of this perf experiment.
+    /// Addes the specified thread trace to be recorded as part of this perf experiment.
     ///
     /// @param [in] traceInfo Specifies what type of trace to record, which block instance to trace, and options, etc.
     ///
