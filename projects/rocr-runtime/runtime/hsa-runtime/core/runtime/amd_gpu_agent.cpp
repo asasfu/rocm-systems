@@ -2569,20 +2569,6 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       }
       return HSA_STATUS_ERROR;
     }
-    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_DIM:
-    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM:
-      memcpy(value, &kern_cluster_max_dim_, sizeof(kern_cluster_max_dim_));
-      break;
-    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_SIZE:
-    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_SIZE:
-      *((uint64_t*)value) = kern_cluster_max_dim_.x * kern_cluster_max_dim_.y * kern_cluster_max_dim_.z;
-      break;
-    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_DIM:
-      memcpy(value, &cluster_max_dim_, sizeof(cluster_max_dim_));
-      break;
-    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE:
-      *((uint64_t*)value) = cluster_max_dim_.x;
-      break;
     case HSA_AMD_AGENT_INFO_PM4_EMULATION:
       *((bool*)value) = properties_.Capability2.ui32.AqlEmulationPm4_;
       break;

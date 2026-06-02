@@ -760,14 +760,6 @@ hsa_status_t XdnaDriver::CreateQueue(uint32_t node_id, HSA_QUEUE_TYPE type, uint
   return static_cast<hsa_status_t>(HSA_STATUS_ERROR_NOT_SUPPORTED);
 }
 
-hsa_status_t XdnaDriver::DestroyQueue(HSA_QUEUEID queue_id) const {
-  auto hw_ctx_handle = static_cast<uint32_t>(queue_id);
-  if (hw_ctx_handle == AMDXDNA_INVALID_CTX_HANDLE) {
-    // Queue was never created or already destroyed. We choose not to consider it an error since AIE
-    // queues are created with an invalid handle.
-    return HSA_STATUS_SUCCESS;
-  }
-
   // Drop PDI cache.
   const_cast<std::unordered_map<HSA_QUEUEID, PDICache>&>(queue_pdi_map_).erase(queue_id);
 

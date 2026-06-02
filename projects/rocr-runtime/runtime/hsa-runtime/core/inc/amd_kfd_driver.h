@@ -154,6 +154,21 @@ public:
   hsa_status_t GetQueueSaveAreaInfo(HSA_QUEUEID queue_id, void** address, size_t* size) const override;
 
  private:
+  /// @brief Allocate agent accessible memory (system / local memory).
+  static void *AllocateKfdMemory(const HsaMemFlags &flags, uint32_t node_id,
+                                 size_t size);
+
+  /// @brief Free agent accessible memory (system / local memory).
+  static bool FreeKfdMemory(void *mem, size_t size);
+
+  /// @brief Pin memory.
+  static bool MakeKfdMemoryResident(size_t num_node, const uint32_t *nodes,
+                                    const void *mem, size_t size,
+                                    uint64_t *alternate_va,
+                                    HsaMemMapFlags map_flag);
+
+  /// @brief Unpin memory.
+  static void MakeKfdMemoryUnresident(const void *mem);
 
   /// @brief Query for user preference and use that to determine Xnack mode
   /// of ROCm system. Return true if Xnack mode is ON or false if OFF. Xnack
