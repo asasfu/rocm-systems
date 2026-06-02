@@ -34,6 +34,7 @@
 #define FAMILY_MDN     0x97 //# 151 / Mendocino
 #define FAMILY_NV4     0x98
 #define FAMILY_GFX13   0x99
+#define FAMILY_MDS     0x9A //# 154 / Medusa (gfx1170, gfx1171)
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
