@@ -212,28 +212,6 @@ hipError_t hipFuncGetAttributes(hipFuncAttributes* attr, const void* func) {
   HIP_RETURN(hipSuccess);
 }
 
-inline hipError_t GetDeviceKernel(const void* func, device::Kernel** d_kernel) {
-  hipFunction_t h_func = nullptr;
-
-  hipError_t err = PlatformState::Instance().StatCO().GetFunc(&h_func, func, ihipGetDevice());
-  if (h_func == nullptr) {
-    if (PlatformState::Instance().IsValidDynFunc(func)) {
-      h_func = reinterpret_cast<hipFunction_t>(const_cast<void*>(func));
-    } else {
-      return hipErrorInvalidDeviceFunction;
-    }
-  }
-
-  amd::Kernel* kernel = hip::asKernel(h_func);
-
-  if (kernel == nullptr) {
-    return hipErrorInvalidDeviceFunction;
-  }
-  *(d_kernel) = const_cast<device::Kernel*>(
-      kernel->getDeviceKernel(*(hip::getCurrentDevice()->devices()[0])));
-  return hipSuccess;
-}
-
 hipError_t hipFuncSetAttribute(const void* func, hipFuncAttribute attr, int value) {
   HIP_INIT_API(hipFuncSetAttribute, func, attr, value);
 
