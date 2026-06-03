@@ -175,23 +175,6 @@ enum ChipletId {
   CHIPLET_MID1 = 13,
 };
 
-enum ChipletId {
-  CHIPLET_XCD0 = 0,
-  CHIPLET_XCD1 = 1,
-  CHIPLET_XCD2 = 2,
-  CHIPLET_XCD3 = 3,
-  CHIPLET_XCD4 = 4,
-  CHIPLET_XCD5 = 5,
-  CHIPLET_XCD6 = 6,
-  CHIPLET_XCD7 = 7,
-  CHIPLET_AID0 = 8,
-  CHIPLET_AID1 = 9,
-  CHIPLET_AID2 = 10,
-  CHIPLET_AID3 = 11,
-  CHIPLET_MID0 = 12,
-  CHIPLET_MID1 = 13,
-};
-
 /// @brief Specifies the public interface of CmdBuilder for use by
 /// clients to build Gpu command streams.
 class CmdBuilder {
