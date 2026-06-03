@@ -222,9 +222,6 @@ public:
 
   std::map<void*, BOHandle> vmem_addr_mappings;
 
-  /// @brief Queue to PDI cache map.
-  std::unordered_map<HSA_QUEUEID, PDICache> queue_pdi_map_;
-
   /// @brief Virtual address range allocated for the device heap.
   ///
   /// Allocate a large enough space so we can carve out the device heap in

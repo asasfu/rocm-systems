@@ -760,20 +760,6 @@ hsa_status_t XdnaDriver::CreateQueue(uint32_t node_id, HSA_QUEUE_TYPE type, uint
   return static_cast<hsa_status_t>(HSA_STATUS_ERROR_NOT_SUPPORTED);
 }
 
-  // Drop PDI cache.
-  const_cast<std::unordered_map<HSA_QUEUEID, PDICache>&>(queue_pdi_map_).erase(queue_id);
-
-  // Destroy hardware context associated with the queue.
-  amdxdna_drm_destroy_hwctx destroy_hwctx_args = {};
-  destroy_hwctx_args.handle = hw_ctx_handle;
-  if (ioctl(fd_, DRM_IOCTL_AMDXDNA_DESTROY_HWCTX, &destroy_hwctx_args) < 0) {
-    assert(false && "Failed to destroy hardware context for queue.");
-    return HSA_STATUS_ERROR;
-  }
-
-  return HSA_STATUS_SUCCESS;
-}
-
 hsa_status_t XdnaDriver::UpdateQueue(HSA_QUEUEID queue_id, uint32_t queue_pct,
                                      HSA::hsa_amd_queue_priority_internal_t priority,
                                      void* queue_addr, uint64_t queue_size, HsaEvent* event) const {
