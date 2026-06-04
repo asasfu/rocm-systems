@@ -447,7 +447,7 @@ HIP_TEST_CASE(Unit_hipGetProcAddress_ExecutionControlAPIs) {
     // Skip if PreferredSharedMemoryCarveout is not supported
     if (funcAttribute == hipFuncAttributePreferredSharedMemoryCarveout &&
         result == hipErrorNotSupported) {
-      HipTest::HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
+      HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
       return;
     }
     HIP_CHECK(result);
