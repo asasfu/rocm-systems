@@ -45,7 +45,7 @@ static uint32_t get_hwreg_size_per_cu(uint32_t gfxv);
 #define WG_CONTEXT_DATA_SIZE_PER_CU(gfxv, node)	\
 	(hsakmt_get_vgpr_size_per_cu(gfxv) +	\
 	 hsakmt_get_sgpr_size_per_cu(gfxv) +	\
-	 hsakmt_get_mreg_size_per_cu(gfxv) +	\
+	 hsakmt_get_mreg_size_per_cu(&node, gfxv) +	\
 	 (node.LDSSizeInKB << 10) +		\
 	 get_hwreg_size_per_cu(gfxv))
 
@@ -178,12 +178,14 @@ uint32_t hsakmt_get_sgpr_size_per_cu(uint32_t gfxv)
 	return sgpr_size;
 }
 
-static uint32_t hsakmt_get_mreg_size_per_cu(uint32_t gfxv)
+static uint32_t hsakmt_get_mreg_size_per_cu(HsaNodeProperties *node,
+																uint32_t gfxv)
 {
 	uint32_t mreg_size = 0;
+	HSAuint32 simd_per_cu = node->NumSIMDPerCU;
 
 	if (gfxv == GFX_VERSION_GFX1260) {
-		mreg_size = 0x20000;
+		mreg_size = simd_per_cu * 0x10000;  // 0x10000 mreg/simd, per spec
 	}
 
 	// Don't assert for 0 size; many devices do not have mregs
