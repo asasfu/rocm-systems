@@ -196,8 +196,9 @@ if(ROCPROFSYS_BUILD_FOR_THEROCK AND NOT DEFINED ROCPROFSYS_USE_PYTESTS)
     set(ROCPROFSYS_BUILD_EXAMPLES ON CACHE BOOL "Enable building the examples" FORCE)
     set(ROCPROFSYS_INSTALL_EXAMPLES ON CACHE BOOL "Enable installing examples" FORCE)
     set(ROCPROFSYS_USE_PYTESTS ON CACHE BOOL "Enable pytest suite" FORCE)
+    set(_DISABLE_EXAMPLES "lulesh;transferBench")
 
-    # Lulesh does not build with TheRock
+    # Examples that do not build with TheRock
     if(NOT DEFINED ROCPROFSYS_DISABLE_EXAMPLES)
         set(ROCPROFSYS_DISABLE_EXAMPLES
             ${_DISABLE_EXAMPLES}
@@ -206,13 +207,17 @@ if(ROCPROFSYS_BUILD_FOR_THEROCK AND NOT DEFINED ROCPROFSYS_USE_PYTESTS)
             FORCE
         )
     else()
-        list(APPEND ROCPROFSYS_DISABLE_EXAMPLES "${_DISABLE_EXAMPLES}")
-        list(SORT ROCPROFSYS_DISABLE_EXAMPLES)
-        list(REMOVE_DUPLICATES ROCPROFSYS_DISABLE_EXAMPLES)
+        foreach(_example IN LISTS _DISABLE_EXAMPLES)
+            if(NOT "${_example}" IN_LIST ROCPROFSYS_DISABLE_EXAMPLES)
+                list(APPEND ROCPROFSYS_DISABLE_EXAMPLES "${_example}")
+            endif()
+        endforeach()
     endif()
 else()
     set(ROCPROFSYS_USE_PYTESTS OFF CACHE BOOL "Enable pytest suite" FORCE)
 endif()
+
+message(STATUS "ROCPROFSYS_DISABLE_EXAMPLES: ${ROCPROFSYS_DISABLE_EXAMPLES}")
 
 include(Compilers) # compiler identification
 include(BuildSettings) # compiler flags
