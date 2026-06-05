@@ -493,24 +493,6 @@ struct formatter<hipSynchronizationPolicy> : rocprofiler::hip::details::base_for
         return fmt::format_to(ctx.out(), "Unknown");
     }
 };
-#    if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 19
-template <>
-struct formatter<hipClusterSchedulingPolicy> : rocprofiler::hip::details::base_formatter
-{
-    template <typename Ctx>
-    auto format(hipClusterSchedulingPolicy v, Ctx& ctx) const
-    {
-        switch(v)
-        {
-            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipClusterSchedulingPolicy, Default);
-            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipClusterSchedulingPolicy, Spread);
-            ROCP_SDK_HIP_FORMAT_CASE_STMT(hipClusterSchedulingPolicy, LoadBalancing);
-            ROCP_SDK_HIP_FORMAT_DFLT_CASE(hipClusterSchedulingPolicy);
-        }
-        return fmt::format_to(ctx.out(), "Unknown");
-    }
-};
-#    endif
 ROCP_SDK_HIP_FORMATTER(hipLaunchMemSyncDomainMap, "{{default={}, remote={}}}", v.default_, v.remote)
 template <>
 struct formatter<hipLaunchMemSyncDomain> : rocprofiler::hip::details::base_formatter
