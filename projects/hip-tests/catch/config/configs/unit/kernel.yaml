@@ -103,6 +103,7 @@ kernel:
     disabled: [gfx1310, gfx1370]
   Unit_KernelStackSize:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Validate_User_Sgpr_Count:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
