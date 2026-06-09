@@ -311,8 +311,7 @@ deviceLib:
   Unit_hipVectorTypes_test_on_device:
     <<: *level_2
     # SWDEV-444987 - Below tests fail in stress testing on 25/01/2023
-    # gfx1260: FFM v_pk4_mov_b32 SGPR replication bug (AMD-GFX-Modeling/ffm#4036)
-    disabled: [amd_windows, amd_wsl, gfx1260]
+    disabled: [amd_windows, amd_wsl]
     tags: [types, P0]
   Unit_hipTestHalf:
     <<: *level_2
@@ -638,8 +637,7 @@ deviceLib:
   # === Consolidated TEST_CASEs from develop (SWDEV-574976) ===
   Unit_deviceAllocation_ComplexDataType:
     <<: *level_2
-    # gfx1260: FFM v_pk4_mov_b32 SGPR replication bug (AMD-GFX-Modeling/ffm#4036)
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
 # Note: this tests were disabled because some seemed to hang the machine on Windows with Navi32;
     # all the ones calling TestMemoryAcrossMulKernels()/TestMemoryAcrossMulKernelsUsingGraph() were disabled
     tags: [memory]
