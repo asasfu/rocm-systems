@@ -1510,6 +1510,40 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyBroadcastCommand(
 }
 
 template <bool useGCR, bool scopeFields>
+hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyB2BCommand(
+    const std::vector<void*>& dsts, const std::vector<const void*>& srcs,
+    const std::vector<size_t>& sizes, std::vector<core::Signal*>& dep_signals,
+    core::Signal& out_signal) {
+  const size_t num_entries = srcs.size();
+  if (num_entries == 0 || dsts.size() != num_entries || sizes.size() != num_entries) {
+    return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+  }
+
+  const size_t max_copy_size = max_single_linear_copy_size_ ? max_single_linear_copy_size_
+                                                            : kMaxSingleCopySize;
+
+  std::vector<uint32_t> chunks(num_entries);
+  size_t total_cmd_size = 0;
+  uint64_t total_bytes_moved = 0;
+  for (size_t i = 0; i < num_entries; i++) {
+    chunks[i] = static_cast<uint32_t>((sizes[i] + max_copy_size - 1) / max_copy_size);
+    total_cmd_size += static_cast<size_t>(chunks[i]) * linear_copy_command_size_;
+    total_bytes_moved += sizes[i];
+  }
+
+  std::vector<char> cmd_buf(total_cmd_size);
+  char* cmd_ptr = cmd_buf.data();
+  for (size_t i = 0; i < num_entries; i++) {
+    BuildCopyCommand(cmd_ptr, chunks[i], dsts[i], srcs[i], sizes[i]);
+    cmd_ptr += static_cast<size_t>(chunks[i]) * linear_copy_command_size_;
+  }
+
+  std::vector<core::Signal*> no_gang;
+  return SubmitCommand(cmd_buf.data(), total_cmd_size, total_bytes_moved,
+                       dep_signals, out_signal, no_gang);
+}
+
+template <bool useGCR, bool scopeFields>
 hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitCopyRectCommand(
     const hsa_pitched_ptr_t* dst, const hsa_dim3_t* dst_offset, const hsa_pitched_ptr_t* src,
     const hsa_dim3_t* src_offset, const hsa_dim3_t* range, std::vector<core::Signal*>& dep_signals,
