@@ -60,12 +60,17 @@
 .set SQ_WAVE_EXCP_FLAG_USER_MATH_EXCP_SHIFT        , 0
 .set SQ_WAVE_EXCP_FLAG_USER_MATH_EXCP_SIZE         , 7
 .set SQ_WAVE_EXCP_FLAG_USER_MATH_EXCP_BFE          , (SQ_WAVE_EXCP_FLAG_USER_MATH_EXCP_SHIFT | (SQ_WAVE_EXCP_FLAG_USER_MATH_EXCP_SIZE << 16))
+
+.if .amdgcn.gfx_generation_number == 13
 .set SQ_WAVE_EXCP_FLAG_USER_ALU_CONSUME_NAN_SHIFT  , 7
+.endif
 
 .set SQ_WAVE_TRAP_CTRL_MATH_EXCP_MASK              , ((1 << 7) - 1)
 .set SQ_WAVE_TRAP_CTRL_ADDR_WATCH_SHIFT            , 7
 .set SQ_WAVE_TRAP_CTRL_TRAP_AFTER_INST             , 9
+.if .amdgcn.gfx_generation_number == 13
 .set SQ_WAVE_TRAP_CTRL_ALU_CONSUME_NAN_SHIFT       , 10
+.endif
 
 .set SQ_WAVE_PC_HI_TRAP_ID_BFE                     , (SQ_WAVE_PC_HI_TRAP_ID_SHIFT | (SQ_WAVE_PC_HI_TRAP_ID_SIZE << 16))
 .set SQ_WAVE_PC_HI_TRAP_ID_SHIFT                   , 28
@@ -90,7 +95,9 @@
 
 // ABI (Application Binary Interface) between first and second-level trap handler:
 //   ttmp0:  PC_LO[31:0]
-//   ttmp1:  TrapId[3:0], 0[11:0], PC_HI[15:0]
+//   ttmp1:
+//     gfx13xx: TrapId[3:0], 0[11:0], PC_HI[15:0]
+//     gfx126x: TrapId[3:0],  0[2:0], PC_HI[24:0]
 //   ttmp11: ?[7:0], DebugEnabled[0], SCC[0], ?[21:0]
 //   ttmp14: TMA[31:0]
 //   ttmp15: TMA[63:32]
@@ -174,6 +181,8 @@
 
 .not_addr_watch:
   s_getreg_b32      ttmp2, hwreg(HW_REG_EXCP_FLAG_USER)
+
+.if .amdgcn.gfx_generation_number == 13
   s_bitcmp1_b32     ttmp2, SQ_WAVE_EXCP_FLAG_USER_ALU_CONSUME_NAN_SHIFT
   s_cbranch_scc0    .not_alu_consume_nan
   s_bitcmp1_b32     ttmp13, SQ_WAVE_TRAP_CTRL_ALU_CONSUME_NAN_SHIFT
@@ -181,6 +190,7 @@
   s_or_b32          ttmp3, ttmp3, EC_QUEUE_WAVE_TRAP_M0
 
 .not_alu_consume_nan:
+.endif
   s_bfe_u32         ttmp2, ttmp2, SQ_WAVE_EXCP_FLAG_USER_MATH_EXCP_BFE
   s_and_b32         ttmp13, ttmp13, SQ_WAVE_TRAP_CTRL_MATH_EXCP_MASK
   s_and_b32         ttmp2, ttmp2, ttmp13
