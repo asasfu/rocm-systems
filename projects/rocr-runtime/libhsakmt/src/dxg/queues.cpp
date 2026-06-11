@@ -55,22 +55,6 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueue(HSAuint32 NodeId,
 				    QueueResource);
 }
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2(HSAuint32 NodeId,
-						HSA_QUEUE_TYPE Type,
-						HSAuint32 QueuePercentage,
-						HSA_QUEUE_PRIORITY Priority,
-						HSAuint32 SdmaEngineId,
-						void *QueueAddress,
-						HSAuint64 QueueSizeInBytes,
-						HSAuint64 MetaDataPrefetchSizeInBytes,
-						HsaEvent *Event,
-						HsaQueueResource *QueueResource)
-{
-	return hsaKmtCreateQueueExt(NodeId, Type, QueuePercentage, Priority,
-				    SdmaEngineId, QueueAddress, QueueSizeInBytes,
-				    Event, QueueResource);
-}
-
 HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueV2(HSAuint32 NodeId,
 					     HSA_QUEUE_TYPE Type,
 					     HSAuint32 QueuePercentage,

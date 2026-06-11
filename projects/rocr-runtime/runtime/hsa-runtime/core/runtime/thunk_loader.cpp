@@ -165,8 +165,8 @@ namespace core {
       HSAKMT_PFN(hsaKmtCreateQueueExt) = (HSAKMT_DEF(hsaKmtCreateQueueExt)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtCreateQueueExt");
       if (HSAKMT_PFN(hsaKmtCreateQueueExt) == nullptr) goto LOAD_ERROR;
 
-      HSAKMT_PFN(hsaKmtCreateQueueExtV2) = (HSAKMT_DEF(hsaKmtCreateQueueExtV2)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtCreateQueueExtV2");
-      if (HSAKMT_PFN(hsaKmtCreateQueueExtV2) == nullptr) goto LOAD_ERROR;
+      HSAKMT_PFN(hsaKmtCreateQueueV2) = (HSAKMT_DEF(hsaKmtCreateQueueV2)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtCreateQueueV2");
+      if (HSAKMT_PFN(hsaKmtCreateQueueV2) == nullptr) goto LOAD_ERROR;
 
       HSAKMT_PFN(hsaKmtUpdateQueue) = (HSAKMT_DEF(hsaKmtUpdateQueue)*)rocr::os::GetExportAddress(thunk_handle, "hsaKmtUpdateQueue");
       if (HSAKMT_PFN(hsaKmtUpdateQueue) == nullptr) goto LOAD_ERROR;
@@ -481,7 +481,7 @@ LOAD_ERROR:
       HSAKMT_PFN(hsaKmtWaitOnMultipleEvents) = (HSAKMT_DEF(hsaKmtWaitOnMultipleEvents)*)(&hsaKmtWaitOnMultipleEvents);
       HSAKMT_PFN(hsaKmtCreateQueue) = (HSAKMT_DEF(hsaKmtCreateQueue)*)(&hsaKmtCreateQueue);
       HSAKMT_PFN(hsaKmtCreateQueueExt) = (HSAKMT_DEF(hsaKmtCreateQueueExt)*)(&hsaKmtCreateQueueExt);
-      HSAKMT_PFN(hsaKmtCreateQueueExtV2) = (HSAKMT_DEF(hsaKmtCreateQueueExtV2)*)(&hsaKmtCreateQueueExtV2);
+      HSAKMT_PFN(hsaKmtCreateQueueV2) = (HSAKMT_DEF(hsaKmtCreateQueueV2)*)(&hsaKmtCreateQueueV2);
       HSAKMT_PFN(hsaKmtUpdateQueue) = (HSAKMT_DEF(hsaKmtUpdateQueue)*)(&hsaKmtUpdateQueue);
       HSAKMT_PFN(hsaKmtDestroyQueue) = (HSAKMT_DEF(hsaKmtDestroyQueue)*)(&hsaKmtDestroyQueue);
       HSAKMT_PFN(hsaKmtSetQueueCUMask) = (HSAKMT_DEF(hsaKmtSetQueueCUMask)*)(&hsaKmtSetQueueCUMask);

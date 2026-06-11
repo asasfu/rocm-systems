@@ -95,7 +95,7 @@ occupancy:
     disabled: [gfx1310, gfx1370]
   Unit_hipOccupancyMaxActiveClusters_Positive_RangeValidation:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [gfx1310, gfx1370]
   Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters:
     <<: *level_2
     disabled: [gfx1310, gfx1370]

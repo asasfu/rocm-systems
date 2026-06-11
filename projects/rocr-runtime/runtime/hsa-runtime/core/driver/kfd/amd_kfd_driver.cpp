@@ -405,7 +405,7 @@ hsa_status_t KfdDriver::CreateQueue(uint32_t node_id, HSA_QUEUE_TYPE type, uint3
   // Convert from ROCR internal priority type to KFD type
   HSA_QUEUE_PRIORITY kfd_priority = HsaInternalToKfdPriority(priority);
 
-  if (HSAKMT_CALL(hsaKmtCreateQueueExtV2(node_id, type, queue_pct, kfd_priority, sdma_engine_id,
+  if (HSAKMT_CALL(hsaKmtCreateQueueV2(node_id, type, queue_pct, kfd_priority, sdma_engine_id,
                                        queue_addr, queue_size_bytes,
 				       queue_metadata_size_bytes,
 				       event, &queue_resource)) !=

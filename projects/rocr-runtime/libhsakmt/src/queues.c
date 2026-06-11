@@ -720,7 +720,7 @@ static int handle_concrete_asic(HsaKFDContext *ctx,
  */
 static uint32_t priority_map[] = {0, 3, 5, 7, 9, 11, 15};
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2Ctx(HsaKFDContext *ctx,
+HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueV2Ctx(HsaKFDContext *ctx,
 							HSAuint32 NodeId,
 					        HSA_QUEUE_TYPE Type,
 					        HSAuint32 QueuePercentage,
@@ -890,7 +890,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueCtx(HsaKFDContext *ctx,
 	if (Type == HSA_QUEUE_SDMA_BY_ENG_ID)
 		return HSAKMT_STATUS_ERROR;
 
-	return hsaKmtCreateQueueExtV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority, 0,
+	return hsaKmtCreateQueueV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority, 0,
 				    QueueAddress, QueueSizeInBytes, 0, Event, QueueResource);
 }
 
@@ -905,7 +905,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtCtx(HsaKFDContext *ctx,
 					     HsaEvent *Event,
 					     HsaQueueResource *QueueResource)
 {
-	return hsaKmtCreateQueueExtV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority,
+	return hsaKmtCreateQueueV2Ctx(ctx, NodeId, Type, QueuePercentage, Priority,
 				      SdmaEngineId, QueueAddress, QueueSizeInBytes, 0,
 				      Event, QueueResource);
 }
@@ -1148,7 +1148,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExt(HSAuint32 NodeId,
 					QueueSizeInBytes, Event, QueueResource);
 }
 
-HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2(HSAuint32 NodeId,
+HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueV2(HSAuint32 NodeId,
 					     HSA_QUEUE_TYPE Type,
 					     HSAuint32 QueuePercentage,
 					     HSA_QUEUE_PRIORITY Priority,
@@ -1159,7 +1159,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtCreateQueueExtV2(HSAuint32 NodeId,
 					     HsaEvent *Event,
 					     HsaQueueResource *QueueResource)
 {
-	return hsaKmtCreateQueueExtV2Ctx(&hsakmt_primary_kfd_ctx,
+	return hsaKmtCreateQueueV2Ctx(&hsakmt_primary_kfd_ctx,
 				       NodeId, Type, QueuePercentage, Priority,
 				       SdmaEngineId, QueueAddress, QueueSizeInBytes,
 				       MetaDataQueueSizeInBytes, Event, QueueResource);

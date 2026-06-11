@@ -379,7 +379,7 @@ hsaKmtCreateQueueExt(
 
 HSAKMT_STATUS
 HSAKMTAPI
-hsaKmtCreateQueueExtV2(
+hsaKmtCreateQueueV2(
     HSAuint32           NodeId,                           //IN
     HSA_QUEUE_TYPE      Type,                             //IN
     HSAuint32           QueuePercentage,                  //IN
