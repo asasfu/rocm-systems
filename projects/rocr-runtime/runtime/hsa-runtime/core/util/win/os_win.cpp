@@ -509,8 +509,6 @@ int Ctz(uint64_t i) {
   }
 }
 
-int Popcount(uint32_t i) { return __popcnt(i); }
-
 char* DlError() { return nullptr; }
 
 static const char* kPipePrefix = "\\\\.\\pipe\\";
