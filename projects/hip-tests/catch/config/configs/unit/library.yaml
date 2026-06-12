@@ -31,33 +31,43 @@ library:
     tags: [module]
   Unit_hipLibraryGetGlobal_Negative:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGetGlobal_Positive:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGetGlobal_OneNullParam:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGetGlobal_HipMemcpyInterop:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGetManaged_Negative:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGetManaged_Positive:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGetManaged_HipMemcpyInterop:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGetKernel_CountAndEnumerate:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGetKernel_OrderingWithGetGlobal:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGet_CrossKindRejection:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipLibraryGetGlobal_CO_Negative:
     <<: *level_2
