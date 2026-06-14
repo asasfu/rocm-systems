@@ -85,8 +85,7 @@ HIP_TEST_CASE(Unit_hipFuncSetCacheConfig_Negative_Parameters) {
  */
 HIP_TEST_CASE(Unit_hipFuncSetCacheConfig_Positive_VerifyCarveoutMapping) {
 #if HT_NVIDIA
-  HipTest::HIP_SKIP_TEST(HipTest::SkipReason::kApiUnsupportedOnNvidia);
-  return;
+  HIP_SKIP_TEST(HipTest::SkipReason::kApiUnsupportedOnNvidia);
 #endif
 
   struct {

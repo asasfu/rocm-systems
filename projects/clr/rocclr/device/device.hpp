@@ -688,10 +688,12 @@ struct Info : public amd::EmbeddedObject {
 
   bool dmabufSupported_;  //!< DMABuf support flag
   bool gpuDirectRdmaWithHipVmmSupported_;  //!< GPU Direct RDMA with HIP VMM (DMA-Buf + HIP VMM)
+
+  uint32_t maxDynDataPrefetchRegions_;  //!< Max L2 prefetch regions (0 if unsupported)
 };
 
 //! Device settings
-class Settings : public amd::HeapObject {
+class Settings {
  public:
   enum KernelArgImpl {
     HostKernelArgs = 0,        //!< Kernel Arguments are put into host memory
@@ -760,7 +762,7 @@ class Settings : public amd::HeapObject {
 
 //! Device-independent cache memory, base class for the device-specific
 //! memories. One Memory instance refers to one or more of these.
-class Memory : public amd::HeapObject {
+class Memory {
  public:
   //! Resource map flags
   enum CpuMapFlags {
@@ -786,7 +788,7 @@ class Memory : public amd::HeapObject {
     SyncFlags() : value_(0) {}
   };
 
-  struct WriteMapInfo : public amd::HeapObject {
+  struct WriteMapInfo {
     amd::Coord3D origin_;  //!< Origin of the map location
     amd::Coord3D region_;  //!< Mapped region
     amd::Image* baseMip_;  //!< The base mip level for images
@@ -1026,7 +1028,7 @@ class Memory : public amd::HeapObject {
   Memory(const Memory&) = delete;
 };
 
-class Sampler : public amd::HeapObject {
+class Sampler {
  public:
   //! Constructor
   Sampler() : hwSrd_(0), hwState_(nullptr) {}
@@ -1052,7 +1054,7 @@ class Sampler : public amd::HeapObject {
   Sampler(const Sampler&);
 };
 
-class ClBinary : public amd::HeapObject {
+class ClBinary {
  public:
   enum BinaryImageFormat {
     BIF_VERSION2 = 0,  //!< Binary Image Format version 2.0 (ELF)
@@ -1236,7 +1238,7 @@ inline Program::binary_t Program::binary() {
  *
  *  \brief The device interface class for the performance counters
  */
-class PerfCounter : public amd::HeapObject {
+class PerfCounter {
  public:
   //! Constructor for the device performance
   PerfCounter() {}
@@ -1258,7 +1260,7 @@ class PerfCounter : public amd::HeapObject {
  *
  *  \brief The device interface class for the performance counters
  */
-class ThreadTrace : public amd::HeapObject {
+class ThreadTrace {
  public:
   //! Constructor for the device performance
   ThreadTrace() {}
@@ -1465,6 +1467,23 @@ class MemObjMap : public AllStatic {
 
   //!< Find the mem object based on the input pointer, outputs the offset
   static amd::Memory* FindMemObj(const void* k, size_t* offset = nullptr, Device* dev = nullptr);
+  //!< Batched version: find multiple mem objects in one lock acquisition
+  static void FindMemObjBatch(const void* const* ptrs, size_t count,
+                              std::vector<amd::Memory*>& memories,
+                              std::vector<size_t>& offsets, Device* dev = nullptr);
+  //!< Batched pairs version: find src/dst pairs in one lock acquisition
+  static void FindMemObjBatchPairs(const void* const* srcs, const void* const* dsts,
+                                   size_t count,
+                                   std::vector<amd::Memory*>& src_memories,
+                                   std::vector<amd::Memory*>& dst_memories,
+                                   std::vector<size_t>& src_offsets,
+                                   std::vector<size_t>& dst_offsets,
+                                   Device* dev = nullptr);
+  //!< Single pair version: find one src/dst pair in one lock acquisition
+  static void FindMemObjPairs(const void* src, const void* dst,
+                              amd::Memory*& src_memory, amd::Memory*& dst_memory,
+                              size_t& src_offset, size_t& dst_offset,
+                              Device* dev = nullptr);
   static void UpdateAccess(amd::Device* peerDev);
   //!< Purge all user allocated memories on the given device
   static void Purge(amd::Device* dev);
@@ -1483,10 +1502,22 @@ class MemObjMap : public AllStatic {
   //!< Same as FindMemObj but for ipc handle to MemObj mapping
   static amd::Memory* FindIpcHandleMemObj(const IpcMemHandle& k);
 
+  //!< Atomically find and remove a mem object by ptr. Returns the removed Memory* or nullptr.
+  static amd::Memory* FindAndRemoveMemObj(const void* k);
+
   //!< Shared read/write lock for all MemObjMap operations (including per-device maps)
   static std::shared_mutex AllocatedLock_;
 
  private:
+  // Helper struct for memory object lookup results
+  struct LookupResult {
+    amd::Memory* memory;
+    size_t offset;
+  };
+
+  //!< Core lookup helper used by all FindMemObj* functions. Caller must hold AllocatedLock_.
+  static LookupResult findMemObjNoLock(const void* ptr, Device* dev);
+
   //!< the mem object<->hostptr information container
   static std::map<uintptr_t, amd::Memory*> MemObjMap_;
   //!< the virtual mem object<->hostptr information container
@@ -1722,7 +1753,7 @@ class Device : public RuntimeObject {
 
   typedef std::list<CommandQueue*> CommandQueues;
 
-  struct BlitProgram : public amd::HeapObject {
+  struct BlitProgram {
     Program* program_;  //!< GPU program object
     Context* context_;  //!< A dummy context
 
@@ -1821,6 +1852,9 @@ class Device : public RuntimeObject {
 
   ///! Allocates a device signal object
   virtual device::Signal* createSignal() const = 0;
+
+  ///! Allocates an IPC-capable signal, or returns nullptr if unsupported
+  virtual device::Signal* createIpcSignal() const { return nullptr; }
 
   //! Return true if initialized external API interop, otherwise false
   virtual bool bindExternalDevice(

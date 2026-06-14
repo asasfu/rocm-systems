@@ -504,16 +504,6 @@ run_kernel()
     size_t num_blocks = BLOCK_SIZE;
     size_t num_iters  = ITER_NUM;
 
-    hipDeviceProp_t prop{};
-    HIP_API_CALL(hipGetDeviceProperties(&prop, 0));
-    std::string_view gfxip(prop.gcnArchName);
-    if(gfxip.find("gfx1250") == 0)
-    {
-        // reduce the number of blocks on MI450 emulators.
-        num_blocks = 8;
-        num_iters  = 256;
-    }
-
     for(int i = 1; i <= wave_size; i++)
     {
         if(i % 2 == 1)

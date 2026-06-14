@@ -21,7 +21,6 @@
 // SOFTWARE.
 
 #pragma once
-#include <unordered_map>
 #include "gfx12/gfx12parser.h"
 #include "mi400token.h"
 
@@ -33,16 +32,34 @@ class TokenLookupTable : public gfx12::TokenLookupTable
 public:
     TokenLookupTable();
 
-    int64_t getDelta(RdnaType type, uint64_t contents)
+    int64_t getTime(const token_info_t& info, uint64_t contents, int64_t cur_time, bool& PL, int64_t& rt)
     {
-        auto res = time_bits[type];
-        uint64_t beg = res.first;
-        uint64_t mask = (1ull << (res.second - beg)) - 1;
-        return ((contents >> beg) & mask);
+        if (info.type == RdnaType::TIMESTAMP)
+        {
+            gfx12::timestamp_type stamp{.raw = contents};
+            PL |= bool(stamp.pl && !stamp.rt);
+            if (stamp.rt == 0) return stamp.time + cur_time;
+
+            if (stamp.pl == 0) rt = stamp.time;
+            return cur_time;
+        }
+        else if (info.type == RdnaType::LONGTIME)
+        {
+            PL |= bool((contents >> 8) & 1ull);
+            return getDelta(info, contents) + cur_time;
+        }
+        else if (info.type == RdnaType::TIME) { cur_time += 1; }
+        return getDelta(info, contents) + cur_time;
     };
 
-protected:
-    std::array<std::pair<int, int>, NAVI_TYPE_LAST> time_bits;
+private:
+    // MI400 omits the +4 cycle adjustment that gfx10/11/12 apply to TIME tokens; the
+    // +1 above already covers it. Hides gfx12::TokenLookupTable::getDelta via name lookup.
+    static int64_t getDelta(const token_info_t& info, uint64_t contents)
+    {
+        uint64_t mask = (1ull << (info.time_end - info.time_begin)) - 1;
+        return ((contents >> info.time_begin) & mask);
+    };
 };
 
 class TokenGenerator : public NaviTokenGenerator
@@ -50,8 +67,6 @@ class TokenGenerator : public NaviTokenGenerator
 public:
     TokenGenerator(const uint8_t* _buffer, size_t size, int64_t _globaltime, int64_t _base_time);
     gfx10::Token next() override;
-
-    virtual int64_t getTime(RdnaType type, bool& PL, int64_t& rt);
 
     inline uint64_t getBuffer400() { return buffer[byte_ptr]; };
 
@@ -78,7 +93,6 @@ public:
 protected:
     std::array<int, 6> FIFO = {-1, -1, -1, -1, -1, -1};
     TokenLookupTable lookupbits{};
-    std::array<uint8_t, 64> TOKEN_LEN{};
 
     size_t byte_ptr = 0;
     bool bIsExt = false;

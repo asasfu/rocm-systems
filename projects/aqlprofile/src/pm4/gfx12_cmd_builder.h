@@ -47,30 +47,30 @@ class Gfx12CmdBuilder : public CmdBuilder {
     return header;
   }
 
-  static bool GetChipletIdRRMTInfo(ChipletId chiplet_id, bool is_aid_chiplet, uint32_t& rrmt_mode,
+  static bool GetRemoteModeInfo(ChipletId chiplet_id, bool is_aid_chiplet, uint32_t& remote_mode,
       uint32_t& die_id) {
     switch (chiplet_id) {
       case CHIPLET_MID0:
-        rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_MID);
+        remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_MID);
         die_id = PACKET3_COPY_DATA__MID_DIE_ID(PACKET3_COPY_DATA__MID_DIE_ID__MID0);
         break;
       case CHIPLET_MID1:
-        rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_MID);
+        remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_MID);
         die_id = PACKET3_COPY_DATA__MID_DIE_ID(PACKET3_COPY_DATA__MID_DIE_ID__MID1);
         break;
       case CHIPLET_AID0:
-        rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
+        remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD0);
         break;
       case CHIPLET_AID1:
-        rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
+        remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD4);
         break;
       case CHIPLET_XCD0:
         if (is_aid_chiplet) {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD0);
         break;
@@ -78,7 +78,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD1);
         break;
@@ -86,7 +86,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD2);
         break;
@@ -94,15 +94,15 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD3);
         break;
       case CHIPLET_XCD4:
         if (is_aid_chiplet) {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__REMOTE_OR_LOCAL_AID);
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD4);
         break;
@@ -110,7 +110,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD5);
         break;
@@ -118,7 +118,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false ;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD6);
         break;
@@ -126,7 +126,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
         if (is_aid_chiplet) {
           return false;
         } else {
-          rrmt_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
+          remote_mode = PACKET3_COPY_DATA__MODE(PACKET3_COPY_DATA__MODE__LOCAL_XCD);
         }
         die_id = PACKET3_COPY_DATA__XCD_DIE_ID(PACKET3_COPY_DATA__XCD_DIE_ID__XCD7);
         break;
@@ -161,15 +161,15 @@ class Gfx12CmdBuilder : public CmdBuilder {
     if (chiplet.has_value()) {
       ChipletId chiplet_id = chiplet.value();
       bool is_aid_chiplet = write_to_aid.value_or(false);
-      uint32_t rrmt_mode = 0;
+      uint32_t remote_mode = 0;
       uint32_t die_id = 0;
-      if (enable_pm4_rrmt_) {
-        if (!GetChipletIdRRMTInfo(chiplet_id, is_aid_chiplet, rrmt_mode, die_id)) {
+      if (enable_copy_data_remote_mode_) {
+        if (!GetRemoteModeInfo(chiplet_id, is_aid_chiplet, remote_mode, die_id)) {
           std::cerr << "Invalid chiplet_id and is_aid_chiplet combination: " << static_cast<int>(chiplet_id)
                     << ", " << is_aid_chiplet << std::endl;
           std::abort();
         }
-        dword2 |= rrmt_mode | die_id |
+        dword2 |= remote_mode | die_id |
           PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE(PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE__DST_IS_REMOTE);
       } else if (is_aid_chiplet)
         if (chiplet_id == CHIPLET_XCD0 || chiplet_id == CHIPLET_XCD4) {
@@ -225,15 +225,15 @@ class Gfx12CmdBuilder : public CmdBuilder {
     if (chiplet.has_value()) {
       ChipletId chiplet_id = chiplet.value();
       bool is_aid_chiplet = copy_from_aid.value_or(false);
-      uint32_t rrmt_mode = 0;
+      uint32_t remote_mode = 0;
       uint32_t die_id = 0;
-      if (enable_pm4_rrmt_) {
-        if (!GetChipletIdRRMTInfo(chiplet_id, is_aid_chiplet, rrmt_mode, die_id)) {
+      if (enable_copy_data_remote_mode_) {
+        if (!GetRemoteModeInfo(chiplet_id, is_aid_chiplet, remote_mode, die_id)) {
           std::cerr << "Invalid chiplet_id and copy_from_aid combination: " << static_cast<int>(chiplet_id)
                     << ", " << is_aid_chiplet << std::endl;
           std::abort();
         }
-        dword2 |= rrmt_mode | die_id |
+        dword2 |= remote_mode | die_id |
           PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE(PACKET3_COPY_DATA__SRC_DST_REMOTE_MODE__SRC_IS_REMOTE);
       } else if (is_aid_chiplet)
         if (chiplet_id == CHIPLET_XCD0 || chiplet_id == CHIPLET_XCD4) {
@@ -250,7 +250,7 @@ class Gfx12CmdBuilder : public CmdBuilder {
     APPEND_COMMAND_WRAPPER(cmdbuf, pm4mec_copy_data_cmd);
   }
 
-  static const bool enable_pm4_rrmt_ = true;
+  static const bool enable_copy_data_remote_mode_ = false;
 
  public:
   Gfx12CmdBuilder(const reg_base_offset_table* _table) : CmdBuilder(_table){};

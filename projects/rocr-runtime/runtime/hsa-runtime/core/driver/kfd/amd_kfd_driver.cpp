@@ -314,10 +314,14 @@ KfdDriver::AllocateMemory(const core::MemoryRegion &mem_region,
     }
   }
 
-  const uint32_t node_id =
-      (alloc_flags & core::MemoryRegion::AllocateGTTAccess)
-          ? agent_node_id
-          : m_region.owner()->node_id();
+  // agent_node_id uses 0 as the allocator default/unspecified sentinel.
+  const bool has_agent_node_id = agent_node_id != 0;
+  const bool allocation_uses_agent_node =
+      (alloc_flags & (core::MemoryRegion::AllocateGTTAccess |
+                      core::MemoryRegion::AllocateQueueObject)) != 0;
+  const uint32_t node_id = has_agent_node_id && allocation_uses_agent_node
+      ? agent_node_id
+      : m_region.owner()->node_id();
 
   //// Allocate memory.
   //// If it fails attempt to release memory from the block allocator and retry.
@@ -656,6 +660,46 @@ hsa_status_t KfdDriver::OpenSMI(uint32_t node_id, int* fd) const {
     return HSA_STATUS_ERROR;
   }
   return HSA_STATUS_SUCCESS;
+}
+
+void *KfdDriver::AllocateKfdMemory(const HsaMemFlags &flags, uint32_t node_id,
+                                   size_t size) {
+  void *mem = nullptr;
+  const HSAKMT_STATUS status = HSAKMT_CALL(hsaKmtAllocMemory(node_id, size, flags, &mem));
+  return (status == HSAKMT_STATUS_SUCCESS) ? mem : nullptr;
+}
+
+bool KfdDriver::FreeKfdMemory(void *mem, size_t size) {
+  if (mem == nullptr || size == 0) {
+    debug_print("Invalid free ptr:%p size:%zu\n", mem, size);
+    return false;
+  }
+
+  if (HSAKMT_CALL(hsaKmtFreeMemory(mem, size)) != HSAKMT_STATUS_SUCCESS) {
+    debug_print("Failed to free ptr:%p size:%zu\n", mem, size);
+    return false;
+  }
+  return true;
+}
+
+bool KfdDriver::MakeKfdMemoryResident(size_t num_node, const uint32_t *nodes,
+                                      const void *mem, size_t size,
+                                      uint64_t *alternate_va,
+                                      HsaMemMapFlags map_flag) {
+  assert(num_node > 0);
+  assert(nodes);
+
+  *alternate_va = 0;
+
+  HSAKMT_STATUS kmt_status(HSAKMT_CALL(hsaKmtMapMemoryToGPUNodes(
+      const_cast<void *>(mem), size, alternate_va, map_flag, num_node,
+      const_cast<uint32_t *>(nodes))));
+
+  return (kmt_status == HSAKMT_STATUS_SUCCESS);
+}
+
+void KfdDriver::MakeKfdMemoryUnresident(const void *mem) {
+  HSAKMT_CALL(hsaKmtUnmapMemoryToGPU(const_cast<void *>(mem)));
 }
 
 bool KfdDriver::BindXnackMode() {

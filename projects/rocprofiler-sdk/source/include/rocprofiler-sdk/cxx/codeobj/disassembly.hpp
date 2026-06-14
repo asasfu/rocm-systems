@@ -262,9 +262,10 @@ public:
             amd_comgr_disassemble_instruction(info, addr_in_buffer, (void*) this, &size_read);
         if(_status != AMD_COMGR_STATUS_SUCCESS)
         {
-            if(faddr + 4 >= buffer.size()) THROW_COMGR(_status);
+            if(faddr + 4 > buffer.size()) THROW_COMGR(_status);
 
-            uint32_t read = *reinterpret_cast<uint32_t*>(buffer.data() + faddr);
+            uint32_t read = 0;
+            std::memcpy(&read, buffer.data() + faddr, 4);
 
             FallbackOp fallback{};
 
@@ -303,9 +304,14 @@ public:
             amd_comgr_symbol_get_info(symbol, AMD_COMGR_SYMBOL_INFO_NAME_LENGTH, &name_size));
 
         std::string name;
-        name.resize(name_size);
+        // amd_comgr_symbol_get_info(NAME) writes a C-string: name_size payload
+        // bytes + a trailing '\0'. Reserve name_size + 1 so the NUL has a
+        // legal slot to land in (writing past end() would be UB), then shrink
+        // back to name_size to drop the NUL from std::string's logical size.
+        name.resize(name_size + 1);
 
         RETURN_COMGR(amd_comgr_symbol_get_info(symbol, AMD_COMGR_SYMBOL_INFO_NAME, name.data()));
+        name.resize(name_size);
 
         DisassemblyInstance&    instance = *static_cast<DisassemblyInstance*>(user_data);
         std::optional<uint64_t> faddr    = instance.va2fo(vaddr);

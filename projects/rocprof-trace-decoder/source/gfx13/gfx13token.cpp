@@ -41,45 +41,20 @@ namespace gfx13
 
 TokenLookupTable::TokenLookupTable() : mi400::TokenLookupTable()
 {
-    AddEncoding({
-        RdnaType::RAYTRACE, {1, 0, 1, 1, 0, 0, 1}
-    });
-    AddEncoding({
-        RdnaType::TIMESTAMP, {1, 0, 0, 0, 0, 0, 0, 0}
-    });
-    AddEncoding({
-        RdnaType::REALTIME, {1, 0, 0, 0, 0, 0, 0, 1}
-    });
-    time_bits[RAYTRACE] = {7, 10};
-    time_bits[REALTIME] = {1, 1};
-    time_bits[TIMESTAMP] = {12, 36};
+    // GFX13 overrides on top of MI400. Token lengths and time fields live in the
+    // encoding table, matching the develop lookup-table refactor.
+    // clang-format off
+    //                  type       pattern     plen  toklen  time_begin  time_end
+    AddEncoding({RAYTRACE,  0b1001101,  7, 32,  7, 10});
+    AddEncoding({LONGTIME,  0b00000001, 8, 48, 12, 48});
+    AddEncoding({TIMESTAMP, 0b10000001, 8, 64, 12, 64});
+    // clang-format on
 }
-
-int64_t TokenGenerator::getTime(RdnaType type, bool& PL, int64_t& rt)
-{
-    if (type == RdnaType::TIMESTAMP)
-    {
-        longtime_type stamp{.raw = current};
-        PL |= bool(stamp.pl);
-        return stamp.time + globaltime;
-    }
-    else if (type == RdnaType::REALTIME)
-    {
-        rt = realtime_type{.raw = current}.time;
-        return globaltime;
-    }
-    else if (type == RdnaType::TIME) { globaltime += 1; }
-    return lookupbits.getDelta(type, current) + globaltime;
-};
 
 TokenGenerator::TokenGenerator(const uint8_t* _buffer, size_t size, int64_t _globaltime, int64_t _base_time) :
 mi400::TokenGenerator(_buffer, size, _globaltime, _base_time)
 {
     lookupbits = gfx13::TokenLookupTable{};
-
-    TOKEN_LEN[RAYTRACE] = 32;
-    TOKEN_LEN[TIMESTAMP] = 48;
-    TOKEN_LEN[REALTIME] = 64;
 }
 
 } // namespace gfx13

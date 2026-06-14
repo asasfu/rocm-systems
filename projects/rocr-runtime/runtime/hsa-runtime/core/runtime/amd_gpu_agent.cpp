@@ -44,8 +44,9 @@
 
 #include <algorithm>
 #include <atomic>
-#include <cstring>
+#include <cinttypes>
 #include <climits>
+#include <cstring>
 #include <map>
 #include <set>
 #include <string>
@@ -242,8 +243,8 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
   InitDerivedCuid();
 
   bool model_enabled;
-  hsa_status_t status = driver().IsModelEnabled(&model_enabled);
-  assert(status == HSA_STATUS_SUCCESS && "IsModelEnabled failed");
+  err = driver().IsModelEnabled(&model_enabled);
+  assert(err == HSA_STATUS_SUCCESS && "IsModelEnabled failed");
   if (model_enabled) {
     wallclock_frequency_ = 1000*1000*1000; // The model has a 1GHz refclk
   } else {
@@ -793,14 +794,14 @@ void GpuAgent::ReserveScratch()
 {
   size_t reserved_sz = core::Runtime::runtime_singleton_->flag().scratch_single_limit();
   if (reserved_sz > MaxScratchDevice()) {
-    fprintf(stdout, "User specified scratch limit exceeds device limits (requested:%lu max:%lu)!\n",
+    fprintf(stdout, "User specified scratch limit exceeds device limits (requested:%zu max:%zu)!\n",
                     reserved_sz, MaxScratchDevice());
     reserved_sz = MaxScratchDevice();
   }
 
   size_t available;
-  hsa_status_t err = driver().AvailableMemory(node_id(), &available);
-  assert(err == HSA_STATUS_SUCCESS && "AvailableMemory failed");
+  [[maybe_unused]] hsa_status_t mem_err = driver().AvailableMemory(node_id(), &available);
+  assert(mem_err == HSA_STATUS_SUCCESS && "AvailableMemory failed");
   std::lock_guard<std::mutex> lock(scratch_lock_);
   if (!scratch_cache_.reserved_bytes() && reserved_sz && available > 8 * reserved_sz) {
     HSAuint64 alt_va;
@@ -855,7 +856,7 @@ void GpuAgent::InitDerivedCuid() {
   amdcuid_id_t handle{};
   amdcuid_status_t status =
       amdcuid_get_handle_by_dev_path(device_node.c_str(), AMDCUID_DEVICE_TYPE_GPU, &handle);
-  
+
   if (status != AMDCUID_STATUS_SUCCESS) {
     debug_print("Secondary CUID not available: failed to get device handle.\n");
     return;
@@ -863,7 +864,7 @@ void GpuAgent::InitDerivedCuid() {
 
   // Query the derived CUID using the device handle
   uint32_t cuid_length;
-  status = amdcuid_query_device_property(handle, AMDCUID_QUERY_DERIVED_CUID, 
+  status = amdcuid_query_device_property(handle, AMDCUID_QUERY_DERIVED_CUID,
                                          derived_cuid_, &cuid_length);
 
   if (status != AMDCUID_STATUS_SUCCESS) {
@@ -1217,8 +1218,8 @@ void GpuAgent::ReleaseResources() {
 
     for (auto& blit : blits_) {
       if (!blit.empty()) {
-        hsa_status_t status = blit->Destroy();
-        assert(status == HSA_STATUS_SUCCESS);
+        [[maybe_unused]] hsa_status_t destroy_st = blit->Destroy();
+        assert(destroy_st == HSA_STATUS_SUCCESS);
       }
     }
 
@@ -1914,7 +1915,7 @@ hsa_status_t GpuAgent::DmaCopyBroadcast(
   core::Signal& out_signal = *out_signal_obj;
 
   const uint16_t num_entries = op.num_entries;
-  constexpr size_t kBroadcastMaxSize = 1024 * 1024;
+  constexpr size_t kBroadcastMaxSize = 256 * 1024;
 
   // Try HW broadcast/multicast.
   {
@@ -1924,8 +1925,17 @@ hsa_status_t GpuAgent::DmaCopyBroadcast(
     lazy_ptr<core::Blit>& blit = GetBlitObject(BlitHostToDev);
     if (blit->isSDMA()) {
       BlitSdmaBase* sdma_blit = static_cast<BlitSdmaBase*>((*blit).get());
-      if (sdma_blit->BroadcastSupported() &&
-          (sdma_blit->IsGfx1250() || sdma_blit->IsGfx1260() || op.size < kBroadcastMaxSize)) {
+
+      // linearB2BCopy for per-copy sizes in [16KB, 256KB].
+      // Above 256KB the fan-out path parallelises across engines.
+      // HSA_SDMA_LINEAR_B2B: 1=force B2B, 0=force broadcast, unset=auto threshold.
+      constexpr size_t kLinearB2BMinSize = 16 * 1024;
+      const auto b2b_flag = core::Runtime::runtime_singleton_->flag().sdma_linear_b2b();
+      const bool use_linear_b2b = (b2b_flag == Flag::SDMA_ENABLE) ||
+          (b2b_flag == Flag::SDMA_DEFAULT && op.size >= kLinearB2BMinSize &&
+           op.size <= kBroadcastMaxSize);
+
+      if (use_linear_b2b && !sdma_blit->IsGfx1250()) {
         if (profiling_enabled())
           out_signal.async_copy_agent(core::Agent::Convert(this->public_handle()));
 
@@ -1933,6 +1943,24 @@ hsa_status_t GpuAgent::DmaCopyBroadcast(
                  "SDMA %s using engine %02u, src=%p, num_entries=%u, size=%zu, "
                  "dep_signal=0x%zx, completion_signal=0x%zx",
                  (sdma_blit->IsGfx1250() || sdma_blit->IsGfx1260()) ? "Multicast" : "Broadcast",
+                 BlitHostToDev, op.src, num_entries, op.size,
+                 dep_signals.empty() ? 0 : core::Signal::Convert(dep_signals[0]).handle,
+                 out_signal_obj->signal_);
+        std::vector<void*> dsts(op.dst_list, op.dst_list + num_entries);
+        std::vector<const void*> srcs(num_entries, op.src);
+        std::vector<size_t> sizes(num_entries, op.size);
+        return sdma_blit->SubmitLinearCopyB2BCommand(
+            dsts, srcs, sizes, dep_signals, out_signal);
+      }
+
+      if (sdma_blit->BroadcastSupported() && op.size < kLinearB2BMinSize) {
+        if (profiling_enabled())
+          out_signal.async_copy_agent(core::Agent::Convert(this->public_handle()));
+
+        LogPrint(HSA_AMD_LOG_FLAG_SDMA,
+                 "SDMA %s using engine %02u, src=%p, num_entries=%u, size=%zu, "
+                 "dep_signal=0x%zx, completion_signal=0x%zx",
+                 (sdma_blit->IsGfx1250()) ? "Multicast" : "Broadcast",
                  BlitHostToDev, op.src, num_entries, op.size,
                  dep_signals.empty() ? 0 : core::Signal::Convert(dep_signals[0]).handle,
                  out_signal_obj->signal_);
@@ -1959,8 +1987,61 @@ hsa_status_t GpuAgent::DmaCopyMulti(
   core::Signal* out_signal_obj = core::Signal::Convert(op.completion_signal);
   core::Signal& out_signal = *out_signal_obj;
 
+  const uint16_t num_entries = op.num_entries;
+  constexpr size_t kLinearB2BMaxSize = 256 * 1024;
+  constexpr size_t kLinearB2BMinSize = 16 * 1024;
+
+  // Try linearB2B: pack all entries as back-to-back SDMA linear copy packets in
+  // one ring submission to avoid fan-out signal overhead.  Use the same size
+  // thresholds as DmaCopyBroadcast: per-entry size in [16KB, 1MB) unless the
+  // flag forces B2B on.  For large entries the fan-out path parallelises across
+  // engines and is faster.
+  {
+    SetCopyRequestRefCount(true);
+    MAKE_SCOPE_GUARD([&]() { SetCopyRequestRefCount(false); });
+
+    lazy_ptr<core::Blit>& blit = GetBlitObject(BlitHostToDev);
+    if (blit->isSDMA()) {
+      BlitSdmaBase* sdma_blit = static_cast<BlitSdmaBase*>((*blit).get());
+
+      const auto b2b_flag = core::Runtime::runtime_singleton_->flag().sdma_linear_b2b();
+
+      // Check that every entry qualifies for B2B.
+      bool all_qualify = true;
+      for (uint16_t i = 0; i < num_entries; i++) {
+        const size_t sz = op.size_list[i];
+        const bool qualifies =
+            (b2b_flag == Flag::SDMA_ENABLE) ||
+            (b2b_flag == Flag::SDMA_DEFAULT && sz >= kLinearB2BMinSize &&
+             sz <= kLinearB2BMaxSize);
+        if (!qualifies) {
+          all_qualify = false;
+          break;
+        }
+      }
+
+      if (all_qualify) {
+        if (profiling_enabled())
+          out_signal.async_copy_agent(core::Agent::Convert(this->public_handle()));
+
+        std::vector<void*> dsts(op.dst_list, op.dst_list + num_entries);
+        std::vector<const void*> srcs(op.src_list, op.src_list + num_entries);
+        std::vector<size_t> sizes(op.size_list, op.size_list + num_entries);
+
+        LogPrint(HSA_AMD_LOG_FLAG_SDMA,
+                 "SDMA multiB2BCopy using engine %02u, num_entries=%u, "
+                 "dep_signal=0x%zx, completion_signal=0x%zx",
+                 BlitHostToDev, num_entries,
+                 dep_signals.empty() ? 0 : core::Signal::Convert(dep_signals[0]).handle,
+                 out_signal_obj->signal_);
+        return sdma_blit->SubmitLinearCopyB2BCommand(dsts, srcs, sizes,
+                                                     dep_signals, out_signal);
+      }
+    }
+  }
+
   return DmaCopyFanOutOp(HSA_AMD_MEMORY_COPY_OP_LINEAR, out_signal, dep_signals,
-                         op.num_entries, const_cast<const void* const*>(op.src_list),
+                         num_entries, const_cast<const void* const*>(op.src_list),
                          op.dst_list, op.dst_agent_list, op.size_list);
 }
 
@@ -2251,8 +2332,7 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
         setFlag(HSA_EXTENSION_AMD_PC_SAMPLING);
       }
 
-      if (os::LibHandle lib = os::LoadLib(kAqlProfileLib)) {
-        os::CloseLib(lib);
+      if (core::Runtime::runtime_singleton_->AqlProfileAvailable()) {
         setFlag(HSA_EXTENSION_AMD_AQLPROFILE);
       }
 
@@ -2406,8 +2486,9 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
           (isa_->GetMajorVersion() == 9) && (isa_->GetMinorVersion() == 0) &&
           (isa_->GetStepping() == 10)) {
         uint32_t count = 0;
-        hsa_status_t err = GetInfo((hsa_agent_info_t)HSA_AMD_AGENT_INFO_COMPUTE_UNIT_COUNT, &count);
-        assert(err == HSA_STATUS_SUCCESS && "CU count query failed.");
+        [[maybe_unused]] hsa_status_t cu_err =
+            GetInfo((hsa_agent_info_t)HSA_AMD_AGENT_INFO_COMPUTE_UNIT_COUNT, &count);
+        assert(cu_err == HSA_STATUS_SUCCESS && "CU count query failed.");
         *((uint32_t*)value) = (count & 0xFFFFFFF8) - 8;  // value = floor(count/8)*8-8
         break;
       }
@@ -2488,20 +2569,6 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       }
       return HSA_STATUS_ERROR;
     }
-    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_DIM:
-    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM:
-      memcpy(value, &kern_cluster_max_dim_, sizeof(kern_cluster_max_dim_));
-      break;
-    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_SIZE:
-    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_SIZE:
-      *((uint64_t*)value) = kern_cluster_max_dim_.x * kern_cluster_max_dim_.y * kern_cluster_max_dim_.z;
-      break;
-    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_DIM:
-      memcpy(value, &cluster_max_dim_, sizeof(cluster_max_dim_));
-      break;
-    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE:
-      *((uint64_t*)value) = cluster_max_dim_.x;
-      break;
     case HSA_AMD_AGENT_INFO_PM4_EMULATION:
       *((bool*)value) = properties_.Capability2.ui32.AqlEmulationPm4_;
       break;
@@ -2523,6 +2590,27 @@ hsa_status_t GpuAgent::GetInfo(hsa_agent_info_t attribute, void* value) const {
       memcpy(cuid, derived_cuid_, sizeof(derived_cuid_));
       break;
     }
+    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_DIM:
+    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_DIM:
+      memcpy(value, &kern_cluster_max_dim_, sizeof(kern_cluster_max_dim_));
+      break;
+    case HSA_AMD_AGENT_INFO_KERNEL_WG_MAX_SIZE:
+    case HSA_AMD_AGENT_INFO_KERNEL_CLUSTER_MAX_SIZE:
+      *((uint64_t*)value) = kern_cluster_max_dim_.x * kern_cluster_max_dim_.y * kern_cluster_max_dim_.z;
+      break;
+    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_DIM:
+      memcpy(value, &cluster_max_dim_, sizeof(cluster_max_dim_));
+      break;
+    case HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE:
+      *((uint64_t*)value) = cluster_max_dim_.x;
+      break;
+    case HSA_AMD_AGENT_INFO_MAX_DATA_PREFETCH_REGIONS:
+      if (isa_->GetMajorVersion() == 12 && isa_->GetMinorVersion() >= 5) {
+        *((uint32_t*)value) = AMD_LAUNCH_DESCRIPTOR_MAX_PREFETCH_REGIONS;
+      } else {
+        *((uint32_t*)value) = 0;
+      }
+      break;
     default:
       return HSA_STATUS_ERROR_INVALID_ARGUMENT;
       break;
@@ -2618,14 +2706,17 @@ hsa_status_t GpuAgent::QueueCreate(size_t size, hsa_queue_type32_t queue_type, u
     shared_queue = static_cast<core::SharedQueue*>(finegrain_allocator()(
         sizeof(core::SharedQueue),
         core::MemoryRegion::AllocateUncached | MemoryRegion::AllocateQueueObject));
-  } else {
+  } else if (isMES()) {
     shared_queue =
         static_cast<core::SharedQueue*>(core::Runtime::runtime_singleton_->system_allocator()(
             sizeof(core::SharedQueue), MemoryRegion::GetPageSize(),
-            isMES() ? (MemoryRegion::AllocateGTTAccess | MemoryRegion::AllocateNonPaged |
-                       MemoryRegion::AllocateQueueObject)
-                    : MemoryRegion::AllocateQueueObject,
+            MemoryRegion::AllocateGTTAccess | MemoryRegion::AllocateNonPaged |
+                MemoryRegion::AllocateQueueObject,
             node_id()));
+  } else {
+    shared_queue = static_cast<core::SharedQueue*>(system_allocator()(
+        sizeof(core::SharedQueue), MemoryRegion::GetPageSize(),
+        MemoryRegion::AllocateQueueObject));
   }
 
   if (!shared_queue) {
@@ -2783,7 +2874,7 @@ void GpuAgent::AcquireQueueMainScratch(ScratchInfo& scratch) {
 
     // Attempt to trim the maximum number of concurrent waves to allow scratch to fit.
     if (core::Runtime::runtime_singleton_->flag().enable_queue_fault_message())
-      debug_print("Failed to map requested scratch (%ld) - reducing queue occupancy.\n",
+      debug_print("Failed to map requested scratch (%zd) - reducing queue occupancy.\n",
                   scratch.main_size);
     const uint64_t num_cus = properties_.NumFComputeCores / properties_.NumSIMDPerCU;
     const uint64_t se_per_xcc = properties_.NumShaderBanks / properties_.NumXcc;
@@ -2805,7 +2896,7 @@ void GpuAgent::AcquireQueueMainScratch(ScratchInfo& scratch) {
         scratch_used_large_ += scratch.main_size;
         scratch_cache_.insertMain(scratch);
         if (core::Runtime::runtime_singleton_->flag().enable_queue_fault_message())
-          debug_print("  %ld scratch mapped, %.2f%% occupancy.\n", scratch.main_size,
+          debug_print("  %zd scratch mapped, %.2f%% occupancy.\n", scratch.main_size,
                       float(waves_per_cu * num_cus) / scratch.dispatch_slots * 100.0f);
         return;
       }
@@ -2959,7 +3050,7 @@ void GpuAgent::TranslateTime(core::Signal* signal, hsa_amd_profiling_dispatch_ti
   signal->GetRawTs(false, start, end);
 
   if ((start == 0) || (end == 0) || (start < t0_.GPUClockCounter) || (end < t0_.GPUClockCounter)) {
-    debug_print("Signal %p time stamps may be invalid (start=%lu, end=%lu, t0=%lu).\n",
+    debug_print("Signal %p time stamps may be invalid (start=%" PRIu64 ", end=%" PRIu64 ", t0=%" PRIu64 ").\n",
                 &signal->signal_, start, end, t0_.GPUClockCounter);
     time.start = 0;
     time.end = 0;
@@ -2977,7 +3068,7 @@ void GpuAgent::TranslateTime(core::Signal* signal, hsa_amd_profiling_async_copy_
   signal->GetRawTs(true, start, end);
 
   if ((start == 0) || (end == 0) || (start < t0_.GPUClockCounter) || (end < t0_.GPUClockCounter)) {
-    debug_print("Signal %p async copy time stamps may be invalid (start=%lu, end=%lu, t0=%lu).\n",
+    debug_print("Signal %p async copy time stamps may be invalid (start=%" PRIu64 ", end=%" PRIu64 ", t0=%" PRIu64 ").\n",
                 &signal->signal_, start, end, t0_.GPUClockCounter);
     time.start = 0;
     time.end = 0;
@@ -3061,8 +3152,8 @@ uint16_t GpuAgent::GetSdmaMicrocodeVersion() const {
 }
 
 void GpuAgent::SyncClocks() {
-  hsa_status_t err = driver().GetClockCounters(node_id(), &t1_);
-  assert(err == HSA_STATUS_SUCCESS && "hsaGetClockCounters error");
+  [[maybe_unused]] hsa_status_t sync_err = driver().GetClockCounters(node_id(), &t1_);
+  assert(sync_err == HSA_STATUS_SUCCESS && "hsaGetClockCounters error");
 }
 
 hsa_status_t GpuAgent::UpdateTrapHandlerWithPCS(pcs_sampling_data_t* pcs_hosttrap_buffers, pcs_sampling_data_t* pcs_stochastic_buffers) {
@@ -3094,9 +3185,9 @@ hsa_status_t GpuAgent::UpdateTrapHandlerWithPCS(pcs_sampling_data_t* pcs_hosttra
       // NearestCpuAgent owns pool returned system_allocator()
       auto cpuAgent = GetNearestCpuAgent()->public_handle();
 
-      hsa_status_t ret =
+      [[maybe_unused]] hsa_status_t allow_ret =
           AMD::hsa_amd_agents_allow_access(1, &cpuAgent, NULL, trap_handler_tma_region_);
-      assert(ret == HSA_STATUS_SUCCESS);
+      assert(allow_ret == HSA_STATUS_SUCCESS);
     }
 
     /* On non-large BAR systems, we may not be able to access device memory, so do a DmaCopy */
@@ -3131,8 +3222,11 @@ void GpuAgent::BindTrapHandler() {
   } else {
     if (isa_->GetMajorVersion() >= 11 ||
        (isa_->GetMajorVersion() == 9 &&
-        (isa_->GetMinorVersion() == 4 || isa_->GetMinorVersion() == 5))) {
+        (isa_->GetMinorVersion() == 4 || isa_->GetMinorVersion() == 5)) ||
+       (isa_->GetMajorVersion() == 10 && isa_->GetMinorVersion() == 3 &&
+        isa_->GetStepping() == 6)) {
       // No trap handler support without exception handling, soft error.
+      // gfx1036 (Granite Ridge iGPU): KMD does not support the trap handler escape.
       return;
     }
 
@@ -3152,9 +3246,9 @@ void GpuAgent::BindTrapHandler() {
   }
 
   // Bind the trap handler to this node.
-  hsa_status_t err =
+  [[maybe_unused]] hsa_status_t trap_err =
       driver().SetTrapHandler(node_id(), trap_code_buf_, trap_code_buf_size_, tma_addr, tma_size);
-  assert(err == HSA_STATUS_SUCCESS && "SetTrapHandler() failed");
+  assert(trap_err == HSA_STATUS_SUCCESS && "SetTrapHandler() failed");
 }
 
 void GpuAgent::InvalidateCodeCaches(void *ptr, size_t size) {
@@ -4212,7 +4306,8 @@ void GpuAgent::PcSamplingThread(pcs_data_t& pcs_data, const char* thread_name) {
     pcs_data_t* pcs_data_ptr = &pcs_data;
 
     uint8_t* host_buffer_begin = pcs_data.host_buffer;
-    uint8_t* host_buffer_end = pcs_data.host_buffer + pcs_data.host_buffer_size;
+    [[maybe_unused]] uint8_t* host_buffer_end =
+        pcs_data.host_buffer + pcs_data.host_buffer_size;
 
     hsa_signal_t done_sig[] = {pcs_data_ptr->done_sig0, pcs_data_ptr->done_sig1};
 
@@ -4311,7 +4406,8 @@ hsa_status_t GpuAgent::PcSamplingFlush(pcs::PcsRuntime::PcSamplingSession& sessi
   }
 
   uint8_t* host_buffer_begin = pcs_data->host_buffer;
-  uint8_t* host_buffer_end = pcs_data->host_buffer + pcs_data->host_buffer_size;
+  [[maybe_unused]] uint8_t* host_buffer_end =
+      pcs_data->host_buffer + pcs_data->host_buffer_size;
 
   size_t bytes_before_wrap;
   size_t bytes_after_wrap;

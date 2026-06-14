@@ -27,6 +27,7 @@
 #define _HSAKMTMODELIFACE_H_
 
 #include <inttypes.h>
+#include <stdbool.h>
 #ifdef _WIN32
 #include <windows.h>
 #ifndef _NTDEF_
@@ -78,9 +79,9 @@ struct hsakmt_model_functions {
 	// Returns 0 on success, -1 on error (with errno set)
 	int (*handle_ioctl)(unsigned long request, void *arg);
 
-	// DRM/amdgpu call simulation (v1.1+, optional)
-	// Routes libdrm/amdgpu API calls through the model instead of real hardware.
-	// NULL in v1.0 models — callers must degrade gracefully (no-op success).
+	// DRM/amdgpu call simulation (v1.1+)
+	// Routes libdrm/amdgpu API calls through the model.
+	// NULL in v1.0 models — callers must degrade gracefully.
 	// Returns 0 on success, -1 on error (with errno set)
 	int (*handle_drm_call)(unsigned cmd, void *arg);
 #elif defined(_WIN32)

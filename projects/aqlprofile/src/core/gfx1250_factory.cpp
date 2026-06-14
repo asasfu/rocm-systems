@@ -119,7 +119,7 @@ void Mi450Factory::ConstructTable(const AgentInfo* agent_info) {
   block_table_[__BLOCK_ID_HSA(TCP)]   = &TcpCounterBlockInfo;
 }
 
-// Pm4Factory create mathods
+// Pm4Factory create methods
 Pm4Factory* Pm4Factory::Mi450Create(const AgentInfo* agent_info) {
   auto p = new Mi450Factory(agent_info);
   if (p == NULL) throw aql_profile_exc_msg("Mi450Factory allocation failed");

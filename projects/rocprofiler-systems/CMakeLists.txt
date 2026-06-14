@@ -187,17 +187,14 @@ rocprofiler_systems_add_option(ROCPROFSYS_BUILD_FOR_THEROCK "Build rocprofiler-s
     ADVANCED NO_FEATURE
 )
 
-if(ROCPROFSYS_BUILD_FOR_THEROCK)
-    # TheRock injects these variables, which takes precedence over our
-    # own python discovery, even when versions differ. Unset them to prevent this.
-    unset(Python3_EXECUTABLE CACHE)
+# TheRock injects these variables, which takes precedence over our
+# own python discovery, even when versions differ. Unset them to prevent this.
+unset(Python3_EXECUTABLE CACHE)
 
-    set(ROCPROFSYS_INSTALL_TESTING
-        ON
-        CACHE BOOL
-        "Install testing scripts and pytest package"
-        FORCE
-    )
+# TODO: Deprecate once TheRock switches to CTests
+if(ROCPROFSYS_BUILD_FOR_THEROCK AND NOT DEFINED ROCPROFSYS_USE_PYTESTS)
+    set(ROCPROFSYS_BUILD_EXAMPLES ON CACHE BOOL "Enable building the examples" FORCE)
+    set(ROCPROFSYS_INSTALL_EXAMPLES ON CACHE BOOL "Enable installing examples" FORCE)
     set(ROCPROFSYS_USE_PYTESTS ON CACHE BOOL "Enable pytest suite" FORCE)
     set(_DISABLE_EXAMPLES "lulesh;transferBench")
 
@@ -210,13 +207,17 @@ if(ROCPROFSYS_BUILD_FOR_THEROCK)
             FORCE
         )
     else()
-        list(APPEND ROCPROFSYS_DISABLE_EXAMPLES "${_DISABLE_EXAMPLES}")
-        list(SORT ROCPROFSYS_DISABLE_EXAMPLES)
-        list(REMOVE_DUPLICATES ROCPROFSYS_DISABLE_EXAMPLES)
+        foreach(_example IN LISTS _DISABLE_EXAMPLES)
+            if(NOT "${_example}" IN_LIST ROCPROFSYS_DISABLE_EXAMPLES)
+                list(APPEND ROCPROFSYS_DISABLE_EXAMPLES "${_example}")
+            endif()
+        endforeach()
     endif()
-
-    rocprofiler_systems_message(STATUS "ROCPROFSYS_DISABLE_EXAMPLES: ${ROCPROFSYS_DISABLE_EXAMPLES}")
+else()
+    set(ROCPROFSYS_USE_PYTESTS OFF CACHE BOOL "Enable pytest suite" FORCE)
 endif()
+
+message(STATUS "ROCPROFSYS_DISABLE_EXAMPLES: ${ROCPROFSYS_DISABLE_EXAMPLES}")
 
 include(Compilers) # compiler identification
 include(BuildSettings) # compiler flags
@@ -264,9 +265,6 @@ rocprofiler_systems_add_option(ROCPROFSYS_BUILD_ELFUTILS "Build elfutils from su
     OFF
 )
 rocprofiler_systems_add_option(ROCPROFSYS_BUILD_LIBIBERTY "Build libiberty from submodule"
-    OFF
-)
-rocprofiler_systems_add_option(ROCPROFSYS_BUILD_BOOST "Build boost from submodule"
     OFF
 )
 rocprofiler_systems_add_option(ROCPROFSYS_BUILD_TBB "Build tbb from submodule"
@@ -324,6 +322,12 @@ endif()
 
 if(ROCPROFSYS_BUILD_TESTING)
     set(ROCPROFSYS_BUILD_EXAMPLES ON CACHE BOOL "Enable building the examples" FORCE)
+endif()
+
+# Examples are built independently on TheRock
+if(ROCPROFSYS_BUILD_FOR_THEROCK AND NOT ROCPROFSYS_USE_PYTESTS)
+    set(ROCPROFSYS_BUILD_EXAMPLES OFF CACHE BOOL "Enable building the examples" FORCE)
+    set(ROCPROFSYS_INSTALL_EXAMPLES OFF CACHE BOOL "Enable installing examples" FORCE)
 endif()
 
 include(ProcessorCount)

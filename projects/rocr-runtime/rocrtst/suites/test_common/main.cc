@@ -489,7 +489,7 @@ TEST(rocrtstFunc, SvmMemory_Basic_Test) {
 
 TEST(rocrtstFunc, SvmMemory_Negative_Test) {
     SvmMemoryTestBasic smt;
-    RunCustomTestProlog(&smt);
+    if (!RunCustomTestProlog(&smt)) return;
     smt.TestSVMDiscardNegative();
     RunCustomTestEpilog(&smt);
 }
@@ -525,7 +525,7 @@ TEST(rocrtstFunc, VirtMemory_Accounting_Test) {
 TEST(rocrtstFunc, VirtMemory_Aliasing_Test) {
     VirtMemoryTestBasic vmt;
 
-    RunCustomTestProlog(&vmt);
+    if (!RunCustomTestProlog(&vmt)) return;
     vmt.TestVirtAddressAlias();
     RunCustomTestEpilog(&vmt);
 }

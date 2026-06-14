@@ -786,8 +786,9 @@ void KFDMemoryTest::SearchLargestBuffer(int allocNode, const HsaMemFlags &memFla
  */
 void KFDMemoryTest::LargestSysBufferTest(int gpuNode) {
 
-    if (!hsakmt_is_dgpu()) {
-        LOG() << "Skipping test: Running on APU fails and locks the system." << std::endl;
+    const HsaNodeProperties *pNodeProps = m_NodeInfo.GetNodeProperties(gpuNode);
+    if (pNodeProps && pNodeProps->Integrated) {
+        LOG() << "Skipping test on APU." << std::endl;
         return;
     }
 
@@ -827,8 +828,9 @@ TEST_F(KFDMemoryTest, LargestSysBufferTest) {
 
 void KFDMemoryTest::LargestVramBufferTest(int gpuNode) {
 
-    if (!hsakmt_is_dgpu()) {
-        LOG() << "Skipping test: Running on APU fails and locks the system." << std::endl;
+    const HsaNodeProperties *pNodeProps = m_NodeInfo.GetNodeProperties(gpuNode);
+    if (pNodeProps && pNodeProps->Integrated) {
+        LOG() << "Skipping test on APU." << std::endl;
         return;
     }
 
@@ -877,8 +879,9 @@ TEST_F(KFDMemoryTest, LargestVramBufferTest) {
  */
 void KFDMemoryTest::BigSysBufferStressTest(int gpuNode) {
 
-    if (!hsakmt_is_dgpu()) {
-        LOG() << "Skipping test: Running on APU fails and locks the system." << std::endl;
+    const HsaNodeProperties *pNodeProps = m_NodeInfo.GetNodeProperties(gpuNode);
+    if (pNodeProps && pNodeProps->Integrated) {
+        LOG() << "Skipping test on APU." << std::endl;
         return;
     }
 

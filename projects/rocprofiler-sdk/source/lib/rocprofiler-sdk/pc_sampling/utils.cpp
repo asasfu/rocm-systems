@@ -70,18 +70,8 @@ get_matching_hsa_pcs_units(rocprofiler_pc_sampling_unit_t unit)
     ROCP_FATAL << "Illegal pc sampling unit " << unit;
 }
 
-size_t
-get_hsa_pcs_buffer_size(uint32_t gfx_target_version)
+size_t get_hsa_pcs_buffer_size(uint32_t /*gfx_target_version*/)
 {
-    auto major = (gfx_target_version / 10000) % 100;
-    auto minor = (gfx_target_version / 100) % 100;
-    auto step  = (gfx_target_version % 100);
-
-    if(major == 12 && minor == 5 && step == 0)
-    {
-        // Use smaller buffer on emulators
-        return 1024 * sizeof(perf_sample_hosttrap_v1_t);  // 64KB
-    }
     // Use bigger buffer to reduce number of dropped samples on actual silicon
     return 64 * 1024 * sizeof(perf_sample_hosttrap_v1_t);  // 4MB
 }

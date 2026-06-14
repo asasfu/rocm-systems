@@ -330,7 +330,7 @@ static std::unordered_map<int, mapped_inst_t> table_map_to_common_type{
     {(int) EINST::valu_dpmacc_32,         {WaveInstCategory::VALU, 32}   },
     {(int) EINST::wmma_ld_scale,          {WaveInstCategory::LD_SCALE, 1}},
 
- // Arcadia
+ // gfx1260
     {(int) EINST::sema_signal,            {WaveInstCategory::MSG, 1}     },
     {(int) EINST::sema_wait,              {WaveInstCategory::IMMED, 1}   },
 

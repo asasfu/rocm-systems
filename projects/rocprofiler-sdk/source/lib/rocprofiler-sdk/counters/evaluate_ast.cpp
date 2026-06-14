@@ -442,11 +442,10 @@ EvaluateAST::EvaluateAST(rocprofiler_counter_id_t                       out_id,
 
                     if(is_gfx10_or_later)
                     {
-                        ROCP_WARNING << fmt::format(
-                            "LOW_RES accumulation is not supported on {}. "
-                            "Redirecting to HIGH_RES for counter {}.",
-                            _agent,
-                            _metric.name());
+                        ROCP_WARNING << fmt::format("LOW_RES accumulation is not supported on {}. "
+                                                    "Redirecting to HIGH_RES for counter {}.",
+                                                    _agent,
+                                                    _metric.name());
 
                         effective_op = ACCUMULATE_OP_TYPE::HIGH_RESOLUTION;
                     }
@@ -615,7 +614,7 @@ EvaluateAST::get_required_counters(const std::unordered_map<std::string, Evaluat
             return;
         }
 
-        // Derrived Counter
+        // Derived Counter
         const auto* expr_ptr = rocprofiler::common::get_val(asts, _metric.name());
         if(!expr_ptr) throw std::runtime_error("could not find derived counter");
         expr_ptr->get_required_counters(asts, counters);

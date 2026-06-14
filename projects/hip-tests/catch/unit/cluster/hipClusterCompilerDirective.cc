@@ -107,7 +107,7 @@ HIP_TEST_CASE(Unit_hipClusterLaunch_CompilerDirective_Basic) {
   HIP_CHECK(hipMemcpy(dptr_in, hptr_in, num_size, hipMemcpyHostToDevice));
   ClusterLaunchKernelBasicCD<<<nbig, ntib>>>(dptr_in, dptr_out, num_elems);
   HIP_CHECK(hipDeviceSynchronize());
-  HIP_CHECK(hipMemcpy(hptr_out, dptr_out, num_size, hipMemcpyHostToDevice));
+  HIP_CHECK(hipMemcpy(hptr_out, dptr_out, num_size, hipMemcpyDeviceToHost));
 
   REQUIRE(bma.ValidateArrays(hptr_in, hptr_out));
 

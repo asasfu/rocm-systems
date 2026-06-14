@@ -191,6 +191,6 @@ HIP_TEST_CASE(Unit_test_kernel_monitor) {
         test_2_cachelines();
       }
   } else {
-    HipTest::HIP_SKIP_TEST("Unit_test_kernel_monitor isn't supported on the device!");
+    HIP_SKIP_TEST("Unit_test_kernel_monitor isn't supported on the device!");
   }
 }

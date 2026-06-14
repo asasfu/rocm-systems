@@ -400,7 +400,7 @@ class SamplingLockErrorTest : public WaveSnapTest<GFX, PcSamplingRecordT>
         this->genPCSample(1);
     }
 
-    // Could be reused with assumption that the num_combinations will be overriden
+    // Could be reused with assumption that the num_combinations will be overridden
     void CheckBuffers() override
     {
         auto parsed = this->buffer->get_parsed_buffer(GFX1250::gfx_ip_major, GFX1250::gfx_ip_minor);

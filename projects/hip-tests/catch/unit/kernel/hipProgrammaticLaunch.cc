@@ -74,7 +74,7 @@ __global__ void secondaryKernelWithShared(int* output, int totalThreads, const i
  */
 HIP_TEST_CASE(Unit_hipLaunchKernelEx_ProgrammaticLaunch) {
   if (!IsProgrammaticLaunchSupported()) {
-    HipTest::HIP_SKIP_TEST(HipTest::SkipReason::kProgrammaticLaunchUnsupported);
+    HIP_SKIP_TEST(HipTest::SkipReason::kProgrammaticLaunchUnsupported);
     return;
   }
   const int blockSize = 64;
@@ -141,7 +141,7 @@ HIP_TEST_CASE(Unit_hipLaunchKernelEx_ProgrammaticLaunch) {
  */
 HIP_TEST_CASE(Unit_hipDrvLaunchKernelEx_ProgrammaticLaunch) {
   if (!IsProgrammaticLaunchSupported()) {
-    HipTest::HIP_SKIP_TEST(HipTest::SkipReason::kProgrammaticLaunchUnsupported);
+    HIP_SKIP_TEST(HipTest::SkipReason::kProgrammaticLaunchUnsupported);
     return;
   }
   const int blockSize = 64;
@@ -265,7 +265,7 @@ __global__ void secondaryOverlapKernel(int* overlap_flag, const int* sentinel,
  */
 HIP_TEST_CASE(Unit_hipLaunchKernelEx_ProgrammaticLaunch_Overlap) {
   if (!IsProgrammaticLaunchSupported()) {
-    HipTest::HIP_SKIP_TEST(HipTest::SkipReason::kProgrammaticLaunchUnsupported);
+    HIP_SKIP_TEST(HipTest::SkipReason::kProgrammaticLaunchUnsupported);
     return;
   }
 

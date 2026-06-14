@@ -81,6 +81,15 @@ class BlitSdmaBase : public core::Blit {
       std::vector<core::Signal*>& dep_signals,
       core::Signal& out_signal) = 0;
 
+  /// @brief Pack N linear copy packets back-to-back in a single SDMA ring
+  /// submission (linearB2BCopy path).  Each entry i copies srcs[i] -> dsts[i]
+  /// of sizes[i] bytes.  For the broadcast case (same src/size for all dsts),
+  /// the caller simply fills srcs and sizes with repeated values.
+  virtual hsa_status_t SubmitLinearCopyB2BCommand(
+      const std::vector<void*>& dsts, const std::vector<const void*>& srcs,
+      const std::vector<size_t>& sizes, std::vector<core::Signal*>& dep_signals,
+      core::Signal& out_signal) = 0;
+
   virtual bool BroadcastSupported() const = 0;
   virtual bool PlatformAtomicSupport() const = 0;
   virtual bool IsGfx1250() const = 0;
@@ -182,6 +191,11 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
   hsa_status_t SubmitLinearCopyBroadcastCommand(
       const std::vector<void*>& dsts, const void* src, size_t size,
       std::vector<core::Signal*>& dep_signals,
+      core::Signal& out_signal) override;
+
+  hsa_status_t SubmitLinearCopyB2BCommand(
+      const std::vector<void*>& dsts, const std::vector<const void*>& srcs,
+      const std::vector<size_t>& sizes, std::vector<core::Signal*>& dep_signals,
       core::Signal& out_signal) override;
 
   /// @brief Submit a linear fill command to the queue buffer
@@ -334,7 +348,8 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
 
   hsa_status_t SubmitCommand(const void* cmds, size_t cmd_size, uint64_t size,
                              const std::vector<core::Signal*>& dep_signals,
-                             core::Signal& out_signal, std::vector<core::Signal*>& gang_signals);
+                             core::Signal& out_signal,
+                             std::vector<core::Signal*>& gang_signals) override;
 
   hsa_status_t SubmitBlockingCommand(const void* cmds, size_t cmd_size, uint64_t size);
 

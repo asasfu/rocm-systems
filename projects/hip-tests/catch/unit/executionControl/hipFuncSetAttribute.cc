@@ -57,7 +57,7 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_PreferredSharedMemoryCarveout) {
 
   if (result == hipErrorNotSupported) {
     // Device doesn't support carveout - this is valid, skip test
-    HipTest::HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
+    HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
     return;
   }
   HIP_CHECK(result);
@@ -115,7 +115,7 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_Parameters) {
     hipError_t result = hipFuncSetAttribute(reinterpret_cast<void*>(kernel),
                                            hipFuncAttributePreferredSharedMemoryCarveout, 0);
     if (result == hipErrorNotSupported) {
-      HipTest::HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
+      HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
       return;
     }
     HIP_CHECK(result);
@@ -125,7 +125,7 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_Parameters) {
     hipError_t result = hipFuncSetAttribute(reinterpret_cast<void*>(kernel),
                                            hipFuncAttributePreferredSharedMemoryCarveout, 100);
     if (result == hipErrorNotSupported) {
-      HipTest::HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
+      HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
       return;
     }
     HIP_CHECK(result);
@@ -135,7 +135,7 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_Parameters) {
     hipError_t result = hipFuncSetAttribute(reinterpret_cast<void*>(kernel),
                                            hipFuncAttributePreferredSharedMemoryCarveout, -1);
     if (result == hipErrorNotSupported) {
-      HipTest::HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
+      HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
       return;
     }
     HIP_CHECK(result);
@@ -232,8 +232,7 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Negative_Parameters) {
  */
 HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_MaxDynamicSharedMemorySize_Not_Supported) {
 #if HT_NVIDIA
-  HipTest::HIP_SKIP_TEST(HipTest::SkipReason::kApiUnsupportedOnNvidia);
-  return;
+  HIP_SKIP_TEST(HipTest::SkipReason::kApiUnsupportedOnNvidia);
 #endif
 
   hipFuncAttributes old_attributes;
@@ -273,8 +272,7 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_MaxDynamicSharedMemorySize_Not_S
  */
 HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_PreferredSharedMemoryCarveout_Not_Supported) {
 #if HT_NVIDIA
-  HipTest::HIP_SKIP_TEST(HipTest::SkipReason::kApiUnsupportedOnNvidia);
-  return;
+  HIP_SKIP_TEST(HipTest::SkipReason::kApiUnsupportedOnNvidia);
 #endif
 
   // Check if the feature is supported by attempting to get the attribute
@@ -283,7 +281,7 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_PreferredSharedMemoryCarveout_No
                                                HIP_FUNC_ATTRIBUTE_PREFERRED_SHARED_MEMORY_CARVEOUT,
                                                reinterpret_cast<hipFunction_t>(kernel));
   if (get_result != hipErrorNotSupported) {
-    HipTest::HIP_SKIP_TEST("This test requires hardware without groupMemCarveout support");
+    HIP_SKIP_TEST("This test requires hardware without groupMemCarveout support");
     return;
   }
 
@@ -312,7 +310,7 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_PreferredSharedMemoryCarveout_No
  */
 HIP_TEST_CASE(Unit_hipFuncSetAttribute_LDS64K_Carveout) {
 #if HT_NVIDIA
-  HipTest::HIP_SKIP_TEST("This is an AMD specific test");
+  HIP_SKIP_TEST("This is an AMD specific test");
   return;
 #endif
 
@@ -320,7 +318,7 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_LDS64K_Carveout) {
   hipError_t probe = hipFuncSetAttribute(reinterpret_cast<void*>(kernel_lds_64k),
                                          hipFuncAttributePreferredSharedMemoryCarveout, 50);
   if (probe == hipErrorNotSupported) {
-    HipTest::HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
+    HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
     return;
   }
   HIP_CHECK(probe);

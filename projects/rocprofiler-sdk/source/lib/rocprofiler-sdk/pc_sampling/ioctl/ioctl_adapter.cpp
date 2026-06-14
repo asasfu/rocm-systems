@@ -320,8 +320,8 @@ is_pc_sampling_method_supported(rocprofiler_pc_sampling_method_t method,
         }
         else if(agent_name.find("gfx1250") == 0)
         {
-            // 1.6 version enables stochastic PC sampling on MI450
-            if(pcs_ioctl_version >= PC_SAMPLING_IOCTL_COMPUTE_VERSION(1, 6))
+            // 1.7 version enables stochastic PC sampling on gfx1250
+            if(pcs_ioctl_version >= PC_SAMPLING_IOCTL_COMPUTE_VERSION(1, 7))
                 return ROCPROFILER_STATUS_SUCCESS;
             else
                 return ROCPROFILER_STATUS_ERROR_INCOMPATIBLE_KERNEL;

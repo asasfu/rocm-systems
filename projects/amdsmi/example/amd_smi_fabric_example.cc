@@ -1,4 +1,4 @@
-#include "amdsmi.h"
+#include <amd_smi/amdsmi.h>
 
 #include <iomanip>
 #include <iostream>

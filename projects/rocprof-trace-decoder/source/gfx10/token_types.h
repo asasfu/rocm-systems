@@ -47,7 +47,7 @@ enum RdnaType
     MI400_TYPE_LAST,
     // New gfx13
     RAYTRACE = MI400_TYPE_LAST,
-    REALTIME,
+    LONGTIME,
     NAVI_TYPE_LAST
 };
 

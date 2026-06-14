@@ -138,15 +138,9 @@ matrix_multiply_tile(float* A, float* B, float* Out, int m, int n, int k)
 #endif
 
 void
-run_hip_app(const std::string& arch_name)
+run_hip_app(const std::string& /*arch_name*/)
 {
     size_t m = M, n = N, k = K;
-    if(arch_name.find("gfx1250") != std::string::npos)
-    {
-        m = 512;
-        n = 512;
-        k = 512;
-    }
 
     std::vector<float> A(m * k);
     std::vector<float> B(k * n);

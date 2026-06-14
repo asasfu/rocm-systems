@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 if(BUILD_TESTS)
 option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
   option(ENABLE_MPI_TESTS "Enable MPI-based tests" OFF)
+  option(RCCL_HAS_GIN_IB_PROXY "Build the IB Proxy GIN transport-level tests" OFF)
 
   message("Building rccl unit tests (Installed in /test/rccl-UnitTests)")
   if(ENABLE_MPI_TESTS)
@@ -92,6 +93,8 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
     ${PROJECT_BINARY_DIR}/hipify/gensrc # for rccl_bfloat16.h
     ${PROJECT_BINARY_DIR}/hipify/src # for graph/topo.h
     ${PROJECT_BINARY_DIR}/hipify/src/include/plugin # for recorder tests, nccl_tuner.h
+    ${PROJECT_BINARY_DIR}/hipify/src/transport/net_ib_cast # for net_ib_fault_inject.h, net_ib_cast_inspect.h
+    ${PROJECT_BINARY_DIR}/hipify/src/transport             # for net_ib_limits.h
     ${ROCM_PATH}/include
     ${ROCM_PATH}
   )
@@ -111,6 +114,9 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
   endif()
   if(ENABLE_MPI_TESTS)
     list(APPEND RCCL_COMMON_COMPILE_DEFS MPI_TESTS_ENABLED)
+    if(RCCL_HAS_GIN_IB_PROXY)
+      list(APPEND RCCL_COMMON_COMPILE_DEFS RCCL_HAS_GIN_IB_PROXY)
+    endif()
   endif()
   list(APPEND RCCL_COMMON_COMPILE_DEFS __HIP_PLATFORM_AMD__)
 
@@ -198,14 +204,21 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
 
     set(TEST_FIXTURE_SOURCE_FILES
       BitOpsTests.cpp
-      CommTests.cpp
+      MiscTests.cpp
+      RomeTopoConsensusTests.cpp
       EnqueueCountTests.cpp
+      device/TestOp128.cpp
       common/main_fixtures.cpp
       common/EnvVars.cpp
       common/ProcessIsolatedTestRunner.cpp
+      common/TestChecks.cpp
     )
 
     add_executable(rccl-UnitTestsFixtures ${TEST_FIXTURE_SOURCE_FILES})
+
+    target_include_directories(rccl-UnitTestsFixtures PRIVATE
+      ${PROJECT_BINARY_DIR}/hipify/src/device
+    )
   endif()
 
   # rccl-UnitTestsFixturesDebug: Tests that access internal symbols compiled into
@@ -223,6 +236,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       ProxyTests.cpp
       RcclWrapTests.cpp
       TransportTests.cpp
+      mem_manager/MemManagerTests.cpp
       graph/XmlTests.cpp
       common/main_fixtures.cpp
       common/EnvVars.cpp
@@ -272,9 +286,17 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       transport/P2pMPITests.cpp
       transport/NetMPITests.cpp
       transport/ShmMPITests.cpp
-      transport/NetIbMPITests.cpp
+      transport/NetIbMPI/GeneralTests.cpp
+      transport/NetIbMPI/NicFusionTests.cpp
+      transport/NetIbMPI/CastTests.cpp
+      transport/NetIbMPI/FaultInjectTests.cpp
+      transport/GinMPI/GinMPITests.cpp
+      transport/NetIbMPI/StressTests.cpp
       ImplicitLaunchOrderMPITests.cpp
+      CommMPITests.cpp
       RegistrationMPITests.cpp
+      mem_manager/SuspendResumeMPITests.cpp
+      RevokeMPITests.cpp
     )
 
     add_executable(rccl-UnitTestsMPI ${MPI_TEST_SOURCE_FILES})
@@ -285,6 +307,13 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
     target_include_directories(${test_executable} PRIVATE ${RCCL_COMMON_INCLUDE_DIRS})
     target_compile_definitions(${test_executable} PRIVATE ${RCCL_COMMON_COMPILE_DEFS})
     target_link_libraries(${test_executable} PRIVATE ${RCCL_COMMON_LINK_LIBS})
+    if(BUILD_ADDRESS_SANITIZER)
+      target_compile_options(${test_executable} PRIVATE -fsanitize=address)
+      target_link_options(${test_executable} PRIVATE -fsanitize=address -shared-libasan)
+      if(DEFINED ASAN_RUNTIME_DIR)
+        target_link_options(${test_executable} PRIVATE "LINKER:-rpath,${ASAN_RUNTIME_DIR}")
+      endif()
+    endif()                                                                                                                                                                     
 
     # Add MPI-specific configuration if MPI tests are enabled
     if(ENABLE_MPI_TESTS)

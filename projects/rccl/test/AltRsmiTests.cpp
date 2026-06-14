@@ -23,8 +23,11 @@
 #include <limits>
 #include <filesystem>
 
-// Weak stub for ncclDebugLog: used when librccl.so is not linked.
-// If librccl.so is linked, its strong definition wins and real logging works.
+// Weak stub for ncclDebugLog, required because alt_rsmi.cc uses debug.h macros.
+// Debug builds: ncclDebugLog is exported from librccl.so (-fvisibility=default),
+//   so the strong shared-library definition wins at link time — stub is unused.
+// Release builds: ncclDebugLog is hidden in librccl.so (-fvisibility=hidden),
+//   so it is not exported; this stub provides the symbol and silently drops logs.
 void __attribute__((weak)) ncclDebugLog(ncclDebugLogLevel, unsigned long,
                                         const char*, int, const char*, ...) {}
 

@@ -304,6 +304,7 @@ template <bool useGCR, bool scopeFields> hsa_status_t BlitSdma<useGCR, scopeFiel
     // Release queue resources from the kernel
     auto err = agent_->driver().DestroyQueue(queue_resource_.QueueId);
     assert(err == HSA_STATUS_SUCCESS);
+    (void)err;
     memset(&queue_resource_, 0, sizeof(queue_resource_));
   }
 
@@ -692,7 +693,9 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitPrologue(
   for (size_t i = 0; i < dep_signals.size(); ++i) {
     dep_signals_value[i] = dep_signals[i]->LoadRelaxed();
     if (dep_signals_value[i]) {
+
       if (is_gfx1250_ || is_gfx1260_) {
+
         // 64b poll handles full 64-bit value in a single command.
         num_poll_command++;
       } else {
@@ -702,6 +705,7 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitPrologue(
       }
     }
   }
+
 
   const uint32_t per_poll_size = (is_gfx1250_ || is_gfx1260_) ? poll_64b_command_size_ : poll_command_size_;
   const uint32_t total_poll_command_size = num_poll_command * per_poll_size;
@@ -1477,6 +1481,9 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyBroadcastCommand(
   const uint32_t num_pairs = static_cast<uint32_t>(dsts.size() / 2);
   const bool has_remainder = (dsts.size() % 2) != 0;
 
+  // Total command buffer: broadcast packets for each pair, plus linear packets
+  // for the remainder destination, all multiplied by the number of size chunks.
+
   const size_t broadcast_bytes = num_pairs * num_chunks *
                                  static_cast<size_t>(broadcast_copy_command_size_);
   const size_t linear_cmd_size = linear_copy_command_size();
@@ -1498,6 +1505,40 @@ hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyBroadcastCommand(
                      src, size);
   }
 
+  return SubmitCommand(cmd_buf.data(), total_cmd_size, total_bytes_moved,
+                       dep_signals, out_signal, no_gang);
+}
+
+template <bool useGCR, bool scopeFields>
+hsa_status_t BlitSdma<useGCR, scopeFields>::SubmitLinearCopyB2BCommand(
+    const std::vector<void*>& dsts, const std::vector<const void*>& srcs,
+    const std::vector<size_t>& sizes, std::vector<core::Signal*>& dep_signals,
+    core::Signal& out_signal) {
+  const size_t num_entries = srcs.size();
+  if (num_entries == 0 || dsts.size() != num_entries || sizes.size() != num_entries) {
+    return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+  }
+
+  const size_t max_copy_size = max_single_linear_copy_size_ ? max_single_linear_copy_size_
+                                                            : kMaxSingleCopySize;
+
+  std::vector<uint32_t> chunks(num_entries);
+  size_t total_cmd_size = 0;
+  uint64_t total_bytes_moved = 0;
+  for (size_t i = 0; i < num_entries; i++) {
+    chunks[i] = static_cast<uint32_t>((sizes[i] + max_copy_size - 1) / max_copy_size);
+    total_cmd_size += static_cast<size_t>(chunks[i]) * linear_copy_command_size_;
+    total_bytes_moved += sizes[i];
+  }
+
+  std::vector<char> cmd_buf(total_cmd_size);
+  char* cmd_ptr = cmd_buf.data();
+  for (size_t i = 0; i < num_entries; i++) {
+    BuildCopyCommand(cmd_ptr, chunks[i], dsts[i], srcs[i], sizes[i]);
+    cmd_ptr += static_cast<size_t>(chunks[i]) * linear_copy_command_size_;
+  }
+
+  std::vector<core::Signal*> no_gang;
   return SubmitCommand(cmd_buf.data(), total_cmd_size, total_bytes_moved,
                        dep_signals, out_signal, no_gang);
 }
@@ -1879,7 +1920,7 @@ template <bool useGCR, bool scopeFields>
 void BlitSdma<useGCR, scopeFields>::BuildBroadcastCopyCommand(char* cmd_addr, uint32_t num_copy_command,
                                                   void* dst1, void* dst2,
                                                   const void* src, size_t size) {
-  constexpr size_t kMask = SDMA_PKT_COPY_LINEAR_BROADCAST::kDstAlignMask_;
+  [[maybe_unused]] constexpr size_t kMask = SDMA_PKT_COPY_LINEAR_BROADCAST::kDstAlignMask_;
   assert((reinterpret_cast<uintptr_t>(dst1) & kMask) ==
          (reinterpret_cast<uintptr_t>(dst2) & kMask));
   size_t cur_size = 0;
@@ -1972,7 +2013,7 @@ void BlitSdma<useGCR, scopeFields>::BuildMulticastCopyCommand(
 template <bool useGCR, bool scopeFields>
 void BlitSdma<useGCR, scopeFields>::BuildSwapCopyCommand(char* cmd_addr, uint32_t num_copy_command,
                                             void* addr_a, void* addr_b, size_t size) {
-  constexpr size_t kAlign = SDMA_PKT_COPY_LINEAR_SWAP::kAlignment_;
+  [[maybe_unused]] constexpr size_t kAlign = SDMA_PKT_COPY_LINEAR_SWAP::kAlignment_;
   assert((reinterpret_cast<uintptr_t>(addr_a) & (kAlign - 1)) == 0);
   assert((reinterpret_cast<uintptr_t>(addr_b) & (kAlign - 1)) == 0);
 
@@ -2581,9 +2622,7 @@ template <bool useGCR, bool scopeFields> void BlitSdma<useGCR, scopeFields>::Bui
   assert(cmd_addr != NULL);
   assert(useGCR && "Unsupported SDMA command - GCR.");
 
-  if (agent_->supported_isas()[0]->GetMajorVersion() == 12 &&
-      agent_->supported_isas()[0]->GetMinorVersion() >= 5) {
-
+  if (is_gfx1250_) {
     SDMA_PKT_GCR_GFX1250* addr = reinterpret_cast<SDMA_PKT_GCR_GFX1250*>(cmd_addr);
     memset(addr, 0, sizeof(SDMA_PKT_GCR_TAG_GFX1250));
     addr->HEADER_UNION.op = SDMA_OP_GCR;

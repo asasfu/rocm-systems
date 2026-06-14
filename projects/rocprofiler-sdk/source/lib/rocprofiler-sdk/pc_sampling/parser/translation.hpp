@@ -343,7 +343,7 @@ copySample<GFX12, rocprofiler_pc_sampling_record_stochastic_v0_t>(const void* sa
 
     // Extracting data from the perf_snapshot_data register
     auto perf_snapshot_data = sample_.perf_snapshot_data;
-    // The sample is valid  if perf_snapshot_data.valid == 1
+    // The sample is valid if perf_snapshot_data.valid == 1
     auto valid = static_cast<bool>(EXTRACT_BITS(perf_snapshot_data, 0, 0));
     if(!valid)
     {
@@ -426,13 +426,10 @@ inline rocprofiler_pc_sampling_record_stochastic_v0_t
 copySample<GFX1250, rocprofiler_pc_sampling_record_stochastic_v0_t>(const void* sample)
 {
     // Differences compared to the GFX12:
-    // - GFX12 OTHER inst_type replaced with the GFX1250 VALU_DPMACC (only on MI430)
-    // - SAMPLING_LOCK_ERR instroduced in the GFX1250 and means:
+    // - SAMPLING_LOCK_ERR introduced in the GFX1250 and means:
     //   A wave tried taking a snapshot but was unable to as the previous snapshot had not yet been
     //   read.
     // - ARB_STATE_* begins at different offset
-    // - ARB_STATE_ISSUE/STALL_VALU_ARB_B will be introduced in MI430,
-    //   but we're not allowed to talk about this in the future.
     // - XCNT, ASYNC_CNT, TENSOR_CNT introduced in GFX1250.
     // - GFX1250 uses chiplets
     // Due to all differences and potential adaptation to the future subfamily members,
@@ -457,7 +454,7 @@ copySample<GFX1250, rocprofiler_pc_sampling_record_stochastic_v0_t>(const void* 
     }
 
     auto ret = copySampleHeader<rocprofiler_pc_sampling_record_stochastic_v0_t>(sample_);
-    // GFX1250 has chpiplets
+    // GFX1250 has chiplets
     copyChipletId<GFX1250>(ret, sample_);
     // ROCr uses same hw_id struct for both GFX12 and GFX1250.
     copyHwId<GFX12>(ret.hw_id, sample_.hw_id);
@@ -510,7 +507,7 @@ copySample<GFX1250, rocprofiler_pc_sampling_record_stochastic_v0_t>(const void* 
     // counters available in perf_snapshot_data
     ret.memory_counters.async_cnt  = EXTRACT_BITS(perf_snapshot_data, 25, 20);
     ret.memory_counters.tensor_cnt = EXTRACT_BITS(perf_snapshot_data, 31, 26);
-    // counters available in perf_snapshot_data
+    // counters available in perf_snapshot_data1
     ret.memory_counters.xnack_cnt = EXTRACT_BITS(perf_snapshot_data1, 31, 26);
 
     // ensure that the wave_id of snapshot_data matches the hw_id.wave_id

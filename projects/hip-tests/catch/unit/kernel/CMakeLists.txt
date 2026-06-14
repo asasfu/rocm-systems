@@ -77,6 +77,7 @@ if(HIP_PLATFORM MATCHES "amd")
       hipExtLaunchKernelGGLBasic.cc
       hipSetupArgument.cc
       hipConfigureCall.cc
+      hipExtDynDataPrefetch.cc
   )
   set(TEST_SRC ${TEST_SRC} ${AMD_SRC})
 endif()

@@ -91,6 +91,7 @@ template<typename T> __global__ void fma_throughput(vec4<T>* buffer, int count)
 #if ROC_FLOP_COMPILE_MFMA_KERNELS
 __global__ void matmul_fp16_throughput(vec4<float16>* inputs, vec4<float>* outputs, int count)
 {
+#if __has_builtin(__builtin_amdgcn_mfma_f32_16x16x16f16)
     int grid_size = gridDim.x * blockDim.x;
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -116,10 +117,12 @@ __global__ void matmul_fp16_throughput(vec4<float16>* inputs, vec4<float>* outpu
     }
 
     outputs[tid] = accum0 + accum1 + accum2 + accum3;
+#endif
 }
 
 __global__ void matmul_fp32_throughput(float* inputs, vec4<float>* outputs, int count)
 {
+#if __has_builtin(__builtin_amdgcn_mfma_f32_16x16x4f32)
     int grid_size = gridDim.x * blockDim.x;
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -145,6 +148,7 @@ __global__ void matmul_fp32_throughput(float* inputs, vec4<float>* outputs, int 
     }
 
     outputs[tid] = accum0 + accum1 + accum2 + accum3;
+#endif
 }
 #endif // MFMA block
 
@@ -152,6 +156,8 @@ __global__ void matmul_fp32_throughput(float* inputs, vec4<float>* outputs, int 
 #if ROC_FLOP_COMPILE_SMFMAC_KERNELS
 __global__ void sparse_matmul_fp16_throughput(vec4<float16>* input0, vec8<float16>* input1, vec4<float>* outputs, int count)
 {
+#if __has_builtin(__builtin_amdgcn_smfmac_f32_16x16x32_f16) && \
+    !defined(__gfx908__) && !defined(__gfx90a__)
     int grid_size = gridDim.x * blockDim.x;
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -184,6 +190,7 @@ __global__ void sparse_matmul_fp16_throughput(vec4<float16>* input0, vec8<float1
     }
 
     outputs[tid] = accum0 + accum1 + accum2 + accum3;
+#endif
 }
 #endif // SMFMAC block
 
@@ -503,16 +510,12 @@ Result run_tests(int device, int runs, uint32_t mask)
     if(mask & MATRIX_FP16) {
         if(has_mfma) {
             res.mfma_fp16 = matmul_throughput_test<float16, float>(device, 4096, runs);
-        } else {
-            res.mfma_fp16 = 0;
         }
     }
 
     if(mask & MATRIX_FP32) {
         if(has_mfma) {
             res.mfma_fp32 = matmul_throughput_test<float, float>(device, 4096, runs);
-        } else {
-            res.mfma_fp32 = 0;
         }
     }
 #else
@@ -532,8 +535,6 @@ Result run_tests(int device, int runs, uint32_t mask)
         has_smfmac = has_smfmac && !rocflop_gfx_bypass_cdna_matrix_kernels(arch.gfx_id_hex);
         if(has_smfmac) {
             res.smfmac_fp16 = sparse_matmul_throughput_test<float16, float>(device, 4096, runs);
-        } else {
-            res.smfmac_fp16 = 0;
         }
     }
 #else

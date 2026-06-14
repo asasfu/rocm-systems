@@ -38,8 +38,6 @@ class TokenGenerator : public mi400::TokenGenerator
 {
 public:
     TokenGenerator(const uint8_t* _buffer, size_t size, int64_t _globaltime, int64_t _base_time);
-
-    int64_t getTime(RdnaType type, bool& PL, int64_t& rt) override;
 };
 
 } // namespace gfx13

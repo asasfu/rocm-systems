@@ -60,25 +60,24 @@ TEST(GFX13LookupTableTest, InheritsFromMI400)
     gfx13::TokenLookupTable lookup;
 
     // Test inherited encodings from MI400
-    EXPECT_EQ(lookup.lookup(0b0010), RdnaType::INST);
-    EXPECT_EQ(lookup.lookup(0b011), RdnaType::VALU_INST);
-    EXPECT_EQ(lookup.lookup(0b1000001), RdnaType::WAVE_END);
+    EXPECT_EQ(lookup.lookup(0b0010).type, RdnaType::INST);
+    EXPECT_EQ(lookup.lookup(0b011).type, RdnaType::VALU_INST);
+    EXPECT_EQ(lookup.lookup(0b1000001).type, RdnaType::WAVE_END);
 }
 
 TEST(GFX13LookupTableTest, GetTimeForTimestamp)
 {
     gfx13::TokenLookupTable lookup;
 
-    gfx12::timestamp_type ts{};
+    gfx13::longtime_type ts{};
     ts.pl = 0;
-    ts.rt = 0;
     ts.time = 1000;
 
     bool packetlost = false;
     int64_t realtime = 0;
     int64_t cur_time = 500;
 
-    auto result = lookup.getTime(RdnaType::TIMESTAMP, ts.raw, cur_time, packetlost, realtime);
+    auto result = lookup.getTime(lookup.lookup(0b00000001), ts.raw, cur_time, packetlost, realtime);
     EXPECT_EQ(result, ts.time + cur_time);
 }
 
