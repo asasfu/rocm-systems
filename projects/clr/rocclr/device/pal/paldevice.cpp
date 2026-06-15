@@ -504,7 +504,6 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
   info_.maxGridDim_[2] = std::numeric_limits<uint16_t>::max();
 
   info_.localMemType_ = CL_LOCAL;
-  info_.localMemSize_ = palProp.gfxipProperties.shaderCore.ldsSizePerCu;
   info_.extensions_ = getExtensionString();
 
   // OpenCL1.2 device info fields
@@ -580,6 +579,12 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
     info_.globalMemChannelBanks_ = 4;
     info_.globalMemChannelBankWidth_ = isa().memChannelBankWidth();
     info_.localMemSizePerCU_ = palProp.gfxipProperties.shaderCore.ldsSizePerCu;
+    info_.localMemSize_ = palProp.gfxipProperties.shaderCore.ldsSizePerCu;
+    if (info_.shareLocalMemInWGP_) {
+      info_.localMemSizePerCU_ *= 2;
+      info_.localMemSize_ *= 2;
+    }
+
     info_.localMemBanks_ = isa().localMemBanks();
 
     info_.timeStampFrequency_ = 1000000;
@@ -620,7 +625,6 @@ void NullDevice::fillDeviceInfo(const Pal::DeviceProperties& palProp,
     info_.largeBar_ = false;
 #endif  // _WIN64
   }
-  info_.shareLocalMemInWGP_ = isa().versionMajor() >= 13;
   info_.virtualMemoryManagement_ = true;
   info_.gpuDirectRdmaWithHipVmmSupported_ =
       info_.virtualMemoryManagement_ && info_.dmabufSupported_;

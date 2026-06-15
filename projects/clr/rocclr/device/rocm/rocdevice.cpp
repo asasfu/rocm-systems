@@ -1238,6 +1238,10 @@ bool Device::populateOCLDeviceConstants() {
 
   info_.localMemSizePerCU_ = group_segment_size;
   info_.localMemSize_ = group_segment_size;
+  if (info_.shareLocalMemInWGP_) {
+    info_.localMemSizePerCU_ *= 2;
+    info_.localMemSize_ *= 2;
+  }
 
   info_.maxWorkItemDimensions_ = 3;
 

@@ -919,6 +919,7 @@ size_t GetMaxStackSize(const std::string& procName) {
 bool Device::create(const Isa& isa) {
   assert(!vaCacheAccess_ && !vaCacheMap_);
   isa_ = &isa;
+  info_.shareLocalMemInWGP_ = isa_->versionMajor() >= 13;
   // VA Cache Ops Lock
   vaCacheAccess_ = new std::recursive_mutex();
   if (nullptr == vaCacheAccess_) {

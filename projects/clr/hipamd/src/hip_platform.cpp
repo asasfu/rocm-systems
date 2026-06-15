@@ -80,7 +80,7 @@ hipError_t ihipOccupancyMaxActiveBlocksPerMultiprocessor(
 
   const size_t total_used_lds = wrkGrpInfo->usedLDSSize_ + dynamicSMemSize;
   const int lds_occupancy_wgs = total_used_lds != 0
-      ? static_cast<int>(device.info().localMemSize_ / total_used_lds)
+      ? static_cast<int>(wrkGrpInfo->availableLDSSize_ / total_used_lds)
       : INT_MAX;
   // Calculate how many blocks of inputBlockSize we can fit per CU
   // Need to align with hardware wavefront size. If they want 65 threads, but

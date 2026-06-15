@@ -831,10 +831,10 @@ bool Kernel::GetAttrCodePropMetadata() {
   // Set the workgroup information for the kernel
   workGroupInfo_.availableSGPRs_ = 104;
   workGroupInfo_.availableVGPRs_ = 256;
-  if (device().info().shareLocalMemInWGP_ && workGroupInfo_.isWGPMode_) {
-    workGroupInfo_.availableLDSSize_ = device().info().localMemSizePerCU_ * 2;
-  } else {
-    workGroupInfo_.availableLDSSize_ = device().info().localMemSizePerCU_;
+
+  workGroupInfo_.availableLDSSize_ = device().info().localMemSizePerCU_;
+  if (device().info().shareLocalMemInWGP_ && !workGroupInfo_.isWGPMode_) {
+    workGroupInfo_.availableLDSSize_ /= 2;
   }
   InitParameters(kernelMetaNode);
 
