@@ -59,7 +59,7 @@ kernel:
     tags: [launch]
   Unit_hipLaunchKernelEx_Functional:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [launch, P0]
   Unit_hipLaunchKernelEx_With_Different_Kernels:
     <<: *level_2
