@@ -32,5 +32,4 @@ multiThread:
     tags: [stream, P0]
   Unit_hipMultiThreadStreams2:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [stream, P0]

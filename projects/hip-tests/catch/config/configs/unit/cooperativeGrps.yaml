@@ -139,12 +139,12 @@ cooperativeGrps:
   Unit_coalesced_groups_shfl_down:
     <<: *level_2
     # Below tests hang in Jenkins PSDB
-    disabled: [amd_windows, gfx1310, gfx1370]
+    disabled: [amd_windows]
     tags: [cooperative, ops]
   Unit_coalesced_groups_shfl_up:
     <<: *level_2
     # Below tests hang in Jenkins PSDB
-    disabled: [amd_windows, gfx1310, gfx1370]
+    disabled: [amd_windows]
     tags: [cooperative, ops]
   Unit_Coalesced_Group_Getters_Positive_Basic:
     <<: *level_2
@@ -192,47 +192,36 @@ cooperativeGrps:
     tags: [cooperative, groups]
   Unit_tiled_groups_metagrp_basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_coalesced_groups_metagrp_basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_cg_binary_part:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_ballot:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_binary_part_ballot:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_any:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_coal_all:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_match_any_coal:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coopgroups_match_all_coal:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coop_grids_split_barrier:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_coop_thread_block_split_barrier:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [cooperative, ops]
   Unit_Thread_Block_Coalesced_Reduce_arithmetic:
     <<: *level_2

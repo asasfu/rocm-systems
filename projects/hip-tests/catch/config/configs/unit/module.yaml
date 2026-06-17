@@ -32,7 +32,7 @@ module:
   Unit_hipModuleLaunchKernel_Negative_Parameters:
     <<: *level_2
     # Below tests are failing PSDB
-    disabled: [gfx1310, gfx1370, amd_windows, amd_linux]
+    disabled: [amd_windows, amd_linux]
     tags: [launch]
   Unit_hipModuleLaunchKernel_Fntl:
     <<: *level_2
@@ -41,7 +41,7 @@ module:
   Unit_hipModuleLaunchKernel_Verify_Capture:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1310, gfx1370]
+    disabled: [amd_windows]
     tags: [launch]
   Unit_hipExtLaunchKernelGGL_Functional:
     <<: *level_2
@@ -56,19 +56,16 @@ module:
   Unit_hipModuleLoadDataEx_Negative_Parameters:
     <<: *level_2
     # Below tests tests fail in PSDB
-    disabled: [gfx1310, gfx1370, nvidia_windows]
+    disabled: [nvidia_windows]
     tags: [load]
   Unit_hipGetFuncBySymbol_PositiveTest:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipGetFuncBySymbol_NegativeTests:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipGetFuncBySymbol_InChildProcess:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipGetFuncBySymbol_MultiDev:
     <<: *level_2
@@ -83,7 +80,6 @@ module:
     tags: [function, P0]
   Unit_hipModuleGetFunction_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipModuleGetFunction_DiffDevice:
     <<: *level_2
@@ -91,11 +87,9 @@ module:
     tags: [function, multigpu]
   Unit_KerArgOptimization_Saxpy:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipGetProcAddress_ModuleApis:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [resource]
   Unit_hipGetProcAddress_ModuleApisLoadData:
     <<: *level_2
@@ -107,11 +101,9 @@ module:
     tags: [resource]
   Unit_hipGetProcAddress_ModuleApisOccupancy:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [resource]
   Unit_hipFuncGetAttribute_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipFuncGetAttribute_Negative_Parameters:
     <<: *level_2
@@ -121,15 +113,12 @@ module:
     tags: [launch, P0]
   Unit_hipHccModuleLaunchKernel_NegTst:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [launch]
   Unit_hipModuleLoadFatBinary_NegativeTsts:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [load]
   Unit_hipModuleLoadFatBinary_PosiiveTsts:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [load]
   Unit_hipDrvLaunchKernelEx_NegTsts:
     <<: *level_2
@@ -154,7 +143,6 @@ module:
     tags: [launch]
   Unit_hipExtLaunchMultiKernelMultiDevice_Functional:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [launch]
   Unit_hipModuleLoadData_Positive_Basic:
     <<: *level_2
@@ -164,11 +152,10 @@ module:
   Unit_hipModuleLoadData_Negative_Parameters:
     <<: *level_2
     # Below tests tests fail in PSDB
-    disabled: [gfx1310, gfx1370, nvidia_windows]
+    disabled: [nvidia_windows]
     tags: [load]
   Unit_hipModuleLoadData_Functional:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [load]
   Unit_hipModuleLoad_Positive_Basic:
     <<: *level_2
@@ -177,26 +164,24 @@ module:
     tags: [load, P0]
   Unit_hipModuleLoad_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [load]
   Unit_hipModuleLoad_Negative_Load_From_A_File_That_Is_Not_A_Module:
     <<: *level_2
     # Below tests tests fail in PSDB
-    disabled: [gfx1310, gfx1370, nvidia_windows]
+    disabled: [nvidia_windows]
     tags: [load]
   Unit_hipFuncSetSharedMemConfig_functional:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipModuleUnload_Negative_Module_Is_Nullptr:
     <<: *level_2
     # Note: Test disabled due to defect - EXSWHTEC-152
-    disabled: [amd_windows, gfx1310, gfx1370]
+    disabled: [amd_windows]
     tags: [load]
   Unit_hipModuleUnload_Negative_Double_Unload:
     <<: *level_2
     # Below test fails in external CI for PR https://github.com/ROCm-Developer-Tools/hip-tests/pull/215
-    disabled: [gfx1310, gfx1370, nvidia_linux, nvidia_windows]
+    disabled: [nvidia_linux, nvidia_windows]
     tags: [load]
   Unit_hipModuleUnload_basic:
     <<: *level_2
@@ -209,32 +194,27 @@ module:
     tags: [function]
   Unit_hipModuleGetFunctionCount_NegativeTsts:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipModuleGetGlobal_Functional:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipModuleLoad_MultProcess_MultGPU:
     <<: *level_2
-    disabled: [gfx1250, gfx1310, gfx1370]
+    disabled: [gfx1250]
     tags: [load]
   Unit_hip_linker_spirv_input:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1310, gfx1370]
+    disabled: [amd_windows]
     tags: [resource]
   Unit_hipLinkCreate_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [resource]
   Unit_hipLinkCreate_AddLinker_CUDA_only_options:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [resource]
   Unit_hipLinkAddFile_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [resource]
   Unit_hipModuleLaunchCooperativeKernelMultiDevice_Positive_Basic:
     <<: *level_2
@@ -253,30 +233,27 @@ module:
     disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
   Unit_hipModuleGetGlobal_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [resource]
   Unit_hipModuleGetGlobal_Positive_Parameters:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [resource]
   Unit_hipModuleGetGlobal_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [resource]
   Unit_hipModuleGetGlobal_Negative_Hmod_Is_Nullptr:
     <<: *level_2
     # Note: Test disabled due to defect - EXSWHTEC-163
-    disabled: [amd_windows, gfx1310, gfx1370]
+    disabled: [amd_windows]
     tags: [resource]
   Unit_hipModuleGetGlobal_Negative_Name_Is_Empty_String:
     <<: *level_2
     # Note: Test disabled due to defect - EXSWHTEC-164
-    disabled: [amd_windows, gfx1310, gfx1370]
+    disabled: [amd_windows]
     tags: [resource]
   Unit_hipModuleGetGlobal_Negative_Dptr_And_Bytes_Are_Nullptr:
     <<: *level_2
     # Note: Test disabled due to defect - EXSWHTEC-165
-    disabled: [amd_windows, gfx1310, gfx1370]
+    disabled: [amd_windows]
     tags: [resource]
   Unit_hipModuleGetGlobal_DiffDevice:
     <<: *level_2
@@ -284,27 +261,26 @@ module:
     tags: [multigpu, resource]
   Unit_hipModule_Functional:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [load]
   Unit_hipModuleGetTexRef_Positive_Basic:
     <<: *level_2
     # (amd_windows) Below tests are failing PSDB
     # (nvidia_windows) Disabling tests which no longer behave the same on nvidia platform
-    disabled: [gfx1310, gfx1370, amd_windows, nvidia_windows]
+    disabled: [amd_windows, nvidia_windows]
     tags: [resource, image]
   Unit_hipModuleGetTexRef_Negative_Parameters:
     <<: *level_2
-    disabled: [amd_windows, gfx1250, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1250]
     # Rock_Window_Failures_on_gfx1151
     tags: [resource, image]
   Unit_hipModuleGetTexRef_Negative_Hmod_Is_Nullptr:
     <<: *level_2
-    disabled: [amd_windows, gfx1250, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1250]
     # Note: Test disabled due to defect - EXSWHTEC-166
     tags: [resource, image]
   Unit_hipModuleGetTexRef_Negative_Name_Is_Empty_String:
     <<: *level_2
-    disabled: [amd_windows, gfx1250, gfx1310, gfx1370]
+    disabled: [amd_windows, gfx1250]
     # Note: Test disabled due to defect - EXSWHTEC-167
     tags: [resource, image]
   Unit_hipFuncSetAttribute_Basic:
@@ -312,16 +288,14 @@ module:
     tags: [function, P0]
   Unit_hipExtModuleLaunchKernel_CheckCodeObjAttr:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [launch]
   Unit_hipExtModuleLaunchKernel_NonUniformWorkGroup:
     <<: *level_2
     # Below tests fail in external CI for PR https://github.com/ROCm-Developer-Tools/hip-tests/pull/96
-    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl]
     tags: [launch]
   Unit_hipExtModuleLaunchKernel_UniformWorkGroup:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [launch]
   Unit_hipExtModuleLaunchKernel_Positive_Parameters:
     <<: *level_2
@@ -331,7 +305,7 @@ module:
   Unit_hipExtModuleLaunchKernel_Negative_Parameters:
     <<: *level_2
     # Below tests are failing PSDB
-    disabled: [gfx1310, gfx1370, amd_windows, amd_linux]
+    disabled: [amd_windows, amd_linux]
     tags: [launch]
   Unit_hipExtModuleLaunchKernel_Functional:
     <<: *level_2
@@ -340,7 +314,6 @@ module:
     tags: [launch, P0]
   Unit_hipFuncGetAttributes_basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [function]
   Unit_hipExtModuleLaunchKernel_AnyOrder:
     <<: *level_2

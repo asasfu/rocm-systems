@@ -29,7 +29,6 @@ kernel:
     tags: [language, P1]
   Unit_hipLaunchParm:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [launch, P1]
   Unit_hipLaunchParmFunctor:
     <<: *level_2
@@ -120,7 +119,6 @@ kernel:
     disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Validate_User_Sgpr_Count:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
   Unit_hipLaunchKernelEx_ProgrammaticLaunch:
     <<: *level_2
     tags: [launch, P1]
