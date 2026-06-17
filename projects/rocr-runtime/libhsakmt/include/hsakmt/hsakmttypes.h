@@ -1567,19 +1567,6 @@ typedef struct _HsaHandleImportDesc {
     HSAuint32 metadata; // Used for IPC handles
 } HsaHandleImportDesc;
 
-typedef struct _HsaHandleImportDesc {
-    HsaAMDGPUDeviceHandle device_handle; // GPU device handle (used for import only)
-    HSAint64 fd; // dmabuf fd
-    HsaExternalHandleType type; // handle type
-    union {
-        HSAint32 dmabuf_fd; // dmabuf fd
-        HsaMemoryObjectHandle buf_handle; // Driver handle
-        HsaFabricHandle fabric;
-    };
-    void *mem; // existing buffer address (for windows and WSL only)
-    HSAuint32 metadata; // Used for IPC handles
-} HsaHandleImportDesc;
-
 typedef struct _HsaHandleImportResult {
     HsaMemoryObjectHandle buf_handle; // Buffer Object handle
     int dmabuf_fd;

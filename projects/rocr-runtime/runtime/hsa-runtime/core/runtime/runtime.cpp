@@ -820,10 +820,6 @@ hsa_status_t Runtime::GetSystemInfo(hsa_system_info_t attribute, void* value) {
       *((bool*)value) = core::Runtime::runtime_singleton_->XnackEnabled();
       break;
     }
-    case HSA_AMD_SYSTEM_INFO_FABRIC_HANDLES_SUPPORTED: {
-      *((bool*)value) = true; /* query into KMD not defined yet */
-      break;
-    }
     case HSA_AMD_SYSTEM_INFO_EXT_VERSION_MAJOR: {
       *((uint16_t*)value) = HSA_AMD_INTERFACE_VERSION_MAJOR;
       break;

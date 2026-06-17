@@ -1835,13 +1835,6 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
 
   bool use_body_signals = !coordinator->PlatformAtomicSupport();
 
-  // On gfx1250 with shared out_signal, use WaitSignal body to fuse
-  // poll+copy+signal into a single packet per body.
-  const bool waitsignal_body =
-      coordinator->IsGfx1250() && !use_body_signals;
-
-  // Indirect bodies only implement fused packets
-  if (is_indirect && !waitsignal_body) return HSA_STATUS_ERROR_INVALID_ARGUMENT;
 
   // Allocate prologue synchronization signal
   core::unique_signal_ptr prologue_signal(new core::DefaultSignal(1));
