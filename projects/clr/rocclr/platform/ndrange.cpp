@@ -8,7 +8,7 @@
 
 namespace amd {
 
-NDRange::NDRange(size_t dimensions) : dimensions_(dimensions) { *this = 0; }
+NDRange::NDRange(size_t dimensions) : dimensions_(dimensions), data_{0, 0, 0} {}
 
 NDRange::NDRange(const NDRange& space) : dimensions_(space.dimensions_) { *this = space; }
 

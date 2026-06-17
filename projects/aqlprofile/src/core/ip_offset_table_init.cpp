@@ -60,11 +60,15 @@ class locked_ip_offset_table_cache {
 
       if (auto gfxip_prefix = gfxip.substr(0, 4); gfxip_prefix == "gfx9")
         table = vega20_reg_base_init();
-      else {
-        if (auto gfxip_prefix = gfxip.substr(0, 5);
-            gfxip_prefix == "gfx10" || gfxip_prefix == "gfx11" || gfxip_prefix == "gfx12") {
+      else
+      {
+        gfxip_prefix = gfxip.substr(0, 5);
+        if (gfxip_prefix == "gfx10" || gfxip_prefix == "gfx11" || gfxip_prefix == "gfx12" || gfxip_prefix == "gfx13")
+        {
           table = navi_ip_offset_table_discovery_sysfs(agent_info->domain, agent_info->bdf_id);
-          if (!table) table = sienna_cichlid_reg_base_init();
+          if (!table) {
+            table = sienna_cichlid_reg_base_init();
+          }
         }
       }
 
@@ -96,3 +100,4 @@ const reg_base_offset_table* acquire_ip_offset_table(const AgentInfo* agent_info
   }
   return ip_offset_table;
 }
+

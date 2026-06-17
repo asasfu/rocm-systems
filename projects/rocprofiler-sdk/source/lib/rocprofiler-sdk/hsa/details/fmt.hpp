@@ -259,6 +259,33 @@ struct formatter<hsa_amd_ais_file_handle_t>
 #endif
 #if HSA_AMD_EXT_API_TABLE_STEP_VERSION >= 0x0A
 template <>
+struct formatter<hsa_fabric_handle_t>
+{
+    // No custom format specifiers for now
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(hsa_fabric_handle_t const& h, FormatContext& ctx) const
+    {
+        auto out = ctx.out();
+        fmt::format_to(out, "{{handle=");
+
+        // Print as 16 hex bytes separated by ':'
+        for(int i = 0; i < 16; ++i)
+        {
+            if(i != 0) fmt::format_to(out, ":");
+            fmt::format_to(out, "{:02x}", static_cast<unsigned>(h.handle[i]));
+        }
+
+        return fmt::format_to(out, "}}");
+    }
+};
+
+template <>
 struct formatter<hsa_amd_memory_copy_op_type_t>
 {
     template <typename ParseContext>

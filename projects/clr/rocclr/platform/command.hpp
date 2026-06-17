@@ -1353,6 +1353,7 @@ class NDRangeKernelCommand : public Command {
     CooperativeGroups = 0x01,
     CooperativeMultiDeviceGroups = 0x02,
     AnyOrderLaunch = 0x04,
+    DispatchAheadProgrammatic = 0x08,  // Kernel can be launched ahead (programmatic dependent launch)
   };
 
   //! Construct an ExecuteKernel command
@@ -1398,6 +1399,11 @@ class NDRangeKernelCommand : public Command {
 
   //! Returns extra Param, set when using anyorder launch
   bool getAnyOrderLaunchFlag() const { return (extraParam_ & AnyOrderLaunch) ? true : false; }
+
+  //! Returns true when dispatch can be launched ahead (programmatic dependent launch; set AQL.DispatchAheadProgrammatic)
+  bool getDispatchAheadProgrammaticFlag() const {
+    return (extraParam_ & DispatchAheadProgrammatic) ? true : false;
+  }
 
   //! Return the current grid ID for multidevice launch
   uint32_t gridId() const { return gridId_; }

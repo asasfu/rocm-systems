@@ -478,12 +478,12 @@ void HsaApiTable::UpdateAmdExts() {
   amd_ext_api.hsa_amd_ais_file_read_fn = AMD::hsa_amd_ais_file_read;
   amd_ext_api.hsa_amd_counted_queue_acquire_fn = AMD::hsa_amd_counted_queue_acquire;
   amd_ext_api.hsa_amd_counted_queue_release_fn = AMD::hsa_amd_counted_queue_release;
-  amd_ext_api.hsa_amd_svm_discard_batch_async_fn = AMD::hsa_amd_svm_discard_batch_async;
   amd_ext_api.hsa_amd_signal_wait_all_fn = AMD::hsa_amd_signal_wait_all;
   amd_ext_api.hsa_amd_memory_get_preferred_copy_engine_fn = AMD::hsa_amd_memory_get_preferred_copy_engine;
   amd_ext_api.hsa_amd_portable_export_dmabuf_v2_fn = AMD::hsa_amd_portable_export_dmabuf_v2;
   amd_ext_api.hsa_amd_memory_async_batch_copy_fn = AMD::hsa_amd_memory_async_batch_copy;
   amd_ext_api.hsa_amd_agent_preload_fn = AMD::hsa_amd_agent_preload;
+  amd_ext_api.hsa_amd_svm_discard_batch_async_fn = AMD::hsa_amd_svm_discard_batch_async;
   amd_ext_api.hsa_amd_signal_get_event_id_fn = AMD::hsa_amd_signal_get_event_id;
   amd_ext_api.hsa_amd_external_semaphore_handle_open_fn  = AMD::hsa_amd_external_semaphore_handle_open;
   amd_ext_api.hsa_amd_external_semaphore_handle_close_fn = AMD::hsa_amd_external_semaphore_handle_close;

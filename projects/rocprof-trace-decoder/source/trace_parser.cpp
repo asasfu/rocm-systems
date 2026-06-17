@@ -31,6 +31,8 @@
 #include "gfx11/gfx11wave.h"
 #include "gfx12/gfx12token.h"
 #include "gfx12/gfx12wave.h"
+#include "gfx13/gfx13token.h"
+#include "gfx13/gfx13wave.h"
 #include "gfx9/gfx9token.h"
 #include "gfx9/gfx9wave.h"
 #include "mi400/mi400token.h"
@@ -115,6 +117,19 @@ std::unique_ptr<SQTTParser> AnalyseBinary_MI400_internal(
     return parser;
 }
 
+std::unique_ptr<SQTTParser> AnalyseBinary_gfx13_internal(
+    CppReturnInfo& info, const uint8_t* tokendata, uint64_t buffersize, class Stitcher& stitch
+)
+{
+    stitch.setgfxip(13);
+
+    auto generator = gfx13::TokenGenerator(tokendata, buffersize, 0, 0);
+    auto parser = std::make_unique<RDNASQTParser>();
+    parser->sqtt_simd_analysis(info, generator, stitch);
+
+    return parser;
+}
+
 /*
 void applyGenerator(
     CppReturnInfo& info,
@@ -172,7 +187,9 @@ std::unique_ptr<SQTTParser> AnalyseBinary_internal(
         {
             auto hw_header = *reinterpret_cast<const header_type*>(buffer);
 
-            if (hw_header.version == 5)
+            if (hw_header.version == 6)
+                return AnalyseBinary_gfx13_internal(info, buffer, BUFFER_SIZE, stitch);
+            else if (hw_header.version == 5)
                 return AnalyseBinary_MI400_internal(info, buffer, BUFFER_SIZE, stitch);
             else if (hw_header.version == 4)
                 return AnalyseBinary_GFX12_internal(info, buffer, BUFFER_SIZE, stitch);

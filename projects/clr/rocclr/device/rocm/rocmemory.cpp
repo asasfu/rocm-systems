@@ -807,7 +807,8 @@ bool Buffer::create(bool alloc_local) {
     if (memFlags & ROCCLR_MEM_INTERPROCESS) {
       // if interprocess flag is set, then the memory is importable.
       if (!dev().ImportShareableHSAHandle(owner()->getSvmPtr(),
-                                          &owner()->getUserData().hsa_handle)) {
+                                          &owner()->getUserData().hsa_handle,
+                                          owner()->getUserData().hsa_handle_type)) {
         LogPrintfError("Importing Shareable Memory failed with os_handle: 0x%x",
                        owner()->getSvmPtr());
         return false;
@@ -836,6 +837,13 @@ bool Buffer::create(bool alloc_local) {
 
     if (isFineGrain && !(memFlags & CL_MEM_VA_RANGE_AMD)) {
       // Use CPU direct access for the fine grain buffer
+      flags_ |= HostMemoryDirectAccess;
+    }
+
+    // FFM/DTIF fast-copy: when enabled, host can directly access plain device
+    // allocations so hipMemcpy can short-circuit to a host memcpy in CLR
+    // (skipping the rocclr-emitted blit/init kernel).
+    if (HSA_ENABLE_DTIF_FAST_COPY) {
       flags_ |= HostMemoryDirectAccess;
     }
 

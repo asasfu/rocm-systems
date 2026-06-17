@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palPipelineAbi.h
@@ -51,6 +28,7 @@ constexpr uint8  ElfAbiVersionAmdgpuHsaV6 = 4;  ///< ELFABIVERSION_AMDGPU_HSA_V6
 constexpr uint8  ElfAbiVersionAmdgpuHsaV7 = 5;  ///< ELFABIVERSION_AMDGPU_HSA_V7
 constexpr uint8  ElfAbiVersionAmdgpuPal   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 
+
 constexpr uint32 MetadataNoteType                = 32;   ///< NT_AMDGPU_METADATA
 constexpr uint64 PipelineShaderBaseAddrAlignment = 256;  ///< Base address alignment for shader stage entry points on
                                                          ///  AMD GPUs.
@@ -67,9 +45,15 @@ enum class AmdGpuMachineType : uint8
     Gfx1010 = 0x33,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1010
     Gfx1011 = 0x34,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1011
     Gfx1012 = 0x35,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1012
+#if PAL_BUILD_NAVI21_LITE
+    Gfx1020 = 0xfd,  ///< Tentative.
+#endif
     Gfx1030 = 0x36,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1030
     Gfx1031 = 0x37,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1031
     Gfx1032 = 0x38,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1032
+#if PAL_BUILD_VAN_GOGH
+    Gfx1033 = 0x39,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1033
+#endif
     Gfx1034 = 0x3e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1034
     Gfx1035 = 0x3d,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1035
     Gfx1036 = 0x45,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1036
@@ -79,13 +63,47 @@ enum class AmdGpuMachineType : uint8
     Gfx1103 = 0x44,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1103
     Gfx1150 = 0x43,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1150
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 945
+#if PAL_CLOSED_SOURCE
+    Gfx115FFFF = 0xF7,  //# Strix A0. Temporary ID
+#endif
 #endif
     Gfx1151 = 0x4A,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1151
     Gfx1152 = 0x55,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1152
     Gfx1153 = 0x58,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1153
+#if PAL_BUILD_MEDUSA1
+#if PAL_CLOSED_SOURCE
+    Gfx115FFFE = 0xF0,  ///< Medusa A0. Temporary ID
+#endif
+    Gfx1170    = 0x5D,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1170
+#endif
+#if PAL_BUILD_MEDUSA2
+    Gfx1171 = 0x5E,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1171
+#endif
+#if PAL_BUILD_MEDUSA3
+    Gfx1172 = 0x5C,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1155 (tentative)
+#endif
     Gfx1200   = 0x48,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1200
     Gfx1201   = 0x4E,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1201
+#if PAL_CLOSED_SOURCE
+    Gfx12FFFF = 0xF4,  //# Navi44 A0. Proposed ID
+    Gfx12FFFE = 0xF3,  //# Navi48 A0. Proposed ID
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 958
+#if PAL_BUILD_ALPHA_TRION1
+    Gfx1301 = 0x56,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1301
+#endif
+#endif
+#if PAL_BUILD_ALPHA_TRION2
+    Gfx1310 = 0x50,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1310
+#endif
+#if PAL_BUILD_AT_LITE3
+    Gfx131FFFF = 0xF2,  ///< EF_AMDGPU_MACH_AMDGCN_GFX131FFFF
+#endif
+#if PAL_BUILD_GRIMLOCK1
+    Gfx1370 = 0x70,     ///< EF_AMDGPU_MACH_AMDGCN_GFX1370
+#endif
+#if PAL_BUILD_GAINSBOROUGH
+    Gfx115FFFC = 0xEE,  ///# Gainsborough. Proposed ID
 #endif
 };
 
@@ -100,6 +118,10 @@ enum class AmdGpuFeatureV4Type : uint8
 
 /// Enumerates the stepping values for each GPU supported by PAL (and by PAL's ABI).  There are many duplicates
 /// in this list, because values are commonly re-used across different GFXIP major/minor versions.
+//# These values come from here: https://amd.atlassian.net/wiki/display/ASLC/AMDGPU+Target+Names
+//# NOTE: We use special, non-sequential stepping numbers to represent preproduction versions of some common
+//# GPU's, such as an A0 revision of a chip which entered production at A1 revision, etc.  The pre-production
+//# steppings use numbers counting backwards from 0xFFFF.
 enum GfxIpStepping : uint16
 {
     // GFXIP 10.1.x steppings:
@@ -107,10 +129,18 @@ enum GfxIpStepping : uint16
     GfxIpSteppingNavi12        = 1,
     GfxIpSteppingNavi14        = 2,
 
+#if PAL_BUILD_NAVI21_LITE
+    // GFXIP 10.2.x steppings:
+    GfxIpSteppingNavi21Lite    = 0,
+#endif
+
     // GFXIP 10.3.x steppings:
     GfxIpSteppingNavi21        = 0,
     GfxIpSteppingNavi22        = 1,
     GfxIpSteppingNavi23        = 2,
+#if PAL_BUILD_VAN_GOGH
+    GfxIpSteppingVanGogh       = 3,
+#endif
     GfxIpSteppingNavi24        = 4,
     GfxIpSteppingRembrandt     = 5,
     GfxIpSteppingRaphael       = 6, // Also Mendocino
@@ -123,14 +153,53 @@ enum GfxIpStepping : uint16
 
     // GFXIP 11.5.x steppings:
     GfxIpSteppingStrix         = 0,
+#if PAL_CLOSED_SOURCE
+    GfxIpSteppingStrix_A0      = 0xFFFF,
+#endif
     GfxIpSteppingStrixHalo     = 1,
     GfxIpSteppingKrackan1      = 2,
     GfxIpSteppingKrackan2      = 3,
+#if PAL_BUILD_GAINSBOROUGH
+    GfxIpSteppingGainsborough  = 0xFFFC,
+#endif
+#if PAL_BUILD_MEDUSA1
+#if PAL_CLOSED_SOURCE
+    GfxIpSteppingMedusa1_A0    = 0xFFFE,
+#endif
+    //GFXIP 11.7.x steppings:
+    GfxIpSteppingMedusa1       = 0,
+#endif
+#if PAL_BUILD_MEDUSA2
+    GfxIpSteppingMedusa2       = 1,
+#endif
+#if PAL_BUILD_MEDUSA3
+    GfxIpSteppingMedusa3       = 2,
+#endif
 
     // GFXIP 12.0.x steppings:
     GfxIpSteppingNavi44        = 0,
     GfxIpSteppingNavi48        = 1,
+#if PAL_CLOSED_SOURCE
+    GfxIpSteppingNavi44_A0     = 0xFFFF,
+    GfxIpSteppingNavi48_A0     = 0xFFFE,
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 958
+#if PAL_BUILD_ALPHA_TRION1
+    // GFXIP 13.0.x steppings:
+    GfxIpSteppingAlphaTrion1   = 1, //# AlphaTrion1
+#endif
+#endif
+#if PAL_BUILD_ALPHA_TRION2
+    // GFXIP 13.1.x steppings:
+    GfxIpSteppingAlphaTrion2   = 0, //# AlphaTrion2
+#endif
+#if PAL_BUILD_AT_LITE3
+    // GFXIP 13.1.x steppings:
+    GfxIpSteppingAtLite3       = 0xFFFF, //# AtLite3 (Magnus)
+#endif
+#if PAL_BUILD_GRIMLOCK1
+    // GFXIP 13.7.x steppings:
+    GfxIpSteppingGrimlock1     = 0, //# Grimlock1
 #endif
 };
 
@@ -193,10 +262,84 @@ constexpr const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_ps_amdil",
     "_amdgpu_tracerays",
     "_amdgpu_shader_identifiers",
+#if PAL_WORK_GRAPHS_SUPPORT
+    "_amdgpu_graph_layout",
+#else
     "_amdgpu_reserved40",
+#endif
     "color_export_shader",
     "color_export_shader_dual_source",
 };
+
+#if PAL_WORK_GRAPHS_SUPPORT
+/// Each string in the following namespace is the key for a piece of metadata used by shaders belonging to a
+/// GPU work graph.
+namespace NodeMetadataKey
+{
+    /// The `.node_id` field is a tuple of ( node_name, node_array_index ), encoded in MsgPack as a fixed-length
+    /// array of length 2.  `node_name` is a string, and `node_array_index` is a uint32.
+    static constexpr char NodeId[] = ".node_id";
+    /// Specifies the type of node shader this is.  Must be one of:
+    ///     - @ref ApiShaderSubType::FixedExpansionNode
+    ///     - @ref ApiShaderSubType::DynamicExpansionNode
+    ///     - @ref ApiShaderSubType::AggregationNode
+    ///     - @ref ApiShaderSubType::DrawNode
+    ///     - @ref ApiShaderSubType::DrawIndexedNode
+    ///     - @ref ApiShaderSubType::DispatchMeshNode
+    static constexpr char NodeType[] = ".node_type";
+    /// Specifies the dispatch grid dimensions for a shader.  This is a tuple of ( x, y, z ), encoded in MsgPack as
+    /// a fixed-length array of 3 integer values.  For fixed-expansion nodes, this represents the fixed dispatch
+    /// grid used for every dispatch of that node.  For dynamic-expansion nodes, this represents the maximum size of
+    /// the dispatch grid size stored in the node's input payload.  This is ignored for aggregation nodes, because
+    /// it only makes sense for expansion node types.
+    static constexpr char DispatchGrid[] = ".node_dispatch_grid";
+    /// For dynamic-expansion nodes and dispatch-mesh nodes this is the offset in bytes from the beginning of the
+    /// input payload to the location where the dispatch grid is stored.  This is ignored for all other node types.
+    /// If omitted, the value is assumed to be zero.
+    static constexpr char DispatchGridOffset[] = ".node_dispatch_grid_offset";
+    /// The `.node_input_payload` field is a tuple of ( size, max_count, cross_group_sharing ), encoded in MsgPack as
+    /// a fixed-length array of length 3.  `size` is the size of each input payload structure, and `max_count` is the
+    /// maximum number of input payloads each workgroup of the shader can process.  It must be @c 1 for non-aggregation
+    /// node types.  `cross_group_sharing` is a bool indicating if the shader calls
+    /// AmdWorkGraphsFinishCrossGroupSharing().  It must be @c false for aggregation nodes.
+    static constexpr char InputPayload[] = ".node_input_payload";
+    /// The `.node_output_edge` field is an array of entries describing the set of output edges from a node.  Each
+    /// entry is a tuple of ( node_name, node_array_index, node_array_count, size, max_count, output_budget_shared_with,
+    /// cross_group_sharing ), encoded in MsgPack as a fixed-length array of length 7.  `node_name` is the name string
+    /// of the destination node for the edge.  It can be nil, in which case the client must manually specify which
+    /// output edges connect to which other nodes when adding nodes to an @ref IGraphLayout object.  `node_array_index`
+    /// indicates the first shader within the destination node that can receive the data payloads sent along that edge.
+    /// `node_array_count` is the number of shaders within the destination node that can receive the data payloads sent
+    /// along that edge.  `size` is the size of each output payload structure, and `max_count` is the maximum amount of
+    /// output payloads which can be produced by a single workgroup of the shader.  `output_budget_shared_with` is the
+    /// index of another output edge with which this edge shares its output budget with.  A value of -1 indicates that
+    /// the output budget is not shared with any other port.  `cross_group_sharing` is a bool indicating if the
+    /// destination nodes' shader calls AmdWorkGraphsFinishCrossGroupSharing().  It must be @c false for aggregation
+    /// destination nodes.  This section should be omitted for leaf nodes.
+    static constexpr char OutputEdge[] = ".node_output_edge";
+    /// Specifies the maximum recursion depth of a shader.  If omitted, the value is assumed to be zero, which means
+    /// that none of the shader's outputs can connect back to itself.
+    static constexpr char MaxRecursion[] = ".node_max_recursion";
+    /// Specifies the byte offset of the draw call parameters within the node's input payload. This key is only valid
+    /// when the `.node_type` field is @ref ApiShaderSubType::DrawNode, @ref ApiShaderSubType::DrawIndexedNode, or
+    /// @ref ApiShaderSubType::DispatchMeshNode. If omitted, the value is assumed to be zero.
+    static constexpr char DrawParamsOffset[] = ".draw_params_offset";
+    /// Specifies the byte offset of the index buffer info within the node's input payload. This key is only valid
+    /// when the `.node_type` field is @ref ApiShaderSubType::DrawIndexedNode.
+    static constexpr char IndexBufferInfoOffset[] = ".index_buffer_info_offset";
+    /// Specifies the byte offset of the vb table offset within the node's input payload. This key is only valid
+    /// when the `.node_type` field is @ref ApiShaderSubType::DrawNode or @ref ApiShaderSubType::DrawIndexedNode.
+    static constexpr char VbTableOffset[] = ".vb_table_offset";
+    /// Special value of the node_array_index portion of the `.node_output_edge` metadata which indicates that an
+    /// output edge can send data to any shader in the destination node, and the specific shader is determined at
+    /// shader execution time.
+    constexpr uint32 EntireNode = uint32(~0);
+
+    /// Special value of the output_budget_shared_with portion of the `.node_output_edge` metadata which indicates that
+    /// an output port's output budget is _not_ shared with any other output port.
+    constexpr int32 NoOutputBudgetSharing = int32(-1);
+}
+#endif
 
 /// Pipeline category.
 enum PipelineType : uint32
@@ -281,6 +424,15 @@ enum class ApiShaderSubType : uint32
     Miss,
     Callable,
     LaunchKernel,           ///< Raytracing launch kernel
+#if PAL_WORK_GRAPHS_SUPPORT
+    FixedExpansionNode,     ///< Corresponds to Pal::GraphNodeType::FixedExpansion
+    DynamicExpansionNode,   ///< Corresponds to Pal::GraphNodeType::DynamicExpansion
+    AggregationNode,        ///< Corresponds to Pal::GraphNodeType::Aggregation
+    ThreadLaunchNode,       ///< Corresponds to Pal::GraphNodeType::ThreadLaunch
+    DrawNode,               ///< Corresponds to Pal::GraphNodeType::Draw
+    DrawIndexedNode,        ///< Corresponds to Pal::GraphNodeType::DrawIndexed
+    DispatchMeshNode,       ///< Corresponds to Pal::GraphNodeType::DispatchMesh
+#endif
     Count
 };
 
@@ -351,7 +503,11 @@ enum class PipelineSymbolType : uint32
                        ///  Associated with the .AMDGPU.comment.amdil section.
     TraceRays,         ///< The table of traceRay variant functions, or a flag to indicate procedural geometry.
     ShaderIdentifiers, ///< The table of ray-tracing shader identifiers and hit group identifiers.
+#if PAL_WORK_GRAPHS_SUPPORT
+    GraphLayout,       ///< The graph layout data.
+#else
     Reserved40,
+#endif
     PsColorExportEntry,///< PS color export shader entry point. Optional.
     PsColorExportDualSourceEntry,///< PS color export shader with dual source on entry point. Optional.
     Count,
@@ -485,6 +641,9 @@ enum class UserDataMapping : uint32
     StreamOutTable    = 0x1000000C, ///< 32-bit pointer to GPU memory containing the stream out target SRD table.  This
                                     ///  can only appear for one shader stage per pipeline.
     PerShaderPerfData = 0x1000000D, ///< 32-bit pointer to GPU memory containing the per-shader performance data buffer.
+#if PAL_BUILD_SHADER_DBG
+    ShaderDbgAddr     = 0x1000000E, ///< 64-bit pointer to GPU memory containing the shader debug buffer.
+#endif
     VertexBufferTable = 0x1000000F, ///< 32-bit pointer to GPU memory containing the vertex buffer SRD table.  This can
                                     ///  only appear for one shader stage per pipeline.
     NggCullingData    = 0x10000011, ///< 64-bit pointer to GPU memory containing the hardware register data needed by
@@ -509,6 +668,21 @@ enum class UserDataMapping : uint32
     CompositeData           = 0x10000023, ///< The composite structure that includes sample info, DynamicDualSrcBlendInfo
                                           ///   and topology. It can be valid for various shader stages.
 
+#if PAL_WORK_GRAPHS_SUPPORT
+    // The Work Graphs enum values need to be put in proper numerical order once the feature branch is merged to staging.
+
+    GraphControlStruct    = 0x10000101,  ///< 64-bit pointer to GPU memory containing the graph control structure.  Only
+                                         ///  supported by shaders belonging to a work graph.
+    ShaderDirectory       = 0x10000102,  ///< 64-bit pointer to GPU memory containing the shader directory for the
+                                         ///  graph.  Only supported by shaders belonging to a work graph.
+    NodeDispatchInfo      = 0x10000103,  ///< 160-bit structure initialized by the CP describing the current sub-dispatch
+                                         ///  in a CmdDispatchGraph() operation.
+#if PAL_BUILD_WORK_GRAPH_TRACE
+    WorkGraphTraceBuf     = 0x10000104,  ///< 64-bit pointer to GPU memory containing the Work Graph Trace buffer.  Only
+                                         ///  supported by shaders belonging to a work graph.
+#endif
+#endif // PAL_WORK_GRAPHS_SUPPORT
+
     // Range of values for a user data PAL metadata register to be resolved at pipeline create time in PAL.
     // PipelineLinkStart+N is initialized by PAL to the (low 32 bits of the) address of symbol _amdgpu_pipelineLinkN
     // in any ELF piece of the pipeline. For odd N, the symbol is optional; if it is not present, the register is
@@ -519,6 +693,14 @@ enum class UserDataMapping : uint32
     PipelineLinkStart      = 0x10001000,
     PipelineLinkEnd        = 0x100010FF,
 
+#if PAL_WORK_GRAPHS_SUPPORT
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 976
+    NodeDrawInfo           = 0x11000101,  ///< 96-bit structure initialized by the CP describing the current sub-draw in a
+                                          ///  CmdDispatchGraph() operation.  Only available in the first stage of a
+                                          ///  graphics pipeline which belongs to a Work Graph.
+#endif
+    LocalResourceMappingId = 0x11000102,  ///< Draw Node local root signature index (32-bit unsigned integer)
+#endif // PAL_WORK_GRAPHS_SUPPORT
     NotMapped              = 0xFFFFFFFF,  ///< Register is not mapped to any user-data entry.
 
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
@@ -567,6 +749,8 @@ enum class AbiSectionType : uint32
 /// P   - The section offset or address of the storage unit being relocated, computed using r_offset.
 /// S   - The value of the symbol whose index resides in the relocation entry.
 /// Z   - The size of the symbol whose index resides in the relocation entry.
+//# SEE: https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-54839.html#chapter7-2
+//# for other architecture examples.
 /// SEE: https://llvm.org/docs/AMDGPUUsage.html#relocation-records
 /// for AMDGPU defined relocations.
 enum class RelocationType : uint32
@@ -633,6 +817,8 @@ union AmdGpuElfFlags
 };
 
 static_assert(sizeof(AmdGpuMachineType) == 1, "AmdGpuMachineType enum underlying type is larger than expected.");
+
+#if PAL_BUILD_GFX9
 
 /// Maximum number of viewports.
 constexpr uint32 MaxViewports = 16;
@@ -749,6 +935,8 @@ struct PrimShaderCbLayout
 
 static_assert(sizeof(PrimShaderCullingCb) == sizeof(PrimShaderCbLayout),
     "Transition structure (PrimShaderCullingCb) is not the same size as original structure (PrimShaderCbLayout)!");
+
+#endif
 
 /// Point sprite override selection.
 enum class PointSpriteSelect : uint32

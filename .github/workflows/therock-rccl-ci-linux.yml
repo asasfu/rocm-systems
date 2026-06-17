@@ -143,7 +143,8 @@ jobs:
   therock-test-linux-single-node:
     name: "Test single-node"
     # TODO(TheRock#3288): Re-enable gfx950-dcgpu runners once we get more capacity
-    if: ${{ inputs.amdgpu_families != 'gfx950-dcgpu' }}
+    # Due to migrating MI325s, we have lost capacity as of 3/13/2026 11:41am PST
+    if: ${{ inputs.amdgpu_families != 'gfx94X-dcgpu' && inputs.amdgpu_families != 'gfx950-dcgpu' }}
     needs: [therock-build-linux]
     uses: ./.github/workflows/therock-rccl-test-packages-single-node.yml
     with:

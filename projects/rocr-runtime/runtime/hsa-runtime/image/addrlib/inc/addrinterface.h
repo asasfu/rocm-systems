@@ -1,7 +1,7 @@
 /*
 ************************************************************************************************************************
 *
-*  Copyright (C) 2007-2022 Advanced Micro Devices, Inc.  All rights reserved.
+*  Copyright (C) 2007-2025 Advanced Micro Devices, Inc. All rights reserved.
 *  SPDX-License-Identifier: MIT
 *
 ***********************************************************************************************************************/
@@ -17,17 +17,38 @@
 
 // Includes should be before extern "C"
 #include "addrtypes.h"
+#include "assert.h"
 
 namespace rocr {
-#define ADDRLIB_VERSION_MAJOR 8
-#define ADDRLIB_VERSION_MINOR 10
-#define ADDRLIB_VERSION ((ADDRLIB_VERSION_MAJOR << 16) | ADDRLIB_VERSION_MINOR)
+#define ADDRLIB_VERSION_MAJOR 10
+#define ADDRLIB_VERSION_MINOR 6
+#define ADDRLIB_MAKE_VERSION(major, minor) ((major << 16) | minor)
+#define ADDRLIB_VERSION                    ADDRLIB_MAKE_VERSION(ADDRLIB_VERSION_MAJOR, ADDRLIB_VERSION_MINOR)
 
 /// Virtually all interface functions need ADDR_HANDLE as first parameter
 typedef VOID*   ADDR_HANDLE;
 
 /// Client handle used in callbacks
 typedef VOID*   ADDR_CLIENT_HANDLE;
+
+typedef struct _ADDR_COORD2D
+{
+    UINT_32  x;
+    UINT_32  y;
+} ADDR_COORD2D;
+
+typedef struct _ADDR_COORD3D
+{
+    UINT_32  x;
+    UINT_32  y;
+    UINT_32  z; // also slices for 2D images
+} ADDR_COORD3D;
+
+typedef struct _ADDR_EXTENT2D
+{
+    UINT_32  width;
+    UINT_32  height;
+} ADDR_EXTENT2D;
 
 typedef struct _ADDR_EXTENT3D
 {
@@ -47,6 +68,8 @@ typedef struct _ADDR_EXTENT3D
 *    typedef ADDR_E_RETURNCODE (ADDR_API* ADDR_DEBUGPRINT)(
 *         const ADDR_DEBUGPRINT_INPUT* pInput);
 *
+**/
+/**
 * /////////////////////////////////////////////////////////////////////////////////////////////////
 * //                               Create/Destroy/Config functions
 * /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -82,10 +105,19 @@ typedef struct _ADDR_EXTENT3D
 *     AddrComputeFmaskCoordFromAddr()
 *
 * /////////////////////////////////////////////////////////////////////////////////////////////////
+* //                                   Format properties functions
+* /////////////////////////////////////////////////////////////////////////////////////////////////
+*     AddrFormatProperties()
+*
+**/
+/**
+* /////////////////////////////////////////////////////////////////////////////////////////////////
 * //                               Element/Utility functions
 * /////////////////////////////////////////////////////////////////////////////////////////////////
 *     ElemFlt32ToDepthPixel()
 *     ElemFlt32ToColorPixel()
+**/
+/**
 *     AddrExtractBankPipeSwizzle()
 *     AddrCombineBankPipeSwizzle()
 *     AddrComputeSliceSwizzle()
@@ -422,7 +454,49 @@ ADDR_E_RETURNCODE ADDR_API AddrCreate(
 ADDR_E_RETURNCODE ADDR_API AddrDestroy(
     ADDR_HANDLE hLib);
 
+/**
+****************************************************************************************************
+* ADDR_FORMAT_PROPERTIES_IN
+*
+*   @brief
+*       Input structure to the AddrFormatProperties routine.
+*
+****************************************************************************************************
+*/
+typedef struct _ADDR_FORMAT_PROPERTIES_IN {
+    UINT_32     size;     ///< Size of this structure in bytes
+    AddrFormat  format;   ///< If format is set to valid one, bpp/width/height
+                          ///  might be overwritten
+} ADDR_FORMAT_PROPERTIES_IN;
 
+/**
+****************************************************************************************************
+* ADDR_FORMAT_PROPERTIES_OUT
+*
+*   @brief
+*       Output structure from the AddrFormatProperties routine.
+*
+****************************************************************************************************
+*/
+typedef struct _ADDR_FORMAT_PROPERTIES_OUT {
+    UINT_32        size;     ///< Size of this structure in bytes
+    UINT_32        bpp;      ///< Bits per pixel as laid out in memory (eg. 128bpp for BC7)
+    ADDR_EXTENT2D  expand;   ///< Dimensions of one macro pixel block
+} ADDR_FORMAT_PROPERTIES_OUT;
+
+/**
+****************************************************************************************************
+*   AddrFormatProperties
+*
+*   @brief
+*       Gets a list of format properties
+*
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API AddrFormatProperties(
+    ADDR_HANDLE                       hLib,
+    const ADDR_FORMAT_PROPERTIES_IN*  in,
+    ADDR_FORMAT_PROPERTIES_OUT*       pOut);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                    Surface functions
@@ -1501,7 +1575,6 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeFmaskCoordFromAddr(
     ADDR_COMPUTE_FMASK_COORDFROMADDR_OUTPUT*        pOut);
 
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //                          Element/utility functions
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1515,6 +1588,16 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeFmaskCoordFromAddr(
 ****************************************************************************************************
 */
 UINT_32 ADDR_API AddrGetVersion(ADDR_HANDLE hLib);
+
+/**
+****************************************************************************************************
+*   AddrGetInterfaceVersion
+*
+*   @brief
+*       Get AddrLib interface version number (eg. Addr2 = 2)
+****************************************************************************************************
+*/
+UINT_32 ADDR_API AddrGetInterfaceVersion(ADDR_HANDLE hLib);
 
 /**
 ****************************************************************************************************
@@ -1822,7 +1905,6 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeBaseSwizzle(
     ADDR_HANDLE                             hLib,
     const ADDR_COMPUTE_BASE_SWIZZLE_INPUT*  pIn,
     ADDR_COMPUTE_BASE_SWIZZLE_OUTPUT*       pOut);
-
 
 
 /**
@@ -2332,7 +2414,6 @@ ADDR_E_RETURNCODE ADDR_API AddrComputeDccInfo(
     ADDR_COMPUTE_DCCINFO_OUTPUT*            pOut);
 
 
-
 /**
 ****************************************************************************************************
 *   ADDR_GET_MAX_ALIGNMENTS_OUTPUT
@@ -2398,7 +2479,7 @@ ADDR_E_RETURNCODE ADDR_API AddrGetMaxMetaAlignments(
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-//                                    Surface functions for Gfx9
+//                                    Surface functions for Addr2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -2418,22 +2499,24 @@ typedef union _ADDR2_SURFACE_FLAGS
         UINT_32 stencil           :  1; ///< Thie resource is a stencil buffer, can be used with DSV
         UINT_32 fmask             :  1; ///< This is an fmask surface
         UINT_32 overlay           :  1; ///< This is an overlay surface
-        UINT_32 display           :  1; ///< This resource is displable, can be used with DRV
+        UINT_32 display           :  1; ///< This resource is displayable, can be used with DRV
         UINT_32 prt               :  1; ///< This is a partially resident texture
         UINT_32 qbStereo          :  1; ///< This is a quad buffer stereo surface
         UINT_32 interleaved       :  1; ///< Special flag for interleaved YUV surface padding
         UINT_32 texture           :  1; ///< This resource can be used with SRV
         UINT_32 unordered         :  1; ///< This resource can be used with UAV
-        UINT_32 rotated           :  1; ///< This resource is rotated and displable
+        UINT_32 rotated           :  1; ///< This resource is rotated and displayable
         UINT_32 needEquation      :  1; ///< This resource needs equation to be generated if possible
         UINT_32 opt4space         :  1; ///< This resource should be optimized for space
+        UINT_32 computeMaxSize    :  1; ///< This resource should select the largest swizzle possible
         UINT_32 minimizeAlign     :  1; ///< This resource should use minimum alignment
         UINT_32 noMetadata        :  1; ///< This resource has no metadata
         UINT_32 metaRbUnaligned   :  1; ///< This resource has rb unaligned metadata
         UINT_32 metaPipeUnaligned :  1; ///< This resource has pipe unaligned metadata
         UINT_32 view3dAs2dArray   :  1; ///< This resource is a 3D resource viewed as 2D array
         UINT_32 allowExtEquation  :  1; ///< If unset, only legacy DX eqs are allowed (2 XORs)
-        UINT_32 reserved          : 12; ///< Reserved bits
+        UINT_32 requireMetadata   :  1; ///< This resource must support metadata
+        UINT_32 reserved          : 10; ///< Reserved bits
     };
 
     UINT_32 value;
@@ -2452,7 +2535,7 @@ typedef struct _ADDR2_COMPUTE_SURFACE_INFO_INPUT
     UINT_32               size;              ///< Size of this structure in bytes
 
     ADDR2_SURFACE_FLAGS   flags;             ///< Surface flags
-    AddrSwizzleMode       swizzleMode;       ///< Swizzle Mode for Gfx9
+    AddrSwizzleMode       swizzleMode;       ///< Swizzle Mode for Addr2
     AddrResourceType      resourceType;      ///< Surface type
     AddrFormat            format;            ///< Surface format
     UINT_32               bpp;               ///< bits per pixel
@@ -2575,18 +2658,18 @@ typedef struct _ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT
 {
     UINT_32             size;            ///< Size of this structure in bytes
 
-    UINT_32             x;               ///< X coordinate
-    UINT_32             y;               ///< Y coordinate
+    UINT_32             x;               ///< X coordinate, in elements
+    UINT_32             y;               ///< Y coordinate, in elements
     UINT_32             slice;           ///< Slice index
     UINT_32             sample;          ///< Sample index, use fragment index for EQAA
     UINT_32             mipId;           ///< the mip ID in mip chain
 
-    AddrSwizzleMode     swizzleMode;     ///< Swizzle mode for Gfx9
+    AddrSwizzleMode     swizzleMode;     ///< Swizzle mode for Addr2
     ADDR2_SURFACE_FLAGS flags;           ///< Surface flags
     AddrResourceType    resourceType;    ///< Surface type
     UINT_32             bpp;             ///< Bits per pixel
-    UINT_32             unalignedWidth;  ///< Surface original width (of mip0)
-    UINT_32             unalignedHeight; ///< Surface original height (of mip0)
+    UINT_32             unalignedWidth;  ///< Surface original width (of mip0), in elements
+    UINT_32             unalignedHeight; ///< Surface original height (of mip0), in elements
     UINT_32             numSlices;       ///< Surface original slices (of mip0)
     UINT_32             numMipLevels;    ///< Total mipmap levels
     UINT_32             numSamples;      ///< Number of samples
@@ -2629,6 +2712,115 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSurfaceAddrFromCoord(
     const ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT*    pIn,
     ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*         pOut);
 
+/**
+****************************************************************************************************
+*   ADDR_COPY_FLAGS
+*
+*   @brief
+*       Options controlling image copy functions.
+****************************************************************************************************
+*/
+typedef union _ADDR_COPY_FLAGS {
+    struct
+    {
+        UINT_32 blockMemcpy  : 1; ///< Memory layout is pre-swizzled and stored block-by-block.
+                                  ///  For regions in the miptail, this uses hybrid memcpy.
+                                  ///  Regions must cover full width/height of the subresource.
+        UINT_32 hybridMemcpy : 1; ///< Memory layout is partially pre-swizzled and stored
+                                  ///  microblock-by-microblock. Data in this format is agnostic to
+                                  ///  chip harvesting and block size. Regions will be padded out
+                                  ///  to microblock boundaries for alignment.
+                                  ///  Mutually exclusive with 'blockMemcpy'.
+        UINT_32 reserved    : 30; ///< Reserved bits
+    };
+
+    UINT_32 value;
+} ADDR_COPY_FLAGS;
+
+/**
+****************************************************************************************************
+*   ADDR2_COPY_MEMSURFACE_REGION
+*
+*   @brief
+*       Input structure for Addr2CopyMemToSurface and Addr2CopySurfaceToMem
+****************************************************************************************************
+*/
+typedef struct _ADDR2_COPY_MEMSURFACE_REGION
+{
+    UINT_32             size;            ///< Size of this structure in bytes
+
+    UINT_32             x;               ///< Starting X coordinate, in elements
+    UINT_32             y;               ///< Starting Y coordinate, in elements
+    UINT_32             slice;           ///< Starting slice index or Z coordinate, in elements
+    UINT_32             mipId;           ///< The mip ID in mip chain
+    ADDR_EXTENT3D       copyDims;        ///< Size of the region to copy, in elements
+
+    void*               pMem;            ///< Pointer to memory to copy
+    UINT_64             memRowPitch;     ///< Pitch between rows in bytes
+    UINT_64             memSlicePitch;   ///< Pitch between array/depth slices in bytes
+} ADDR2_COPY_MEMSURFACE_REGION;
+
+/**
+****************************************************************************************************
+*   ADDR2_COPY_MEMSURFACE_INPUT
+*
+*   @brief
+*       Input structure for Addr2CopyMemToSurface and Addr2CopySurfaceToMem
+****************************************************************************************************
+*/
+typedef struct _ADDR2_COPY_MEMSURFACE_INPUT
+{
+    UINT_32             size;            ///< Size of this structure in bytes
+
+    AddrSwizzleMode     swizzleMode;     ///< Swizzle mode
+    AddrFormat          format;          ///< Format
+    ADDR2_SURFACE_FLAGS flags;           ///< Surface flags
+    AddrResourceType    resourceType;    ///< Surface type
+    UINT_32             bpp;             ///< Bits per pixel
+    ADDR_EXTENT3D       unAlignedDims;   ///< Surface original dimensions (of mip0), in pixels
+    UINT_32             numMipLevels;    ///< Total mipmap levels
+    UINT_32             numSamples;      ///< Number of samples
+    UINT_32             pitchInElement;  ///< Pitch in elements (blocks for compressed formats)
+    UINT_32             pbXor;           ///< Xor value
+
+    void*               pMappedSurface;  ///< Pointer to the image surface, mapped to CPU memory
+    BOOL_32             singleSubres;    ///< Pointer is to the base of the subresource, not to the
+                                         ///  base of the surface image data. Requires:
+                                         ///   - copyDims.depth == 1
+                                         ///   - all copy regions target the same mip
+                                         ///   - all copy regions target the same slice/depth
+    ADDR_COPY_FLAGS     copyFlags;       ///< Controls how the copy is performed.
+} ADDR2_COPY_MEMSURFACE_INPUT;
+
+/**
+****************************************************************************************************
+*   Addr2CopyMemToSurface
+*
+*   @brief
+*       Copy an image region from memory to an uncompressed CPU-mapped surface
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2CopyMemToSurface(
+    ADDR_HANDLE                         hLib,
+    const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+    const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+    UINT_32                             regionCount
+);
+
+/**
+****************************************************************************************************
+*   Addr2CopySurfaceToMem
+*
+*   @brief
+*       Copy an image region from an uncompressed CPU-mapped surface to memory
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2CopySurfaceToMem(
+    ADDR_HANDLE                         hLib,
+    const ADDR2_COPY_MEMSURFACE_INPUT*  pIn,
+    const ADDR2_COPY_MEMSURFACE_REGION* pRegions,
+    UINT_32                             regionCount
+);
 
 
 /**
@@ -2647,12 +2839,12 @@ typedef struct _ADDR2_COMPUTE_SURFACE_COORDFROMADDR_INPUT
     UINT_32             bitPosition;     ///< Bit position in addr. 0-7. for surface bpp < 8,
                                          ///  e.g. FMT_1;
 
-    AddrSwizzleMode     swizzleMode;     ///< Swizzle mode for Gfx9
+    AddrSwizzleMode     swizzleMode;     ///< Swizzle mode for Addr2
     ADDR2_SURFACE_FLAGS flags;           ///< Surface flags
     AddrResourceType    resourceType;    ///< Surface type
     UINT_32             bpp;             ///< Bits per pixel
-    UINT_32             unalignedWidth;  ///< Surface original width (of mip0)
-    UINT_32             unalignedHeight; ///< Surface original height (of mip0)
+    UINT_32             unalignedWidth;  ///< Surface original width (of mip0), in elements
+    UINT_32             unalignedHeight; ///< Surface original height (of mip0), in elements
     UINT_32             numSlices;       ///< Surface original slices (of mip0)
     UINT_32             numMipLevels;    ///< Total mipmap levels.
     UINT_32             numSamples;      ///< Number of samples
@@ -2676,8 +2868,8 @@ typedef struct _ADDR2_COMPUTE_SURFACE_COORDFROMADDR_OUTPUT
 {
     UINT_32    size;       ///< Size of this structure in bytes
 
-    UINT_32    x;          ///< X coordinate
-    UINT_32    y;          ///< Y coordinate
+    UINT_32    x;          ///< X coordinate, in elements
+    UINT_32    y;          ///< Y coordinate, in elements
     UINT_32    slice;      ///< Index of slices
     UINT_32    sample;     ///< Index of samples, means fragment index for EQAA
     UINT_32    mipId;      ///< mipmap level id
@@ -2699,7 +2891,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeSurfaceCoordFromAddr(
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-//                                   HTile functions for Gfx9
+//                                   HTile functions for Addr2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -2947,7 +3139,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeHtileCoordFromAddr(
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-//                                     C-mask functions for Gfx9
+//                                     C-mask functions for Addr2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -3172,7 +3364,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeCmaskCoordFromAddr(
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-//                                     F-mask functions for Gfx9
+//                                     F-mask functions for Addr2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -3377,7 +3569,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeFmaskCoordFromAddr(
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-//                                     DCC key functions for Gfx9
+//                                     DCC key functions for Addr2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -3555,7 +3747,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2ComputeDccAddrFromCoord(
     ADDR2_COMPUTE_DCC_ADDRFROMCOORD_OUTPUT*        pOut);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-//                                     Misc functions for Gfx9
+//                                     Misc functions for Addr2
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -3712,7 +3904,7 @@ typedef struct _ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT
 {
     UINT_32               size;              ///< Size of this structure in bytes
     ADDR2_SURFACE_FLAGS   flags;             ///< Surface flags
-    AddrSwizzleMode       swizzleMode;       ///< Swizzle Mode for Gfx9
+    AddrSwizzleMode       swizzleMode;       ///< Swizzle Mode for Addr2
     AddrResourceType      resourceType;      ///< Surface type
     AddrFormat            format;            ///< Surface format
     UINT_32               width;             ///< Width of mip0 in texels (not in compressed block)
@@ -3969,6 +4161,7 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetPossibleSwizzleModes(
 *
 *   @brief
 *       Return whether the swizzle mode is supported by display engine
+        pResult: whether it is displayAble or not for the given displaySwizzleMode
 ****************************************************************************************************
 */
 ADDR_E_RETURNCODE ADDR_API Addr2IsValidDisplaySwizzleMode(
@@ -4048,18 +4241,23 @@ typedef union _ADDR3_SURFACE_FLAGS
 {
     struct
     {
-        UINT_32 color              : 1; ///< This resource is a color buffer, can be used with RTV
         UINT_32 depth              : 1; ///< This resource is a depth buffer, can be used with DSV
         UINT_32 stencil            : 1; ///< This resource is a stencil buffer, can be used with DSV
-        UINT_32 texture            : 1; ///< This resource can be used with SRV
-        UINT_32 unordered          : 1; ///< This resource can be used with UAV
         UINT_32 hiZHiS             : 1;
         UINT_32 blockCompressed    : 1;
         UINT_32 nv12               : 1;
         UINT_32 p010               : 1;
         UINT_32 view3dAs2dArray    : 1;
         UINT_32 isVrsImage         : 1; ///< This resource is a VRS source image
-        UINT_32 reserved           : 21; ///< Reserved bits
+        UINT_32 standardPrt        : 1; ///< This resource is a PRT resource with the specific block
+                                        ///  dimensions that some APIs want
+        UINT_32 fmask              : 1; ///< This resource is an FMask metadata surface
+        UINT_32 prt                : 1; ///< This resource is a PRT resource
+        UINT_32 denseSliceExact    : 1;  ///< Pad dimensions such that
+                                         ///  Pow2Align(pitch*height, surfAlign)==pitch*height
+        UINT_32 qbStereo           : 1;  ///< Quad buffer stereo surface
+        UINT_32 display            : 1;  ///< This resource is displayable, can be used with DRV
+        UINT_32 reserved           : 18; ///< Reserved bits
     };
 
     UINT_32 value;
@@ -4102,10 +4300,11 @@ typedef struct _ADDR3_COMPUTE_SURFACE_INFO_INPUT
 */
 typedef struct _ADDR3_MIP_INFO
 {
-    UINT_32             pitch;              ///< Pitch in elements
+    UINT_32             pitch;              ///< Pitch in elements of image data
+    UINT_32             pitchForSlice;      ///< Pitch in elements used to compute slice size
     UINT_32             height;             ///< Padded height in elements
     UINT_32             depth;              ///< Padded depth
-    UINT_32             pixelPitch;         ///< Pitch in pixels
+    UINT_32             pixelPitch;         ///< Pitch in pixels for image data
     UINT_32             pixelHeight;        ///< Padded height in pixels
     UINT_32             equationIndex;      ///< Equation index in the equation table
     UINT_64             offset;             ///< Offset in bytes from mip base, should only be used
@@ -4132,7 +4331,8 @@ typedef struct _ADDR3_MIP_INFO
 typedef struct _ADDR3_COMPUTE_SURFACE_INFO_OUTPUT
 {
     UINT_32             size;                 ///< Size of this structure in bytes
-    UINT_32             pitch;                ///< Pitch in elements (blocks for compressed formats)
+    UINT_32             pitch;                ///< Pitch in elements for image data
+    UINT_32             pitchForSlice;        ///< Pitch in elements used to compute slice size
     UINT_32             pixelPitch;           ///< Pitch in original pixels
     UINT_32             pixelHeight;          ///< Height in original pixels
     UINT_32             pixelBits;            ///< Original bits per pixel, passed from input
@@ -4142,6 +4342,7 @@ typedef struct _ADDR3_COMPUTE_SURFACE_INFO_OUTPUT
                                               ///  or padded number of slices for 2d array resource
     UINT_32             height;               ///< Padded height (of mip0) in elements
     UINT_64             sliceSize;            ///< Slice (total mip chain) size in bytes
+    UINT_64             sliceSizeDensePacked; ///< Slice (total mip chain) size of image data in bytes
     UINT_64             surfSize;             ///< Surface (total mip chain) size in bytes
     UINT_32             baseAlign;            ///< Base address alignment
     ADDR_EXTENT3D       blockExtent;          ///< Dimensions in element inside one block
@@ -4151,6 +4352,8 @@ typedef struct _ADDR3_COMPUTE_SURFACE_INFO_OUTPUT
     BOOL_32             mipChainInTail;       ///< If whole mipchain falls into mip tail block
     UINT_32             firstMipIdInTail;     ///< The id of first mip in tail, if there is no mip
                                               ///  in tail, it will be set to number of mip levels
+    /// Stereo info
+    ADDR_QBSTEREOINFO*  pStereoInfo;          ///< Stereo info, needed if qbStereo flag is TRUE
 } ADDR3_COMPUTE_SURFACE_INFO_OUTPUT;
 
 /**
@@ -4175,7 +4378,9 @@ typedef union _ADDR3_SWMODE_SET
         UINT_32 sw3d4kB     :  1;
         UINT_32 sw3d64kB    :  1;
         UINT_32 sw3d256kB   :  1;
-        UINT_32 reserved    : 24;
+        UINT_32 sw2d64kBz   :  1;
+        UINT_32 sw2d256kBz  :  1;
+        UINT_32 reserved    : 22;
     };
 
     UINT_32 value;
@@ -4257,8 +4462,8 @@ typedef struct _ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT
 {
     UINT_32             size;            ///< Size of this structure in bytes
 
-    UINT_32             x;               ///< X coordinate
-    UINT_32             y;               ///< Y coordinate
+    UINT_32             x;               ///< X coordinate, in elements
+    UINT_32             y;               ///< Y coordinate, in elements
     UINT_32             slice;           ///< Slice index
     UINT_32             sample;          ///< Sample index, use fragment index for EQAA
     UINT_32             mipId;           ///< the mip ID in mip chain
@@ -4267,7 +4472,7 @@ typedef struct _ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT
     ADDR3_SURFACE_FLAGS flags;           ///< Surface flags
     AddrResourceType    resourceType;    ///< Surface type
     UINT_32             bpp;             ///< Bits per pixel
-    ADDR_EXTENT3D       unAlignedDims;   ///< Surface original dimensions (of mip0)
+    ADDR_EXTENT3D       unAlignedDims;   ///< Surface original dimensions (of mip0), in elements
     UINT_32             numMipLevels;    ///< Total mipmap levels
     UINT_32             numSamples;      ///< Number of samples
     UINT_32             pitchInElement;  ///< Pitch in elements (blocks for compressed formats)
@@ -4303,6 +4508,92 @@ ADDR_E_RETURNCODE ADDR_API Addr3ComputeSurfaceAddrFromCoord(
     ADDR_HANDLE                                         hLib,
     const ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT*    pIn,
     ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT*         pOut);
+
+
+/**
+****************************************************************************************************
+*   ADDR3_COPY_MEMSURFACE_REGION
+*
+*   @brief
+*       Input structure for Addr3CopyMemToSurface and Addr3CopySurfaceToMem
+****************************************************************************************************
+*/
+typedef struct _ADDR3_COPY_MEMSURFACE_REGION
+{
+    UINT_32             size;            ///< Size of this structure in bytes
+
+    UINT_32             x;               ///< Starting X coordinate, in elements
+    UINT_32             y;               ///< Starting Y coordinate, in elements
+    UINT_32             slice;           ///< Starting slice index or Z coordinate, in elements
+    UINT_32             mipId;           ///< The mip ID in mip chain
+    ADDR_EXTENT3D       copyDims;        ///< Size of the region to copy, in elements
+
+    void*               pMem;            ///< Pointer to memory to copy
+    UINT_64             memRowPitch;     ///< Pitch between rows in bytes
+    UINT_64             memSlicePitch;   ///< Pitch between array/depth slices in bytes
+} ADDR3_COPY_MEMSURFACE_REGION;
+
+/**
+****************************************************************************************************
+*   ADDR3_COPY_MEMSURFACE_INPUT
+*
+*   @brief
+*       Input structure for Addr3CopyMemToSurface and Addr3CopySurfaceToMem
+****************************************************************************************************
+*/
+typedef struct _ADDR3_COPY_MEMSURFACE_INPUT
+{
+    UINT_32             size;            ///< Size of this structure in bytes
+
+    Addr3SwizzleMode    swizzleMode;     ///< Swizzle mode for Gfx12
+    ADDR3_SURFACE_FLAGS flags;           ///< Surface flags
+    AddrFormat          format;          ///< Format
+    AddrResourceType    resourceType;    ///< Surface type
+    UINT_32             bpp;             ///< Bits per pixel
+    ADDR_EXTENT3D       unAlignedDims;   ///< Surface original dimensions (of mip0), in pixels
+    UINT_32             numMipLevels;    ///< Total mipmap levels
+    UINT_32             numSamples;      ///< Number of samples
+    UINT_32             pitchInElement;  ///< Pitch in elements (blocks for compressed formats)
+    UINT_32             pbXor;           ///< Xor value
+
+    void*               pMappedSurface;  ///< Pointer to the image surface, mapped to CPU memory
+    BOOL_32             singleSubres;    ///< Pointer is to the base of the subresource, not to the
+                                         ///  base of the surface image data. Requires:
+                                         ///   - copyDims.depth == 1
+                                         ///   - all copy regions target the same mip
+                                         ///   - all copy regions target the same slice/depth
+    ADDR_COPY_FLAGS     copyFlags;       ///< Controls how the copy is performed.
+} ADDR3_COPY_MEMSURFACE_INPUT;
+
+/**
+****************************************************************************************************
+*   Addr3CopyMemToSurface
+*
+*   @brief
+*       Copy an image region from memory to an uncompressed CPU-mapped surface
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr3CopyMemToSurface(
+    ADDR_HANDLE                         hLib,
+    const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+    const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+    UINT_32                             regionCount
+);
+
+/**
+****************************************************************************************************
+*   Addr3CopySurfaceToMem
+*
+*   @brief
+*       Copy an image region from an uncompressed CPU-mapped surface to memory
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr3CopySurfaceToMem(
+    ADDR_HANDLE                         hLib,
+    const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+    const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+    UINT_32                             regionCount
+);
 
 /**
 ****************************************************************************************************
@@ -4441,7 +4732,7 @@ typedef struct _ADDR3_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_OUTPUT
 *       Calculate sub resource offset to support swizzle pattern.
 ****************************************************************************************************
 */
-VOID ADDR_API Addr3ComputeSubResourceOffsetForSwizzlePattern(
+ADDR_E_RETURNCODE ADDR_API Addr3ComputeSubResourceOffsetForSwizzlePattern(
     ADDR_HANDLE                                                     hLib,
     const ADDR3_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_INPUT* pIn,
     ADDR3_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_OUTPUT*      pOut);
@@ -4492,5 +4783,193 @@ ADDR_E_RETURNCODE ADDR_API Addr3ComputeSlicePipeBankXor(
     const ADDR3_COMPUTE_SLICE_PIPEBANKXOR_INPUT* pIn,
     ADDR3_COMPUTE_SLICE_PIPEBANKXOR_OUTPUT*      pOut);
 
-} // namespace rocr
-#endif // __ADDR_INTERFACE_H__
+/**
+****************************************************************************************************
+*   ADDR3_META_MIP_INFO
+*
+*   @brief
+*       Structure to store per mip metadata information
+****************************************************************************************************
+*/
+typedef struct _ADDR3_META_MIP_INFO
+{
+    UINT_32       offset;      ///< Mip offset from base address of metadata surface (0 for mips in tail)
+    UINT_32       sliceSize;   ///< Size of this mip level aligned to block size (0 for mips in tail)
+} ADDR3_META_MIP_INFO;
+
+/**
+****************************************************************************************************
+*   ADDR3_COMPUTE_HTILE_INFO_INPUT
+*
+*   @brief
+*       Input structure of Addr3ComputeHtileInfo
+****************************************************************************************************
+*/
+typedef struct _ADDR3_COMPUTE_HTILE_INFO_INPUT
+{
+    UINT_32             size;               ///< Size of this structure in bytes
+    Addr3SwizzleMode    swizzleMode;        ///< Depth surface swizzle mode
+    ADDR_EXTENT3D       unalignedDims;      ///< Depth surface original dimensions (of mip0)
+    UINT_32             numMipLevels;       ///< Total mipmap levels of depth surface
+    UINT_32             firstMipIdInTail;   ///< Id of the first mip in tail
+                                            ///  If no mip is in tail, it should be set to number of mip levels
+                                            ///  Same value as ADDR3_COMPUTE_SURFACE_INFO_OUTPUT.firstMipIdInTail
+} ADDR3_COMPUTE_HTILE_INFO_INPUT;
+
+struct ADDR3_EQUATION;
+
+/**
+****************************************************************************************************
+*   ADDR3_COMPUTE_HTILE_INFO_OUTPUT
+*
+*   @brief
+*       Output structure of Addr3ComputeHtileInfo
+****************************************************************************************************
+*/
+typedef struct _ADDR3_COMPUTE_HTILE_INFO_OUTPUT
+{
+    UINT_32              size;                ///< Size of this structure in bytes
+    UINT_32              pitch;               ///< Pitch in pixels of depth buffer represented in this
+                                              ///  HTile buffer. This might be larger than original depth
+                                              ///  buffer pitch when called with an unaligned pitch.
+    UINT_32              height;              ///< Height in pixels, as above
+    UINT_32              baseAlign;           ///< Base alignment
+    UINT_32              sliceSize;           ///< Slice size, in bytes.
+    UINT_32              vrsSliceSize;        ///< Slice size as needed for VRS calculations.  This is *not*
+                                              ///  the slice size in bytes.
+    UINT_32              htileBytes;          ///< Size of HTILE buffer, in bytes
+    UINT_32              metaBlkWidth;        ///< Meta block width
+    UINT_32              metaBlkHeight;       ///< Meta block height
+
+    ADDR3_META_MIP_INFO*   pMipInfo;  ///< HTILE mip information
+    struct ADDR3_EQUATION*        pEquation; ///< Htile equation. It can be NULL.
+} ADDR3_COMPUTE_HTILE_INFO_OUTPUT;
+
+/**
+****************************************************************************************************
+*   Addr3ComputeHtileInfo
+*
+*   @brief
+*       Compute Htile pitch, height, base alignment and size in bytes
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr3ComputeHtileInfo(
+    ADDR_HANDLE                           hLib,
+    const ADDR3_COMPUTE_HTILE_INFO_INPUT* pIn,
+    ADDR3_COMPUTE_HTILE_INFO_OUTPUT*      pOut);
+
+
+/**
+****************************************************************************************************
+*   ADDR3_COMPUTE_FMASK_INFO_INPUT
+*
+*   @brief
+*       Input structure for Addr3ComputeFmaskInfo
+****************************************************************************************************
+*/
+typedef struct _ADDR3_COMPUTE_FMASK_INFO_INPUT
+{
+    UINT_32             size;               ///< Size of this structure in bytes
+
+    Addr3SwizzleMode    swizzleMode;        ///< FMask surface swizzle mode
+    UINT_32             unalignedWidth;     ///< Color surface original width
+    UINT_32             unalignedHeight;    ///< Color surface original height
+    UINT_32             numSlices;          ///< Number of slices/depth
+    UINT_32             numSamples;         ///< Number of samples w/ the parent MSAA surface. The
+                                            ///  sample of fmask surface itself is always one.
+} ADDR3_COMPUTE_FMASK_INFO_INPUT;
+
+/**
+****************************************************************************************************
+*   ADDR3_COMPUTE_FMASK_INFO_OUTPUT
+*
+*   @brief
+*       Output structure for Addr3ComputeFmaskInfo
+****************************************************************************************************
+*/
+typedef struct _ADDR3_COMPUTE_FMASK_INFO_OUTPUT
+{
+    UINT_32    size;           ///< Size of this structure in bytes
+
+    UINT_32    pitch;          ///< Pitch of fmask in pixels
+    UINT_32    height;         ///< Height of fmask in pixels
+    UINT_32    baseAlign;      ///< Base alignment
+    UINT_32    numSlices;      ///< Slices of fmask
+    UINT_64    fmaskBytes;     ///< Size of fmask in bytes
+    UINT_32    bpp;            ///< Bits per pixel of FMASK is: number of bit planes
+    UINT_64    sliceSize;      ///< Size of slice in bytes
+} ADDR3_COMPUTE_FMASK_INFO_OUTPUT;
+
+/**
+****************************************************************************************************
+*   Addr3ComputeFmaskInfo
+*
+*   @brief
+*       Compute Fmask pitch/height/slices/alignments and size in bytes
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr3ComputeFmaskInfo(
+    ADDR_HANDLE                              hLib,
+    const ADDR3_COMPUTE_FMASK_INFO_INPUT*    pIn,
+    ADDR3_COMPUTE_FMASK_INFO_OUTPUT*         pOut);
+
+
+// Enumeration to represent the channel used in a given bit of the equation
+enum ADDR3_EQ_CHANNEL: UINT_8
+{
+    _X,
+    _Y,
+    _Z,
+    _S,
+    _B,
+};
+
+// Defines one bitwise operator, used to combine multiple terms.  The operator applies
+// to the "next" term, so the last term will always have an operator of "none".
+enum ADDR3_EQ_OPERATOR : UINT_8
+{
+    _NONE,
+    _AND,
+    _XOR,
+};
+
+// Defines one term (i.e, x4) along with the operator that combines this term with the next one
+// Last term in a bit must have an operator of "_None".
+union ADDR3_EQ_TERM
+{
+    struct
+    {
+        enum ADDR3_EQ_OPERATOR  op;         // Operator
+        enum ADDR3_EQ_CHANNEL   channel;    // x, y, z, etc.
+        UINT_16            ordinal;    // [0..15]
+    } fields;
+
+    UINT_32  u32All;
+};
+
+static_assert(sizeof(union ADDR3_EQ_TERM) == sizeof(UINT_32), "Term is larger than expected");
+
+// Max number of terms (i.e.,, x4) allowed to comprise any one bit
+#define MaxNumTerms 4
+
+// Defines one bit of the equation (i.e., x4 ^ y5)
+struct ADDR3_EQ_BIT
+{
+    UINT_32       numTerms;
+    union ADDR3_EQ_TERM  term[MaxNumTerms];
+};
+
+// Max number of bits in the equation
+#define MaxEquationBits 18
+
+// Defines the entire equation
+struct ADDR3_EQUATION
+{
+    struct ADDR3_EQ_BIT  bits[MaxEquationBits];
+    UINT_32       numValidBits;
+    UINT_32       firstNonZeroBitLocation;
+};
+
+} //namespace rocr
+#endif
+

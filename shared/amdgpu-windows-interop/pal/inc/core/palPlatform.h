@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palPlatform.h
@@ -133,6 +110,7 @@ struct PlatformProperties
         uint32 u32All;                               ///< Flags packed as 32-bit uint.
     };
 };
+
 
 /// The client that Pal may query profile for. the order is the same as SHARED_AP_AREA in KMD escape interface
 enum class ApplicationProfileClient : uint32
@@ -300,6 +278,7 @@ public:
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]) = 0;
 
+
     /// Queries a client specified application profile in raw format.
     ///
     /// This function queries the kernel-mode driver to determine if there is a platform-wide profile for a specific
@@ -433,6 +412,28 @@ public:
     virtual void ForwardMarkerToTraceController(
         const char* pMarkerString,
         IQueue*     pQueue) = 0;
+#endif // PAL_BUILD_RDF
+
+#if PAL_CLOSED_SOURCE
+    /// Writes data to AMDLOG
+    ///
+    //# Additional details can be found here: https://amd.atlassian.net/wiki/display/SWDEVDriver/UMD+Logging+with+AMDFendr
+    //# The definitions for the flags, sourceIds, eventIds, and the payload can be found in drivers/inc/shared/amdlog_shared_defs.h
+    /// @param [in] logFlags The type of logging to be done
+    /// @param [in] sourceId The source of the event
+    /// @param [in] eventId  The type of event being sent
+    /// @param [in] pciId    The id of the GPU, can be queried through a call to GetPciId
+    ///                      or from (BusID << 16) | (DeviceID << 8) | FunctionID
+    /// @param [in] pData    The data payload for the event
+    /// @param [in] dataSize The size of the payload being sent
+    ///
+    /// @returns Success if the write was successful, failure otherwise
+    virtual Result WriteAmdLogData(uint32  logFlags,
+                                   uint32  sourceId,
+                                   uint32  eventId,
+                                   PciId   pciId,
+                                   void*   pData,
+                                   size_t  dataSize) = 0;
 #endif
 
     /// Gets the GPU ID for a given pal device index.

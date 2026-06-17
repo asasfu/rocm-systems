@@ -2166,7 +2166,7 @@ bool KernelBlitManager::fillBuffer(device::Memory& memory, const void* pattern, 
       size_t globalWorkSize = std::min(dev().settings().limit_blit_wg_ * localWorkSize, kfill_size);
       globalWorkSize = amd::alignUp(globalWorkSize, localWorkSize);
 
-      Memory& gpuCB = gpu().xferWrite().Acquire(patternSize);
+      Memory& gpuCB = gpu().xferWrite().Acquire(kpattern_size);
       void* constBuf = gpuCB.map(&gpu(), Resource::NoWait);
       // If pattern has been expanded, use the expanded pattern, otherwise use the default pattern
       if (packed_obj.pattern_expanded_) {

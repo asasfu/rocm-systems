@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palBuddyAllocatorImpl.h
@@ -300,7 +277,7 @@ Result BuddyAllocator<Allocator>::GetNextFreeBlock(
 
 // =====================================================================================================================
 // Frees the memory at the given offset, if it's buddy is also free, merges the two and recursively calls this again.
-// This doesn't need any internal locks because Free acquires an exclusive lock on the entire allocator (freeLock), and
+// This doesn't need any internal locks because Free accquires an exclusive lock on the entire allocator (freeLock), and
 // the lock on the m_pNumFreeList.  These locks could potentially be more fine grained, however freeing and allocating
 // don't typically happen at the same time, and Freeing is already much faster than allocating.
 template <typename Allocator>
@@ -363,7 +340,7 @@ Result BuddyAllocator<Allocator>::FreeBlock(
     return result;
 }
 // =====================================================================================================================
-// Frees a suballocated block making it available for future reuse.
+// Frees a suballocated block making it available for future re-use.
 template <typename Allocator>
 void BuddyAllocator<Allocator>::Free(
     gpusize offset,
@@ -445,7 +422,7 @@ Result BuddyAllocator<Allocator>::ClaimGpuMemory(
 // =====================================================================================================================
 // Used to search through pools before claiming memory to find the one that will fragment the least.  pKval will have
 // be the highest level needed to be split up for this pool, so the pool with the lowest value will be best.  Can NOT
-// guarantee the memory will still be available by the time this thread calls ClaimGpuMemory.
+// guarantee the memory will still be availible by the time this thread calls ClaimGpuMemory.
 template <typename Allocator>
 Result BuddyAllocator<Allocator>::CheckIfOpenMemory(
     gpusize size,

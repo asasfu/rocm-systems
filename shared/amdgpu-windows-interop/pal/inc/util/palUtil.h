@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palUtil.h
@@ -86,6 +63,8 @@ static_assert(false, "Clients may not define macros named \"min\" or \"max\".");
     _typename() = delete;
 
 #if !defined(__GNUC__)
+//# Define the following MSC-specific defines under !defined(__GNUC__) so they are not removed
+//# by open-source sanitization, so it is possible to build a standalone LLPC on Windows.
 
 // Equates to the [__stdcall](https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/cpp/stdcall.md) convention on Windows.
 #define PAL_STDCALL __stdcall
@@ -105,6 +84,7 @@ static_assert(false, "Clients may not define macros named \"min\" or \"max\".");
 #define PAL_FORCE_INLINE __attribute__((always_inline)) inline
 #define PAL_NO_INLINE __attribute__((noinline))
 #endif
+
 
 /// Platform cache line size in bytes.
 #define PAL_CACHE_LINE_BYTES 64
@@ -480,7 +460,7 @@ enum class Result : int32
     /// The returned results were incomplete.
     ErrorIncompleteResults                  = -(0x00000060),
 
-    /// The display mode is incompatible with framebuffer or CRTC.
+    /// The display mode is imcompatible with framebuffer or CRTC.
     ErrorIncompatibleDisplayMode            = -(0x00000061),
 
     /// Implicit fullscreen exclusive mode is not safe because the specified window size doesn't match the
@@ -504,6 +484,35 @@ enum class Result : int32
 
     /// The static VMID acquire/release operation failed.
     ErrorStaticVmidOpFailed                 = -(0x00000068),
+
+#if PAL_WORK_GRAPHS_SUPPORT
+    /// Graph node is invalid.
+    ErrorGraphInvalidNode                   = -(0x00000069),
+
+    /// Graph node has insufficient ports.
+    ErrorGraphInsufficientNodePorts         = -(0x0000006A),
+
+    /// Graph has no entry nodes.
+    ErrorGraphNoEntryNodes                  = -(0x0000006B),
+
+    /// Graph has internal node with no predecessors.
+    ErrorGraphUnreachableNodes              = -(0x0000006C),
+
+    /// Graph has disconnected nodes.
+    ErrorGraphDisconnectedNodes             = -(0x0000006D),
+
+    /// Graph has a cycle.
+    ErrorGraphNotAcyclic                    = -(0x0000006E),
+
+    /// Graph maximum node chain is too long.
+    ErrorGraphExceededMaxNodeChainLength    = -(0x0000006F),
+
+    /// Graph node has exceeded output payload limits.
+    ErrorGraphNodeExceededOutputLimits      = -(0x00000070),
+
+    /// Graph exceeds maximum input sharing depth
+    ErrorGraphExceededMaxInputShareDepth    = -(0x000000071),
+#endif
 
 };
 
@@ -715,6 +724,7 @@ private:
  * The File class provides an OS-abstracted interface for opening files and reading/writing data in those files.
  * Further, the ElfReadContext and ElfWriteContext classes provide functionality for reading and writing buffers in the
  * [Executable and Linkable Format (ELF)]
+ # Please refer to https://tinyurl.com/what1531f for the format.
  * The ELF utilities can be used in conjunction with File in order to read/write ELF files on disk.
  *
  * ### Inline Functions

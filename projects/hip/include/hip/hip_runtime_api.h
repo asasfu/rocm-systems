@@ -554,6 +554,7 @@ typedef enum hipDeviceAttribute_t {
   hipDeviceAttributeGPUDirectRDMAWithHipVMMSupported,  ///< GPU Direct RDMA with HIP VMM is supported
                                                        ///< (requires DMA-Buf and HIP virtual memory
                                                        ///< management)
+  hipDeviceAttributeHandleTypeFabricSupported,   ///< Device supports exporting memory to a fabric handle
 
   hipDeviceAttributeCudaCompatibleEnd = 9999,
   hipDeviceAttributeAmdSpecificBegin = 10000,
@@ -769,6 +770,9 @@ typedef struct hipIpcMemHandle_st {
 typedef struct hipIpcEventHandle_st {
   char reserved[HIP_IPC_HANDLE_SIZE];
 } hipIpcEventHandle_t;
+typedef struct hipMemFabricHandle_st {
+    unsigned char data[HIP_IPC_HANDLE_SIZE];
+} hipMemFabricHandle_t;
 typedef struct ihipModule_t* hipModule_t;
 typedef struct ihipModuleSymbol_t* hipFunction_t;
 typedef struct ihipLinkState_t* hipLinkState_t;
@@ -1025,6 +1029,8 @@ enum hipLimit_t {
 // Flags that can be used with hipExtLaunch Set of APIs.
 /** AnyOrderLaunch of kernels.*/
 #define hipExtAnyOrderLaunch 0x01
+/** Dispatch ahead for programmatic dependent launch (AQL DispatchAheadProgrammatic).*/
+#define hipExtDispatchAheadProgrammatic 0x02
 // Flags to be used with hipStreamWaitValue32 and hipStreamWaitValue64.
 #define hipStreamWaitValueGte 0x0
 #define hipStreamWaitValueEq 0x1
@@ -1306,7 +1312,8 @@ typedef enum hipMemAllocationHandleType {
   hipMemHandleTypePosixFileDescriptor =
       0x1,  ///< Allows a file descriptor for exporting. Permitted only on POSIX systems
   hipMemHandleTypeWin32 = 0x2,    ///< Allows a Win32 NT handle for exporting. (HANDLE)
-  hipMemHandleTypeWin32Kmt = 0x4  ///< Allows a Win32 KMT handle for exporting. (D3DKMT_HANDLE)
+  hipMemHandleTypeWin32Kmt = 0x4,  ///< Allows a Win32 KMT handle for exporting. (D3DKMT_HANDLE)
+  hipMemHandleTypeFabric   = 0x8   ///< Allows a fabric handle to be used for exporting.
 } hipMemAllocationHandleType;
 /**
  * Specifies the properties of allocations made from the pool.
@@ -1715,6 +1722,7 @@ typedef enum hipLaunchAttributeID {
   hipLaunchAttributeSynchronizationPolicy = 3,             ///< Valid for streams
   hipLaunchAttributeClusterDimension = 4,                  ///< Valid for graph nodes, launches
   hipLaunchAttributeClusterSchedulingPolicyPreference = 5, ///< Valid for graph nodes, launches
+  hipLaunchAttributeProgrammaticStreamSerialization = 6,   ///< Valid for launches; programmatic dependent launch
   hipLaunchAttributePriority = 8, ///< Valid for graph node, streams, launches
   hipLaunchAttributeMemSyncDomainMap = 9,       ///< Valid for streams, graph nodes, launches
   hipLaunchAttributeMemSyncDomain = 10,         ///< Valid for streams, graph nodes, launches
@@ -1762,6 +1770,8 @@ typedef union hipLaunchAttributeValue {
   hipClusterSchedulingPolicy clusterSchedulingPolicyPreference;  ///< Value of launch attribute :: hipLaunchAttributeClusterSchedulingPolicyPreference
                                                                  ///< determines the preferred strategy for distributing blocks within a compute cluster
   const hipExtDynDataPrefetchConfig* dynDataPrefetch;  ///< Value of launch attribute ::hipLaunchAttributeExtDynDataPrefetch
+  int programmaticStreamSerializationAllowed;  ///< Value of launch attribute ::hipLaunchAttributeProgrammaticStreamSerialization.
+                                               ///< Non-zero allows the kernel to be launched ahead for programmatic dependent launch.
 } hipLaunchAttributeValue;
 
 /**
@@ -2178,7 +2188,7 @@ typedef struct hipArrayMemoryRequirements {
 /**
  * Requested handle type for address range.
  */
-typedef enum hipMemRangeHandleType {
+ typedef enum hipMemRangeHandleType {
   hipMemRangeHandleTypeDmaBufFd = 0x1,
   hipMemRangeHandleTypeMax = 0x7fffffff
 } hipMemRangeHandleType;
@@ -10005,7 +10015,6 @@ hipError_t hipCreateSurfaceObject(hipSurfaceObject_t* pSurfObject, const hipReso
 hipError_t hipDestroySurfaceObject(hipSurfaceObject_t surfaceObject);
 // end of surface
 
-
 /**
  * @brief Enable HIP runtime logging.
  *
@@ -10725,8 +10734,8 @@ static inline __host__ hipError_t hipLaunchKernelEx(const hipLaunchConfig_t* con
   }(std::forward<Params>(args)...);
 }
 /**
- * @}
- */
+* @}
+*/
 
 
 #endif  // __cplusplus

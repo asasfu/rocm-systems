@@ -2142,6 +2142,13 @@ hipError_t GraphExec::EnqueueSegment(const Segment& segment, hip::Stream* stream
       }
     } else {
       // Node doesn't support capture - execute individually.
+      // Dispatch the leading dep_barrier batch (prepended by BuildSyncPlan)
+      // BEFORE executing the first non-captured node so cross-segment
+      // dependencies are enforced.
+      if (segBatch && i == 0 && batchIndex == 0 && batchIndex < segBatch->packet_batches.size()) {
+        status = dispatchCurrentBatch();
+        if (status != hipSuccess) return status;
+      }
       // Flat dispatch bypasses the Barriers() tracker (ActiveSignal is skipped).
       // Enqueue Markers before and after the non-captured node to:
       //   Before: resync the Barriers() tracker so releaseGpuMemoryFence/WaitCurrent

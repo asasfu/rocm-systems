@@ -7,9 +7,11 @@ dynamicLoading:
     tags: [module]
   Unit_hipApiDynamicLoad_hipGetProcAddress:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipApiDynamicLoad:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [module]
   Unit_hipGetProcAddress_Positive:
     <<: *level_2

@@ -93,7 +93,7 @@ public:
 
     bool Initialize();
     void Shutdown();
-    bool IsLoaded() const { return dxcore_handle_ != nullptr; }
+    bool IsLoaded() const { return library_handle_ != nullptr; }
 
     // Function pointer declarations
     DXCORE_DEF(D3DKMTCreateAllocation2)* DXCORE_PFN(D3DKMTCreateAllocation2);
@@ -138,8 +138,12 @@ private:
     ~DxcoreLoader();
 
     bool LoadDxcoreApis();
+#if defined(_WIN32)
+    bool LoadModelApis();
+#endif  // _WIN32
 
-    void* dxcore_handle_;
+    void* library_handle_;
+    std::string library_name_;
     std::once_flag init_flag_;  // For thread-safe initialization
 
     // Disable copy

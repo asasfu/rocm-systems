@@ -242,11 +242,19 @@ std::pair<const Isa*, const Isa*> Isa::supportedIsas() {
       {"gfx1151", true, true, 11, 5, 1, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
       {"gfx1152", true, true, 11, 5, 2, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
       {"gfx1153", true, true, 11, 5, 3, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
+      {"gfx115E", true, true, 11, 5, 14, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
+      {"gfx1170", true, true, 11, 7, 0, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
+      {"gfx1171", true, true, 11, 7, 1, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
       {"gfx11-generic", true, true, 11, 0, 0, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
       {"gfx1200", true, true, 12, 0, 0, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
       {"gfx1201", true, true, 12, 0, 1, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
       {"gfx1250", true, true, 12, 5, 0, NONE, NONE, 4, 32, 1, 256, 320* Ki, 64, 1024},
+      {"gfx1251", true, true, 12, 5, 1, NONE, NONE, 4, 32, 1, 256, 320* Ki, 64, 1024},
+      {"gfx1260", true, true, 12, 6, 0, NONE, NONE, 4, 32, 1, 256, 660* Ki, 64, 1024},
       {"gfx12-generic", true, true, 12, 0, 0, NONE, NONE, 2, 32, 1, 256, 64 * Ki, 32, 1024},
+      {"gfx1310", true, true, 13, 1, 0, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32, 1024},
+      {"gfx131F", true, true, 13, 1, 15, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32, 1024},
+      {"gfx1370", true, true, 13, 7, 0, NONE, NONE, 2, 32, 1, 256, 192 * Ki, 32, 1024},
   };
   return std::make_pair(std::begin(supportedIsas_), std::end(supportedIsas_));
 }
@@ -911,6 +919,7 @@ size_t GetMaxStackSize(const std::string& procName) {
 bool Device::create(const Isa& isa) {
   assert(!vaCacheAccess_ && !vaCacheMap_);
   isa_ = &isa;
+  info_.shareLocalMemInWGP_ = isa_->versionMajor() >= 13;
   // VA Cache Ops Lock
   vaCacheAccess_ = new std::recursive_mutex();
   if (nullptr == vaCacheAccess_) {
