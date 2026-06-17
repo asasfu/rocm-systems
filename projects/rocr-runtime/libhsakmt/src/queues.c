@@ -151,10 +151,12 @@ uint32_t hsakmt_get_vgpr_size_per_cu(uint32_t gfxv)
 		vgpr_size = 0x80000;
 	else if (gfxv < GFX_VERSION_PLUM_BONITO)
 		vgpr_size = 0x40000;
-	else if (gfxv <= GFX_VERSION_GFX1201 || gfxv == GFX_VERSION_GFX1260)
+	else if (gfxv <= GFX_VERSION_GFX1201)
 		vgpr_size = 0x60000;
 	else if (gfxv <= GFX_VERSION_GFX1251)
 		vgpr_size = 0x80000;
+	else if (gfxv == GFX_VERSION_GFX1260)
+		vgpr_size = 0xC0000;
 	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
 		vgpr_size = 0x40000; /* 128kiB per SIMD */
 

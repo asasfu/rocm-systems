@@ -46,16 +46,14 @@ rtc:
     tags: [header]
   Unit_RTC_LinkerAPI_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [link]
   Unit_RTC_LinkDestroy_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [link]
   Unit_RTC_LinkDestroy_Default:
     <<: *level_2
     # SWDEV-450909: Test failed in stress testing
-    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl]
     tags: [link]
   Unit_RTC_LinkerAPI:
     <<: *level_2
@@ -63,7 +61,6 @@ rtc:
     tags: [link]
   Unit_RTC_LinkAddFile_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [link]
   Unit_RTC_LinkAddFile_Default:
     <<: *level_2
@@ -178,7 +175,6 @@ rtc:
     tags: [compile]
   Unit_hiprtcUndefMacroComplrOptnTst:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [compile]
   Unit_hiprtcHeaderDirectoryComplrOptnTst:
     <<: *level_2
@@ -195,7 +191,6 @@ rtc:
     tags: [compile]
   Unit_hiprtcEnabledConversionErrComplrOptnTst:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [compile]
   Unit_hiprtcDisabledConversionErrComplrOptnTst:
     <<: *level_2
@@ -203,11 +198,9 @@ rtc:
     tags: [compile]
   Unit_hiprtcEnabledConversionWarningComplrOptnTst:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [compile]
   Unit_hiprtcDisabledConversionWarningComplrOptnTst:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [compile]
   Unit_hiprtcGpuMaxThreadPerBlockComplrOptnTst:
     <<: *level_2

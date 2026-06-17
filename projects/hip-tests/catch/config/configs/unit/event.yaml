@@ -42,7 +42,6 @@ event:
     tags: [synchronization, smoke, P0]
   Unit_hipEventElapsedTime_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [synchronization]
   Unit_hipEventRecord:
     <<: *level_2
@@ -71,14 +70,12 @@ event:
     tags: [lifecycle, P1]
   Unit_hipEventDestroy_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipEventCreate_Positive:
     <<: *level_2
     tags: [lifecycle, smoke, P0]
   Unit_hipEventCreate_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipEventCreateWithFlags_Positive:
     <<: *level_2
@@ -116,7 +113,6 @@ event:
     tags: [lifecycle, P1]
   Unit_hipEventCreateWithFlags_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipEventSynchronize_Default_Positive:
     <<: *level_2
@@ -138,5 +134,4 @@ event:
     tags: [synchronization, P0]
   Unit_hipEventIpc_shm_cleanup:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [ipc]

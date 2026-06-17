@@ -7,24 +7,20 @@ executionControl:
     tags: [attributes, kernel]
   Unit_hipFuncGetAttributes_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [attributes, kernel]
   Unit_hipLaunchKernel_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipLaunchKernel_Positive_Parameters:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipLaunchKernel_Negative_Parameters:
     <<: *level_2
     # Below tests are failing PSDB
-    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl]
     tags: [kernel, launch]
   Unit_hipLaunchKernel_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
   Unit_hipLaunchCooperativeKernel_Positive_Basic:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -54,23 +50,18 @@ executionControl:
     tags: [kernel, multigpu]
   Unit_hipExtLaunchKernel_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipExtLaunchKernel_Positive_Parameters:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipExtLaunchKernel_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipExtLaunchKernel_capturehipExtLaunchKernel:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipExtLaunchMultiKernelMultiDevice_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipExtLaunchMultiKernelMultiDevice_Negative_Parameters:
     <<: *level_2
@@ -79,34 +70,27 @@ executionControl:
     disabled: [amd_linux, amd_windows, amd_wsl]
   Unit_hipExtLaunchMultiKernelMultiDevice_Negative_MultiKernelSameDevice:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipLaunchByPtr_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipLaunchByPtr_Negative_Parameters:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit___hipPushCallConfiguration_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel, launch]
   Unit_hipLaunchByPtr_Verify_Capture:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
   Unit_hipGetProcAddress_KernelLaunchApis:
     <<: *level_2
-    disabled: [amd_wsl, gfx1310, gfx1370]
+    disabled: [amd_wsl]
     tags: [kernel]
   Unit_hipGetProcAddress_CallbackActivityAPIs:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel]
   Unit_hipGetProcAddress_ExecutionControlAPIs:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [kernel]
   Unit_hipFuncSetCacheConfig_Positive_Basic:
     <<: *level_2

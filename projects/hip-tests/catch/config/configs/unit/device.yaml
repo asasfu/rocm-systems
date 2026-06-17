@@ -136,7 +136,6 @@ device:
     tags: [query, smoke, P0]
   Unit_hipGetSetDevice_MultiThreaded:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [query, P0]
   Unit_hipSetGetDevice_Positive_Threaded_Basic:
     <<: *level_2
@@ -379,23 +378,18 @@ device:
     tags: [multigpu, P0]
   Unit_hipGetDriverEntryPoint_Positive:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
   Unit_hipGetDriverEntryPoint_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
   Unit_hipGetDriverEntryPoint_spt_Positive:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
   Unit_hipGetDriverEntryPoint_spt_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
   Unit_hipGetProcAddress_IPC_Memory:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
   Unit_hipGetProcAddress_IPC_Event:
     <<: *level_2
     # AIRUNTIME-2336: temporarily disabled (subprocess aborted intermittently in CI)
-    disabled: [amd_windows, amd_wsl, amd_linux, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl, amd_linux]
   Unit_hipIpcOpenMemHandle_Negative_Open_In_Creating_Process:
     <<: *level_2
     tags: [P0]
@@ -431,7 +425,6 @@ device:
     disabled: [amd_wsl]
   Unit_hipIpcOpenMemHandle_Multiproc:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
   Unit_hipIpcOpenMemHandle_Multiproc_Child:
     <<: *level_2
     disabled: [amd_linux, amd_windows, amd_wsl, nvidia_linux, nvidia_windows, gfx1250, gfx1260, gfx1310, gfx1370]

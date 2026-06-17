@@ -378,7 +378,6 @@ texture:
     tags: [texref, image]
   Unit_hipUnbindTexture_Null_Texture:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [texref]
   Unit_hipUnbindTexture_Positive_1D:
     <<: *level_2

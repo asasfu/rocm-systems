@@ -132,7 +132,6 @@ stream:
     tags: [memory, P1]
   Unit_hipMemPoolApi_hipStreamLegacy_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [memory]
   Unit_hipStreamValue_Write:
     <<: *level_2
@@ -308,19 +307,15 @@ stream:
     tags: [streamperthread, P1]
   Unit_hipStreamGetId_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetId_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetId_WithDifferentStreamCreateAPIs:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetId_MultipleThreads:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetId_MultiDevice:
     <<: *level_2
@@ -328,7 +323,6 @@ stream:
     tags: [properties, multigpu]
   Unit_hipStreamGetId_MultiProcess:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipExtStreamGetCUMask_verifyDefaultAndCustomMask:
     <<: *level_2
@@ -411,35 +405,28 @@ stream:
   Unit_hipStreamSynchronize_spt_SynchronizeStreamAndQueryNullStream:
     <<: *level_2
     # Following tests disabled due to SWDEV-486363
-    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl]
     tags: [synchronization, streamperthread, P1]
   Unit_hipStreamBatchMemOp_Negative_Tests:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [memory]
   Unit_hipStreamSetAttribute_hipStreamGetAttribute_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamGetAttribute_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamSetAttribute_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamCopyAttributes_Basic:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamCopyAttributes_Negative:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamCopyAttributes_WithAllSyncPolicyValues:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
     tags: [properties]
   Unit_hipStreamValue_Negative_StreamAndFlag:
     <<: *level_2
