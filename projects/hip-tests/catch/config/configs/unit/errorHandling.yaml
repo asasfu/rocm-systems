@@ -7,7 +7,7 @@ errorHandling:
     <<: *level_2
   Unit_hipGetErrorString_Positive_Basic:
     <<: *level_2
-    tags: [smoke]
+    tags: [smoke, P0]
   Unit_hipGetErrorString_Negative_Parameters:
     <<: *level_2
   Unit_hipDrvGetErrorName_Positive_Basic:
@@ -20,7 +20,7 @@ errorHandling:
     <<: *level_2
   Unit_hipGetLastError_Positive_Basic:
     <<: *level_2
-    tags: [smoke]
+    tags: [smoke, P0]
   Unit_hipGetLastError_Positive_Threaded:
     <<: *level_2
   Unit_hipGetLastError_with_hipMemcpyPeerAsync:
@@ -84,7 +84,7 @@ errorHandling:
     <<: *level_2
   Unit_hipPeekAtLastError_Positive_Basic:
     <<: *level_2
-    tags: [smoke]
+    tags: [smoke, P0]
   Unit_hipPeekAtLastError_Positive_Threaded:
     <<: *level_2
   Unit_hipPeekAtLastError_Positive:
@@ -113,6 +113,7 @@ errorHandling:
     disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipExtGetLastError_Positive_Basic:
     <<: *level_2
+    tags: [P0]
   Unit_hipExtGetLastError_Positive_Threaded:
     <<: *level_2
   Unit_hipExtGetLastError_with_hipMemcpyPeerAsync:
