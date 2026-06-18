@@ -133,7 +133,13 @@ function(build_kernel_for_devices TRAP_HANDLER_NAME)
 
   foreach(dev ${TARGET_DEVICES})
     # Determine source file suffix based on gfx architecture
-    if(${dev} MATCHES "^gfx12" OR ${dev} MATCHES "^gfx13")
+    if(${dev} MATCHES "^gfx13")
+      set(SOURCE_SUFFIX "_gfx13")
+    elseif(${dev} MATCHES "^gfx1260")
+      # gfx1260 brings many gfx13 features, and they share the same 1st level
+      # trap handler ABI.
+      set(SOURCE_SUFFIX "_gfx13")
+    elseif(${dev} MATCHES "^gfx12")
       set(SOURCE_SUFFIX "_gfx12")
     else()
       set(SOURCE_SUFFIX "")
