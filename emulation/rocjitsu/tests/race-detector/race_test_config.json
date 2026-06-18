@@ -14,17 +14,10 @@
         "unique_id": 5929628898254127105,
         "marketing_name": "AMD Instinct MI350X",
         "drm_render_minor": 128,
-<<<<<<<< HEAD:emulation/rocjitsu/configs/amdgpu_cdna4_kmd.json
-        "simd_count": 1024,
-        "max_waves_per_simd": 8,
-        "num_shader_engines": 4,
-        "num_shader_arrays_per_engine": 2,
-========
         "simd_count": 4,
         "max_waves_per_simd": 8,
         "num_shader_engines": 1,
         "num_shader_arrays_per_engine": 1,
->>>>>>>> amd-npi:emulation/rocjitsu/tests/race-detector/race_test_config.json
         "num_cu_per_sh": 4,
         "simd_per_cu": 4,
         "wave_front_size": 64,
