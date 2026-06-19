@@ -44,10 +44,7 @@ void DsAddU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::ADD;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -83,10 +80,7 @@ void DsSubU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SUB;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -122,10 +116,7 @@ void DsRsubU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::RSUB;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -161,10 +152,7 @@ void DsIncU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::INC;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -200,10 +188,7 @@ void DsDecU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::DEC;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -239,10 +224,7 @@ void DsMinI32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -278,10 +260,7 @@ void DsMaxI32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -317,10 +296,7 @@ void DsMinU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::UMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -356,10 +332,7 @@ void DsMaxU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::UMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -395,10 +368,7 @@ void DsAndB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::AND;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -434,10 +404,7 @@ void DsOrB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::OR;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -473,10 +440,7 @@ void DsXorB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::XOR;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -507,10 +471,6 @@ DsMskorB32Ds::DsMskorB32Ds(const MachineInst *inst)
 }
 
 void DsMskorB32Ds::execute_impl(amdgpu::Wavefront &wf) {
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  (void)wf;
-  throw util::UnimplementedInst(mnemonic());
-========
   if (inst_.gds)
     throw util::UnimplementedInst(mnemonic());
   auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
@@ -534,7 +494,6 @@ void DsMskorB32Ds::execute_impl(amdgpu::Wavefront &wf) {
     std::memcpy(&d->store_data[lane * 8 + 4], &src0, 4);
   }
   set_data(std::move(d));
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
 }
 
 DsWriteB32Ds::DsWriteB32Ds(const MachineInst *inst)
@@ -556,10 +515,7 @@ void DsWriteB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -599,28 +555,12 @@ void DsWrite2B32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->exec_mask = exec;
   d->lane_mask = exec;
   d->ds2_active = true;
   d->store_data.resize(wf.wf_size() * 4);
   d->ds2_store_data.resize(wf.wf_size() * 4);
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t base = cu.read_vgpr(wf.vgpr_alloc().base + inst_.addr, lane);
-    d->per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset0) * 4U + wf.lds_base();
-    d->ds2_per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset1) * 4U + wf.lds_base();
-    uint32_t v0_0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 0, lane);
-    std::memcpy(&d->store_data[lane * 4 + 0], &v0_0, 4);
-    uint32_t v1_0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1 + 0, lane);
-========
   uint32_t addr_base = wf.vgpr_alloc().base + inst_.addr;
   uint32_t data0_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0;
   uint32_t data1_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1;
@@ -633,7 +573,6 @@ void DsWrite2B32Ds::execute_impl(amdgpu::Wavefront &wf) {
     uint32_t v0_0 = cu.read_vgpr(data0_base + 0, lane);
     std::memcpy(&d->store_data[lane * 4 + 0], &v0_0, 4);
     uint32_t v1_0 = cu.read_vgpr(data1_base + 0, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     std::memcpy(&d->ds2_store_data[lane * 4 + 0], &v1_0, 4);
   }
   set_data(std::move(d));
@@ -664,28 +603,12 @@ void DsWrite2st64B32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->exec_mask = exec;
   d->lane_mask = exec;
   d->ds2_active = true;
   d->store_data.resize(wf.wf_size() * 4);
   d->ds2_store_data.resize(wf.wf_size() * 4);
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t base = cu.read_vgpr(wf.vgpr_alloc().base + inst_.addr, lane);
-    d->per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset0) * 256U + wf.lds_base();
-    d->ds2_per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset1) * 256U + wf.lds_base();
-    uint32_t v0_0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 0, lane);
-    std::memcpy(&d->store_data[lane * 4 + 0], &v0_0, 4);
-    uint32_t v1_0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1 + 0, lane);
-========
   uint32_t addr_base = wf.vgpr_alloc().base + inst_.addr;
   uint32_t data0_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0;
   uint32_t data1_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1;
@@ -698,7 +621,6 @@ void DsWrite2st64B32Ds::execute_impl(amdgpu::Wavefront &wf) {
     uint32_t v0_0 = cu.read_vgpr(data0_base + 0, lane);
     std::memcpy(&d->store_data[lane * 4 + 0], &v0_0, 4);
     uint32_t v1_0 = cu.read_vgpr(data1_base + 0, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     std::memcpy(&d->ds2_store_data[lane * 4 + 0], &v1_0, 4);
   }
   set_data(std::move(d));
@@ -728,10 +650,7 @@ void DsCmpstB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::CMPSWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -773,10 +692,7 @@ void DsCmpstF32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::CMPSWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -815,10 +731,7 @@ void DsMinF32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -854,10 +767,7 @@ void DsMaxF32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -878,14 +788,7 @@ DsNopDs::DsNopDs(const MachineInst *inst)
   num_dst_ = 0;
 }
 
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-void DsNopDs::execute_impl(amdgpu::Wavefront &wf) {
-  (void)wf;
-  throw util::UnimplementedInst(mnemonic());
-}
-========
 void DsNopDs::execute_impl(amdgpu::Wavefront &wf) { amdgpu::execute_ds_nop_ds(*this, wf); }
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
 
 DsAddF32Ds::DsAddF32Ds(const MachineInst *inst)
     : Ds("ds_add_f32", reinterpret_cast<const OpEncoding *>(inst), make_exec_fn<DsAddF32Ds>()),
@@ -908,10 +811,7 @@ void DsAddF32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FADD;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -920,83 +820,7 @@ void DsAddF32Ds::execute_impl(amdgpu::Wavefront &wf) {
   for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
     if (!(exec & (1ULL << lane)))
       continue;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-    uint32_t val0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 0, lane);
-    std::memcpy(&d->store_data[lane * 4 + 0], &val0, 4);
-  }
-  set_data(std::move(d));
-}
-
-DsPkAddF16Ds::DsPkAddF16Ds(const MachineInst *inst)
-    : Ds("ds_pk_add_f16", reinterpret_cast<const OpEncoding *>(inst), make_exec_fn<DsPkAddF16Ds>()),
-      addr(32, OperandType::OPR_VGPR, reinterpret_cast<const OpEncoding *>(inst)->addr),
-      data0(32, OperandType::OPR_VGPR_OR_ACCVGPR,
-            reinterpret_cast<const OpEncoding *>(inst)->data0) {
-  src_operands_[0] = &addr;
-  src_operands_[1] = &data0;
-  num_src_ = 2;
-  num_dst_ = 0;
-  flags_ |= MEMORY_OP;
-}
-
-void DsPkAddF16Ds::execute_impl(amdgpu::Wavefront &wf) {
-  if (inst_.gds)
-    throw util::UnimplementedInst(mnemonic());
-  auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
-  d->dst_reg_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.vdst;
-  d->elem_size = 4;
-  d->num_elems = 1;
-  d->is_load = true;
-  d->atomic_op = amdgpu::AtomicOp::FADD;
-  ds_calculate_addresses(inst_, wf, *d);
-  auto &cu = wf.cu();
-  uint64_t exec = wf.exec();
-  d->store_data.resize(wf.wf_size() * 4);
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t val0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 0, lane);
-    std::memcpy(&d->store_data[lane * 4 + 0], &val0, 4);
-  }
-  set_data(std::move(d));
-}
-
-DsPkAddBf16Ds::DsPkAddBf16Ds(const MachineInst *inst)
-    : Ds("ds_pk_add_bf16", reinterpret_cast<const OpEncoding *>(inst),
-         make_exec_fn<DsPkAddBf16Ds>()),
-      addr(32, OperandType::OPR_VGPR, reinterpret_cast<const OpEncoding *>(inst)->addr),
-      data0(32, OperandType::OPR_VGPR_OR_ACCVGPR,
-            reinterpret_cast<const OpEncoding *>(inst)->data0) {
-  src_operands_[0] = &addr;
-  src_operands_[1] = &data0;
-  num_src_ = 2;
-  num_dst_ = 0;
-  flags_ |= MEMORY_OP;
-}
-
-void DsPkAddBf16Ds::execute_impl(amdgpu::Wavefront &wf) {
-  if (inst_.gds)
-    throw util::UnimplementedInst(mnemonic());
-  auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
-  d->dst_reg_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.vdst;
-  d->elem_size = 4;
-  d->num_elems = 1;
-  d->is_load = true;
-  d->atomic_op = amdgpu::AtomicOp::FADD;
-  ds_calculate_addresses(inst_, wf, *d);
-  auto &cu = wf.cu();
-  uint64_t exec = wf.exec();
-  d->store_data.resize(wf.wf_size() * 4);
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t val0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 0, lane);
-========
     uint32_t val0 = cu.read_vgpr(data_base + 0, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     std::memcpy(&d->store_data[lane * 4 + 0], &val0, 4);
   }
   set_data(std::move(d));
@@ -1020,10 +844,7 @@ void DsWriteAddtidB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1057,10 +878,7 @@ void DsWriteB8Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 1;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1094,10 +912,7 @@ void DsWriteB16Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 2;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1136,10 +951,7 @@ void DsAddRtnU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::ADD;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1178,10 +990,7 @@ void DsSubRtnU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SUB;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1220,10 +1029,7 @@ void DsRsubRtnU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::RSUB;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1262,10 +1068,7 @@ void DsIncRtnU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::INC;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1304,10 +1107,7 @@ void DsDecRtnU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::DEC;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1346,10 +1146,7 @@ void DsMinRtnI32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1388,10 +1185,7 @@ void DsMaxRtnI32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1430,10 +1224,7 @@ void DsMinRtnU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::UMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1472,10 +1263,7 @@ void DsMaxRtnU32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::UMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1514,10 +1302,7 @@ void DsAndRtnB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::AND;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1555,10 +1340,7 @@ void DsOrRtnB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::OR;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1597,10 +1379,7 @@ void DsXorRtnB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::XOR;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1634,10 +1413,6 @@ DsMskorRtnB32Ds::DsMskorRtnB32Ds(const MachineInst *inst)
 }
 
 void DsMskorRtnB32Ds::execute_impl(amdgpu::Wavefront &wf) {
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  (void)wf;
-  throw util::UnimplementedInst(mnemonic());
-========
   if (inst_.gds)
     throw util::UnimplementedInst(mnemonic());
   auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
@@ -1662,7 +1437,6 @@ void DsMskorRtnB32Ds::execute_impl(amdgpu::Wavefront &wf) {
     std::memcpy(&d->store_data[lane * 8 + 4], &src0, 4);
   }
   set_data(std::move(d));
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
 }
 
 DsWrxchgRtnB32Ds::DsWrxchgRtnB32Ds(const MachineInst *inst)
@@ -1689,10 +1463,7 @@ void DsWrxchgRtnB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1734,10 +1505,7 @@ void DsWrxchg2RtnB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1779,10 +1547,7 @@ void DsWrxchg2st64RtnB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1824,10 +1589,7 @@ void DsCmpstRtnB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::CMPSWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1872,10 +1634,7 @@ void DsCmpstRtnF32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::CMPSWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1917,10 +1676,7 @@ void DsMinRtnF32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -1959,10 +1715,7 @@ void DsMaxRtnF32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2023,10 +1776,7 @@ void DsAddRtnF32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FADD;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2060,10 +1810,7 @@ void DsReadB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
 }
@@ -2089,26 +1836,16 @@ void DsRead2B32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->exec_mask = exec;
   d->lane_mask = exec;
   d->ds2_active = true;
   d->ds2_dst_reg_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.vdst + 1;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t base = cu.read_vgpr(wf.vgpr_alloc().base + inst_.addr, lane);
-========
   uint32_t addr_base = wf.vgpr_alloc().base + inst_.addr;
   for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
     if (!(exec & (1ULL << lane)))
       continue;
     uint32_t base = cu.read_vgpr(addr_base, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     d->per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset0) * 4U + wf.lds_base();
     d->ds2_per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset1) * 4U + wf.lds_base();
   }
@@ -2137,26 +1874,16 @@ void DsRead2st64B32Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->exec_mask = exec;
   d->lane_mask = exec;
   d->ds2_active = true;
   d->ds2_dst_reg_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.vdst + 1;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t base = cu.read_vgpr(wf.vgpr_alloc().base + inst_.addr, lane);
-========
   uint32_t addr_base = wf.vgpr_alloc().base + inst_.addr;
   for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
     if (!(exec & (1ULL << lane)))
       continue;
     uint32_t base = cu.read_vgpr(addr_base, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     d->per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset0) * 256U + wf.lds_base();
     d->ds2_per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset1) * 256U + wf.lds_base();
   }
@@ -2207,10 +1934,7 @@ void DsReadU8Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 1;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
 }
@@ -2259,10 +1983,7 @@ void DsReadU16Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 2;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
 }
@@ -2339,10 +2060,7 @@ void DsAddU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::ADD;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2380,10 +2098,7 @@ void DsSubU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SUB;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2421,10 +2136,7 @@ void DsRsubU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::RSUB;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2462,10 +2174,7 @@ void DsIncU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::INC;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2503,10 +2212,7 @@ void DsDecU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::DEC;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2544,10 +2250,7 @@ void DsMinI64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2585,10 +2288,7 @@ void DsMaxI64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2626,10 +2326,7 @@ void DsMinU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::UMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2667,10 +2364,7 @@ void DsMaxU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::UMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2708,10 +2402,7 @@ void DsAndB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::AND;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2749,10 +2440,7 @@ void DsOrB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::OR;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2790,10 +2478,7 @@ void DsXorB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::XOR;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2826,10 +2511,6 @@ DsMskorB64Ds::DsMskorB64Ds(const MachineInst *inst)
 }
 
 void DsMskorB64Ds::execute_impl(amdgpu::Wavefront &wf) {
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  (void)wf;
-  throw util::UnimplementedInst(mnemonic());
-========
   if (inst_.gds)
     throw util::UnimplementedInst(mnemonic());
   auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
@@ -2857,7 +2538,6 @@ void DsMskorB64Ds::execute_impl(amdgpu::Wavefront &wf) {
     std::memcpy(&d->store_data[lane * 16 + 12], &src1, 4);
   }
   set_data(std::move(d));
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
 }
 
 DsWriteB64Ds::DsWriteB64Ds(const MachineInst *inst)
@@ -2879,10 +2559,7 @@ void DsWriteB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 8;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -2924,34 +2601,12 @@ void DsWrite2B64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 8;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->exec_mask = exec;
   d->lane_mask = exec;
   d->ds2_active = true;
   d->store_data.resize(wf.wf_size() * 8);
   d->ds2_store_data.resize(wf.wf_size() * 8);
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t base = cu.read_vgpr(wf.vgpr_alloc().base + inst_.addr, lane);
-    d->per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset0) * 8U + wf.lds_base();
-    d->ds2_per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset1) * 8U + wf.lds_base();
-    uint32_t v0_0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 0, lane);
-    std::memcpy(&d->store_data[lane * 8 + 0], &v0_0, 4);
-    uint32_t v0_1 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 1, lane);
-    std::memcpy(&d->store_data[lane * 8 + 4], &v0_1, 4);
-    uint32_t v1_0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1 + 0, lane);
-    std::memcpy(&d->ds2_store_data[lane * 8 + 0], &v1_0, 4);
-    uint32_t v1_1 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1 + 1, lane);
-========
   uint32_t addr_base = wf.vgpr_alloc().base + inst_.addr;
   uint32_t data0_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0;
   uint32_t data1_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1;
@@ -2968,7 +2623,6 @@ void DsWrite2B64Ds::execute_impl(amdgpu::Wavefront &wf) {
     uint32_t v1_0 = cu.read_vgpr(data1_base + 0, lane);
     std::memcpy(&d->ds2_store_data[lane * 8 + 0], &v1_0, 4);
     uint32_t v1_1 = cu.read_vgpr(data1_base + 1, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     std::memcpy(&d->ds2_store_data[lane * 8 + 4], &v1_1, 4);
   }
   set_data(std::move(d));
@@ -2999,34 +2653,12 @@ void DsWrite2st64B64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 8;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->exec_mask = exec;
   d->lane_mask = exec;
   d->ds2_active = true;
   d->store_data.resize(wf.wf_size() * 8);
   d->ds2_store_data.resize(wf.wf_size() * 8);
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t base = cu.read_vgpr(wf.vgpr_alloc().base + inst_.addr, lane);
-    d->per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset0) * 512U + wf.lds_base();
-    d->ds2_per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset1) * 512U + wf.lds_base();
-    uint32_t v0_0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 0, lane);
-    std::memcpy(&d->store_data[lane * 8 + 0], &v0_0, 4);
-    uint32_t v0_1 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 1, lane);
-    std::memcpy(&d->store_data[lane * 8 + 4], &v0_1, 4);
-    uint32_t v1_0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1 + 0, lane);
-    std::memcpy(&d->ds2_store_data[lane * 8 + 0], &v1_0, 4);
-    uint32_t v1_1 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1 + 1, lane);
-========
   uint32_t addr_base = wf.vgpr_alloc().base + inst_.addr;
   uint32_t data0_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0;
   uint32_t data1_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data1;
@@ -3043,7 +2675,6 @@ void DsWrite2st64B64Ds::execute_impl(amdgpu::Wavefront &wf) {
     uint32_t v1_0 = cu.read_vgpr(data1_base + 0, lane);
     std::memcpy(&d->ds2_store_data[lane * 8 + 0], &v1_0, 4);
     uint32_t v1_1 = cu.read_vgpr(data1_base + 1, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     std::memcpy(&d->ds2_store_data[lane * 8 + 4], &v1_1, 4);
   }
   set_data(std::move(d));
@@ -3073,10 +2704,7 @@ void DsCmpstB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::CMPSWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3122,10 +2750,7 @@ void DsCmpstF64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::CMPSWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3168,10 +2793,7 @@ void DsMinF64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3209,10 +2831,7 @@ void DsMaxF64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3249,10 +2868,7 @@ void DsWriteB8D16HiDs::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 1;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3261,12 +2877,7 @@ void DsWriteB8D16HiDs::execute_impl(amdgpu::Wavefront &wf) {
   for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
     if (!(exec & (1ULL << lane)))
       continue;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-    uint32_t val0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0, lane);
-========
     uint32_t val0 = cu.read_vgpr(data_base, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     val0 >>= 16;
     d->store_data[lane * 1 + 0] = static_cast<uint8_t>(val0);
   }
@@ -3293,10 +2904,7 @@ void DsWriteB16D16HiDs::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 2;
   d->num_elems = 1;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3305,12 +2913,7 @@ void DsWriteB16D16HiDs::execute_impl(amdgpu::Wavefront &wf) {
   for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
     if (!(exec & (1ULL << lane)))
       continue;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-    uint32_t val0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0, lane);
-========
     uint32_t val0 = cu.read_vgpr(data_base, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     val0 >>= 16;
     std::memcpy(&d->store_data[lane * 2 + 0], &val0, 2);
   }
@@ -3337,10 +2940,7 @@ void DsReadU8D16Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 1;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->d16_lo = true;
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
@@ -3366,10 +2966,7 @@ void DsReadU8D16HiDs::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 1;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->d16_hi = true;
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
@@ -3449,10 +3046,7 @@ void DsReadU16D16Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 2;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->d16_lo = true;
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
@@ -3478,10 +3072,7 @@ void DsReadU16D16HiDs::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 2;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->d16_hi = true;
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
@@ -3508,10 +3099,7 @@ void DsAddF64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FADD;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3552,10 +3140,7 @@ void DsAddRtnU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::ADD;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3596,10 +3181,7 @@ void DsSubRtnU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SUB;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3640,10 +3222,7 @@ void DsRsubRtnU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::RSUB;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3684,10 +3263,7 @@ void DsIncRtnU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::INC;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3728,10 +3304,7 @@ void DsDecRtnU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::DEC;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3772,10 +3345,7 @@ void DsMinRtnI64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3816,10 +3386,7 @@ void DsMaxRtnI64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3860,10 +3427,7 @@ void DsMinRtnU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::UMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3904,10 +3468,7 @@ void DsMaxRtnU64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::UMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3948,10 +3509,7 @@ void DsAndRtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::AND;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -3991,10 +3549,7 @@ void DsOrRtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::OR;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4035,10 +3590,7 @@ void DsXorRtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::XOR;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4074,10 +3626,6 @@ DsMskorRtnB64Ds::DsMskorRtnB64Ds(const MachineInst *inst)
 }
 
 void DsMskorRtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  (void)wf;
-  throw util::UnimplementedInst(mnemonic());
-========
   if (inst_.gds)
     throw util::UnimplementedInst(mnemonic());
   auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
@@ -4106,7 +3654,6 @@ void DsMskorRtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
     std::memcpy(&d->store_data[lane * 16 + 12], &src1, 4);
   }
   set_data(std::move(d));
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
 }
 
 DsWrxchgRtnB64Ds::DsWrxchgRtnB64Ds(const MachineInst *inst)
@@ -4133,10 +3680,7 @@ void DsWrxchgRtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4180,10 +3724,7 @@ void DsWrxchg2RtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4227,10 +3768,7 @@ void DsWrxchg2st64RtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::SWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4274,10 +3812,7 @@ void DsCmpstRtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::CMPSWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4326,10 +3861,7 @@ void DsCmpstRtnF64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::CMPSWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4375,10 +3907,7 @@ void DsMinRtnF64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FMIN;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4419,10 +3948,7 @@ void DsMaxRtnF64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FMAX;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4458,10 +3984,7 @@ void DsReadB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 8;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
 }
@@ -4487,26 +4010,16 @@ void DsRead2B64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 8;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->exec_mask = exec;
   d->lane_mask = exec;
   d->ds2_active = true;
   d->ds2_dst_reg_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.vdst + 2;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t base = cu.read_vgpr(wf.vgpr_alloc().base + inst_.addr, lane);
-========
   uint32_t addr_base = wf.vgpr_alloc().base + inst_.addr;
   for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
     if (!(exec & (1ULL << lane)))
       continue;
     uint32_t base = cu.read_vgpr(addr_base, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     d->per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset0) * 8U + wf.lds_base();
     d->ds2_per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset1) * 8U + wf.lds_base();
   }
@@ -4535,26 +4048,16 @@ void DsRead2st64B64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 8;
   d->num_elems = 1;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   d->exec_mask = exec;
   d->lane_mask = exec;
   d->ds2_active = true;
   d->ds2_dst_reg_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.vdst + 2;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t base = cu.read_vgpr(wf.vgpr_alloc().base + inst_.addr, lane);
-========
   uint32_t addr_base = wf.vgpr_alloc().base + inst_.addr;
   for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
     if (!(exec & (1ULL << lane)))
       continue;
     uint32_t base = cu.read_vgpr(addr_base, lane);
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
     d->per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset0) * 512U + wf.lds_base();
     d->ds2_per_lane_addr[lane] = base + static_cast<uint32_t>(inst_.offset1) * 512U + wf.lds_base();
   }
@@ -4585,10 +4088,7 @@ void DsAddRtnF64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::FADD;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4629,10 +4129,7 @@ void DsCondxchg32RtnB64Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->num_elems = 1;
   d->is_load = true;
   d->atomic_op = amdgpu::AtomicOp::CMPSWAP;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4743,85 +4240,6 @@ DsReadAddtidB32Ds::DsReadAddtidB32Ds(const MachineInst *inst)
 
 void DsReadAddtidB32Ds::execute_impl(amdgpu::Wavefront &wf) {
   amdgpu::execute_ds_read_addtid_b32_ds(*this, wf);
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-}
-
-DsPkAddRtnF16Ds::DsPkAddRtnF16Ds(const MachineInst *inst)
-    : Ds("ds_pk_add_rtn_f16", reinterpret_cast<const OpEncoding *>(inst),
-         make_exec_fn<DsPkAddRtnF16Ds>()),
-      vdst(32, OperandType::OPR_VGPR_OR_ACCVGPR, reinterpret_cast<const OpEncoding *>(inst)->vdst),
-      addr(32, OperandType::OPR_VGPR, reinterpret_cast<const OpEncoding *>(inst)->addr),
-      data0(32, OperandType::OPR_VGPR_OR_ACCVGPR,
-            reinterpret_cast<const OpEncoding *>(inst)->data0) {
-  dst_operands_[0] = &vdst;
-  src_operands_[0] = &addr;
-  src_operands_[1] = &data0;
-  num_src_ = 2;
-  num_dst_ = 1;
-  flags_ |= MEMORY_OP;
-}
-
-void DsPkAddRtnF16Ds::execute_impl(amdgpu::Wavefront &wf) {
-  if (inst_.gds)
-    throw util::UnimplementedInst(mnemonic());
-  auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
-  d->dst_reg_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.vdst;
-  d->elem_size = 4;
-  d->num_elems = 1;
-  d->is_load = true;
-  d->atomic_op = amdgpu::AtomicOp::FADD;
-  ds_calculate_addresses(inst_, wf, *d);
-  auto &cu = wf.cu();
-  uint64_t exec = wf.exec();
-  d->store_data.resize(wf.wf_size() * 4);
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t val0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 0, lane);
-    std::memcpy(&d->store_data[lane * 4 + 0], &val0, 4);
-  }
-  set_data(std::move(d));
-}
-
-DsPkAddRtnBf16Ds::DsPkAddRtnBf16Ds(const MachineInst *inst)
-    : Ds("ds_pk_add_rtn_bf16", reinterpret_cast<const OpEncoding *>(inst),
-         make_exec_fn<DsPkAddRtnBf16Ds>()),
-      vdst(32, OperandType::OPR_VGPR_OR_ACCVGPR, reinterpret_cast<const OpEncoding *>(inst)->vdst),
-      addr(32, OperandType::OPR_VGPR, reinterpret_cast<const OpEncoding *>(inst)->addr),
-      data0(32, OperandType::OPR_VGPR_OR_ACCVGPR,
-            reinterpret_cast<const OpEncoding *>(inst)->data0) {
-  dst_operands_[0] = &vdst;
-  src_operands_[0] = &addr;
-  src_operands_[1] = &data0;
-  num_src_ = 2;
-  num_dst_ = 1;
-  flags_ |= MEMORY_OP;
-}
-
-void DsPkAddRtnBf16Ds::execute_impl(amdgpu::Wavefront &wf) {
-  if (inst_.gds)
-    throw util::UnimplementedInst(mnemonic());
-  auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
-  d->dst_reg_base = wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.vdst;
-  d->elem_size = 4;
-  d->num_elems = 1;
-  d->is_load = true;
-  d->atomic_op = amdgpu::AtomicOp::FADD;
-  ds_calculate_addresses(inst_, wf, *d);
-  auto &cu = wf.cu();
-  uint64_t exec = wf.exec();
-  d->store_data.resize(wf.wf_size() * 4);
-  for (uint32_t lane = 0; lane < wf.wf_size(); ++lane) {
-    if (!(exec & (1ULL << lane)))
-      continue;
-    uint32_t val0 =
-        cu.read_vgpr(wf.vgpr_alloc().base + (inst_.acc ? 256u : 0u) + inst_.data0 + 0, lane);
-    std::memcpy(&d->store_data[lane * 4 + 0], &val0, 4);
-  }
-  set_data(std::move(d));
-========
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
 }
 
 DsConsumeDs::DsConsumeDs(const MachineInst *inst)
@@ -4834,10 +4252,6 @@ DsConsumeDs::DsConsumeDs(const MachineInst *inst)
 }
 
 void DsConsumeDs::execute_impl(amdgpu::Wavefront &wf) {
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  (void)wf;
-  throw util::UnimplementedInst(mnemonic());
-========
   if (inst_.gds)
     throw util::UnimplementedInst(mnemonic());
   auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
@@ -4860,7 +4274,6 @@ void DsConsumeDs::execute_impl(amdgpu::Wavefront &wf) {
       d->per_lane_addr[lane] = addr;
   }
   set_data(std::move(d));
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
 }
 
 DsAppendDs::DsAppendDs(const MachineInst *inst)
@@ -4873,10 +4286,6 @@ DsAppendDs::DsAppendDs(const MachineInst *inst)
 }
 
 void DsAppendDs::execute_impl(amdgpu::Wavefront &wf) {
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-  (void)wf;
-  throw util::UnimplementedInst(mnemonic());
-========
   if (inst_.gds)
     throw util::UnimplementedInst(mnemonic());
   auto d = std::make_unique<amdgpu::VectorMemState>(amdgpu::LOCAL_MEM);
@@ -4899,7 +4308,6 @@ void DsAppendDs::execute_impl(amdgpu::Wavefront &wf) {
       d->per_lane_addr[lane] = addr;
   }
   set_data(std::move(d));
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
 }
 
 DsWriteB96Ds::DsWriteB96Ds(const MachineInst *inst)
@@ -4921,10 +4329,7 @@ void DsWriteB96Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 3;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -4963,10 +4368,7 @@ void DsWriteB128Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 4;
   d->is_load = false;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   auto &cu = wf.cu();
   uint64_t exec = wf.exec();
@@ -5006,10 +4408,7 @@ void DsReadB96Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 3;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
 }
@@ -5033,10 +4432,7 @@ void DsReadB128Ds::execute_impl(amdgpu::Wavefront &wf) {
   d->elem_size = 4;
   d->num_elems = 4;
   d->is_load = true;
-<<<<<<<< HEAD:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna3/ds.cpp
-========
   d->wait_counter_type = amdgpu::WaitCounterType::LGKMCNT;
->>>>>>>> amd-npi:emulation/rocjitsu/lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/cdna2/ds.cpp
   ds_calculate_addresses(inst_, wf, *d);
   set_data(std::move(d));
 }
