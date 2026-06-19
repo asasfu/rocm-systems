@@ -116,11 +116,12 @@ class Primitives<
     // NET no-GDR can publish host-staged payloads from the CPU proxy.
     // Acquire the tail before GPU workers consume the payload.
     return ld_acquire_sys_global(ptr);
-#if defined(__gfx1200__) || defined(__gfx1201__)
+#elif defined(__gfx1200__) || defined(__gfx1201__)
     return __atomic_load_n(ptr, __ATOMIC_ACQUIRE);
 #else
     return __atomic_load_n(ptr, __ATOMIC_RELAXED);
 #endif
+
   }
 
   template <int DirectRecv, int DirectSend, int Recv, int Send, int Src, int Dst>
