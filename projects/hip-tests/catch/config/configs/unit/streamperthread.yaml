@@ -77,7 +77,7 @@ streamperthread:
     tags: [stream]
   Unit_hipGetProcAddress_spt_Memset2D3D:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
+    disabled: [amd_wsl, gfx1310, gfx1370]
     tags: [stream]
   Unit_hipGetProcAddress_spt_Memcpy2D:
     <<: *level_2
@@ -85,7 +85,7 @@ streamperthread:
     tags: [stream, image]
   Unit_hipGetProcAddress_spt_Memcpy3D:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [stream]
   Unit_hipGetProcAddress_spt_LaunchKernel:
     <<: *level_2

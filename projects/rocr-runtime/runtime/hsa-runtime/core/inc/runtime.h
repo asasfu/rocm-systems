@@ -45,8 +45,10 @@
 #ifndef HSA_RUNTME_CORE_INC_RUNTIME_H_
 #define HSA_RUNTME_CORE_INC_RUNTIME_H_
 
+#include <cstdint>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <tuple>
 #include <utility>
@@ -91,6 +93,25 @@
 #define SANITIZER_AMDGPU 1
 #endif
 #endif
+
+inline bool operator==(const hsa_amd_vmem_alloc_handle_t& lhs,
+                       const hsa_amd_vmem_alloc_handle_t& rhs) {
+  return lhs.handle == rhs.handle;
+}
+
+inline bool operator!=(const hsa_amd_vmem_alloc_handle_t& lhs,
+                       const hsa_amd_vmem_alloc_handle_t& rhs) {
+  return !(lhs == rhs);
+}
+
+namespace std {
+template <>
+struct hash<hsa_amd_vmem_alloc_handle_t> {
+  size_t operator()(const hsa_amd_vmem_alloc_handle_t& x) const {
+    return hash<uint64_t>()(x.handle);
+  }
+};
+}  // namespace std
 
 //---------------------------------------------------------------------------//
 //    Constants                                                              //
@@ -392,8 +413,6 @@ class Runtime {
 
   hsa_status_t DmaBufExport(const void* ptr, size_t size, int* dmabuf,
                                             uint64_t* offset, uint64_t flags);
-
-  hsa_status_t DmaBufClose(int dmabuf);
 
   hsa_status_t VMemoryAddressReserve(void** ptr, size_t size, uint64_t address, uint64_t alignment, uint64_t flags);
 
@@ -992,34 +1011,38 @@ class Runtime {
   std::map<const void*, AddressHandle> reserved_address_map_;  // Indexed by VA
 
   struct MemoryHandle {
-    MemoryHandle(const MemoryRegion* region, size_t size, uint64_t flags_unused,
-                 ShareableHandle shareable_handle, int dmabuf_fd, uint64_t mmap_offset,
-                 bool imported, MemoryRegion::AllocateFlags alloc_flag);
+    MemoryHandle(const MemoryRegion* region, uint64_t flags_unused,
+                 DriverMemoryHandle driver_handle, MemoryRegion::AllocateFlags alloc_flag);
+    MemoryHandle(int dmabuf_fd);
+    MemoryHandle(hsa_fabric_handle_t fabric_handle);
     ~MemoryHandle();
 
-    static __forceinline hsa_amd_vmem_alloc_handle_t Convert(ShareableHandle handle) {
-      return hsa_amd_vmem_alloc_handle_t{handle.handle};
+    static __forceinline hsa_amd_vmem_alloc_handle_t Convert(MemoryHandle* memHandle) {
+      hsa_amd_vmem_alloc_handle_t ret_handle = { .handle = static_cast<uint64_t>(reinterpret_cast<uint64_t>(memHandle)) };
+      return ret_handle;
     }
 
-    static __forceinline ShareableHandle Convert(hsa_amd_vmem_alloc_handle_t handle) {
-      return ShareableHandle{handle.handle};
+    static __forceinline MemoryHandle* Convert(hsa_amd_vmem_alloc_handle_t handle) {
+      return reinterpret_cast<MemoryHandle*>(handle.handle);
     }
 
     __forceinline core::Agent* agentOwner() const { return region->owner(); }
 
     const MemoryRegion* region;
-    size_t size;
     int ref_count;
     int use_count;
-    ShareableHandle shareable_handle;  // handle returned by Driver::Allocate(NoAddress = 1)
-    int dmabuf_fd;
-    uint64_t mmap_offset;
-    bool imported; /* True is this BO belongs to another process */
+    DriverMemoryHandle driver_handle;  // handle returned by Driver::Allocate(NoAddress = 1)
+    bool imported; // True if this BO was imported from another process
+    bool is_fabric_handle;
     MemoryRegion::AllocateFlags alloc_flag;
   };
+  // hsa_amd_vmem_alloc_handle_t (MemoryHandle*) to MemoryHandle mapping. Owns MemoryHandle
+  // lifetime. Uniqueness is guaranteed by the runtime, independent of any driver-supplied
+  // identifier.
+  std::unordered_map<hsa_amd_vmem_alloc_handle_t, std::unique_ptr<MemoryHandle>> memory_handles;
 
-
-  std::map<ShareableHandle, MemoryHandle, ShareableHandle> memory_handle_map_;
+  MemoryHandle* FindMemoryHandle(MemoryHandle* handle);
+  void ReleaseMemoryHandle(MemoryHandle* handle);
 
   struct MappedHandle;
   struct MappedHandleAllowedAgent {
@@ -1035,7 +1058,7 @@ class Runtime {
     Agent* targetAgent;
     hsa_access_permission_t permissions;
     MappedHandle* mappedHandle;
-    ShareableHandle shareable_handle;
+    DriverMemoryHandle driver_handle;
   };
 
   struct MappedHandle {

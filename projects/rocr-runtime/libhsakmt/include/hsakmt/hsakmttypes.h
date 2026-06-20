@@ -81,6 +81,9 @@ typedef HSAuint64          HSA_QUEUEID;
 // // A HSA_NODEID that is never a valid node ID.
 #define INVALID_NODEID 0xFFFFFFFF
 
+struct _HsaKFDContext;
+typedef struct _HsaKFDContext HsaKFDContext;
+
 // This is included in order to force the alignments to be 4 bytes so that
 // it avoids extra padding added by the compiler when a 64-bit binary is generated.
 #pragma pack(push, hsakmttypes_h, 4)
@@ -278,7 +281,7 @@ typedef struct _HsaNodeProperties
                                        // e.g a "discrete HSA GPU"
     HSAuint32       NumFComputeCores;  // # of HSA throughtput (= GPU) FCompute cores ("SIMD") present in a node.
                                        // This value is 0 if no FCompute cores are present (e.g. pure "CPU node").
-    HSAuint32 NumNeuralCores;          // # of HSA neural processing units (= AIE) present in a
+    HSAuint32       NumNeuralCores;    // # of HSA neural processing units (= AIE) present in a
                                        // node. This value is 0 if there are no NeuralCores.
     HSAuint32       NumMemoryBanks;    // # of discoverable memory bank affinity properties on this "H-NUMA" node.
     HSAuint32       NumCaches;         // # of discoverable cache affinity properties on this "H-NUMA"  node.
@@ -356,6 +359,8 @@ typedef struct _HsaNodeProperties
     HSAuint32       LuidLowPart;       // Windows Locally Unique Identifier Low 4 bytes
     HSAuint32       LuidHighPart;      // Windows Locally Unique Identifier High 4 bytes
     HSAuint64       WallClockKHz;      // Wall Clock Frequency in KHz
+
+    HSAuint32       FabricHandleSupported; // 0 - not supported, 1 - supported
 } HsaNodeProperties;
 
 
@@ -1550,20 +1555,11 @@ typedef enum _HsaExternalHandleType{
     HSA_EXTERNAL_HANDLE_FABRIC          = 3
 } HsaExternalHandleType;
 
-typedef struct _HsaExternalHandleDesc {
-    HsaAMDGPUDeviceHandle device_handle; // GPU device handle (used for import only)
-    HSAint64 fd; // dmabuf fd
-    HsaExternalHandleType type; // handle type
-    void *mem; // existing buffer address (for windows and WSL only)
-    HSAuint32 metadata; // Used for IPC handles
-} HsaExternalHandleDesc;
-
 typedef struct _HsaHandleImportDesc {
     HsaAMDGPUDeviceHandle device_handle; // GPU device handle (used for import only)
-    HSAint64 fd; // dmabuf fd
     HsaExternalHandleType type; // handle type
     union {
-        HSAint32 dmabuf_fd; // dmabuf fd
+        HSAint64 dmabuf_fd; // dmabuf fd
         HsaMemoryObjectHandle buf_handle; // Driver handle
         HsaFabricHandle fabric;
     };
@@ -1594,6 +1590,15 @@ typedef struct _HsaStructureSizes {
   HSAuint16 Reserved[5];
 } HsaStructureSizes;
 
+typedef enum _HSA_EXTERNAL_SEMAPHORE_HANDLE_TYPE {
+    HSA_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32     = 0,
+    HSA_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT = 1,
+    HSA_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD        = 2,  // Linux only
+} HSA_EXTERNAL_SEMAPHORE_HANDLE_TYPE;
+
+typedef struct _HSA_EXTERNAL_SEMAPHORE_HANDLE {
+    HSAuint64 handle;  // opaque, encodes (D3DKMT syncobj << 32 | NodeId) on Windows
+} HSA_EXTERNAL_SEMAPHORE_HANDLE;
 typedef struct _HsaHandleExportDesc {
     HsaAMDGPUDeviceHandle device_handle;
     HsaExternalHandleType type;

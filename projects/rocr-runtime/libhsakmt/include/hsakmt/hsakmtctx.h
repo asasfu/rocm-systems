@@ -13,8 +13,6 @@
 extern "C" {
 #endif
 
-typedef struct _HsaKFDContext HsaKFDContext;
-
 /**
   The context-aware version for openning the kfd device.
 

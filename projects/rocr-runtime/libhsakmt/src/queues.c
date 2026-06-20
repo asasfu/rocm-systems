@@ -36,7 +36,7 @@
 #include <errno.h>
 #include <assert.h>
 
-static uint32_t get_hwreg_size_per_cu(uint32_t gfxv);
+static uint32_t get_hwreg_size_per_cu(const HsaNodeProperties *node, uint32_t gfxv);
 
 /* 1024 doorbells, 4 or 8 bytes each doorbell depending on ASIC generation */
 #define DOORBELL_SIZE(gfxv)	(((gfxv) >= 0x90000) ? 8 : 4)
@@ -47,7 +47,7 @@ static uint32_t get_hwreg_size_per_cu(uint32_t gfxv);
 	 hsakmt_get_sgpr_size_per_cu(gfxv) +	\
 	 hsakmt_get_mreg_size_per_cu(&node, gfxv) +	\
 	 (node.LDSSizeInKB << 10) +		\
-	 get_hwreg_size_per_cu(gfxv))
+	 get_hwreg_size_per_cu(&node, gfxv))
 
 #define CNTL_STACK_BYTES_PER_WAVE(gfxv)	\
 	((gfxv) >= GFX_VERSION_NAVI10 ? 12 : 8)
@@ -118,20 +118,23 @@ static void updateQueuePercentage(uint32_t *QueuePercentage,
 	}
 }
 
-static uint32_t get_hwreg_size_per_cu(uint32_t gfxv)
+static uint32_t get_hwreg_size_per_cu(const HsaNodeProperties *node, uint32_t gfxv)
 {
-	uint32_t hwreg_size = 0;
+	HSAuint32 hwreg_size_bytes;
+	HSAuint32 simd_per_cu = node->NumSIMDPerCU;
+	HSAuint32 num_waves_per_simd = node->MaxWavesPerSIMD;
+	HSAuint32 bytes_per_wave = 128;
 
-	if (gfxv < GFX_VERSION_GFX1250 || gfxv == GFX_VERSION_GFX1260)
-		hwreg_size = 0x1000; /* 128 bytes per wave, 32 waves per CU */
-	else if (gfxv <= GFX_VERSION_GFX1251)
-		hwreg_size = 0x8000; /* 512 bytes per wave, 64 waves per CU */
-	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
-		hwreg_size = 0x4000; /* 512 bytes per wave, 32 waves per CU */
+	if (gfxv == GFX_VERSION_GFX1250) {
+		bytes_per_wave = 512;  // per HW design; GFX_SHARED__HWREG_SPACE_USED
+	}
 
-	assert(hwreg_size);
+	hwreg_size_bytes = num_waves_per_simd * simd_per_cu * bytes_per_wave;
 
-	return hwreg_size;
+	assert(hwreg_size_bytes == (
+		gfxv == GFX_VERSION_GFX1250 ?	0x8000 :
+										0x1000));
+	return hwreg_size_bytes;
 }
 
 uint32_t hsakmt_get_vgpr_size_per_cu(uint32_t gfxv)
@@ -156,8 +159,6 @@ uint32_t hsakmt_get_vgpr_size_per_cu(uint32_t gfxv)
 		vgpr_size = 0xC0000;
 	else if (HSA_GET_GFX_VERSION_HEX_MAJOR(gfxv) == 13)
 		vgpr_size = 0x40000; /* 128kiB per SIMD */
-
-	assert(vgpr_size);
 
 	assert(vgpr_size);
 

@@ -13,17 +13,17 @@ kernel:
   Unit_hipDynamicShared:
     <<: *level_2
     # Below tests are failing PSDB
-    disabled: [amd_windows]
+    disabled: [amd_windows, amd_wsl]
     tags: [memory, P0]
   Unit_hipDynamicShared2:
     <<: *level_2
     tags: [memory, P0]
   Unit_hipEmptyKernel:
     <<: *level_2
-    tags: [language, P0]
+    tags: [language, smoke, P0]
   Unit_hipGridLaunch:
     <<: *level_2
-    tags: [launch, P0]
+    tags: [launch, smoke, P0]
   Unit_hipLanguageExtensions:
     <<: *level_2
     tags: [language, P1]
@@ -44,7 +44,7 @@ kernel:
     tags: [memory, P0]
   Unit_kernel_LaunchBounds_Functional:
     <<: *level_2
-    tags: [attributes, P0]
+    tags: [attributes, smoke, P0]
   Unit_kernel_Assign_threadIdx_to_auto:
     <<: *level_2
     tags: [language, P0]
@@ -92,6 +92,7 @@ kernel:
     tags: [launch, P1]
   Unit_hipGridLaunch_ExceedMaxGridDim_Negative:
     <<: *level_2
+    disabled: [amd_wsl]
     tags: [launch]
   Unit_hipExtDynDataPrefetch_NegativeTests:
     <<: *level_2

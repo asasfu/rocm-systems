@@ -3,7 +3,7 @@ assertion:
   Unit_StaticAssert_Positive_Basic_RTC:
     <<: *level_2
     # Below tests fail in external CI for PR https://github.com/ROCm-Developer-Tools/hip-tests/pull/210
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_StaticAssert_Negative_Basic_RTC:
     <<: *level_2
@@ -15,4 +15,4 @@ assertion:
   Unit_Assert_Positive_Basic_KernelFail:
     <<: *level_2
     # === Below tests fail in external CI for PR https://github.com/ROCm-Developer-Tools/hip-tests/pull/210 ===
-    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]

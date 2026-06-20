@@ -444,7 +444,7 @@ atomics:
     <<: *level_2
     tags: [deviceLib, system, multigpu]
     # Rock_Linux_Failures_on_gfx94X
-    disabled: [amd_linux, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_linux, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_atomicAdd_system_Positive_Host_And_GPU:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]

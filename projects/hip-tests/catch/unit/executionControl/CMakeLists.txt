@@ -20,7 +20,6 @@ if(HIP_PLATFORM MATCHES "amd")
     hipFuncSetAttribute.cc
     )
 else()
-  # These functions are currently unimplemented on AMD
   set(TEST_SRC ${TEST_SRC}
         hipFuncSetSharedMemConfig.cc
     )

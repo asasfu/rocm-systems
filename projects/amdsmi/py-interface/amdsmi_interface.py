@@ -583,6 +583,12 @@ class AmdSmiComputePartitionType(IntEnum):
     INVALID = amdsmi_wrapper.AMDSMI_COMPUTE_PARTITION_INVALID
 
 
+class AmdSmiComputePartitionMemAllocModeType(IntEnum):
+    INVALID = amdsmi_wrapper.AMDSMI_COMPUTE_PARTITION_MEM_ALLOC_INVALID
+    CAPPING = amdsmi_wrapper.AMDSMI_COMPUTE_PARTITION_MEM_ALLOC_CAPPING
+    ALL = amdsmi_wrapper.AMDSMI_COMPUTE_PARTITION_MEM_ALLOC_ALL
+
+
 class AmdSmiMemoryPartitionType(IntEnum):
     NPS1 = amdsmi_wrapper.AMDSMI_MEMORY_PARTITION_NPS1
     NPS2 = amdsmi_wrapper.AMDSMI_MEMORY_PARTITION_NPS2
@@ -3891,6 +3897,79 @@ def amdsmi_get_gpu_process_list(
     return result
 
 
+def amdsmi_get_gpu_process_list_by_pid(processor_handles: list) -> list:
+    """Get process list grouped by PID across multiple GPUs.
+
+    Args:
+        processor_handles: List of processor handles to query.
+
+    Returns:
+        List of dicts with keys: pid, name, container_name, gpus.
+        Each gpu entry has: gpu_index, mem, engine_usage, memory_usage,
+        cu_occupancy, sdma_usage, evicted_time.
+    """
+    for h in processor_handles:
+        if not isinstance(h, amdsmi_wrapper.amdsmi_processor_handle):
+            raise AmdSmiParameterException(h, amdsmi_wrapper.amdsmi_processor_handle)
+
+    num = len(processor_handles)
+    handle_array = (amdsmi_wrapper.amdsmi_processor_handle * num)(*processor_handles)
+
+    max_processes = ctypes.c_uint32(MAX_NUM_PROCESSES)
+    process_list = (amdsmi_wrapper.amdsmi_proc_info_by_pid_t * max_processes.value)()
+    _check_res(
+        amdsmi_wrapper.amdsmi_get_gpu_process_list_by_pid(
+            handle_array, num, process_list, ctypes.byref(max_processes)
+        )
+    )
+
+    self_pid = os.getpid()
+    result = []
+    for i in range(max_processes.value):
+        entry = process_list[i]
+        pid = int(entry.pid)
+        if pid == self_pid:
+            continue
+
+        process_name = entry.name.decode("utf-8").strip()
+        if process_name == "":
+            process_name = "N/A"
+
+        gpus = []
+        for g in range(entry.num_gpus):
+            ge = entry.gpus[g]
+            gpus.append(
+                {
+                    "gpu_index": ge.gpu_index,
+                    "mem": ge.mem,
+                    "engine_usage": {"gfx": ge.engine_usage.gfx, "enc": ge.engine_usage.enc},
+                    "memory_usage": {
+                        "gtt_mem": ge.memory_usage.gtt_mem,
+                        "cpu_mem": ge.memory_usage.cpu_mem,
+                        "vram_mem": ge.memory_usage.vram_mem,
+                    },
+                    "cu_occupancy": _validate_if_max_uint(
+                        ge.cu_occupancy, MaxUIntegerTypes.UINT32_T
+                    ),
+                    "sdma_usage": _validate_if_max_uint(ge.sdma_usage, MaxUIntegerTypes.UINT64_T),
+                    "evicted_time": _validate_if_max_uint(
+                        ge.evicted_time, MaxUIntegerTypes.UINT32_T
+                    ),
+                }
+            )
+
+        result.append(
+            {
+                "pid": pid,
+                "name": process_name,
+                "container_name": entry.container_name.decode("utf-8").strip(),
+                "gpus": gpus,
+            }
+        )
+
+    return result
+
+
 def amdsmi_get_nic_fw_version(processor_handle: amdsmi_wrapper.amdsmi_processor_handle) -> str:
     if not isinstance(processor_handle, amdsmi_wrapper.amdsmi_processor_handle):
         raise AmdSmiParameterException(processor_handle, amdsmi_wrapper.amdsmi_processor_handle)
@@ -4190,6 +4269,16 @@ def amdsmi_get_gpu_id(processor_handle: processor_handle_t):
 
 
 def amdsmi_get_gpu_vram_vendor(processor_handle: processor_handle_t):
+    """Deprecated: Use amdsmi_get_gpu_vram_info() instead.\
+        Will be deprecated in Rocm 9.0.
+    """
+    import warnings
+
+    warnings.warn(
+        "amdsmi_get_gpu_vram_vendor() is deprecated, use amdsmi_get_gpu_vram_info() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if not isinstance(processor_handle, amdsmi_wrapper.amdsmi_processor_handle):
         raise AmdSmiParameterException(processor_handle, amdsmi_wrapper.amdsmi_processor_handle)
 
@@ -4425,6 +4514,33 @@ def amdsmi_set_gpu_compute_partition(
         raise AmdSmiParameterException(compute_partition, AmdSmiComputePartitionType)
 
     _check_res(amdsmi_wrapper.amdsmi_set_gpu_compute_partition(processor_handle, compute_partition))
+
+
+def amdsmi_get_gpu_compute_partition_mem_alloc_mode(processor_handle: processor_handle_t):
+    if not isinstance(processor_handle, amdsmi_wrapper.amdsmi_processor_handle):
+        raise AmdSmiParameterException(processor_handle, amdsmi_wrapper.amdsmi_processor_handle)
+
+    mode = amdsmi_wrapper.amdsmi_compute_partition_mem_alloc_mode_t()
+    _check_res(
+        amdsmi_wrapper.amdsmi_get_gpu_compute_partition_mem_alloc_mode(
+            processor_handle, ctypes.byref(mode)
+        )
+    )
+    return AmdSmiComputePartitionMemAllocModeType(mode.value).name
+
+
+def amdsmi_set_gpu_compute_partition_mem_alloc_mode(
+    processor_handle: processor_handle_t, mode: AmdSmiComputePartitionMemAllocModeType
+):
+    if not isinstance(processor_handle, amdsmi_wrapper.amdsmi_processor_handle):
+        raise AmdSmiParameterException(processor_handle, amdsmi_wrapper.amdsmi_processor_handle)
+
+    if not isinstance(mode, AmdSmiComputePartitionMemAllocModeType):
+        raise AmdSmiParameterException(mode, AmdSmiComputePartitionMemAllocModeType)
+
+    _check_res(
+        amdsmi_wrapper.amdsmi_set_gpu_compute_partition_mem_alloc_mode(processor_handle, mode)
+    )
 
 
 def amdsmi_set_gpu_accelerator_partition_profile(
@@ -6986,21 +7102,29 @@ def amdsmi_stop_gpu_event_notification(processor_handle: processor_handle_t):
 
 
 _FABRIC_CATEGORY_NAMES = [
-    "UALOE", "SWITCH", "CRYPTO", "PFC",
-    "NETPORT", "DERIVED_UALOE", "DERIVED_NETPORT",
+    "UALOE",
+    "SWITCH",
+    "CRYPTO",
+    "PFC",
+    "NETPORT",
+    "DERIVED_UALOE",
+    "DERIVED_NETPORT",
 ]
 
 _FABRIC_TYPE_NAMES = {0: "UALOE", 1: "UALLINK", 2: "UNKNOWN"}
 _FABRIC_ADDR_MODE_NAMES = {0: "SOURCE_ALIASING", 1: "SOURCE_IDENTIFICATION", 2: "UNKNOWN"}
 _FABRIC_ACCEL_STATE_NAMES = {
-    0: "UNCONFIGURED", 1: "CONFIGURED", 2: "READY",
-    3: "ACTIVE",       4: "ERROR",      5: "UNKNOWN",
+    0: "UNCONFIGURED",
+    1: "CONFIGURED",
+    2: "READY",
+    3: "ACTIVE",
+    4: "ERROR",
+    5: "UNKNOWN",
 }
 
 
 def amdsmi_get_fabric_telemetry(
-    processor_handle: processor_handle_t,
-    category_mask: int,
+    processor_handle: processor_handle_t, category_mask: int
 ) -> List[Dict[str, Any]]:
     if not isinstance(processor_handle, amdsmi_wrapper.amdsmi_processor_handle):
         raise AmdSmiParameterException(processor_handle, amdsmi_wrapper.amdsmi_processor_handle)
@@ -7015,9 +7139,7 @@ def amdsmi_get_fabric_telemetry(
     )
 
     try:
-        _check_res(
-            amdsmi_wrapper.amdsmi_get_fabric_telemetry_data(processor_handle, tel_ptr)
-        )
+        _check_res(amdsmi_wrapper.amdsmi_get_fabric_telemetry_data(processor_handle, tel_ptr))
 
         results = []
         tel = tel_ptr.contents
@@ -7033,35 +7155,47 @@ def amdsmi_get_fabric_telemetry(
                 for item_idx in range(inst.item_count):
                     item = inst.items[item_idx]
                     telem_id = item.id
-                    name_bytes = amdsmi_wrapper.amdsmi_fabric_telem_id_to_string(telem_id)
-                    items.append({
-                        "id":    telem_id,
-                        "name":  name_bytes.decode("utf-8") if name_bytes else "UNKNOWN",
-                        "value": item.value,
-                    })
-                instances.append({
-                    "name":        inst.name.text.decode("utf-8").rstrip("\x00"),
-                    "logical_idx": inst.logical_idx,
-                    "items":       items,
-                })
-            results.append({
-                "category":         _FABRIC_CATEGORY_NAMES[cat_idx],
-                "generation_count": dataset.generation_count,
-                "timestamp": {
-                    "tv_sec":  dataset.timestamp.tv_sec,
-                    "tv_nsec": dataset.timestamp.tv_nsec,
-                },
-                "instances": instances,
-            })
+                    name_ptr = amdsmi_wrapper.amdsmi_fabric_telem_id_to_string(telem_id)
+                    # Handle both c_char_p (string) and POINTER(c_char) (pointer) return types
+                    if name_ptr:
+                        if isinstance(name_ptr, bytes):
+                            name_str = name_ptr.decode("utf-8")
+                        elif hasattr(name_ptr, "value"):
+                            # c_char_p has a .value attribute
+                            name_str = (
+                                name_ptr.value.decode("utf-8") if name_ptr.value else "UNKNOWN"
+                            )
+                        else:
+                            # POINTER(c_char) - dereference and convert to string
+                            name_str = ctypes.string_at(name_ptr).decode("utf-8")
+                    else:
+                        name_str = "UNKNOWN"
+                    items.append({"id": telem_id, "name": name_str, "value": item.value})
+                instances.append(
+                    {
+                        "name": inst.name.text.decode("utf-8").rstrip("\x00"),
+                        "logical_idx": inst.logical_idx,
+                        "items": items,
+                    }
+                )
+            results.append(
+                {
+                    "category": _FABRIC_CATEGORY_NAMES[cat_idx],
+                    "generation_count": dataset.generation_count,
+                    "timestamp": {
+                        "tv_sec": dataset.timestamp.tv_sec,
+                        "tv_nsec": dataset.timestamp.tv_nsec,
+                    },
+                    "instances": instances,
+                }
+            )
     finally:
         amdsmi_wrapper.amdsmi_free_fabric_telemetry(processor_handle, tel_ptr)
 
     return results
 
 
-def amdsmi_get_gpu_fabric_info(
-    processor_handle: processor_handle_t,
-) -> Dict[str, Any]:
+def amdsmi_get_gpu_fabric_info(processor_handle: processor_handle_t) -> Dict[str, Any]:
     """
     Return fabric info from UALoE sysfs (partial reads).
 
@@ -7077,28 +7211,25 @@ def amdsmi_get_gpu_fabric_info(
         raise AmdSmiRetryException()
     if ret == amdsmi_wrapper.AMDSMI_STATUS_TIMEOUT:
         raise AmdSmiTimeoutException()
-    if ret not in (
-        amdsmi_wrapper.AMDSMI_STATUS_SUCCESS,
-        amdsmi_wrapper.AMDSMI_STATUS_NO_DATA,
-    ):
+    if ret not in (amdsmi_wrapper.AMDSMI_STATUS_SUCCESS, amdsmi_wrapper.AMDSMI_STATUS_NO_DATA):
         raise AmdSmiLibraryException(ret)
 
     v1 = info.fabric_info.fabric_version.v1
     return {
-        "bdf":              _format_bdf(info.bdf),
-        "version":          info.fabric_info.version,
-        "accelerator_id":   v1.accelerator_id,
-        "fabric_type":      _FABRIC_TYPE_NAMES.get(v1.fabric_type, "UNKNOWN"),
-        "bandwidth":        v1.bandwidth,
-        "latency":          v1.latency,
-        "ppod_id":          list(v1.ppod_id),
-        "ppod_size":        v1.ppod_size,
-        "vpod_id":          v1.vpod_id,
-        "vpod_size":        v1.vpod_size,
+        "bdf": _format_bdf(info.bdf),
+        "version": info.fabric_info.version,
+        "accelerator_id": v1.accelerator_id,
+        "fabric_type": _FABRIC_TYPE_NAMES.get(v1.fabric_type, "UNKNOWN"),
+        "bandwidth": v1.bandwidth,
+        "latency": v1.latency,
+        "ppod_id": list(v1.ppod_id),
+        "ppod_size": v1.ppod_size,
+        "vpod_id": v1.vpod_id,
+        "vpod_size": v1.vpod_size,
         "local_accelerators": list(v1.local_accelerators),
         "vpod_active_accelerators": list(v1.vpod_active_accelerators),
-        "addr_mode":        _FABRIC_ADDR_MODE_NAMES.get(v1.addr_mode, "UNKNOWN"),
-        "accel_state":      _FABRIC_ACCEL_STATE_NAMES.get(v1.accel_state, "UNKNOWN"),
+        "addr_mode": _FABRIC_ADDR_MODE_NAMES.get(v1.addr_mode, "UNKNOWN"),
+        "accel_state": _FABRIC_ACCEL_STATE_NAMES.get(v1.accel_state, "UNKNOWN"),
     }
 
 
