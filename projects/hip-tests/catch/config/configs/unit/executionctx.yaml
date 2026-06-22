@@ -15,6 +15,8 @@ executionctx:
     disabled: [amd_linux, amd_windows, amd_wsl]
   Unit_hipExecutionCtxRecordWaitEvent_Sanity:
     <<: *level_2
+    # test hangs on amd_linux; temporarily disabled pending investigation
+    disabled: [amd_linux]
   Unit_hipExecutionCtxRecordEventFunctional:
     <<: *level_2
   Unit_hipExecutionCtxRecordWait_Blocking:

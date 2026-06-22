@@ -75,7 +75,7 @@ size_t GetMaxStackSize() {
   return 1024;
 }
 
-TEST_CASE("Unit_KernelStackSize") {
+HIP_TEST_CASE(Unit_KernelStackSize) {
   // maxArrayBytes is chosen as maxStackSize12X being largest stack size amongst
   // which make sure to cover whole range of stack size for any ASIC.
   size_t maxArrayBytes = maxStackSize12X;

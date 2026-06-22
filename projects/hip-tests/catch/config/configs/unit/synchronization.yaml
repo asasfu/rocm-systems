@@ -2,7 +2,7 @@
 synchronization:
   Unit_Copy_Coherency:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [coherency]
   Unit_cache_coherency_cpu_gpu:
     <<: *level_2

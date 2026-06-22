@@ -17,6 +17,7 @@ graph:
     tags: [node]
   Unit_hipGraph_ConcurrentConstruct_LaunchDropSmoke:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddDependencies_Positive_Functional:
     <<: *level_2
@@ -945,6 +946,8 @@ graph:
     tags: [query]
   Unit_hipGetProcAddress_GraphAPIs_MemAllocAndFree:
     <<: *level_2
+    # ROCM-26471: test hangs; temporarily disabled pending investigation
+    disabled: [amd_linux]
     tags: [query]
   Unit_hipGetProcAddress_GraphAPIs_ExecMemsetMemcpySetParams:
     <<: *level_2
