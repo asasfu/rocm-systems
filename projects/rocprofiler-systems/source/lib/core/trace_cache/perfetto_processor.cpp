@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 #include "core/trace_cache/perfetto_processor.hpp"
-#include "common/units.hpp"
+#include "common/units/units.hpp"
+using rocprofsys::common::units::bytes;
+using rocprofsys::common::units::data_size_cast;
+using rocprofsys::common::units::gigabytes;
+using rocprofsys::common::units::kilobytes;
+using rocprofsys::common::units::megabytes;
 #include "core/agent_manager.hpp"
 #include "core/categories.hpp"
 #include "core/common.hpp"
@@ -19,6 +24,7 @@
 
 #include "logger/debug.hpp"
 #include <charconv>
+#include <chrono>
 #include <cstdint>
 #include <nlohmann/json.hpp>
 
@@ -634,11 +640,15 @@ perfetto_processor_t::flush(bool& _perfetto_output_error)
         // Write the trace into a file.
         if(config::get_verbose() >= 0 && logs_enabled)
         {
-            _fom(_filename, std::string{ "perfetto" },
-                 " (%.2f KB / %.2f MB / %.2f GB)... ",
-                 static_cast<double>(trace_data.size()) / units::kilobyte,
-                 static_cast<double>(trace_data.size()) / units::megabyte,
-                 static_cast<double>(trace_data.size()) / units::gigabyte);
+            _fom(
+                _filename, std::string{ "perfetto" },
+                " (%.2f KB / %.2f MB / %.2f GB)... ",
+                data_size_cast<kilobytes>(bytes{ static_cast<double>(trace_data.size()) })
+                    .count(),
+                data_size_cast<megabytes>(bytes{ static_cast<double>(trace_data.size()) })
+                    .count(),
+                data_size_cast<gigabytes>(bytes{ static_cast<double>(trace_data.size()) })
+                    .count());
         }
         std::ofstream ofs{};
         if(!filepath::open(ofs, _filename, std::ios::out | std::ios::binary))
@@ -1146,21 +1156,27 @@ perfetto_processor_t::handle(const cpu_pmc_sample& _cpu_sample)
     if(_is_process_owner)
     {
         if(_em.bits.page_rss)
-            TRACE_COUNTER(trait::name<category::process_page>::value,
-                          process_page_track::at(0, 0), _ts,
-                          static_cast<double>(_cpu_sample.process_data.page_rss) /
-                              units::megabyte);
+            TRACE_COUNTER(
+                trait::name<category::process_page>::value, process_page_track::at(0, 0),
+                _ts,
+                data_size_cast<megabytes>(
+                    bytes{ static_cast<double>(_cpu_sample.process_data.page_rss) })
+                    .count());
 
         if(_em.bits.virt_mem)
-            TRACE_COUNTER(trait::name<category::process_virt>::value,
-                          process_virt_track::at(0, 0), _ts,
-                          static_cast<double>(_cpu_sample.process_data.virt_mem) /
-                              units::megabyte);
+            TRACE_COUNTER(
+                trait::name<category::process_virt>::value, process_virt_track::at(0, 0),
+                _ts,
+                data_size_cast<megabytes>(
+                    bytes{ static_cast<double>(_cpu_sample.process_data.virt_mem) })
+                    .count());
         if(_em.bits.peak_rss)
-            TRACE_COUNTER(trait::name<category::process_peak>::value,
-                          process_peak_track::at(0, 0), _ts,
-                          static_cast<double>(_cpu_sample.process_data.peak_rss) /
-                              units::megabyte);
+            TRACE_COUNTER(
+                trait::name<category::process_peak>::value, process_peak_track::at(0, 0),
+                _ts,
+                data_size_cast<megabytes>(
+                    bytes{ static_cast<double>(_cpu_sample.process_data.peak_rss) })
+                    .count());
 
         if(_em.bits.ctx_switches)
             TRACE_COUNTER(trait::name<category::process_context_switch>::value,
@@ -1175,14 +1191,18 @@ perfetto_processor_t::handle(const cpu_pmc_sample& _cpu_sample)
         if(_em.bits.user_time)
             TRACE_COUNTER(trait::name<category::process_user_mode_time>::value,
                           process_user_track::at(0, 0), _ts,
-                          static_cast<double>(_cpu_sample.process_data.user_mode_time) /
-                              units::sec);
+                          std::chrono::duration<double>{
+                              std::chrono::nanoseconds{ static_cast<std::int64_t>(
+                                  _cpu_sample.process_data.user_mode_time) } }
+                              .count());
 
         if(_em.bits.kernel_time)
             TRACE_COUNTER(trait::name<category::process_kernel_mode_time>::value,
                           process_kern_track::at(0, 0), _ts,
-                          static_cast<double>(_cpu_sample.process_data.kernel_mode_time) /
-                              units::sec);
+                          std::chrono::duration<double>{
+                              std::chrono::nanoseconds{ static_cast<std::int64_t>(
+                                  _cpu_sample.process_data.kernel_mode_time) } }
+                              .count());
     }
 
     if(_em.bits.frequency)
@@ -1381,7 +1401,7 @@ perfetto_processor_t::handle([[maybe_unused]] const gpu_pmc_sample& _gpu_pmc)
 
     emit_gpu_scalar<amd_smi_mem_track>(
         _device_id, _ts, _em.bits.memory_usage, "Memory Usage", "megabytes",
-        _m.memory_usage / static_cast<double>(units::megabyte));
+        data_size_cast<megabytes>(bytes{ static_cast<double>(_m.memory_usage) }).count());
 
     emit_gpu_scalar<amd_smi_sdma_track>(_device_id, _ts, _em.bits.sdma_usage,
                                         "SDMA Usage", "%", _m.sdma_usage);

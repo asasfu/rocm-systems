@@ -35,8 +35,8 @@ target_sources(
         ${CMAKE_CURRENT_SOURCE_DIR}/static_object.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/synchronized.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/traits.hpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/units.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/units/chrono.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/units/constants.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/units/data_size.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/units/format.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/units/frequency.hpp

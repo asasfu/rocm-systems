@@ -14,10 +14,14 @@
 #include "core/trace_cache/metadata_registry.hpp"
 #include "core/trace_cache/sample_type.hpp"
 
-#include "common/units.hpp"
+#include "common/units/units.hpp"
+using rocprofsys::common::units::bytes;
+using rocprofsys::common::units::data_size_cast;
+using rocprofsys::common::units::megabytes;
 #include "library/thread_info.hpp"
 #include "logger/debug.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -372,9 +376,11 @@ rocpd_processor_t::handle([[maybe_unused]] const gpu_pmc_sample& _gpu_pmc)
                   info::format_track_name<category::amd_smi_power>(),
                   enabled.bits.current_socket_power || enabled.bits.average_socket_power,
                   pmc::collectors::gpu::select_socket_power(enabled, m));
-    insert_scalar(trait::name<category::amd_smi_memory_usage>::value,
-                  info::format_track_name<category::amd_smi_memory_usage>(),
-                  enabled.bits.memory_usage, m.memory_usage / units::megabyte);
+    insert_scalar(
+        trait::name<category::amd_smi_memory_usage>::value,
+        info::format_track_name<category::amd_smi_memory_usage>(),
+        enabled.bits.memory_usage,
+        data_size_cast<megabytes>(bytes{ static_cast<double>(m.memory_usage) }).count());
     insert_scalar(trait::name<category::amd_smi_sdma_usage>::value,
                   info::format_track_name<category::amd_smi_sdma_usage>(),
                   enabled.bits.sdma_usage, m.sdma_usage);
@@ -641,20 +647,23 @@ rocpd_processor_t::handle([[maybe_unused]] const cpu_pmc_sample& _cpu_pmc_sample
         if(_em.bits.page_rss)
             insert_event_and_sample(
                 trait::name<category::process_page>::value,
-                static_cast<double>(_cpu_pmc_sample.process_data.page_rss) /
-                    units::megabyte);
+                data_size_cast<megabytes>(
+                    bytes{ static_cast<double>(_cpu_pmc_sample.process_data.page_rss) })
+                    .count());
 
         if(_em.bits.virt_mem)
             insert_event_and_sample(
                 trait::name<category::process_virt>::value,
-                static_cast<double>(_cpu_pmc_sample.process_data.virt_mem) /
-                    units::megabyte);
+                data_size_cast<megabytes>(
+                    bytes{ static_cast<double>(_cpu_pmc_sample.process_data.virt_mem) })
+                    .count());
 
         if(_em.bits.peak_rss)
             insert_event_and_sample(
                 trait::name<category::process_peak>::value,
-                static_cast<double>(_cpu_pmc_sample.process_data.peak_rss) /
-                    units::megabyte);
+                data_size_cast<megabytes>(
+                    bytes{ static_cast<double>(_cpu_pmc_sample.process_data.peak_rss) })
+                    .count());
 
         if(_em.bits.ctx_switches)
             insert_event_and_sample(trait::name<category::process_context_switch>::value,
@@ -667,14 +676,18 @@ rocpd_processor_t::handle([[maybe_unused]] const cpu_pmc_sample& _cpu_pmc_sample
         if(_em.bits.user_time)
             insert_event_and_sample(
                 trait::name<category::process_user_mode_time>::value,
-                static_cast<double>(_cpu_pmc_sample.process_data.user_mode_time) /
-                    units::sec);
+                std::chrono::duration<double>{
+                    std::chrono::nanoseconds{ static_cast<std::int64_t>(
+                        _cpu_pmc_sample.process_data.user_mode_time) } }
+                    .count());
 
         if(_em.bits.kernel_time)
             insert_event_and_sample(
                 trait::name<category::process_kernel_mode_time>::value,
-                static_cast<double>(_cpu_pmc_sample.process_data.kernel_mode_time) /
-                    units::sec);
+                std::chrono::duration<double>{
+                    std::chrono::nanoseconds{ static_cast<std::int64_t>(
+                        _cpu_pmc_sample.process_data.kernel_mode_time) } }
+                    .count());
     }
 
     if(_em.bits.frequency)

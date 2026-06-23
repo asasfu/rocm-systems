@@ -3,7 +3,7 @@
 
 #include "library/sampling.hpp"
 #include "common/env_vars.hpp"
-#include "common/units.hpp"
+#include "common/units/constants.hpp"
 #include "core/common.hpp"
 #include "core/components/fwd.hpp"
 #include "core/config.hpp"
@@ -543,10 +543,11 @@ start_duration_thread()
         // we may need to protect against recursion bc of pthread wrapper
         static bool _protect = false;
         if(_protect) return;
-        _protect   = true;
-        auto _now  = std::chrono::steady_clock::now();
-        auto _end  = _now + std::chrono::nanoseconds{ static_cast<std::uint64_t>(
-                               config::get_sampling_duration() * units::sec) };
+        _protect  = true;
+        auto _now = std::chrono::steady_clock::now();
+        auto _end =
+            _now + std::chrono::duration_cast<std::chrono::nanoseconds>(
+                       std::chrono::duration<double>{ config::get_sampling_duration() });
         auto _func = [_end]() {
             thread_info::init(true);
             threading::set_thread_name("omni.samp.dur");

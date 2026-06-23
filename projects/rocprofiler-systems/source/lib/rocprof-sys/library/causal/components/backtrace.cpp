@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "library/causal/components/backtrace.hpp"
-#include "common/units.hpp"
+#include "common/units/constants.hpp"
 #include "core/concepts.hpp"
 #include "core/config.hpp"
 #include "core/state.hpp"
@@ -28,6 +28,7 @@
 #include "logger/debug.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <ctime>
 #include <execinfo.h>
 #include <type_traits>
@@ -215,7 +216,10 @@ backtrace::get_period(std::uint64_t _units)
 
     double       _period = 1.0 / 1000.0;
     std::int64_t _period_nsec =
-        static_cast<std::int64_t>(_period * units::sec) % units::sec;
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::duration<double>{ _period })
+            .count() %
+        std::chrono::nanoseconds{ std::chrono::seconds{ 1 } }.count();
     return static_cast<Tp>(_period_nsec) / static_cast<cast_type>(_units);
 }
 }  // namespace component

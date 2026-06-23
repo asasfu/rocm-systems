@@ -3,7 +3,7 @@
 
 #include "constraint.hpp"
 #include "common/env_vars.hpp"
-#include "common/units.hpp"
+#include "common/units/constants.hpp"
 #include "config.hpp"
 #include "state.hpp"
 #include "utility.hpp"
@@ -128,12 +128,20 @@ get_clock_now(clockid_t clock_id) noexcept
 stages::stages()
 : init{ [](const spec&) { return get_state() < State::Finalized; } }
 , wait{ [](const spec& _spec) {
-    sleep(std::min<std::uint64_t>(100 * units::msec, _spec.delay * units::sec));
+    sleep(std::min<std::uint64_t>(
+        std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::duration<double>{ _spec.delay })
+            .count()));
     return get_state() < State::Finalized;
 } }
 , start{ [](const spec&) { return get_state() < State::Finalized; } }
 , collect{ [](const spec& _spec) {
-    sleep(std::min<std::uint64_t>(100 * units::msec, _spec.duration * units::sec));
+    sleep(std::min<std::uint64_t>(
+        std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::duration<double>{ _spec.duration })
+            .count()));
     return get_state() < State::Finalized;
 } }
 , stop{ [](const spec&) { return get_state() < State::Finalized; } }
@@ -243,7 +251,7 @@ spec::operator()(const stages& _stages) const
     if(_n < 1) _n = std::numeric_limits<std::uint64_t>::max();
 
     while(get_state() < State::Active)
-        sleep(1 * units::usec);
+        sleep(std::chrono::nanoseconds{ std::chrono::microseconds{ 1 } }.count());
 
     for(std::uint64_t i = 0; i < _n; ++i)
     {
@@ -251,7 +259,9 @@ spec::operator()(const stages& _stages) const
         auto _wait = [_spec](const auto& _func, auto _dur) {
             auto _ret = true;
             auto _now = get_clock_now(_spec.clock_id.value);
-            auto _del = (_dur * units::sec);
+            auto _del = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                            std::chrono::duration<double>{ _dur })
+                            .count();
             auto _end = _now + _del;
             while(get_clock_now(_spec.clock_id.value) < _end && (_ret = _func(_spec)))
             {
@@ -331,12 +341,20 @@ get_trace_stages()
 
     _v.init = [](const spec&) { return get_state() < State::Finalized; };
     _v.wait = [](const spec& _spec) {
-        sleep(std::min<std::uint64_t>(100 * units::msec, _spec.delay * units::sec));
+        sleep(std::min<std::uint64_t>(
+            std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::duration<double>{ _spec.delay })
+                .count()));
         return get_state() < State::Finalized;
     };
     _v.start   = [](const spec&) { return get_state() < State::Finalized; };
     _v.collect = [](const spec& _spec) {
-        sleep(std::min<std::uint64_t>(100 * units::msec, _spec.duration * units::sec));
+        sleep(std::min<std::uint64_t>(
+            std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::duration<double>{ _spec.duration })
+                .count()));
         return get_state() < State::Finalized;
     };
     _v.stop = [](const spec&) { return get_state() < State::Finalized; };

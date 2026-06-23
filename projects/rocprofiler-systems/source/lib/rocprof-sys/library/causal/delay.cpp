@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "library/causal/delay.hpp"
-#include "common/units.hpp"
+#include "common/units/constants.hpp"
 #include "core/state.hpp"
 #include "core/utility.hpp"
 #include "library/causal/components/causal_gotcha.hpp"
@@ -65,9 +65,15 @@ compute_sleep_for_overhead()
         _stats += (_diff - _val);
     }
 
-    LOG_TRACE("[causal] overhead of std::this_thread::sleep_for(...) "
-              "invocation = {} usec +/- {} usec",
-              _stats.get_mean() / units::usec, _stats.get_stddev() / units::usec);
+    LOG_TRACE(
+        "[causal] overhead of std::this_thread::sleep_for(...) "
+        "invocation = {} usec +/- {} usec",
+        std::chrono::duration<double, std::micro>{
+            std::chrono::nanoseconds{ static_cast<std::int64_t>(_stats.get_mean()) } }
+            .count(),
+        std::chrono::duration<double, std::micro>{
+            std::chrono::nanoseconds{ static_cast<std::int64_t>(_stats.get_stddev()) } }
+            .count());
 
     tim::manager::instance()->add_metadata([_stats](auto& ar) {
         ar(tim::cereal::make_nvp("causal thread sleep overhead [nsec]", _stats));

@@ -7,7 +7,7 @@
 #include "binary/symbol.hpp"
 #include "common/defines.h"
 #include "common/env_vars.hpp"
-#include "common/units.hpp"
+#include "common/units/constants.hpp"
 #include "core/config.hpp"
 #include "core/demangler.hpp"
 #include "core/state.hpp"
@@ -343,10 +343,16 @@ std::string
 experiment::as_string() const
 {
     std::stringstream _ss{};
-    auto _dur = static_cast<double>(experiment_time) / static_cast<double>(units::sec);
+    auto              _dur = std::chrono::duration<double>{
+        std::chrono::nanoseconds{ experiment_time }
+    }.count();
     _ss << std::boolalpha << "speed-up: " << std::setw(3) << virtual_speedup
         << "%, period: " << std::setw(4) << std::fixed << std::setprecision(2)
-        << (sampling_period / static_cast<double>(units::msec)) << " msec";
+        << std::chrono::duration<double, std::milli>{ std::chrono::nanoseconds{
+                                                          static_cast<std::int64_t>(
+                                                              sampling_period) } }
+               .count()
+        << " msec";
     if(!config::get_causal_end_to_end())
         _ss << ", duration: " << std::setw(5) << std::fixed << std::setprecision(3)
             << _dur << " sec";
