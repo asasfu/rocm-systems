@@ -8,6 +8,7 @@ add_library(
     test_environment.cpp
     test_path.cpp
     test_remove_env.cpp
+    test_units_typed.cpp
     test_update_env.cpp
 )
 
