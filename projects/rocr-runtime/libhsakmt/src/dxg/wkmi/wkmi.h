@@ -33,6 +33,7 @@ enum EngineFlag {
   KCOMPUTE0   = (1ULL << 0),  ///< Compute engine 0
   KDRMDMA     = (1ULL << 1),  ///< DMA engine 0 (SDMA)
   KDRMDMA1    = (1ULL << 2),  ///< DMA engine 1 (SDMA1)
+  KCOMPUTE1   = (1ULL << 3),  ///< Compute engine 1
 };
 
 /// @brief Queue scheduling priority levels
@@ -151,7 +152,7 @@ struct KmdDbgVersion {
 
 /// @brief Get the engine ordinal for a specific scheduler ID
 /// @return Engine ordinal index, or -1 if not found
-int EngineOrdinal(int engine,                 ///< Scheduler ID (e.g., DXUMD_SCHEDULERIDENTIFIER_COMPUTE0)
+int EngineOrdinal(int engine,                 ///< Scheduler ID (e.g., DXUMD_SCHEDULERIDENTIFIER_COMPUTE0/1)
                   DeviceInfo* device_info);   ///< Pointer to device information structure
 
 /// @brief Check if hardware scheduling (HWS) is enabled for an engine
@@ -173,7 +174,7 @@ bool QueryAdapterSupported(unsigned int device_id);  ///< PCI device ID to check
 // ============================================================================
 
 /// @brief Convert queue engine ID to engine flag
-/// @return Engine flag (KCOMPUTE0, KDRMDMA, or KDRMDMA1)
+/// @return Engine flag (KCOMPUTE0, KCOMPUTE1,  KDRMDMA, or KDRMDMA1)
 uint32_t QueueEngine2EngineFlag(uint32_t queue_engine);  ///< Queue engine scheduler ID
 
 /// @brief Configure GPU memory allocation parameters
