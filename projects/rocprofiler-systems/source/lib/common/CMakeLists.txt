@@ -40,6 +40,7 @@ target_sources(
         ${CMAKE_CURRENT_SOURCE_DIR}/units/data_size.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/units/format.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/units/frequency.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/units/power.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/units/units.hpp
 )
 

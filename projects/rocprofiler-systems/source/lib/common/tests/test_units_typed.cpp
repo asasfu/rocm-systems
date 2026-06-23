@@ -3,7 +3,6 @@
 
 #include <gtest/gtest.h>
 
-#include "common/units/chrono.hpp"
 #include "common/units/format.hpp"
 #include "common/units/units.hpp"
 
@@ -178,4 +177,70 @@ TEST(UnitsFmtChrono, AutoscaleWithPrecision)
 {
     using std::chrono::microseconds;
     EXPECT_EQ(fmt::format("{:~.3f}", microseconds{ 1500 }), "1.500 ms");
+}
+
+// ---------------------------------------------------------------------------
+// power: construction, cast, literals, comparison
+// ---------------------------------------------------------------------------
+
+TEST(UnitsPower, ConstructionAndCount)
+{
+    EXPECT_DOUBLE_EQ(watt{ 1.5 }.count(), 1.5);
+    EXPECT_DOUBLE_EQ(milliwatt{ 250.0 }.count(), 250.0);
+    EXPECT_DOUBLE_EQ(kilowatt{ 2.0 }.count(), 2.0);
+}
+
+TEST(UnitsPower, Literals)
+{
+    EXPECT_DOUBLE_EQ((500_mw).count(), 500.0);
+    EXPECT_DOUBLE_EQ((1_w).count(), 1.0);
+    EXPECT_DOUBLE_EQ((2_kw).count(), 2.0);
+    EXPECT_DOUBLE_EQ((100_nw).count(), 100.0);
+}
+
+TEST(UnitsPower, CastWToMw)
+{
+    const auto result = power_cast<milliwatt>(1_w);
+    EXPECT_DOUBLE_EQ(result.count(), 1000.0);
+}
+
+TEST(UnitsPower, CastKwToW)
+{
+    const auto result = power_cast<watt>(2_kw);
+    EXPECT_DOUBLE_EQ(result.count(), 2000.0);
+}
+
+TEST(UnitsPower, EqualityAcrossUnits)
+{
+    EXPECT_EQ(1000_mw, 1_w);
+    EXPECT_EQ(1000_w, 1_kw);
+}
+
+TEST(UnitsPower, OrderingAcrossUnits)
+{
+    EXPECT_LT(999_mw, 1_w);
+    EXPECT_GT(2_kw, 1999_w);
+}
+
+// ---------------------------------------------------------------------------
+// fmt formatting: power
+// ---------------------------------------------------------------------------
+
+TEST(UnitsFmtPower, PlainW) { EXPECT_EQ(fmt::format("{}", 1_w), "1 W"); }
+
+TEST(UnitsFmtPower, PlainMw) { EXPECT_EQ(fmt::format("{}", 250_mw), "250 mW"); }
+
+TEST(UnitsFmtPower, AutoscaleMwToW)
+{
+    EXPECT_EQ(fmt::format("{:~}", watt{ 1500.0 }), "1.5 kW");
+}
+
+TEST(UnitsFmtPower, AutoscaleWToMw)
+{
+    EXPECT_EQ(fmt::format("{:~}", watt{ 0.5 }), "500 mW");
+}
+
+TEST(UnitsFmtPower, AutoscaleWithPrecision)
+{
+    EXPECT_EQ(fmt::format("{:~.2f}", milliwatt{ 1500.0 }), "1.50 W");
 }
