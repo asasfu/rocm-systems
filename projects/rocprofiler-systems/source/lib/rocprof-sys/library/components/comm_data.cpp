@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "library/components/comm_data.hpp"
-#include "common/units/constants.hpp"
+#include "common/units/units.hpp"
 #include "core/components/fwd.hpp"
 #include "core/config.hpp"
 #include "core/node_info.hpp"
@@ -190,7 +190,10 @@ comm_data::configure()
     comm_data_tracker_t::label()        = "comm_data";
     comm_data_tracker_t::description()  = "Tracks MPI/RCCL/UCX communication data sizes";
     comm_data_tracker_t::display_unit() = "MB";
-    comm_data_tracker_t::unit()         = units::megabyte;
+    comm_data_tracker_t::unit()         = static_cast<std::int64_t>(
+        rocprofsys::common::units::data_size_cast<rocprofsys::common::units::bytes>(
+            rocprofsys::common::units::megabytes{ 1.0 })
+            .to_bytes());
 
     auto _fmt_flags = comm_data_tracker_t::get_format_flags();
     _fmt_flags &= (std::ios_base::fixed & std::ios_base::scientific);

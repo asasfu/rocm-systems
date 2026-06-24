@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 #include "library/perf.hpp"
-#include "common/units/constants.hpp"
 #include "core/locking.hpp"
 #include "core/state.hpp"
 #include "core/timemory.hpp"
@@ -51,7 +50,7 @@ namespace
 struct SizeParams
 {
     const size_t num_pages = 2;
-    const size_t page      = units::get_page_size();
+    const size_t page      = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
     const size_t data      = num_pages * page;
     const size_t mmap      = data + page;
 };

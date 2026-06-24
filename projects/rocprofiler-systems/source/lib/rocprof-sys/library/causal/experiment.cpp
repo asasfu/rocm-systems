@@ -7,7 +7,7 @@
 #include "binary/symbol.hpp"
 #include "common/defines.h"
 #include "common/env_vars.hpp"
-#include "common/units/constants.hpp"
+#include "common/units/units.hpp"
 #include "core/config.hpp"
 #include "core/demangler.hpp"
 #include "core/state.hpp"
@@ -222,7 +222,7 @@ experiment::start()
     if(!selection) return false;
 
     // sampling period in nanoseconds
-    sampling_period = backtrace_causal::get_period(units::nsec);
+    sampling_period = backtrace_causal::get_period(std::chrono::nanoseconds{ 1 }.count());
 
     // experiment time is scaled up for longer speedups
     index           = experiment_history.size() + 1;

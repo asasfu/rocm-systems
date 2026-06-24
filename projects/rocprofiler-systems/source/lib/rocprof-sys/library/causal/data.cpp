@@ -8,7 +8,6 @@
 #include "binary/link_map.hpp"
 #include "binary/scope_filter.hpp"
 #include "common/env_vars.hpp"
-#include "common/units/constants.hpp"
 #include "core/binary/fwd.hpp"
 #include "core/config.hpp"
 #include "core/containers/c_array.hpp"

@@ -4,7 +4,7 @@
 #pragma once
 
 #include "common/defines.h"
-#include "common/units/constants.hpp"
+#include "common/units/units.hpp"
 #include "core/common.hpp"
 #include "core/components/fwd.hpp"
 #include "core/timemory.hpp"
@@ -73,7 +73,8 @@ struct backtrace : comp::empty_base
     auto get_stack() const { return m_stack; }
 
     template <typename Tp = std::uint64_t>
-    static Tp get_period(std::uint64_t _units = units::nsec);
+    static Tp get_period(std::uint64_t _units = static_cast<std::uint64_t>(
+                             std::chrono::nanoseconds{ 1 }.count()));
 
 private:
     bool                  m_selected = false;

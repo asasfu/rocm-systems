@@ -3,7 +3,7 @@
 
 #include "library/sampling.hpp"
 #include "common/env_vars.hpp"
-#include "common/units/constants.hpp"
+#include "common/units/units.hpp"
 #include "core/common.hpp"
 #include "core/components/fwd.hpp"
 #include "core/config.hpp"
@@ -953,8 +953,14 @@ configure(bool _setup, std::int64_t _tid)
                     LOG_INFO(
                         "[SIG{}] Sampler for thread {} will be triggered {:.1f}x per "
                         "second of {}-time (every {:.3e} milliseconds)...",
-                        itr, _tid, _timer->get_frequency(units::sec), _type,
-                        _timer->get_period(units::msec));
+                        itr, _tid,
+                        _timer->get_frequency(std::chrono::nanoseconds{
+                            std::chrono::seconds{
+                                1 } }.count()),
+                        _type,
+                        _timer->get_period(std::chrono::nanoseconds{
+                            std::chrono::milliseconds{
+                                1 } }.count()));
                 }
             }
         }
@@ -1912,9 +1918,12 @@ struct sampling_initialization
         sampling_gpu_memory::label()       = "sampling_gpu_memory_usage";
         sampling_gpu_memory::description() = "Memory usage of GPU(s)";
 
-        sampling_gpu_power::label()        = "sampling_gpu_power";
-        sampling_gpu_power::description()  = "Power usage of GPU(s)";
-        sampling_gpu_power::unit()         = units::watt;
+        sampling_gpu_power::label()       = "sampling_gpu_power";
+        sampling_gpu_power::description() = "Power usage of GPU(s)";
+        sampling_gpu_power::unit()        = static_cast<std::int64_t>(
+            rocprofsys::common::units::power_cast<rocprofsys::common::units::nanowatt>(
+                rocprofsys::common::units::watt{ 1.0 })
+                .count());
         sampling_gpu_power::display_unit() = "watts";
         sampling_gpu_power::set_precision(2);
         sampling_gpu_power::set_format_flags(sampling_gpu_power::get_format_flags());

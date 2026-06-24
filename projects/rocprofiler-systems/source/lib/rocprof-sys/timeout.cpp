@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 #include "common/env_vars.hpp"
-#include "common/units/constants.hpp"
 #include "core/categories.hpp"
 #include "core/config.hpp"
 #include "core/locking.hpp"

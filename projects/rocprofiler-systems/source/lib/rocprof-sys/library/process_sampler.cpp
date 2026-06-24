@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 #include "library/process_sampler.hpp"
-#include "common/units/constants.hpp"
 #include "core/config.hpp"
 #include "library/pmc/sampler.hpp"
 #include "library/runtime.hpp"

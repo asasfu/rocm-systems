@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 #include "library/causal/delay.hpp"
-#include "common/units/constants.hpp"
 #include "core/state.hpp"
 #include "core/utility.hpp"
 #include "library/causal/components/causal_gotcha.hpp"
