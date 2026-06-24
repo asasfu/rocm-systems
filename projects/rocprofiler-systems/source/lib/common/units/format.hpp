@@ -64,11 +64,14 @@ private:
     static auto autoscale_freq(double freq_hz) -> std::pair<double, std::string_view>
     {
         using rocprofsys::common::units::frequency_suffix;
+        constexpr double k_ghz =
+            static_cast<double>(std::giga::num) / static_cast<double>(std::giga::den);
         constexpr double k_mhz =
             static_cast<double>(std::mega::num) / static_cast<double>(std::mega::den);
         constexpr double k_khz =
             static_cast<double>(std::kilo::num) / static_cast<double>(std::kilo::den);
         const double mag = freq_hz < 0.0 ? -freq_hz : freq_hz;
+        if(mag >= k_ghz) return { freq_hz / k_ghz, frequency_suffix<std::giga>::value };
         if(mag >= k_mhz) return { freq_hz / k_mhz, frequency_suffix<std::mega>::value };
         if(mag >= k_khz) return { freq_hz / k_khz, frequency_suffix<std::kilo>::value };
         return { freq_hz, frequency_suffix<std::ratio<1>>::value };

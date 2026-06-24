@@ -27,6 +27,14 @@ TEST(UnitsFrequency, Literals)
     EXPECT_DOUBLE_EQ((2_mhz).count(), 2.0);
 }
 
+TEST(UnitsFrequency, GhzConstructionAndLiterals)
+{
+    EXPECT_DOUBLE_EQ(gigahertz{ 2.4 }.count(), 2.4);
+    EXPECT_DOUBLE_EQ((2_ghz).count(), 2.0);
+    const auto result = frequency_cast<megahertz>(1_ghz);
+    EXPECT_DOUBLE_EQ(result.count(), 1000.0);
+}
+
 TEST(UnitsFrequency, CastHzToKhz)
 {
     const auto result = frequency_cast<kilohertz>(2000_hz);
@@ -129,6 +137,16 @@ TEST(UnitsFmtFrequency, AutoscaleHzToKhz)
 TEST(UnitsFmtFrequency, AutoscaleWithPrecision)
 {
     EXPECT_EQ(fmt::format("{:~.2f}", 1500_hz), "1.50 kHz");
+}
+
+TEST(UnitsFmtFrequency, AutoscaleHzToGhz)
+{
+    EXPECT_EQ(fmt::format("{:~}", hertz{ 3'000'000'000.0 }), "3 GHz");
+}
+
+TEST(UnitsFmtFrequency, AutoscaleGhzLiteral)
+{
+    EXPECT_EQ(fmt::format("{:~}", 2.4_ghz), "2.4 GHz");
 }
 
 // ---------------------------------------------------------------------------
