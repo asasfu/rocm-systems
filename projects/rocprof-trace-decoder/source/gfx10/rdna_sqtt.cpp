@@ -177,8 +177,12 @@ void RDNASQTParser::sqtt_simd_analysis(CppReturnInfo& info, TokenGenerator& _gen
 
                 constexpr uint64_t CTX_BEGIN = 66;
                 constexpr uint64_t CTX_END = 90;
+                constexpr uint64_t WAVEGROUP_BEGIN = 70;
+                constexpr uint64_t WAVEGROUP_END   = 73;
 
-                if (start.count >= CTX_BEGIN && start.count < CTX_END)
+                bool is_tt5_wavegrp = tt_version >= 5 && start.count >= WAVEGROUP_BEGIN && start.count <= WAVEGROUP_END;
+
+                if (start.count >= CTX_BEGIN && start.count < CTX_END && !is_tt5_wavegrp)
                 {
                     // We are in context save or restore
                     constexpr uint64_t ctx_save_array = 0b0000110011;
