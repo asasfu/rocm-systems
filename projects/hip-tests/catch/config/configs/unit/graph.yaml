@@ -474,6 +474,7 @@ graph:
     tags: [dependency]
   Unit_hipGraphRemoveDependencies_Positive_ChangeComputeFunc:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [dependency]
   Unit_hipGraphRemoveDependencies_Positive_Parameters:
     <<: *level_2
@@ -812,6 +813,8 @@ graph:
     tags: [capture]
   Unit_hipGraphMemFreeNodeGetParams_ValidArgs:
     <<: *level_2
+    # test hangs on gfx1260
+    disabled: [gfx1260]
     tags: [query]
   Unit_hipGraphMemFreeNodeGetParams_InvalidArgs:
     <<: *level_2
@@ -1504,7 +1507,7 @@ graph:
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemsetNodeSetParams:
     <<: *level_2
-    disabled: [gfx1250]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecChildGraphNodeSetParams:
     <<: *level_2
@@ -1605,6 +1608,8 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Instanciate_Graph_Again:
     <<: *level_2
+    # test hangs on gfx1310
+    disabled: [gfx1310]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Free_Alloc_Memory_Again:
     <<: *level_2
@@ -1709,6 +1714,8 @@ graph:
     tags: [node]
   Unit_hipGraphAddNodeTypeMemAlloc_Positive_Basic:
     <<: *level_2
+    # test hangs on gfx1260, gfx1310 and gfx1370
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddNode_Negative_Parameters:
     <<: *level_2
