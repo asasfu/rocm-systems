@@ -641,6 +641,21 @@ inline void DmaBlitManager::resolveAgents(const Memory& srcMem, const Memory& ds
         dstAgent = dstMem.isHostMemDirectAccess() ? dstMem.dev().getCpuAgent() : dstMem.dev().getBackendDevice();
     }
   }
+
+  // FFM/DTIF flags device-local memory (hipMalloc) as HostMemoryDirectAccess,
+  // so the resolution above maps it to the CPU agent. The SDMA copy paths need
+  // GPU agents to select an engine; restore them here for plain device memory.
+  // True host memory (MEMORY_KIND_HOST) and IPC/VMM-owned agents are left intact.
+  if (HSA_ENABLE_DTIF_FAST_COPY) {
+    if (srcMem.getKind() == Memory::MEMORY_KIND_NORMAL &&
+        srcAgent.handle == dev().getCpuAgent().handle) {
+      srcAgent = dev().getBackendDevice();
+    }
+    if (dstMem.getKind() == Memory::MEMORY_KIND_NORMAL &&
+        dstAgent.handle == dev().getCpuAgent().handle) {
+      dstAgent = dev().getBackendDevice();
+    }
+  }
 }
 
 // ================================================================================================

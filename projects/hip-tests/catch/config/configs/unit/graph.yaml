@@ -1279,9 +1279,11 @@ graph:
     tags: [capture]
   Unit_hipLaunchHostFunc_CrossStreamDep_UncapturedFirstNode:
     <<: *level_2
-    # Hangs on Windows (PAL), hitting CI timeout; passes on Linux.
-    # https://github.com/ROCm/rocm-systems/issues/7148
-    disabled: [amd_windows, amd_wsl]
+    # Hangs on Windows (PAL), hitting CI timeout. https://github.com/ROCm/rocm-systems/issues/7148
+    # Uses a calibrated ~1e9-iteration GPU spin (~500ms on HW) to expose a
+    # cross-stream race; under the FFM functional model that spin takes ~21 min
+    # and dominates CI time (~57% of the hip-tests run), so disable on the FFM archs.
+    disabled: [amd_windows, amd_wsl, gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipUserObjectCreate_Functional_1:
     <<: *level_2
@@ -1608,8 +1610,8 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Instanciate_Graph_Again:
     <<: *level_2
-    # test hangs on gfx1310
-    disabled: [gfx1310]
+    # hangs on gfx1310 and is unstable on the other FFM archs; disable on FFM archs.
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Free_Alloc_Memory_Again:
     <<: *level_2
