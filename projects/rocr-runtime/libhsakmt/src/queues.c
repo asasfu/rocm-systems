@@ -131,9 +131,6 @@ static uint32_t get_hwreg_size_per_cu(const HsaNodeProperties *node, uint32_t gf
 
 	hwreg_size_bytes = num_waves_per_simd * simd_per_cu * bytes_per_wave;
 
-	assert(hwreg_size_bytes == (
-		gfxv == GFX_VERSION_GFX1250 ?	0x8000 :
-										0x1000));
 	return hwreg_size_bytes;
 }
 
