@@ -256,6 +256,9 @@ SDMAFillDataPacket::SDMAFillDataPacket(unsigned int familyId, void *dst, unsigne
         pSDMA->DATA_UNION.DW_3_DATA = data;
         pSDMA++;
 
+        if (familyId >= FAMILY_GFX13)
+            pSDMA = reinterpret_cast<SDMA_PKT_CONSTANT_FILL *>(reinterpret_cast<char *>(pSDMA) + 4);
+
         dst = reinterpret_cast<char *>(dst) + copy_size;
         size -= copy_size;
     }
