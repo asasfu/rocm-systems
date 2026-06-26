@@ -165,6 +165,11 @@ install(FILES
 install(FILES
         ${PROJECT_BINARY_DIR}/${CATCH_BUILD_DIR}/script/windows/CTestTestfile.cmake
         DESTINATION ${INSTALL_DIR})
+# install generated ctest test discovery files
+install(DIRECTORY
+        ${PROJECT_BINARY_DIR}/${CATCH_BUILD_DIR}/script/
+        DESTINATION ${INSTALL_DIR_TESTS}
+        FILES_MATCHING PATTERN "*_tests.cmake")
 # install catchinfo
 install(FILES ${PROJECT_BINARY_DIR}/${CATCH_BUILD_DIR}/catchInfo.txt DESTINATION ${INSTALL_DIR})
 # workaround to make the built test binaries portable

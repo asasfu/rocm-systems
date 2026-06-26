@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palImage.h
@@ -129,7 +106,7 @@ enum class MetadataSharingLevel : uint32
 /// Specifies the type of PRT map image being created.
 enum class PrtMapType : uint32
 {
-    None            = 0, ///< This is not an auxiliary image used for PRT plus functionality.
+    None            = 0, ///< This is not an auxillary image used for PRT plus functionality.
     Residency       = 1, ///< Image data is really a low-resolution map containing the finest populated LOD
                          ///  for a particular UV space region.
     SamplingStatus  = 2, ///< Indicates the validity of a given tile on a per-mip level basis.
@@ -207,7 +184,7 @@ union ImageCreateFlags
         uint32 sampleLocsAlwaysKnown   :  1; ///< Sample pattern is always known in client driver for MSAA depth image.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 963
         uint32 fullResolveDstOnly      :  1; ///< Indicates any ICmdBuffer::CmdResolveImage using this image as a
-                                             ///  designation will overwrite the entire image (width and height of
+                                             ///  desination will overwrite the entire image (width and height of
                                              ///  resolve region is same as width and height of resolve dst).
 #else
         uint32 reserved963             :  1;
@@ -339,6 +316,11 @@ struct ImageCreateInfo
     /// physical compression is enabled.
     ///
     /// On Gfx12, controls (legacy FMask based) color fragment compression and Z plane compression.
+#if PAL_BUILD_GFX13
+    /// On Gfx13, controls Z plane compression only; for FMask based color fragment compression, not part of physical
+    /// compression and controllable by @ref ImageCreateInfo::metadataMode (e.g. default enabled and clients can set
+    /// MetadataMode::Disabled to disable it).
+#endif
     ClientCompressionMode clientCompressionMode; ///< Controls client compression behavior for this resource.
 
     uint32 maxBaseAlign;      ///< Maximum address alignment for this image or zero for an unbounded alignment.
@@ -368,6 +350,7 @@ struct ImageCreateInfo
 
     Rational refreshRate; ///< The expected refresh rate when presenting this flippable or stereo image.
 
+
     /// By default an image can only be used with image views that exactly match @ref swizzledFormat (the base format).
     /// If the client wishes to create image views with other formats they must fill out the following fields.
     ///
@@ -382,6 +365,10 @@ struct ImageCreateInfo
     uint32                viewFormatCount; ///< Must be 0, AllCompatibleFormats, or the length of pViewFormats.
     const SwizzledFormat* pViewFormats;    ///< See the block comment above for a full description.
 
+#if PAL_CLIENT_DX
+    uint32 vidPnSourceId; ///< If the flippable flag is set this must either be a valid vidPnSourceId or
+                          ///  InvalidVidPnSourceId which indicates it can be flipped to any display.
+#endif
 #if defined(__unix__)
     uint64  modifier;                     ///< Drm format modifier. Ignored if flags.hasModifier unset.
     uint32  modifierPlaneCount;           ///< Number of memory planes of drm format modifier.
@@ -422,7 +409,11 @@ inline constexpr bool operator==(const ImageCreateInfo& lhs, const ImageCreateIn
                 (lhs.refreshRate.numerator   == rhs.refreshRate.numerator)   &&
                 (lhs.refreshRate.denominator == rhs.refreshRate.denominator) &&
                 (lhs.viewFormatCount         == rhs.viewFormatCount)         &&
+#if PAL_CLIENT_DX
+                (lhs.vidPnSourceId           == rhs.vidPnSourceId);
+#else
                 true;
+#endif
 
 #if defined(__unix__)
     if (same && (lhs.flags.hasModifier != 0))
@@ -618,10 +609,11 @@ struct ImageLayout
     uint32 engines :  8;  ///< Bitmask of @ref ImageLayoutEngineFlags values.
 };
 
+
 /**
 ****************************************************************************************************
 * @brief
-*   Enumerates swizzle modes usable on any supported GPU.
+*   Enumerates swizzle modes useable on any supported GPU.
 * @note
 * For details please check _AddrSwizzleMode
 *

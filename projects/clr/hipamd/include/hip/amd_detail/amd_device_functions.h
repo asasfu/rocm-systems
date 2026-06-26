@@ -777,7 +777,13 @@ __device__ inline __attribute__((convergent)) int __syncthreads_or(int predicate
 #define XCC_ID_XCC_ID_OFFSET 0
 #endif
 
-#if !defined(__HIP_NO_IMAGE_SUPPORT) && defined(__gfx94plus_clr__)
+#if defined(__gfx1250__) || defined(__gfx1251__) || defined(__gfx1260__)
+  #define __gfx125plus_clr__
+  #define SE_HW_ID_XCC_ID_SIZE     4
+  #define SE_HW_ID_XCC_ID_OFFSET   16
+#endif
+
+#if !defined(__HIP_NO_IMAGE_SUPPORT) && defined(__gfx94plus_clr__) || defined(__gfx125plus_clr__)
   #define __HIP_NO_IMAGE_SUPPORT   1
 #endif
 
@@ -819,6 +825,9 @@ unsigned __smid(void)
   #if defined(__GFX12__)
     unsigned msg = __builtin_amdgcn_s_sendmsg_rtn(RTN_GET_SE_HW_ID);
     se       = (msg >> SE_HW_ID_SE_ID_OFFSET) & ((1 << SE_HW_ID_SE_ID_SIZE) - 1);
+    #if defined(__gfx125plus_clr__)
+    xcc      = (msg >> SE_HW_ID_XCC_ID_OFFSET) & ((1 << SE_HW_ID_XCC_ID_SIZE) - 1);
+    #endif
     se_bits  = SE_HW_ID_SE_ID_SIZE;
 
     unsigned hw = __builtin_amdgcn_s_getreg(GETREG_IMMED(31, 0, HW_ID));
@@ -864,6 +873,23 @@ unsigned __smid(void)
 
   return assemble_smid(xcc, se, sa, wgp, cu, se_bits, sa_bits, wgp_bits, cu_bits);
 }
+
+#if defined(__gfx1260__)
+#define __HIP_EARLY_DISPATCH_RELEASED_EVENT 0x04
+#define __HIP_SENDMSG_EARLY_EXIT_HINT 0x0A
+
+__device__ static inline void hipGridDependencySynchronize(void) {
+  __builtin_amdgcn_s_wait_event(__HIP_EARLY_DISPATCH_RELEASED_EVENT);
+}
+
+__device__ static inline void hipTriggerProgrammaticLaunchCompletion(void) {
+  __builtin_amdgcn_s_sendmsg(__HIP_SENDMSG_EARLY_EXIT_HINT, 0);
+}
+#else
+// No-op stubs for architectures that do not support programmatic dependent launch.
+__device__ static inline void hipGridDependencySynchronize(void) {}
+__device__ static inline void hipTriggerProgrammaticLaunchCompletion(void) {}
+#endif
 
 /**
  * Map HIP_DYNAMIC_SHARED to "extern __shared__" for compatibility with old HIP applications

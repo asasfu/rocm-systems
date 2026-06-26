@@ -47,6 +47,7 @@ HIP_TEST_CASE(Unit_hipExecutionCtxRecordWaitEvent_Sanity) {
 
   HIP_CHECK(hipStreamDestroy(stream));
   HIP_CHECK(hipEventDestroy(event));
+  HIP_CHECK(hipStreamDestroy(stream));
   HIP_CHECK(hipExecutionCtxDestroy(green_ctx));
 }
 

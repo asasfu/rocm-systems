@@ -9,7 +9,8 @@ on:
 
 jobs:
   apply-labels:
-    runs-on: ubuntu-22.04
+    runs-on: 
+      group: "AMD-ROCm-Internal-large-runners"
     permissions:
       pull-requests: write
       actions: read

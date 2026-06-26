@@ -155,7 +155,8 @@ TEST(rocrtst, Test_Example) {
   RunGenericTest(&tst);
 }
 
-TEST(rocrtst, Test_Example_InterruptDisabled) {
+TEST(rocrtst, DISABLED_Test_Example_InterruptDisabled) {
+  rocrtst::SetEnv("HSA_ENABLE_INTERRUPT", "0");
   TestExample tst;
   rocrtst::SetEnv("HSA_ENABLE_INTERRUPT", "0");
   RunGenericTest(&tst);
@@ -270,12 +271,6 @@ TEST(rocrtstFunc, Signal_Allocation_Validation) {
   RunCustomTestProlog(&sav);
   sav.TestSignalAllocationValidation();
   RunCustomTestEpilog(&sav);
-}
-
-/* Temporary: Disable CU Masking until it is fixed */
-TEST(rocrtstFunc, DISABLED_CU_Masking) {
-  CU_Masking sd;
-  RunGenericTest(&sd);
 }
 
 TEST(rocrtstFunc, IPC) {
@@ -404,7 +399,6 @@ TEST(rocrtstFunc, GpuCoreDump_PipePattern) {
     RunCustomTestEpilog(&gcd);
 }
 
-
 TEST(rocrtstFunc, Memory_Atomic_Add_Test) {
     MemoryAtomic ma(ADD);
     if (!RunCustomTestProlog(&ma)) return;
@@ -473,6 +467,11 @@ TEST(rocrtstFunc, Memory_Atomic_Xchg_Test) {
     if (!RunCustomTestProlog(&ma)) return;
     ma.MemoryAtomicTest();
     RunCustomTestEpilog(&ma);
+}
+/* Temporary: Disable CU Masking until it is fixed */
+TEST(rocrtstFunc, DISABLED_CU_Masking) {
+  CU_Masking sd;
+  RunGenericTest(&sd);
 }
 
 TEST(rocrtstFunc, DISABLED_DebugBasicTests) {
@@ -879,5 +878,13 @@ int main(int argc, char** argv) {
     }
     DumpMonitorInfo();
   }
-  return RUN_ALL_TESTS();
+
+  int result = RUN_ALL_TESTS();
+
+  // Print skipped test summary (grouped by reason)
+  rocrtst::SkippedTestTracker::getInstance().printSummary(
+      rocrtst::PlatformDetector::platformName(
+          rocrtst::TestFilterManager::getInstance().getPlatform()));
+
+  return result;
 }

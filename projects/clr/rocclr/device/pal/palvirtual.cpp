@@ -2797,6 +2797,9 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
   dispatchParam.useAtc = dev().settings().svmFineGrainSystem_ ? true : false;
   dispatchParam.kernargSegmentSize = hsaKernel.argsBufferSize();
   dispatchParam.aqlPacketIndex = aql_index;
+  dispatchParam.clusterSizeX = sizes.cluster()[0];
+  dispatchParam.clusterSizeY = sizes.dimensions() > 1 ? sizes.cluster()[1] : 1;
+  dispatchParam.clusterSizeZ = sizes.dimensions() > 2 ? sizes.cluster()[2] : 1;
 
   // Update the mqd's information about scratch memory.
   amd_queue.scratch_backing_memory_location = static_cast<uint64_t>(dispatchParam.scratchAddr);
@@ -3856,7 +3859,7 @@ bool VirtualGPU::processMemObjectsHSA(const amd::Kernel& kernel, const_address p
     }
   }
 
-  if (ldsAddress > dev().info().localMemSize_) {
+  if (ldsAddress > hsaKernel.workGroupInfo()->availableLDSSize_) {
     LogError("No local memory available\n");
     return false;
   }

@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palQueueSemaphore.h
@@ -44,6 +21,18 @@ namespace Pal
 
 // Forward declarations.
 class IQueueSemaphore;
+
+#if PAL_CLIENT_DX12
+/// Paremeters for exporting DX12 runtime Native fence mapping info
+struct DxcNativeFenceOutput
+{
+    volatile const uint64* pCurrentValueCpuVa;  ///< Read-only mapping of the current value for the CPU
+    gpusize                currentValueGpuVa;   ///< Read/write mapping of the current value for the GPU in
+                                                ///< the current process address space
+    gpusize                monitoredValueGpuVa; ///< Read/write mapping of the monitored value for the GPU in
+                                                ///< the current process address space.
+};
+#endif
 
 /// Specifies properties for @ref IQueueSemaphore creation.  Input structure to IDevice::CreateQueueSemaphore().
 struct QueueSemaphoreCreateInfo
@@ -94,6 +83,11 @@ struct QueueSemaphoreCreateInfo
                                     ///  For DX12 native fence, DXCP needs to pass InitialFenceValue from
                                     ///  D3DDDI_NATIVEFENCEINFO.
 
+#if PAL_CLIENT_DX12
+    DxRuntimeHandle           hRTFence;                  /// Runtime fence handle used to create native fence for DX12.
+    uint32                    sychronizationObjectFlags; /// Input parameter used to create native fence for DX12.
+    DxcNativeFenceOutput*     pDxcNativeFenceOutput;     /// Output parameter for native fence mapping info.
+#endif
 };
 
 /// Specifies parameters for opening a queue semaphore for use on another device.  Input structure to
@@ -127,6 +121,11 @@ struct ExternalQueueSemaphoreOpenInfo
 
     OsExternalHandle externalSemaphore; ///< External shared semaphore handle.
 
+#if PAL_CLIENT_DX12
+    DxRuntimeHandle       hRTFence;                  /// Runtime fence handle used to open native fence for DX12.
+    uint32                sychronizationObjectFlags; /// Input parameter used to open native fence for DX12.
+    DxcNativeFenceOutput* pDxcNativeFenceOutput;     /// Output parameter for open fence mapping info.
+#endif
 };
 
 /// Specifies parameters for exporting a queue semaphore. Input structure to IQueueSemaphore::ExportExternalHandle().
@@ -139,7 +138,7 @@ struct QueueSemaphoreExportInfo
             uint32 isReference        :  1;   ///< If set, then the semaphore exporting a handle that reference the
                                               ///< same sync object in the kernel.  Otherwise, the object is copied
                                               ///< to the new Semaphore.
-            uint32 reserved           : 31;   ///< Reserved for future use.
+            uint32 reserved           : 31;   ///< Resevered for future use.
         };
         uint32 u32All;                        ///< Flags packed as 32-bit uint.
     } flags;                                  ///< External queue semaphore export flags.
@@ -226,7 +225,7 @@ public:
         const QueueSemaphoreExportInfo& exportInfo) const = 0;
 #endif
 
-#if ( PAL_KMT_BUILD)
+#if (PAL_CLIENT_DX || PAL_KMT_BUILD)
     /// Returns an OS-specific handle which can be used by another device to access the semaphore object.
     ///
     /// @returns An OS-specific handle which can be used by another device to access the semaphore object.
@@ -251,6 +250,7 @@ public:
     {
         m_pClientData = pClientData;
     }
+
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

@@ -105,7 +105,7 @@ find_path(AMDCUID_INCLUDE_DIR
   PATHS ${AMDCUID_ROOT}/include
   NO_DEFAULT_PATH
 )
-if (AMDCUID_LIB AND AMDCUID_INCLUDE_DIR) 
+if (AMDCUID_LIB AND AMDCUID_INCLUDE_DIR)
   message(STATUS "Found AMDCUID lib: ${AMDCUID_LIB}")
   message(STATUS "Found AMDCUID header: ${AMDCUID_INCLUDE_DIR}")
   set(AMDCUID_FOUND TRUE)
@@ -139,6 +139,9 @@ set_property(TARGET  ${CORE_RUNTIME_TARGET} PROPERTY OUTPUT_NAME ${CORE_RUNTIME_
 if (UNIX)
   target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE "${HSA_COMMON_DEFS}" __linux__ HSA_EXPORT=1 HSA_EXPORT_FINALIZER=1 HSA_EXPORT_IMAGES=1 HSA_DEPRECATED=
   ROCR_BUILD_ID="${PACKAGE_VERSION_STRING}-${VERSION_JOB}-${VERSION_HASH}" )
+  
+  # Code that are wrapped with AMD_NPI_ONLY are not to be upstreamed
+  target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE AMD_NPI_ONLY)
 
   ## Check for memfd_create syscall
   include(CheckSymbolExists)
@@ -161,6 +164,65 @@ if (UNIX)
 else()
   target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE "${HSA_COMMON_DEFS}" AMD_LIBELF=1 HSA_EXPORT=1 HSA_EXPORT_FINALIZER=1 HSA_EXPORT_IMAGES=1 HSA_DEPRECATED=
     ROCR_BUILD_ID="${PACKAGE_VERSION_STRING}-${VERSION_JOB}-${VERSION_HASH}")
+endif()
+
+## Generate preprocessor directives for GPU targets.
+# Determine which GPU targets to build for.
+set(ENABLED_GPU_TARGETS "gfx7;gfx8;gfx90a;gfx942;gfx950;gfx9;gfx1010;gfx10;gfx11;gfx1250;gfx1260;gfx13") # default targets
+if (DEFINED THEROCK_DIST_AMDGPU_TARGETS AND NOT THEROCK_DIST_AMDGPU_TARGETS STREQUAL "")
+  set(ENABLED_GPU_TARGETS ${THEROCK_DIST_AMDGPU_TARGETS})
+elseif(DEFINED TARGET_DEVICES AND NOT TARGET_DEVICES STREQUAL "")
+  set(ENABLED_GPU_TARGETS ${TARGET_DEVICES})
+elseif(DEFINED GPU_TARGETS AND NOT GPU_TARGETS STREQUAL "")
+  set(ENABLED_GPU_TARGETS ${GPU_TARGETS})
+elseif(DEFINED AMDGPU_TARGETS AND NOT AMDGPU_TARGETS STREQUAL "")
+  set(ENABLED_GPU_TARGETS ${AMDGPU_TARGETS})
+endif()
+
+# Generate preprocessor definitions for each detected GPU target
+if(ENABLED_GPU_TARGETS)
+  foreach(target ${ENABLED_GPU_TARGETS})
+    # gfx7
+    if("${target}" MATCHES "^gfx7")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX7)
+    # gfx8 
+    elseif("${target}" MATCHES "^gfx8")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX8)
+    # gfx90a
+    elseif("${target}" STREQUAL "gfx90a")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX90A)
+    # gfx942
+    elseif("${target}" STREQUAL "gfx942")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX942)
+    # gfx950
+    elseif("${target}" STREQUAL "gfx950")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX950)
+    # other gfx9
+    elseif("${target}" MATCHES "^gfx9")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX9)
+    # gfx1010
+    elseif("${target}" STREQUAL "gfx1010")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX1010)
+    # other gfx10
+    elseif("${target}" MATCHES "^gfx10")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX10)
+    # gfx11
+    elseif("${target}" MATCHES "^gfx11")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX11)
+    # gfx1250/gfx1251
+    elseif("${target}" MATCHES "^gfx125")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX1250)
+    # gfx1260
+    elseif("${target}" STREQUAL "gfx1260")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX1260)
+    # other gfx12
+    elseif("${target}" MATCHES "^gfx12")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX12)
+    # gfx13
+    elseif("${target}" MATCHES "^gfx13")
+      target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE TARGET_DEVICE_GFX13)
+    endif()
+  endforeach()
 endif()
 
 ## Set include directories for ROCr runtime
@@ -315,7 +377,8 @@ if(${IMAGE_SUPPORT})
     UNIX_OS
     LINUX
     AMD_INTERNAL_BUILD
-    BRAHMA_BUILD=1 )
+    BRAHMA_BUILD=1
+    ADDR_SHARED )
 
   set ( IMAGE_SRCS image/addrlib/src/addrinterface.cpp
                    image/addrlib/src/core/coord.cpp
@@ -325,10 +388,13 @@ if(${IMAGE_SUPPORT})
                    image/addrlib/src/core/addrlib3.cpp
                    image/addrlib/src/core/addrobject.cpp
                    image/addrlib/src/core/addrelemlib.cpp
+                   image/addrlib/src/core/addrswizzler.cpp
                    image/addrlib/src/gfx9/gfx9addrlib.cpp
                    image/addrlib/src/gfx10/gfx10addrlib.cpp
                    image/addrlib/src/gfx11/gfx11addrlib.cpp
                    image/addrlib/src/gfx12/gfx12addrlib.cpp
+                   image/addrlib/src/gfx13/gfx13addrlib.cpp
+                   image/addrlib/src/gfx13/shared/addr_shared.cpp
                    image/device_info.cpp
                    image/hsa_ext_image.cpp
                    image/image_runtime.cpp
@@ -338,6 +404,7 @@ if(${IMAGE_SUPPORT})
                    image/image_manager_nv.cpp
                    image/image_manager_gfx11.cpp
                    image/image_manager_gfx12.cpp
+                   image/image_manager_gfx13.cpp
                    image/image_lut_kv.cpp
                    image/image_lut_gfx11.cpp
                    image/blit_object_gfx7xx.cpp
@@ -360,11 +427,14 @@ if(${IMAGE_SUPPORT})
     ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/gfx10
     ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/gfx11
     ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/gfx12
+    ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/gfx13
+    ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/gfx13/shared
     ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/chip/r800
     ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/chip/gfx9
     ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/chip/gfx10
     ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/chip/gfx11
-    ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/chip/gfx12 )
+    ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/chip/gfx12
+    ${CMAKE_CURRENT_SOURCE_DIR}/image/addrlib/src/chip/gfx13 )
 
   target_sources( ${CORE_RUNTIME_TARGET} PRIVATE ${IMAGE_SRCS} )
 

@@ -1622,6 +1622,7 @@ typedef struct _HsaHandleExportFlags {
 
 #pragma pack(pop, hsakmttypes_h)
 
+
 #ifdef __cplusplus
 }   //extern "C"
 #endif

@@ -1069,15 +1069,19 @@ bool Device::populateOCLDeviceConstants() {
   info_.globalMemCacheLineSize_ =
       (info_.globalMemCacheLineSize_ != 0) ? info_.globalMemCacheLineSize_ : 64;
 
+
+  if (isa().versionMajor() >= 13 && info_.globalMemCacheLineSize_ < 256) {
+    info_.globalMemCacheLineSize_ = 256;
+  }
+
   uint32_t cachesize[4] = {0};
   if (HSA_STATUS_SUCCESS !=
       Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_CACHE_SIZE, cachesize)) {
     return false;
   }
 
-  if (info_.globalMemCacheLineSize_ < 256 &&
-      (isa().versionMajor() >= 13 ||
-       (isa().versionMajor() == 12 && isa().versionMinor() >= 5))) {
+  if ((isa().versionMajor() == 12 && (isa().versionMinor() == 5 || isa().versionMinor() == 6) && isa().versionStepping() == 0)
+       && (info_.globalMemCacheLineSize_ < 256)) {
     info_.globalMemCacheLineSize_ = 256;
   }
 
@@ -1216,6 +1220,10 @@ bool Device::populateOCLDeviceConstants() {
 
   info_.localMemSizePerCU_ = group_segment_size;
   info_.localMemSize_ = group_segment_size;
+  if (info_.shareLocalMemInWGP_) {
+    info_.localMemSizePerCU_ *= 2;
+    info_.localMemSize_ *= 2;
+  }
 
   info_.maxWorkItemDimensions_ = 3;
 
@@ -1749,11 +1757,15 @@ bool Device::populateOCLDeviceConstants() {
       bkendDevice_, static_cast<hsa_agent_info_t>(HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE),
       &info_.clusterMaxSize_);
 
-
   // this is required for clustered kernel launches; but it might not be supported in older rocr,
   // so invalid argument might no be necessarily an error
-  if (HSA_STATUS_SUCCESS != hsaStatus && HSA_STATUS_ERROR_INVALID_ARGUMENT != hsaStatus)
+  if (HSA_STATUS_SUCCESS != hsaStatus && HSA_STATUS_ERROR_INVALID_ARGUMENT != hsaStatus) {
     LogError("HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE query failed");
+  } else {
+    // this is a temporary override of the ROCr result. This line will be removed as soon as ROCr
+    // provides the correct result
+    info_.clusterMaxSize_ = info_.maxComputeUnits_ / info_.numberOfShaderEngines_;
+  }
 
   info_.gpuDirectRdmaWithHipVmmSupported_ =
       info_.virtualMemoryManagement_ && info_.dmabufSupported_;

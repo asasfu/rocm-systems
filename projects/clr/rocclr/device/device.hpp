@@ -651,6 +651,9 @@ struct Info : public amd::EmbeddedObject {
   //! large bar support.
   bool largeBar_;
 
+  //! whether all local memory size can be shared within wgp mode
+  bool shareLocalMemInWGP_;
+
   uint32_t hmmSupported_;            //!< ROCr supports HMM interfaces
   uint32_t hmmCpuMemoryAccessible_;  //!< CPU memory is accessible by GPU without pinning/register
   uint32_t hmmDirectHostAccess_;     //!< HMM memory is accessible from the host without migration
@@ -712,6 +715,8 @@ class Settings {
       uint customHostAllocator_ : 1;          //!< True if device has custom host allocator
                                               //  that replaces generic OS allocation routines
       uint supportDepthsRGB_ : 1;             //!< Support DEPTH and sRGB channel order format
+      uint reportFMAF_ : 1;                   //!< Report FP_FAST_FMAF define in CL program
+      uint reportFMA_ : 1;                    //!< Report FP_FAST_FMA define in CL program
       uint singleFpDenorm_ : 1;               //!< Support Single FP Denorm
       uint enableWgpMode_ : 1;                //!< Enable WGP mode for this device
       uint enableWave32Mode_ : 1;             //!< Enable Wave32 mode for this device

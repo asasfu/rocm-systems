@@ -182,7 +182,7 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
     enableExtension(ClKhrMipMapImageWrites);
   }
 
-  if (gfxipMajor == 12 && gfxipMinor >= 5) {
+  if ((gfxipMajor == 12 && gfxipMinor >= 5 || gfxipMajor >= 13) && !HIP_DISABLE_EXT_PACKET) {
     ext_dispatch_packet_ = true;
     groupMemCarveout_ = true;
   }

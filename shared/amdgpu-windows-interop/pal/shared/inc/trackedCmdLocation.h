@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  trackedCmdLocation.h
@@ -133,6 +110,7 @@ struct TrackedCmdLocation
             uint64_t m_clientId : 61;
         } m_clientId;
 
+
         struct
         {
             uint64_t m_mode : 3;
@@ -145,7 +123,7 @@ struct TrackedCmdLocation
 };
 
 // =====================================================================================================================
-/// @brief  Helper function to obtain DeltaInDwords from TrackedCmdLocation
+/// @brief  Helper funcion to obtain DeltaInDwords from TrackedCmdLocation
 ///
 /// @detail m_correlateInternal.m_deltaInDWords is only used when m_mode == TrackedCmdLocationMode::Delta
 ///             And describes a TrackedCmdLocationMode::Before, TrackedCmdLocationMode::After pair
@@ -172,8 +150,9 @@ constexpr uint64_t TrackedCmdLocationGetDeltaInDwords(
     }
 }
 
+
 // =====================================================================================================================
-/// @brief  Helper function to convert DeltaInDwords from TrackedCmdLocation to "InBytes"
+/// @brief  Helper funcion to convert DeltaInDwords from TrackedCmdLocation to "InBytes"
 ///
 /// @returns 0 in m_mode != TrackedCmdLocationMode::Delta
 ///         m_correlateInternal.m_deltaInDWords * sizeof(DWORD) otherwise - where DWORD is uint32_t

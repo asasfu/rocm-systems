@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palDbgPrint.h
@@ -120,7 +97,7 @@ extern void DbgVPrintf(
     const char*      pFormat,
     va_list          argList);
 
-#endif
+#endif // (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 /// Sets the debug print mode (output to debugger, write to file, or disabled) for the specified category of messages.
@@ -153,7 +130,7 @@ extern Result OpenLogFile(
 extern void SetDbgPrintCallback(
     const DbgPrintCallback& callback);
 
-#endif
+#endif // PAL_ENABLE_PRINTS_ASSERTS
 
 // Forward declarations.
 template<typename CharT> class StringView;
@@ -266,11 +243,11 @@ extern size_t EncodeAsFilename(
 
 /// Generate a log filename.
 ///
-/// @param [in,out] pFilenameBuffer   Buffer to hold the filename.
-/// @param          maxSize           Max size of the pFilenameBuffer.
-/// @param          nextPost          The next write position.
-/// @param [in]     pExt              The filename extension.
-/// @param          logDuplicate      Log duplicate objects.
+/// @param [inout] pFilenameBuffer   Buffer to hold the filename.
+/// @param         maxSize           Max size of the pFilenameBuffer.
+/// @param         nextPost          The next write position.
+/// @param [in]    pExt              The filename extension.
+/// @param         logDuplicate      Log duplicate objects.
 extern void GenLogFilename(
     char*             pFilenameBuffer,
     size_t            maxSize,
@@ -279,6 +256,7 @@ extern void GenLogFilename(
     bool              logDuplicate);
 
 } // Util
+
 
 /// PAL_ENABLE_LOGGING enables the new logging code. At this time, both, the current and new logging
 /// code will be active for development purpose if both macros are enabled.

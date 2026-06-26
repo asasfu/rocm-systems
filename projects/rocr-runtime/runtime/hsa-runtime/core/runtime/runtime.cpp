@@ -51,6 +51,7 @@
 #if defined(__linux__)
 #include <link.h>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <amdgpu_drm.h>
 #include <sys/mman.h>
 #endif
@@ -324,7 +325,8 @@ hsa_status_t Runtime::AllocateMemory(const MemoryRegion* region, size_t size,
                                      MemoryRegion::AllocateFlags alloc_flags,
                                      void** address, int agent_node_id) {
   size_t size_requested = size;  // region->Allocate(...) may align-up size to granularity
-  hsa_status_t status = region->Allocate(size, alloc_flags, address, agent_node_id);
+  uint64_t mmap_offset; //unused
+  hsa_status_t status = region->Allocate(size, alloc_flags, address, /* &mmap_offset,*/ agent_node_id);
   // Track the allocation result so that it could be freed properly.
   if (status == HSA_STATUS_SUCCESS) {
     std::lock_guard<std::shared_mutex> lock(memory_lock_);
@@ -658,6 +660,10 @@ hsa_status_t Runtime::GetPreferredEngine(core::Agent* dst_agent, core::Agent* sr
                                          uint32_t* recommended_ids_mask) {
   const bool src_gpu = (src_agent->device_type() == core::Agent::DeviceType::kAmdGpuDevice);
   core::Agent* copy_agent = (src_gpu) ? src_agent : dst_agent;
+
+  if (dst_agent == src_agent) {
+    return HSA_STATUS_ERROR_INVALID_AGENT;
+  }
 
   return copy_agent->DmaPreferredEngine(*dst_agent, *src_agent, recommended_ids_mask);
 }
@@ -1571,7 +1577,7 @@ int Runtime::IPCClientImport(uint32_t conn_handle, uint64_t dmabuf_fd_handle,
 
       HsaHandleImportDesc desc;
       desc.device_handle = agent->libThunkDev();
-      desc.dmabuf_fd = static_cast<HSAint32>(dmabuf_fd);
+      desc.dmabuf_fd = static_cast<HSAint64>(dmabuf_fd);
       desc.type = HSA_EXTERNAL_HANDLE_DMA_BUF;
       desc.metadata = static_cast<HSAuint32>(shared_handle);
       desc.mem = *importAddress;
