@@ -898,11 +898,64 @@ memory:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemcpyBatchAsync_swap_cpy:
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_H2D_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_D2H_Functional:
+    <<: *level_2
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_H2H_Functional:
+    <<: *level_2
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_swap_cp:
+    <<: *level_2
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_Broadcast_VaryingDstCount:
+    <<: *level_2
+    tags: [transfer, P1]
+    # Disabled on gfx1310: FFM model lacks SDMA broadcast packet decode -> segfault.
+    # Fix: AMD-GFX-Modeling/ffm#4283; re-enable once it lands.
+    disabled: [gfx1310, gfx1370]
+  Unit_hipMemcpyBatchAsync_Broadcast_LargeBuffer:
+    <<: *level_2
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_Broadcast_MixedWithLinear:
+    <<: *level_2
+    tags: [transfer, P1]
+    # Disabled on gfx1310: FFM model lacks SDMA broadcast packet decode -> segfault.
+    # Fix: AMD-GFX-Modeling/ffm#4283; re-enable once it lands.
+    disabled: [gfx1310, gfx1370]
+  Unit_hipMemcpyBatchAsync_Broadcast_DataIntegrity:
+    <<: *level_2
+    tags: [transfer, P1]
+    # Disabled on gfx1310: FFM model lacks SDMA broadcast packet decode -> segfault.
+    # Fix: AMD-GFX-Modeling/ffm#4283; re-enable once it lands.
+    disabled: [gfx1310, gfx1370]
+  Unit_hipMemcpyBatchAsync_Broadcast_NoPreferCE:
+    <<: *level_2
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_Broadcast_MultipleGroups:
+    <<: *level_2
+    tags: [transfer, P1]
+    # Disabled on gfx1310: FFM model lacks SDMA broadcast packet decode -> segfault.
+    # Fix: AMD-GFX-Modeling/ffm#4283; re-enable once it lands.
+    disabled: [gfx1310, gfx1370]
+  Unit_hipMemcpyBatchAsync_Broadcast_WithSwap:
+    <<: *level_2
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_Broadcast_SingleDst:
+    <<: *level_2
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_Broadcast_DifferentSizes:
+    <<: *level_2
+    tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_Broadcast_ZeroSize:
+    <<: *level_2
+    tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_NegativeTsts:
     <<: *level_2
-    tags: [transfer]
+    tags: [transfer, P1]
   Unit_hipMemsetD2D8_BasicFunctional:
     <<: *level_2
     disabled: [amd_wsl]

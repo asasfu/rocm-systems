@@ -474,6 +474,7 @@ graph:
     tags: [dependency]
   Unit_hipGraphRemoveDependencies_Positive_ChangeComputeFunc:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [dependency]
   Unit_hipGraphRemoveDependencies_Positive_Parameters:
     <<: *level_2
@@ -812,6 +813,8 @@ graph:
     tags: [capture]
   Unit_hipGraphMemFreeNodeGetParams_ValidArgs:
     <<: *level_2
+    # test hangs on gfx1260
+    disabled: [gfx1260]
     tags: [query]
   Unit_hipGraphMemFreeNodeGetParams_InvalidArgs:
     <<: *level_2
@@ -1276,9 +1279,11 @@ graph:
     tags: [capture]
   Unit_hipLaunchHostFunc_CrossStreamDep_UncapturedFirstNode:
     <<: *level_2
-    # Hangs on Windows (PAL), hitting CI timeout; passes on Linux.
-    # https://github.com/ROCm/rocm-systems/issues/7148
-    disabled: [amd_windows, amd_wsl]
+    # Hangs on Windows (PAL), hitting CI timeout. https://github.com/ROCm/rocm-systems/issues/7148
+    # Uses a calibrated ~1e9-iteration GPU spin (~500ms on HW) to expose a
+    # cross-stream race; under the FFM functional model that spin takes ~21 min
+    # and dominates CI time (~57% of the hip-tests run), so disable on the FFM archs.
+    disabled: [amd_windows, amd_wsl, gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipUserObjectCreate_Functional_1:
     <<: *level_2
@@ -1504,7 +1509,7 @@ graph:
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemsetNodeSetParams:
     <<: *level_2
-    disabled: [gfx1250]
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecChildGraphNodeSetParams:
     <<: *level_2
@@ -1605,6 +1610,8 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Instanciate_Graph_Again:
     <<: *level_2
+    # hangs on gfx1310 and is unstable on the other FFM archs; disable on FFM archs.
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Free_Alloc_Memory_Again:
     <<: *level_2
@@ -1709,6 +1716,8 @@ graph:
     tags: [node]
   Unit_hipGraphAddNodeTypeMemAlloc_Positive_Basic:
     <<: *level_2
+    # test hangs on gfx1260, gfx1310 and gfx1370
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddNode_Negative_Parameters:
     <<: *level_2

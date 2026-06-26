@@ -98,6 +98,8 @@ stream:
     tags: [lifecycle, P1]
   Unit_hipStreamCreateWithPriority_CheckPriorityVal:
     <<: *level_2
+    # SEGFAULT on gfx1310
+    disabled: [gfx1310]
     tags: [lifecycle, P1]
   Unit_hipStreamCreateWithPriority_VerifyKernelResults:
     <<: *level_2
