@@ -96,16 +96,40 @@ kernel:
     tags: [launch]
   Unit_hipExtDynDataPrefetch_NegativeTests:
     <<: *level_2
-    tags: [launch]
+    tags: [launch, P1]
   Unit_hipExtDynDataPrefetch_FunctionalDaxpy:
     <<: *level_2
-    tags: [launch]
+    tags: [launch, P1]
   Unit_hipExtDynDataPrefetch_SingleRegion:
     <<: *level_2
-    tags: [launch]
+    tags: [launch, P1]
   Unit_hipExtDynDataPrefetch_TemporalHints:
     <<: *level_2
-    tags: [launch]
+    tags: [launch, P1]
+  Unit_hipExtDynDataPrefetch_2DStridedRegion:
+    <<: *level_2
+    tags: [launch, P1]
+  Unit_hipExtDynDataPrefetch_StateIsolation:
+    <<: *level_2
+    tags: [launch, P1]
+  Unit_hipExtDynDataPrefetch_RepeatedLaunch:
+    <<: *level_2
+    tags: [launch, P1]
+  Unit_hipExtDynDataPrefetch_NonDefaultStream:
+    <<: *level_2
+    tags: [launch, P1]
+  Unit_hipExtDynDataPrefetch_GraphCaptureReplay:
+    <<: *level_2
+    tags: [launch, P1]
+  Unit_hipExtDynDataPrefetch_ParametrizedNumRegions:
+    <<: *level_2
+    tags: [launch, P1]
+  Unit_hipExtDynDataPrefetch_CombinedAttributes:
+    <<: *level_2
+    tags: [launch, P1]
+  Unit_hipExtDynDataPrefetch_PrefetchSubset:
+    <<: *level_2
+    tags: [launch, P1]
   Unit_hipGridLaunch_MaxGridDim_DeviceProperties:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
