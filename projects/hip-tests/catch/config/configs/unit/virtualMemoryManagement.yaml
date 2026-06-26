@@ -66,6 +66,8 @@ virtualMemoryManagement:
     <<: *level_2
   Unit_hipMemExportToShareableHandle_Capture:
     <<: *level_2
+  Unit_hipMemUnmap_RemapCrossLinks:
+    <<: *level_2
   Unit_hipGetProcAddress_VMM:
     <<: *level_2
   Unit_hipMemAddressFree_negative:

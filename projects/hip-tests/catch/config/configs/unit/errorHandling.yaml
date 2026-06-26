@@ -101,6 +101,8 @@ errorHandling:
     <<: *level_2
   Unit_hipPeekAtLastError_Kernel_Invalid_Config:
     <<: *level_2
+  Unit_hipExtGetLastError_Positive_Threaded:
+    <<: *level_2
   Unit_hipGetLastError_KernelFailure_ValidAndInvalidOperations:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]

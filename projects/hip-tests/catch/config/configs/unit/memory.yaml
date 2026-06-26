@@ -898,6 +898,7 @@ memory:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemcpyBatchAsync_swap_cpy:
+    <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_H2D_Functional:
     <<: *level_2
