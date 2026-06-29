@@ -209,7 +209,8 @@ typedef struct hipDeviceProp_t {
   int ipcEventSupported;                 ///< Device supports IPC events
   int clusterLaunch;                     ///< Device supports cluster launch
   int unifiedFunctionPointers;           ///< Indicates device supports unified function pointers
-  int reserved[63];                      ///< CUDA Reserved.
+  int wavegroupLaunch;                   ///< Device supports wavegroup kernel launches
+  int reserved[62];                      ///< CUDA Reserved.
 
   int hipReserved[32];  ///< Reserved for adding new entries for HIP/CUDA.
 
@@ -604,6 +605,7 @@ typedef enum hipDeviceAttribute_t {
                                                  ///< '0' otherwise.
   hipDeviceAttributeMaxDynDataPrefetchRegions,   ///< Maximum number of dynamic data prefetch regions
                                                  ///< per kernel launch (0 if unsupported).
+  hipDeviceAttributeWavegroupLaunch,             ///< Device supports wavegroup kernel launches.
 
   hipDeviceAttributeAmdSpecificEnd = 19999,
   hipDeviceAttributeVendorSpecificBegin = 20000,

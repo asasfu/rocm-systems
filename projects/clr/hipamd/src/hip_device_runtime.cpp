@@ -459,6 +459,9 @@ hipError_t hipDeviceGetAttribute(int* pi, hipDeviceAttribute_t attr, int device)
       *pi = static_cast<int>(
           g_devices[device]->devices()[0]->info().gpuDirectRdmaWithHipVmmSupported_);
       break;
+    case hipDeviceAttributeWavegroupLaunch:
+      *pi = static_cast<int>(g_devices[device]->devices()[0]->info().wavegroupSupported_);
+      break;
     default:
       HIP_RETURN(hipErrorInvalidValue);
   }

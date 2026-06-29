@@ -194,6 +194,9 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
     sdma_indirect_supported_ = true;
   }
 
+  // Wavegroup kernels are supported on gfx12.6+ and gfx13+
+  wavegroup_supported_ = (gfxipMajor == 12 && gfxipMinor >= 6) || (gfxipMajor >= 13);
+
   // Override current device settings
   override();
 

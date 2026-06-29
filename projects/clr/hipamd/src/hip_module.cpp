@@ -353,6 +353,32 @@ hipError_t ihipLaunchKernel_validate(hipFunction_t f, const amd::LaunchParams& l
        > kernel->getDeviceKernel(*device)->workGroupInfo()->availableLDSSize_) {
     return hipErrorInvalidValue;
   }
+  // Wavegroup kernels must be launched with the exact block size specified
+  // in the kernel definition. The block size is fixed at compile time, and the
+  // compiler synthesizes threadIdx based on the per-dimension compile-time
+  // workgroup size. Comparing only the total thread count would incorrectly
+  // accept reshaped launches (e.g. compiled (64, 64, 1) but dispatched
+  // (128, 32, 1)), so each dimension must match individually.
+  if (kernel->getDeviceKernel(*device)->isWavegroupKernel()) {
+    const size_t* requiredDims =
+        kernel->getDeviceKernel(*device)->workGroupInfo()->compileSize_;
+    if (requiredDims[0] > 0 || requiredDims[1] > 0 || requiredDims[2] > 0) {
+      for (int dim = 0; dim < 3; ++dim) {
+        // An unspecified compile-time dimension defaults to a size of 1.
+        const size_t required = requiredDims[dim] > 0 ? requiredDims[dim] : 1;
+        if (launch_params.local_[dim] != required) {
+          LogPrintfError(
+              "Wavegroup kernel '%s' requires exact block size (%zu, %zu, %zu), "
+              "got (%u, %u, %u)",
+              kernel->name().c_str(), requiredDims[0], requiredDims[1],
+              requiredDims[2], launch_params.local_[0], launch_params.local_[1],
+              launch_params.local_[2]);
+          return hipErrorInvalidConfiguration;
+        }
+      }
+    }
+  }
+
   // Make sure the launch params are not larger than if specified launch_bounds
   // If it exceeds, then return a failure
   if (launch_params.local_.product() > kernel->getDeviceKernel(*device)->workGroupInfo()->size_) {

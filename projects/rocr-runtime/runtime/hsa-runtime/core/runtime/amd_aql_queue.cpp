@@ -72,6 +72,7 @@
 #include "core/inc/amd_gpu_pm4.h"
 #include "core/inc/hsa_amd_tool_int.hpp"
 #include "core/inc/amd_core_dump.hpp"
+#include "loader/AMDHSAKernelDescriptor.h"
 
 namespace rocr {
 namespace AMD {
@@ -1135,8 +1136,19 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
 
   const uint64_t lanes_per_wave = (error_code & 0x400) ? 32 : 64;
 
-  // TODO-GFX13: Adjust these calculations when wavegroups are enabled.
-  //             (Requires looking at the kernel descriptor.)
+  // For wavegroup kernels, SPI allocates one scratch slot per wavegroup (not
+  // per wave). COMPUTE_TMPRING_SIZE.WAVESIZE must cover all waves in one
+  // wavegroup. A workgroup contains num_wavegroups (4) wavegroups, each with
+  // waves_per_group/4 waves sharing a scratch slot.
+  uint32_t wavegroup_scratch_scale = 1;
+  constexpr uint32_t kNumWavegroups = 4;  // one per SIMD in a WGP
+  const auto* kd = reinterpret_cast<const rocr::llvm::amdhsa::kernel_descriptor_t*>(
+      pkt->dispatch.kernel_object);
+  if (kd && AMDHSA_BITS_GET(kd->kernel_code_properties,
+                            rocr::llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_WAVEGROUP)) {
+    wavegroup_scratch_scale = waves_per_group / kNumWavegroups;
+  }
+
   const uint64_t size_per_thread =
       AlignUp(pkt->dispatch.private_segment_size,
               scratch.mem_alignment_size / lanes_per_wave);
@@ -1159,6 +1171,7 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
     scratch.alt_size = dispatch_size;
     scratch.alt_size_per_thread = size_per_thread;
     scratch.alt_lanes_per_wave = lanes_per_wave;
+    scratch.wavegroup_scratch_scale = wavegroup_scratch_scale;
     scratch.alt_waves_per_group = waves_per_group;
 
     agent_->AcquireQueueAltScratch(scratch);
@@ -1197,6 +1210,7 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
   scratch.main_size = device_size;
   scratch.main_size_per_thread = size_per_thread;
   scratch.main_lanes_per_wave = lanes_per_wave;
+  scratch.wavegroup_scratch_scale = wavegroup_scratch_scale;
   scratch.main_waves_per_group = waves_per_group;
 
   scratch.dispatch_size = dispatch_size;
@@ -2057,8 +2071,10 @@ void AqlQueue::FillComputeTmpRingSize_Gfx12_Gfx13() {
   uint32_t max_scratch_waves = num_cus * agent_props.MaxSlotsScratchCU;
 
   // Scratch is allocated program COMPUTE_TMPRING_SIZE register
-  // Scratch Size per Wave is specified in terms of kilobytes
-  uint32_t wave_scratch = (((queue_scratch_.main_lanes_per_wave * queue_scratch_.main_size_per_thread) +
+  // Scratch Size per Wave is specified in terms of kilobytes.
+  // For wavegroup kernels, WAVESIZE must cover all waves in one wavegroup.
+  const uint32_t wg_scale = std::max(queue_scratch_.wavegroup_scratch_scale, 1u);
+  uint32_t wave_scratch = (((queue_scratch_.main_lanes_per_wave * queue_scratch_.main_size_per_thread * wg_scale) +
                             queue_scratch_.mem_alignment_size - 1) /
                            queue_scratch_.mem_alignment_size);
 

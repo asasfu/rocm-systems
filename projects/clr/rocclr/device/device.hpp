@@ -306,6 +306,9 @@ struct Info : public amd::EmbeddedObject {
   //! Maximum number of workgroups in cluster
   size_t clusterMaxSize_;
 
+  //! Whether the device supports wavegroup kernel launches
+  bool wavegroupSupported_ = false;
+
   //! uint32_t Preferred native vector width size for built-in scalar types
   //  that can be put into vectors.
   uint32_t preferredVectorWidthChar_;
