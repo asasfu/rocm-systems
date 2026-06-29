@@ -109,8 +109,8 @@ size_t nsync    = 10;
 void
 run(int rank, int tid, hipStream_t stream, int argc, char** argv)
 {
-    unsigned int M = 128;
-    unsigned int N = 128;
+    unsigned int M = 4960 * 2;
+    unsigned int N = 4960 * 2;
     if(argc > 2) nitr = atoll(argv[2]);
     if(argc > 3) nsync = atoll(argv[3]);
 
