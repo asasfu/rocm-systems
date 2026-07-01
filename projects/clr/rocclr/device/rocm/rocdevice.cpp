@@ -1767,6 +1767,8 @@ bool Device::populateOCLDeviceConstants() {
     info_.clusterMaxSize_ = info_.maxComputeUnits_ / info_.numberOfShaderEngines_;
   }
 
+  info_.wavegroupSupported_ = settings().wavegroup_supported_;
+
   info_.gpuDirectRdmaWithHipVmmSupported_ =
       info_.virtualMemoryManagement_ && info_.dmabufSupported_;
 

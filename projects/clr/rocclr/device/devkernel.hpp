@@ -154,7 +154,7 @@ enum class KernelField : uint8_t {
   WgpMode = 16,
   UniformWrokGroupSize = 17,
   ClusterDims = 18,
-  LanesharedSegmentFixedSize = 19,
+  EnableWavegroup = 19,
   MaxSize = 20
 };
 
@@ -215,6 +215,7 @@ class Kernel {
 
     int maxOccupancyPerCu_;           //!< Max occupancy per compute unit in threads
     bool isWGPMode_;                  //!< kernel compiled in WGP/cumode
+    bool isWavegroupKernel_;          //!< kernel uses wavegroup launch mode
     bool uniformWorkGroupSize_;       //!< uniform work group size option
     bool hasClusterAttr_;             //!< cluster metadata present in code object
     uint8_t groupMemCarveout_;        //!< LDS carveout
@@ -324,14 +325,6 @@ class Kernel {
   const uint32_t WorkitemPrivateSegmentByteSize() const { return workitemPrivateSegmentByteSize_; }
   void SetWorkitemPrivateSegmentByteSize(uint32_t size) { workitemPrivateSegmentByteSize_ = size; }
 
-  const uint32_t WorkitemLanesharedSegmentByteSize() const { return workitemLanesharedSegmentByteSize_; }
-  void SetWorkitemLanesharedSegmentByteSize(uint32_t size) { workitemLanesharedSegmentByteSize_ = size;  }
-  const uint32_t NumWaveInWaveGroup() {
-    // num of wave group in a workgroup is fixed to 4 in gfx13.
-    assert(workGroupInfo_.size_ % (workGroupInfo_.wavefrontSize_ * 4) == 0);
-    return workGroupInfo_.size_ / workGroupInfo_.wavefrontSize_ / 4;
-  }
-
   const bool KernalHasDynamicCallStack() const { return kernelHasDynamicCallStack_; }
 
   const uint32_t KernargSegmentByteSize() const { return kernargSegmentByteSize_; }
@@ -347,6 +340,9 @@ class Kernel {
   }
 
   void SetWGPMode(bool wgpMode) { workGroupInfo_.isWGPMode_ = wgpMode; }
+
+  void SetWavegroupKernel(bool enable) { workGroupInfo_.isWavegroupKernel_ = enable; }
+  bool isWavegroupKernel() const { return workGroupInfo_.isWavegroupKernel_; }
 
   bool isInitKernel() const { return kind_ == Init; }
 
@@ -386,7 +382,6 @@ class Kernel {
   uint64_t kernelCodeHandle_ = 0;  //!< Kernel code handle (aka amd_kernel_code_t)
   uint32_t workgroupGroupSegmentByteSize_ = 0;
   uint32_t workitemPrivateSegmentByteSize_ = 0;
-  uint32_t workitemLanesharedSegmentByteSize_ = 0;
   uint32_t kernargSegmentByteSize_ = 0;   //!< Size of kernel argument buffer
   uint32_t kernargSegmentAlignment_ = 0;
   bool kernelHasDynamicCallStack_ = 0;

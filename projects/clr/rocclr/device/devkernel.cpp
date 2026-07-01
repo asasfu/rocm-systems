@@ -583,8 +583,8 @@ static amd_comgr_status_t populateKernelMetaV3(const amd_comgr_metadata_node_t k
     case KernelField::UniformWrokGroupSize:
       kernel->setUniformWorkGroupSize(buf.compare("1") == 0);
       break;
-    case KernelField::LanesharedSegmentFixedSize:
-      kernel->SetWorkitemLanesharedSegmentByteSize(atoi(buf.c_str()));
+    case KernelField::EnableWavegroup:
+      kernel->SetWavegroupKernel(buf.compare("true") == 0 || buf.compare("1") == 0);
       break;
     default:
       return AMD_COMGR_STATUS_ERROR;
@@ -626,6 +626,7 @@ Kernel::Kernel(const amd::Device& dev, const std::string& name, const Program& p
   workGroupInfo_.compileSizeHint_[2] = 0;
   workGroupInfo_.compileVecTypeHint_ = "";
   workGroupInfo_.isWGPMode_ = false;
+  workGroupInfo_.isWavegroupKernel_ = false;
   workGroupInfo_.uniformWorkGroupSize_ = false;
   workGroupInfo_.wavesPerSimdHint_ = 0;
   workGroupInfo_.constMemSize_ = 0;

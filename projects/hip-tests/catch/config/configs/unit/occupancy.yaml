@@ -105,3 +105,17 @@ occupancy:
   Unit_hipOccupancyMaxPotentialBlockSize_templateInvocation:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
+
+  # Wavegroup occupancy tests - only enabled on wavegroup-capable targets
+  Unit_hipOccupancyWavegroup_BasicOccupancyQueries:
+    <<: *level_2
+    tags: [P1]
+  Unit_hipOccupancyWavegroup_WithSharedMemory:
+    <<: *level_2
+    tags: [P1]
+  Unit_hipOccupancyWavegroup_AvailableDynamicSMem:
+    <<: *level_2
+    tags: [P1]
+  Unit_hipOccupancyWavegroup_OccupancyCorrectness_HighVGPR:
+    <<: *level_2
+    tags: [P1]
