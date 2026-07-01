@@ -321,7 +321,24 @@ class Flag {
     enable_dxg_detection_ = (var == "0") ? false : true;
 
     var = os::GetEnvVar("HSA_CO_DMACOPY_SIZE");
-    co_dmacopy_size_ = var.empty() ? 1024*1024 : atoi(var.c_str());
+    if (var.empty()) {
+      co_dmacopy_size_ = 1024 * 1024;
+    } else {
+      // Use base 0 so large thresholds can be provided as decimal or hex
+      // (for example, 0x10000000000). atoi would stop at "0x" and return 0.
+      char* end = nullptr;
+      co_dmacopy_size_ = strtoull(var.c_str(), &end, 0);
+      if (end == var.c_str()) {
+        co_dmacopy_size_ = 1024 * 1024;
+        fprintf(stderr,
+                "Failed to parse HSA_CO_DMACOPY_SIZE=\"%s\"; using default %zu.\n",
+                var.c_str(), co_dmacopy_size_);
+      } else if (*end != '\0') {
+        fprintf(stderr,
+                "Partially parsed HSA_CO_DMACOPY_SIZE=\"%s\" as %zu; ignored trailing \"%s\".\n",
+                var.c_str(), co_dmacopy_size_, end);
+      }
+    }
     var = os::GetEnvVar("HSA_AGENT_CACHELINE_SIZE_OVERRIDE");
     cacheline_size_override_ = var.empty() ? -1 : atoi(var.c_str());
 
