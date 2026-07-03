@@ -67,7 +67,6 @@ GTEST_API_ int main(int argc, char **argv) {
     // Default values for run parameters
     g_TestRunProfile = TESTPROFILE_RUNALL;
     g_TestENVCaps = ENVCAPS_NOADDEDCAPS | ENVCAPS_64BITLINUX;
-    g_TestTimeOut = (g_IsEmuMode ?  KFD_TEST_DEFAULT_TIMEOUT * 12 : KFD_TEST_DEFAULT_TIMEOUT) ;
 
     testing::InitGoogleTest(&argc, argv);
 
@@ -77,6 +76,12 @@ GTEST_API_ int main(int argc, char **argv) {
 
     if (success) {
         int r;
+
+        /* Detect emulation mode up front: the default timeout below depends
+         * on it, so it must be set before g_TestTimeOut is computed.
+         */
+        g_IsEmuMode = CheckEmuModeEnabled();
+
         if ((GetHwCapabilityHWS() || args.HwsEnabled == HWCAP__FORCE_ENABLED) &&
                 (args.HwsEnabled != HWCAP__FORCE_DISABLED))
             g_TestENVCaps |= ENVCAPS_HWSCHEDULING;
@@ -84,6 +89,7 @@ GTEST_API_ int main(int argc, char **argv) {
         g_TestRunProfile = args.TestProfile;
         g_IsChildProcess = args.ChildProcess;
 
+        g_TestTimeOut = (g_IsEmuMode ? KFD_TEST_DEFAULT_TIMEOUT * 12 : KFD_TEST_DEFAULT_TIMEOUT);
         if ( args.TimeOut > 0 )
             g_TestTimeOut = args.TimeOut;
 
@@ -104,8 +110,6 @@ GTEST_API_ int main(int argc, char **argv) {
             g_TestGPUsNum = 1;
         }
         
-        g_IsEmuMode = CheckEmuModeEnabled();
-
         LOG() << "Profile: " << (TESTPROFILE)g_TestRunProfile << std::endl;
         LOG() << "HW capabilities: 0x" << std::hex << g_TestENVCaps << std::endl;
         if (g_IsEmuMode)
