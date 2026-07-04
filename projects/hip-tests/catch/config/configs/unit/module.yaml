@@ -127,7 +127,7 @@ module:
   Unit_hipDrvLaunchKernelEx_Functional:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
-    tags: [launch]
+    tags: [launch, P0]
   Unit_hipDrvLaunchKernelEx_With_Different_Kernels:
     <<: *level_2
     disabled: [gfx1310, gfx1370]

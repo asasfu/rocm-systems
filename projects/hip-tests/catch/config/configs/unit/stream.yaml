@@ -196,7 +196,7 @@ stream:
     # (amd_linux) Rock_Linux_Failures_on_gfx94X
     # (amd_wsl) Note: TDR (pass)
     disabled: [amd_linux, amd_wsl]
-    tags: [synchronization, P1]
+    tags: [synchronization, P0]
   Unit_hipDeviceGetStreamPriorityRange_Default:
     <<: *level_2
     tags: [properties, P1]

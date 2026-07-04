@@ -514,7 +514,7 @@ memory:
     tags: [alloc]
   Unit_hipMallocHost_DataValidation:
     <<: *level_2
-    tags: [alloc, P1]
+    tags: [alloc, P0]
   Unit_hipMallocHost_Negative:
     <<: *level_2
     tags: [alloc, P1]
@@ -1210,7 +1210,9 @@ memory:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [multigpu, P1]
-  Unit_hipGetSymbolSizeAddress_Positive_Basic: *level_2
+  Unit_hipGetSymbolSizeAddress_Positive_Basic:
+    <<: *level_2
+    tags: [query, P0]
   Unit_hipGetSymbolAddress_Negative_Parameters: *level_2
   Unit_hipGetSymbolSize_Negative_Parameters: *level_2
   Unit_hipMemPrefetchAsync_v2_Device_Host:
@@ -1606,7 +1608,7 @@ memory:
     tags: [alloc, P1]
   Unit_hipHostMalloc_Default:
     <<: *level_2
-    tags: [alloc, P1]
+    tags: [alloc, P0]
   Unit_hipHostMalloc_Capture:
     <<: *level_2
     tags: [alloc]
@@ -2346,7 +2348,7 @@ memory:
     <<: *level_2
     # Tests double free which throws off the sanitizer
     disabled: [asan]
-    tags: [alloc, P1]
+    tags: [alloc, P0]
   Unit_hipFreeHost_Multithreading:
     <<: *level_2
     tags: [alloc, P1]
@@ -2929,3 +2931,4 @@ memory:
   Unit_hipMemcpyWithStream_TestWithOneStream:
     <<: *level_2
     disabled: [gfx1260]
+    tags: [transfer, P0]
