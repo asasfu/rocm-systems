@@ -1131,7 +1131,7 @@ graph:
     tags: [exec]
   Unit_hipGraphLaunch_Positive:
     <<: *level_2
-    tags: [exec, smoke]
+    tags: [exec, smoke, P0]
   Unit_hipGraphLaunch_Negative_Parameters:
     <<: *level_2
     tags: [exec]
