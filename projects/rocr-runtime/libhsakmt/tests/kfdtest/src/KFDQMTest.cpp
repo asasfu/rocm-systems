@@ -1350,7 +1350,7 @@ void KFDQMTest::extendedCuMasking(int gpuNode) {
 
             // Flip bits and count inactive
             for (int i = 0; i < maskNumDwords; i++) {
-                inactiveMask[i] = ~inactiveMask[i];
+                inactiveMask[i] = ~inactiveMask[i] & mask[i];
                 inactiveCount += __builtin_popcount(inactiveMask[i]);
             }
 
