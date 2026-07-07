@@ -2230,8 +2230,9 @@ class Device : public RuntimeObject {
   virtual void QuiesceHwEvents(const std::vector<void*>& hw_events) const {}
 
   //! Block until all in-flight HSA async signal handlers (e.g. profiling
-  //! completion callbacks) have finished running.
-  virtual void WaitForHsaAsyncHandlersIdle() {}
+  //! completion callbacks) have finished running. Returns true if drained,
+  //! false if it timed out with handlers still in flight.
+  virtual bool WaitForHsaAsyncHandlersIdle() { return true; }
 
   struct HwEventPatch {
     static constexpr int kCompletionSignal = -1;
@@ -2308,6 +2309,12 @@ class Device : public RuntimeObject {
   device::Memory* findMemoryFromVA(const void* ptr, size_t* offset) const;
 
   static std::vector<Device*>& devices() { return *devices_; }
+
+  //! Null-safe view of all known devices (empty if none registered yet).
+  static const std::vector<Device*>& registeredDevices() {
+    static const std::vector<Device*> empty;
+    return (devices_ != nullptr) ? *devices_ : empty;
+  }
 
   // P2P devices that are accessible from the current device
   std::vector<cl_device_id> p2pDevices_;

@@ -249,36 +249,27 @@ Device::~Device() {
 
 void NullDevice::tearDown() {}
 
-void Device::WaitForHsaAsyncHandlersIdle() {
-  constexpr int kDrainTimeoutMs = 5000;
+bool Device::WaitForHsaAsyncHandlersIdle() {
+  constexpr int kDrainTimeoutMs = 60000;
   const std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
   const std::chrono::steady_clock::duration fast_timeout =
       std::chrono::milliseconds(kDrainTimeoutMs);
 
-  auto sumQueuedHandlers = [this]() -> uint64_t {
-    uint64_t sum = 0;
-    std::scoped_lock lock(vgpusAccess_);
-    for (VirtualGPU* vgpu : vgpus_) {
-      if (vgpu != nullptr) {
-        sum += vgpu->QueuedAsyncHandlers().load(std::memory_order_acquire);
-      }
-    }
-    return sum;
-  };
-
-  while (sumQueuedHandlers() != 0) {
+  while (async_handlers_inflight_.load(std::memory_order_acquire) != 0) {
     if (std::chrono::steady_clock::now() - start_time > fast_timeout) {
-      const uint64_t remaining = sumQueuedHandlers();
+      const uint64_t remaining = async_handlers_inflight_.load(std::memory_order_acquire);
       if (remaining != 0) {
         LogPrintfError(
-            "WaitForHsaAsyncHandlersIdle: %d ms elapsed, VirtualGPU queued_async total=%llu; "
-            "proceeding with device destruction.",
+            "WaitForHsaAsyncHandlersIdle: %d ms elapsed, async handlers in flight=%llu; "
+            "still not idle.",
             kDrainTimeoutMs, static_cast<unsigned long long>(remaining));
+        return false;
       }
-      return;
+      return true;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
+  return true;
 }
 
 bool NullDevice::init() {

@@ -905,6 +905,7 @@ void Device::tearDown() {
     }
     devices_->clear();
     delete devices_;
+    devices_ = nullptr;
   }
 #if defined(WITH_HSA_DEVICE)
   roc::Device::tearDown();

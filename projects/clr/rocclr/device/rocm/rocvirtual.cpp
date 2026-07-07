@@ -401,9 +401,16 @@ bool HsaAmdSignalHandler(hsa_signal_value_t value, void* arg) {
     Hsa::signal_subtract_relaxed(callback_signal, 1);
   }
 
-  // Return false, so the callback will not be called again for this signal
+  // Return false, so the callback will not be called again for this signal.
+  // Capture the device before release(): gpu->release() may destroy the
+  // VirtualGPU (and its per-vgpu counter), but the device outlives the handler
+  // because the teardown drain waits on AsyncHandlersInFlight below. Decrement
+  // the device-level drain counter as the very last action so that a zero
+  // reading guarantees the handler is fully done touching any state.
+  const Device& dev = gpu->dev();
   gpu->QueuedAsyncHandlers()--;
   gpu->release();
+  dev.AsyncHandlersInFlight()--;
   return false;
 }
 
@@ -701,11 +708,13 @@ hsa_signal_t VirtualGPU::HwQueueTracker::ActiveSignal(hsa_signal_value_t init_va
         }
       }
       gpu_.QueuedAsyncHandlers()++;
+      gpu_.dev().AsyncHandlersInFlight()++;
       ts->gpu()->retain();
       hsa_status_t result = Hsa::signal_async_handler(
           prof_signal->signal_, HSA_SIGNAL_CONDITION_LT, init_value, &HsaAmdSignalHandler, ts);
       if (HSA_STATUS_SUCCESS != result) {
         gpu_.QueuedAsyncHandlers()--;
+        gpu_.dev().AsyncHandlersInFlight()--;
         ts->gpu()->release();
         LogError("hsa_amd_signal_async_handler() failed to set the handler!");
       } else {
