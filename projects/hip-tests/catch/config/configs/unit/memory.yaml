@@ -1058,6 +1058,10 @@ memory:
   Unit_hipMemPoolExportToShareableHandle_SameProc:
     <<: *level_2
     tags: [alloc, P1]
+    # FFM does not preserve BO metadata across amdgpu_bo_free, so the IPC
+    # export/import token round trip (hsaKmtMemHandleFreePreserveMetadata) fails.
+    # See AMD-GFX-Modeling/ffm#4422.
+    disabled: [amd_linux, amd_windows, amd_wsl]
   Unit_hipMemPoolExportToShareableHandle_ChldUseHdl:
     <<: *level_2
     tags: [alloc, P1]

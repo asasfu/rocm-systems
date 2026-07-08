@@ -73,15 +73,24 @@ executionctx:
     <<: *level_2
   Unit_hipExecutionCtxResourceSplit_Functional:
     <<: *level_2
+    # gfx1260 (WGP scheduling off, gfx>=10) does not fit the green-context
+    # CU-mask/SM-alignment model: ROCr rejects the non-pairwise CU mask. ROCM-27759.
+    disabled: [gfx1260]
   Unit_hipExecutionCtxResourceSplit_By_Count_Negative:
     <<: *level_2
   Unit_hipExecutionCtxResourceSplit_By_Count_Functional:
     <<: *level_2
+    # gfx1260 (WGP scheduling off, gfx>=10) does not fit the green-context
+    # CU-mask/SM-alignment model: ROCr rejects the non-pairwise CU mask. ROCM-27759.
+    disabled: [gfx1260]
   Unit_hipExecutionCtxResourceSplit_Backfill_Functional:
     <<: *level_2
   Unit_hipExecutionCtxResourceSplit_Disjoint_Sets:
     <<: *level_2
-    disabled: [nvidia_linux]
+    # gfx1260 (WGP scheduling off, gfx>=10) does not fit the green-context
+    # CU-mask/SM-alignment model: an odd 3-way split cannot form disjoint
+    # pairwise CU masks. ROCM-27759.
+    disabled: [nvidia_linux, gfx1260]
   Unit_hipExecutionCtxSmAlignment_DeviceGetDevResource:
     <<: *level_2
   Unit_hipExecutionCtxSmAlignment_StreamGetDevResource:
