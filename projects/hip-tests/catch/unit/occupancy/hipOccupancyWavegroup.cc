@@ -64,7 +64,16 @@ void wavegroup_kern_512(float* out) {
 // miscalculation where usedVGPRs (per-wavegroup) is treated as per-wave.
 static __global__ WAVEGROUP_KERNEL_ATTR_512
 void wavegroup_kern_vgpr_heavy(float* out) {
-#if __has_builtin(__builtin_amdgcn_wave_id_in_wavegroup)
+// The gfx13 NPI family (gfx1310 "AT2" and gfx131F "AT Lite3") cannot satisfy
+// the v0-v127 clobber: their wavegroup kernels share the VGPR file across the 4
+// waves of a wavegroup, so the clobber overflows the per-wave VGPR budget and
+// the inline asm fails register allocation ("inline assembly requires more
+// registers than available"), breaking the gfx1310 amdgcn-link. Exclude the
+// gfx13 NPI targets from the heavy-VGPR clobber as a temporary NPI workaround;
+// the kernel stays valid and the occupancy queries below still run. Tracked in
+// ROCM-27413.
+#if __has_builtin(__builtin_amdgcn_wave_id_in_wavegroup) && \
+    !defined(__gfx1310__) && !defined(__gfx131F__) && !defined(__gfx131f__)
   // Clobber v0-v127 to force 128 VGPRs per wave.
   // With 4 waves per wavegroup, total = 128*4 = 512 VGPRs per wavegroup.
   // This makes VGPRs the constraining resource for occupancy:
