@@ -1163,7 +1163,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemHandleFreePreserveMetadata(HsaMemoryObjectHandl
 	// Free the handle without clearing metadata - used for IPC exporter handles
 	// where we need to release the extra kernel reference but preserve metadata
 	// for later IPC attach operations
-	int ret = amdgpu_bo_free((amdgpu_bo_handle)Handle);
+	int ret = hsakmt_amdgpu_bo_free((amdgpu_bo_handle)Handle);
 	if (ret) {
 		return HSAKMT_STATUS_ERROR;
 	}
