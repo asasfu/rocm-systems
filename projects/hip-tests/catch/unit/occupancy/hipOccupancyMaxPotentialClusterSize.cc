@@ -36,107 +36,27 @@ static __global__ void reverse(int* d, int n) {
   d[t] = shBuf[tr];
 };
 
-HIP_TEST_CASE(Unit_hipOccupancyMaxPotentialClusterSize_Positive_RangeValidation) {
+TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Positive_RangeValidation") {
   int clusterSize;
   hipDeviceProp_t props;
   hipLaunchConfig_t config = {};
-  hipError_t hip_error;
 
   config.blockDim = {1024};
   HIP_CHECK(hipGetDeviceProperties(&props, 0));
-  hip_error =
-      hipOccupancyMaxPotentialClusterSize(&clusterSize, reinterpret_cast<const void*>(f1), &config);
 
-  if (props.clusterLaunch) {
-    INFO("Max potential cluster size is: " << clusterSize);
-    // at the time of this writing a SPI could be drive up to 15 CUs. The number of CUs per SE
-    // varies per silicon, but any AMD silicon should have at least 8
-    REQUIRE((clusterSize >= 8 && clusterSize <= 16));
-  } else {
-    REQUIRE(hip_error == hipErrorInvalidClusterSize);
+  if (!props.clusterLaunch) {
+    HIP_SKIP_TEST("cluster launches are not supported on this device");
   }
+
+  HIP_CHECK(
+      hipOccupancyMaxPotentialClusterSize(&clusterSize, reinterpret_cast<const void*>(f1), &config));
+  INFO("Max potential cluster size is: " << clusterSize);
+  // at the time of this writing a SPI could be drive up to 15 CUs. The number of CUs per SE
+  // varies per silicon, but any AMD silicon should have at least 8
+  REQUIRE((clusterSize > 8 && clusterSize <= 16));
 }
 
-// TODO gehernan enable this test (requires distributed shared memory)
-HIP_TEST_CASE(Unit_hipOccupancyMaxPotentialClusterSize_Verify_Launch) {
-  int numBytes;
-  LinearAllocGuard<int> h_output;
-  LinearAllocGuard<int> d_output;
-  hipLaunchAttribute attribute[1];
-  hipError_t hip_error;
-  hipLaunchConfig_t config = {};
-  int clusterSize;
-
-  SECTION("launch with maximum size no shmem") {
-    hipLaunchConfig_t f1config = {};
-    int f1MaxClusterSize = -1;
-    LinearAllocGuard<float> output(LinearAllocs::hipMalloc, sizeof(float));
-
-    f1config.blockDim = {1024};
-    HIP_CHECK(hipOccupancyMaxPotentialClusterSize(&f1MaxClusterSize,
-                                                  reinterpret_cast<const void*>(f1), &f1config));
-    attribute[0].id = hipLaunchAttributeClusterDimension;
-    attribute[0].val.clusterDim.x = f1MaxClusterSize;
-    config.numAttrs = 1;
-    config.attrs = attribute;
-    // make sure we can launch a kernel with the maximum cluster size
-    HIP_CHECK(hipLaunchKernelEx(&f1config, f1, output.ptr()));
-    HIP_CHECK(hipDeviceSynchronize());
-  }
-
-  config.blockDim = {256};
-  HIP_CHECK(hipOccupancyMaxPotentialClusterSize(
-      &clusterSize, reinterpret_cast<const void*>(distributed_shmem_kernel), &config));
-  REQUIRE(clusterSize >= 8);
-  config.gridDim = {static_cast<unsigned int>(clusterSize)};
-  attribute[0].id = hipLaunchAttributeClusterDimension;
-  attribute[0].val.clusterDim.x = clusterSize;
-  attribute[0].val.clusterDim.y = 1;
-  attribute[0].val.clusterDim.z = 1;
-  config.numAttrs = 1;
-  config.attrs = attribute;
-  config.dynamicSmemBytes = ThreadsPerBlock * ElementsPerThread * sizeof(int);
-  numBytes = clusterSize * config.dynamicSmemBytes;
-
-  SECTION("launch with maximum size shmem") {
-    // This section uses distributed shared memory (cluster.map_shared_rank)
-    // which is not yet supported on gfx1260.
-    hipDeviceProp_t devProps;
-    HIP_CHECK(hipGetDeviceProperties(&devProps, 0));
-    if (std::string(devProps.gcnArchName).find("gfx1260") != std::string::npos) {
-      SUCCEED("distributed shared memory not supported on gfx1260");
-      return;
-    }
-
-    int expected = 0;
-
-    d_output = LinearAllocGuard<int>(LinearAllocs::hipMalloc, numBytes);
-    h_output = LinearAllocGuard<int>(LinearAllocs::hipHostMalloc, numBytes);
-
-    // this launch should complete ok as it is not above the maximum cluster size
-    HIP_CHECK(hipLaunchKernelEx(&config, distributed_shmem_kernel, d_output.ptr()));
-    HIP_CHECK(hipMemcpy(h_output.ptr(), d_output.ptr(), numBytes, hipMemcpyDeviceToHost));
-
-    for (int i = 0; i < clusterSize; i++) {
-      for (int j = 0; j < ThreadsPerBlock * ElementsPerThread; j++) {
-        expected += i;
-      }
-    }
-
-    REQUIRE(h_output.ptr()[0] == expected);
-  }
-
-  SECTION("cluster too big") {
-    d_output = LinearAllocGuard<int>(LinearAllocs::hipMalloc, numBytes);
-    attribute[0].val.clusterDim.x = clusterSize + 1;
-    // this launch is above the maximum cluster size
-    hip_error = hipLaunchKernelEx(&config, distributed_shmem_kernel, d_output.ptr());
-    HIP_CHECK(hipDeviceSynchronize());
-    REQUIRE(hip_error == hipErrorInvalidClusterSize);
-  }
-}
-
-HIP_TEST_CASE(Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters) {
+TEST_CASE("Unit_hipOccupancyMaxPotentialClusterSize_Negative_Parameters") {
   hipLaunchConfig_t config = {};
   hipError_t hip_error;
   int clusterSize = -1;

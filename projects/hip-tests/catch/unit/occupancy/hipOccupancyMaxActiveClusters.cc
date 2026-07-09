@@ -51,8 +51,7 @@ HIP_TEST_CASE(Unit_hipOccupancyMaxActiveClusters_Positive_RangeValidation) {
   HIP_CHECK(hipGetDeviceProperties(&props, 0));
 
   if (!props.clusterLaunch) {
-    SUCCEED("cluster launches are not supported on this device");
-    return;
+    HIP_SKIP_TEST("cluster launches are not supported on this device");
   }
 
   auto& clusterDim = attribute[0].val.clusterDim;

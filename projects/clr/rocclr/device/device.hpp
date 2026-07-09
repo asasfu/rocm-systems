@@ -77,6 +77,7 @@ class SvmMapMemoryCommand;
 class SvmUnmapMemoryCommand;
 class SvmPrefetchAsyncCommand;
 class SvmPrefetchBatchAsyncCommand;
+class SvmDiscardBatchAsyncCommand;
 class StreamOperationCommand;
 class BatchMemoryOperationCommand;
 class VirtualMapCommand;
@@ -1342,6 +1343,9 @@ class VirtualDevice : public amd::ReferenceCountedObject {
   virtual void SubmitSvmPrefetchBatchAsync(amd::SvmPrefetchBatchAsyncCommand& cmd) {
     ShouldNotReachHere();
   }
+  virtual void SubmitSvmDiscardBatchAsync(amd::SvmDiscardBatchAsyncCommand& cmd) {
+    ShouldNotReachHere();
+  }
   virtual void submitStreamOperation(amd::StreamOperationCommand& cmd) { ShouldNotReachHere(); }
   virtual void submitBatchMemoryOperation(amd::BatchMemoryOperationCommand& cmd) {
     ShouldNotReachHere();
@@ -1473,6 +1477,8 @@ class MemObjMap : public AllStatic {
 
   //!< Find the mem object based on the input pointer, outputs the offset
   static amd::Memory* FindMemObj(const void* k, size_t* offset = nullptr, Device* dev = nullptr);
+  //!< Find any registered mem object whose range overlaps [ptr, ptr + size).
+  static amd::Memory* FindOverlap(const void* ptr, size_t size);
   //!< Batched version: find multiple mem objects in one lock acquisition
   static void FindMemObjBatch(const void* const* ptrs, size_t count,
                               std::vector<amd::Memory*>& memories,
@@ -2011,6 +2017,59 @@ class Device : public RuntimeObject {
   bool DestroyVirtualBuffer(amd::Memory* vaddr_mem_obj);
 
   /**
+   * Shared "map" bookkeeping helper used by both HSA and PAL submitVirtualMap.
+   *
+   * Creates the sub-buffer amd::Memory object that represents the mapped
+   * VA range. The caller is expected to perform the backend-specific
+   * hardware mapping using the returned sub_obj, and then call
+   * FinalizeMapMemObjBookkeeping() on success to wire up MemObjMap and
+   * the bidirectional phys<->vaddr cross-links.
+   *
+   * @param phys     Physical memory object (must be non-null).
+   * @param va_ptr   Virtual address being mapped.
+   * @param va_size  Size of the mapping in bytes.
+   * @return The newly created vaddr sub_obj, or nullptr on failure.
+   */
+  amd::Memory* MapMemObjBookkeeping(amd::Memory* phys, void* va_ptr, size_t va_size) const;
+
+  /**
+   * Completes the "map" bookkeeping after a successful hardware mapping.
+   *
+   * Inserts the sub_obj into MemObjMap, wires the bidirectional
+   * phys<->vaddr cross-links, and (when import_vmm_for_interprocess is
+   * true) flips setVmmImported on the sub_obj if the physical memory
+   * carries ROCCLR_MEM_INTERPROCESS.
+   *
+   * @param vaddr_sub_obj   sub_obj returned by MapMemObjBookkeeping().
+   * @param phys            Physical memory object passed at map time.
+   * @param va_ptr          Virtual address being mapped (MemObjMap key).
+   * @param import_vmm_for_interprocess  HSA backend passes true (matches
+   *                                     pre-refactor behavior); PAL passes
+   *                                     false.
+   */
+  void FinalizeMapMemObjBookkeeping(amd::Memory* vaddr_sub_obj, amd::Memory* phys, void* va_ptr,
+                                    bool import_vmm_for_interprocess) const;
+
+  /**
+   * Shared "unmap" bookkeeping helper used by both HSA and PAL
+   * submitVirtualMap. Should be invoked after a successful hardware
+   * unmap.
+   *
+   * Removes the sub_obj from MemObjMap, tears down the bidirectional
+   * phys<->vaddr cross-links, and -- when requested -- destroys the
+   * virtual buffer view and releases the sub_obj.
+   *
+   * @param vaddr_sub_obj          sub_obj for the mapped VA.
+   * @param va_ptr                 Virtual address being unmapped.
+   * @param destroy_virtual_buffer  HSA passes true; PAL passes false to
+   *                                preserve pre-refactor behavior.
+   * @param release_sub_obj         HSA passes true; PAL passes false to
+   *                                preserve pre-refactor behavior.
+   */
+  void UnmapMemObjBookkeeping(amd::Memory* vaddr_sub_obj, void* va_ptr, bool destroy_virtual_buffer,
+                              bool release_sub_obj) const;
+
+  /**
    * Reserve a VA range with no backing store
    *
    * @param addr Start address requested
@@ -2018,6 +2077,35 @@ class Device : public RuntimeObject {
    * @param alignment Alignment in bytes
    */
   virtual void* virtualAlloc(void* addr, size_t size, size_t alignment) = 0;
+
+  /**
+   * Map a physical allocation into a previously-reserved virtual address
+   * range using the direct synchronous path (bypasses VirtualMapCommand /
+   * the command-event enqueue indirection).
+   *
+   * Performs the shared MapMemObjBookkeeping/FinalizeMapMemObjBookkeeping
+   * protocol around the backend-specific hardware mapping. The caller is
+   * responsible for ensuring no work is using the VA range prior to
+   * invocation (matches CUDA's hipMemMap contract).
+   *
+   * @param va    Virtual address (must lie in a CL_MEM_VA_RANGE_AMD reservation).
+   * @param size  Size of the mapping in bytes.
+   * @param phys  Physical memory object (amd::Memory* from hipMemCreate).
+   * @return CL_SUCCESS on success, or a CL_* error code classifying the
+   *         backend failure (backend also LogErrors the actual error class).
+   */
+  virtual cl_int virtualMap(void* va, size_t size, amd::Memory* phys) = 0;
+
+  /**
+   * Unmap a previously virtualMap'd range using the direct synchronous
+   * path. Performs the shared UnmapMemObjBookkeeping protocol around the
+   * backend-specific hardware unmap.
+   *
+   * @param va    Virtual address previously passed to virtualMap.
+   * @param size  Size of the mapping in bytes.
+   * @return CL_SUCCESS on success, or a CL_* error code on backend failure.
+   */
+  virtual cl_int virtualUnmap(void* va, size_t size) = 0;
 
   /**
    * Set Access permisions for a virtual memory object.
@@ -2141,6 +2229,11 @@ class Device : public RuntimeObject {
   //! prevents signal destruction from blocking on an armed-but-idle signal.
   virtual void QuiesceHwEvents(const std::vector<void*>& hw_events) const {}
 
+  //! Block until all in-flight HSA async signal handlers (e.g. profiling
+  //! completion callbacks) have finished running. Returns true if drained,
+  //! false if it timed out with handlers still in flight.
+  virtual bool WaitForHsaAsyncHandlersIdle() { return true; }
+
   struct HwEventPatch {
     static constexpr int kCompletionSignal = -1;
     static constexpr int kExtDispatchDepSignal = -2;
@@ -2216,6 +2309,12 @@ class Device : public RuntimeObject {
   device::Memory* findMemoryFromVA(const void* ptr, size_t* offset) const;
 
   static std::vector<Device*>& devices() { return *devices_; }
+
+  //! Null-safe view of all known devices (empty if none registered yet).
+  static const std::vector<Device*>& registeredDevices() {
+    static const std::vector<Device*> empty;
+    return (devices_ != nullptr) ? *devices_ : empty;
+  }
 
   // P2P devices that are accessible from the current device
   std::vector<cl_device_id> p2pDevices_;

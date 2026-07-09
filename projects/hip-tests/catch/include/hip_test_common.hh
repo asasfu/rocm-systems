@@ -144,6 +144,26 @@ inline bool isQuickLevel() {
 #define HIP_CHECK_THREAD_FINALIZE()                                                                \
   { TestContext::get().finalizeResults(); }
 
+// Selects between the thread-safe and the regular check based on a runtime flag.
+#define HIP_CHECK_OPT_THREAD(threadSafe, error)                                                    \
+  {                                                                                                \
+    if (threadSafe) {                                                                              \
+      HIP_CHECK_THREAD(error);                                                                     \
+    } else {                                                                                       \
+      HIP_CHECK(error);                                                                            \
+    }                                                                                              \
+  }
+
+// Selects between the thread-safe and the regular check based on a runtime flag.
+#define REQUIRE_OPT_THREAD(threadSafe, condition)                                                  \
+  {                                                                                                \
+    if (threadSafe) {                                                                              \
+      REQUIRE_THREAD(condition);                                                                   \
+    } else {                                                                                       \
+      REQUIRE(condition);                                                                          \
+    }                                                                                              \
+  }
+
 
 // Check that an expression, errorExpr, evaluates to the expected error_t, expectedError.
 #define HIP_CHECK_ERROR(errorExpr, expectedError)                                                  \
@@ -535,6 +555,8 @@ inline bool isKernelArgPrefetchSupported() {
  * Use these instead of duplicating slightly different wording for the same condition.
  */
 namespace SkipReason {
+inline constexpr char const kSmCountTooSmall[] =
+    "sm count is too small for this test.";
 inline constexpr char const kPeerAccessUnavailable[] =
     "peer access is not available between devices.";
 inline constexpr char const kFewerThanTwoGpus[] =

@@ -106,7 +106,8 @@ multiproc:
     disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemGetInfo_Functional_scenario4:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
+    # Test does not play well with Asan.
+    disabled: [asan, gfx1260, gfx1310, gfx1370]
   Unit_hipMemGetInfo_Functional_MultiDevice_Scenario5:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]

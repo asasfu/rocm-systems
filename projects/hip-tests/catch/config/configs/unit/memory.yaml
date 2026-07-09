@@ -461,6 +461,9 @@ memory:
     <<: *level_2
     # Tests behaviour after free which throws off the sanitizer
     disabled: [asan, gfx1260, gfx1310, gfx1370]
+  Unit_hipHostRegister_DuplicateAndDisjoint:
+    <<: *level_2
+    tags: [alloc]
   Unit_hipHostRegister_Capture:
     <<: *level_2
     tags: [alloc]
@@ -884,6 +887,18 @@ memory:
     tags: [transfer]
   Unit_hipMemcpyBatchAsync_D2D_Functional:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+  Unit_hipMemcpyBatchAsync_2D_Functional:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+  Unit_hipMemcpyBatchAsync_D_Functional:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+  Unit_hipMemcpyBatchAsync_H_Functional:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+  Unit_hipMemcpyBatchAsync_swap_cpy:
+    <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_H2D_Functional:
     <<: *level_2
@@ -1043,6 +1058,10 @@ memory:
   Unit_hipMemPoolExportToShareableHandle_SameProc:
     <<: *level_2
     tags: [alloc, P1]
+    # FFM does not preserve BO metadata across amdgpu_bo_free, so the IPC
+    # export/import token round trip (hsaKmtMemHandleFreePreserveMetadata) fails.
+    # See AMD-GFX-Modeling/ffm#4422.
+    disabled: [amd_linux, amd_windows, amd_wsl]
   Unit_hipMemPoolExportToShareableHandle_ChldUseHdl:
     <<: *level_2
     tags: [alloc, P1]
@@ -2136,6 +2155,30 @@ memory:
   Unit_hipMemPrefetchBatchAsync_MultiDevice:
     <<: *level_2
     tags: [query]
+  Unit_hipMemDiscardBatchAsync_NegativeTests:
+    <<: *level_2
+    tags: [query]
+  Unit_hipMemDiscardBatchAsync_SingleDiscard: *level_2
+  Unit_hipMemDiscardBatchAsync_MultipleDiscards: *level_2
+  Unit_hipMemDiscardBatchAsync_LargeCount: *level_2
+  Unit_hipMemDiscardBatchAsync_DiscardThenPrefetch: *level_2
+  Unit_hipMemDiscardBatchAsync_StreamOrdering: *level_2
+  Unit_hipMemDiscardBatchAsync_SubrangeDiscard: *level_2
+  Unit_hipMemDiscardBatchAsync_SamePointerTwice: *level_2
+  Unit_hipMemDiscardBatchAsync_MinimalSize: *level_2
+  Unit_hipMemDiscardBatchAsync_DrvApiParity: *level_2
+  Unit_hipMemDiscardBatchAsync_ContentAfterDiscard: *level_2
+  Unit_hipMemDiscardBatchAsync_PageableDeviceMemory: *level_2
+  Unit_hipMemDiscardBatchAsync_PageableSystemMemory: *level_2
+  Unit_hipMemDiscardBatchAsync_PageableMixedBatch: *level_2
+  Unit_hipMemDiscardAndPrefetchBatchAsync_NegativeTests:
+    <<: *level_2
+    tags: [query]
+  Unit_hipMemDiscardAndPrefetchBatchAsync_SingleBuffer: *level_2
+  Unit_hipMemDiscardAndPrefetchBatchAsync_MultipleSameDevice: *level_2
+  Unit_hipMemDiscardAndPrefetchBatchAsync_ParitySeparateCalls: *level_2
+  Unit_hipMemDiscardAndPrefetchBatchAsync_Atomicity: *level_2
+  Unit_hipDrvMemDiscardAndPrefetchBatchAsync_SingleBuffer: *level_2
   Unit_hipMemGetInfo_FreeLessThanTotal:
     <<: *level_2
     # Disabled on NPI HW — see PR #939
@@ -2427,7 +2470,8 @@ memory:
   Unit_hipStreamAttachMemAsync_Negative_Parameters:
     <<: *level_2
     # Below tests soft hang in stress test on 13/09/23
-    disabled: [amd_wsl]
+    # Asan test disabled temporarily until PR #5287 is merged
+    disabled: [ad_ws, asan]
     tags: [query, P1]
   Unit_hipMemGetAddressRange_Positive:
     <<: *level_2

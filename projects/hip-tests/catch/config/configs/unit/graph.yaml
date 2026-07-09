@@ -1825,6 +1825,9 @@ graph:
   Unit_hipGraphAllocNodeMemReuse_AutoFreeOnLaunch:
     <<: *level_2
     tags: [node]
+  Unit_hipGraphAllocNodeMemReuse_CaptureEscapedUseAfterDestroy:
+    <<: *level_2
+    tags: [node]
   Unit_hipGraphAddDependencies_Functional:
     <<: *level_2
     disabled: [gfx1260]
@@ -1881,6 +1884,6 @@ graph:
     <<: *level_2
     disabled: [gfx1260]
 
-  Unit_hipGraphRemoveDependencies_Func_StrmCapture:
+  Unit_hipGraphRemoveDependencies_Func_StrCapture:
     <<: *level_2
     disabled: [gfx1260]

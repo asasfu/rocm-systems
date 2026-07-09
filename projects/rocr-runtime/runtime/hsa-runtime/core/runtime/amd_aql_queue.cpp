@@ -613,9 +613,11 @@ void AqlQueue::AllocRegisteredRingBuffer(uint32_t queue_size_pkts) {
                                 "Trying to allocate an AQL ring buffer in device memory without "
                                 "large BAR PCIe enabled.");
     }
+    // Device-memory ring buffers use the region's default CPU mapping; callers
+    // that select this path are responsible for the required packet-store ordering.
     ring_buf_ = agent_->coarsegrain_allocator()(
         ring_buf_alloc_bytes_ + ring_buf_metadata_alloc_bytes_,
-        core::MemoryRegion::AllocateExecutable | core::MemoryRegion::AllocateUncached);
+        core::MemoryRegion::AllocateExecutable);
   } else {
     ring_buf_ = agent_->system_allocator()(
         ring_buf_alloc_bytes_ + ring_buf_metadata_alloc_bytes_, 0x1000,
@@ -1549,7 +1551,10 @@ hsa_status_t AqlQueue::SetCUMasking(uint32_t num_cu_mask_count, const uint32_t* 
   if ((!cu_mask_.empty()) || (num_cu_mask_count != 0) || (!global_mask.empty())) {
 
     // Devices with WGPs must conform to even-indexed contiguous pairwise CU enablement.
-    if (agent_->supported_isas()[0]->GetMajorVersion() >= 10) {
+    // Disable WGP mode check for gfx1250
+    if (agent_->supported_isas()[0]->GetMajorVersion() >= 10 &&
+        !(agent_->supported_isas()[0]->GetMajorVersion() == 12 &&
+          agent_->supported_isas()[0]->GetMinorVersion() >= 5)) {
       for (int i = 0; i < mask.size() * 32; i += 2) {
         uint32_t cu_pair = (mask[i / 32] >> (i % 32)) & 0x3;
         if (cu_pair && cu_pair != 0x3) return HSA_STATUS_ERROR_INVALID_ARGUMENT;

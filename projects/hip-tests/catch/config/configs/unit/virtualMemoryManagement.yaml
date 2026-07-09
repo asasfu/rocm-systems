@@ -66,6 +66,8 @@ virtualMemoryManagement:
     <<: *level_2
   Unit_hipMemExportToShareableHandle_Capture:
     <<: *level_2
+  Unit_hipMemUnmap_RemapCrossLinks:
+    <<: *level_2
   Unit_hipGetProcAddress_VMM:
     <<: *level_2
   Unit_hipMemAddressFree_negative:
@@ -231,6 +233,11 @@ virtualMemoryManagement:
     # (amd_windows) SWDEV-444041: These tests fail in gfx1100 MGPU
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
     disabled: [amd_windows, amd_wsl]
+  Unit_hipMemMap_UnmapOneAliasOfMultiAliasedHandle:
+    <<: *level_2
+    # (amd_windows) SWDEV-444041: These tests fail in gfx1100 MGPU
+    # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
+    disabled: [amd_windows, amd_wsl]
   Unit_hipMemMap_PhysicalMemoryReuse_MultiDev:
     <<: *level_2
     tags: [multigpu]
@@ -258,6 +265,11 @@ virtualMemoryManagement:
     disabled: [amd_windows, amd_wsl]
   Unit_hipMemMap_Capture:
     <<: *level_2
+  Unit_hipMemMap_Retrieve_AllocationHandle: *level_2
+  Unit_hipMemMap_Retrieve_MultiAllocationHandle: *level_2
+  Unit_hipMemMap_CheckAddMemObj: *level_2
+  Unit_hipMemMap_RoundTrip: *level_2
+  Unit_hipMemMap_ConcurrentDisjointMapsNoDeadlock: *level_2
   Unit_hipMemRelease_negative:
     <<: *level_2
     # Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
@@ -270,6 +282,10 @@ virtualMemoryManagement:
     disabled: [amd_wsl]
   Unit_hipMemUnmap_Capture:
     <<: *level_2
+  Unit_hipMemUnmap_CrossLinksTornDown: *level_2
+  Unit_hipMemUnmap_ReapCrossLinks: *level_2
+  Unit_hipMemUnmap_DirectPath_BasicRoundTrip: *level_2
+  Unit_hipMemUnmap_DirectPath_InFlightKernelDrained: *level_2
   Unit_hipMemMapArrayAsync_Positive_Basic:
     <<: *level_2
     tags: [image]

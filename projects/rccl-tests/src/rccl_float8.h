@@ -23,7 +23,10 @@
 #ifndef ROCBLAS_FLOAT8_H
 #define ROCBLAS_FLOAT8_H
 
+#include <cmath>
 #include <stdint.h>
+#include <ostream>
+#include <type_traits>
 #include <hip/hip_version.h>
 
 typedef uint16_t fp8x2_storage_t;
@@ -41,9 +44,11 @@ typedef struct
 } rccl_bfloat8;
 
 // __cplusplus < 201103L || (!defined(__HIP_PLATFORM_AMD__) && !defined(__HIPCC__))
+
 #elif HIP_VERSION >= 60300000 && \
       (!__HIP_DEVICE_COMPILE__ || \
-       defined(__gfx942__) || defined(__gfx950__) || \
+       defined(__gfx942__)  || defined(__gfx950__)  || \
+       defined(__gfx1100__) || defined(__gfx1101__) || \
        defined(__gfx1200__) || defined(__gfx1201__) || defined(__gfx1250__) || \
        defined(__gfx1260__))
 
@@ -198,8 +203,9 @@ inline __host__ __device__ float operator*(rccl_bfloat8 a, float b)
 }
 
 extern bool rccl_float8_useFnuz;
-// For older versions of ROCm that do not include hip_fp8.h,
-// we provide a local version of the header file as a fallback.
+
+// For ROCm versions or target architectures that do not support hip_fp8.h,
+// we provide a local implementation as a fallback.
 #else
 
 #define HIP_HOST_DEVICE __host__ __device__
