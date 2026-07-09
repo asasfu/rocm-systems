@@ -253,7 +253,7 @@ class GpuPmcBuilder : public PmcBuilder, protected Primitives {
   explicit GpuPmcBuilder(const AgentInfo* agent_info)
       : PmcBuilder(),
         builder(acquire_ip_offset_table(agent_info)),
-        se_number_(Primitives::GFXIP_LEVEL == 13 ? 1 : agent_info->se_num), // Gopher topology has wrong SE num
+        se_number_(Primitives::GFXIP_LEVEL == 13 ? 1 : agent_info->se_num / agent_info->xcc_num), // Gopher topology has wrong SE num
         xcc_number_(agent_info->xcc_num),
         xcc_per_aid_(agent_info->xcc_per_aid),
         sarrays_per_se_(agent_info->shader_arrays_per_se) {
