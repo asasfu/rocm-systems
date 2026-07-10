@@ -116,12 +116,22 @@ RuntimeTearDown::~RuntimeTearDown() {
   // Only perform destruction if process matches the initialization,
   // to avoid a call with the child process after fork().
   if (amd::IS_HIP && amd::Os::getProcessId() == Runtime::pid()) {
+    // Drain in-flight HSA async handlers before running any teardown. If they
+    // can't be drained, return instead of shutdown under a live handler (safe at
+    // process exit).
+    for (auto* device : Device::registeredDevices()) {
+      if (device != nullptr && !device->WaitForHsaAsyncHandlersIdle()) {
+        return;
+      }
+    }
+
     // Execute teardown funcs in reverse order of registration.
     for (auto it = tear_down_funcs_.rbegin(); it != tear_down_funcs_.rend(); ++it) {
       ClPrint(amd::LOG_DEBUG, amd::LOG_INIT, "~RuntimeTearDown invoke callback: %s",
               it->first.c_str());
       it->second();
     }
+
     for (auto it : external_) {
       ClPrint(amd::LOG_DEBUG, amd::LOG_INIT, "~RuntimeTearDown release external object: %p", it);
       it->release();

@@ -72,6 +72,7 @@
 #include "core/inc/amd_gpu_pm4.h"
 #include "core/inc/hsa_amd_tool_int.hpp"
 #include "core/inc/amd_core_dump.hpp"
+#include "loader/AMDHSAKernelDescriptor.h"
 
 namespace rocr {
 namespace AMD {
@@ -344,6 +345,12 @@ AqlQueue::AqlQueue(core::SharedQueue* shared_queue, GpuAgent* agent, size_t req_
 
   active_ = true;
 
+  #ifdef AMD_NPI_ONLY
+  if (core::Runtime::runtime_singleton_->flag().debug_set_resource_limits()) {
+    SetResourceLimits(core::Runtime::runtime_singleton_->flag().debug_set_resource_limits());
+  }
+  #endif
+
   PM4IBGuard.Dismiss();
   RingGuard.Dismiss();
   QueueGuard.Dismiss();
@@ -534,7 +541,7 @@ hsa_status_t AqlQueue::GetInfo(hsa_queue_info_attribute_t attribute, void* value
     case HSA_QUEUE_INFO_HW_ID:
       // Return the hardware queue ID for both counted and non-counted queues
       *static_cast<uint32_t*>(value) = public_handle()->id;
-      break;
+      break; 
     case HSA_AMD_QUEUE_INFO_PREFETCH_METADATA_DISPATCH_PKT_VERSION_MAJOR:
       *(reinterpret_cast<uint8_t*>(value)) = dispatch_version_.major_version();
       break;
@@ -1131,6 +1138,19 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
 
   const uint64_t lanes_per_wave = (error_code & 0x400) ? 32 : 64;
 
+  // For wavegroup kernels, SPI allocates one scratch slot per wavegroup (not
+  // per wave). COMPUTE_TMPRING_SIZE.WAVESIZE must cover all waves in one
+  // wavegroup. A workgroup contains num_wavegroups (4) wavegroups, each with
+  // waves_per_group/4 waves sharing a scratch slot.
+  uint32_t wavegroup_scratch_scale = 1;
+  constexpr uint32_t kNumWavegroups = 4;  // one per SIMD in a WGP
+  const auto* kd = reinterpret_cast<const rocr::llvm::amdhsa::kernel_descriptor_t*>(
+      pkt->dispatch.kernel_object);
+  if (kd && AMDHSA_BITS_GET(kd->kernel_code_properties,
+                            rocr::llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_WAVEGROUP)) {
+    wavegroup_scratch_scale = waves_per_group / kNumWavegroups;
+  }
+
   const uint64_t size_per_thread =
       AlignUp(pkt->dispatch.private_segment_size,
               scratch.mem_alignment_size / lanes_per_wave);
@@ -1153,6 +1173,7 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
     scratch.alt_size = dispatch_size;
     scratch.alt_size_per_thread = size_per_thread;
     scratch.alt_lanes_per_wave = lanes_per_wave;
+    scratch.wavegroup_scratch_scale = wavegroup_scratch_scale;
     scratch.alt_waves_per_group = waves_per_group;
 
     agent_->AcquireQueueAltScratch(scratch);
@@ -1191,6 +1212,7 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
   scratch.main_size = device_size;
   scratch.main_size_per_thread = size_per_thread;
   scratch.main_lanes_per_wave = lanes_per_wave;
+  scratch.wavegroup_scratch_scale = wavegroup_scratch_scale;
   scratch.main_waves_per_group = waves_per_group;
 
   scratch.dispatch_size = dispatch_size;
@@ -1529,7 +1551,10 @@ hsa_status_t AqlQueue::SetCUMasking(uint32_t num_cu_mask_count, const uint32_t* 
   if ((!cu_mask_.empty()) || (num_cu_mask_count != 0) || (!global_mask.empty())) {
 
     // Devices with WGPs must conform to even-indexed contiguous pairwise CU enablement.
-    if (agent_->supported_isas()[0]->GetMajorVersion() >= 10) {
+    // Disable WGP mode check for gfx1250
+    if (agent_->supported_isas()[0]->GetMajorVersion() >= 10 &&
+        !(agent_->supported_isas()[0]->GetMajorVersion() == 12 &&
+          agent_->supported_isas()[0]->GetMinorVersion() >= 5)) {
       for (int i = 0; i < mask.size() * 32; i += 2) {
         uint32_t cu_pair = (mask[i / 32] >> (i % 32)) & 0x3;
         if (cu_pair && cu_pair != 0x3) return HSA_STATUS_ERROR_INVALID_ARGUMENT;
@@ -1564,6 +1589,44 @@ void AqlQueue::SetProfiling(bool enabled) {
   if (enabled) agent_->CheckClockTicks();
   return;
 }
+
+#ifdef AMD_NPI_ONLY
+void AqlQueue::SetResourceLimits(uint32_t limit) {
+  if (limit > 1023) {
+     printf("ERROR: Invalid resource limit %u (valid range: 0-1023) - ignoring!\n", limit);
+    return;
+  }
+  auto isa = agent_->supported_isas()[0];
+
+  // Tested only on gfx942
+  if (!(isa->GetMajorVersion() == 9 && isa->GetMinorVersion() >= 4)) {
+      printf("ERROR: Resource limit not supported on this device - ignoring!\n");
+      return;
+  }
+
+  printf("DEBUG: Set resource limit to:%d\n", limit);
+
+  const uint32_t sh_reg_pkt_size_dw = 3;
+  uint32_t sh_reg_pkt[sh_reg_pkt_size_dw] = {};
+
+  /*
+   * COMPUTE_RESOURCE_LIMITS SH-register offset for gfx9.x:
+   * The absolute MMIO register address is defined in the kernel headers as:
+   *  mmCOMPUTE_RESOURCE_LIMITS = 0x2e15
+   * in linux/drivers/gpu/drm/amd/include/asic_reg/gc/gc_9_1_offset.h.
+   * PM4 SET_SH_REG packets, however, take a register index relative to the
+   * start of the SH register space at 0x2c00, so the offset programmed into
+   * the packet is (0x2e15 - 0x2c00) = 0x0215.
+   */
+  uint32_t mmCOMPUTE_RESOURCE_LIMITS = 0x0215;
+
+  sh_reg_pkt[0] = PM4_HDR(PM4_HDR_IT_OPCODE_SET_SH_REG, sh_reg_pkt_size_dw, isa->GetMajorVersion());
+  sh_reg_pkt[1] = PM4_SET_SH_REG_DW1_REG_OFFSET(mmCOMPUTE_RESOURCE_LIMITS);
+  sh_reg_pkt[2] = PM4_SET_SH_REG_DW2_DATA(limit);
+
+  ExecutePM4(sh_reg_pkt, sh_reg_pkt_size_dw * sizeof(uint32_t));
+}
+#endif
 
 // If in_signal is NULL then this ExecutePM4 will block and wait for PM4 commands to complete
 // If in_signal is provided, then ExecutePM4 will return and caller may wait for in_signal
@@ -1847,6 +1910,56 @@ void AqlQueue::FillBufRsrcWord3_Gfx12() {
   amd_queue_.scratch_resource_descriptor[3] = srd3.u32All;
 }
 
+void AqlQueue::FillBufRsrcWords_Gfx13() {
+  /*
+   * For GFX13, buffer descriptor is either 4 or 5 dwords
+   * depending on the instruction using it.
+   *
+   * For scratch buffer, we are passing only the first 4 dwords.
+   * The last dword is not necessary for scratch buffer and passing
+   * all 5 dwords would require ROCr/firmware interface change.
+   */
+  const auto& agent_props = agent_->properties();
+  const uint32_t num_xcc = agent_props.NumXcc;
+  uintptr_t scratch_base = uintptr_t(queue_scratch_.main_queue_base);
+
+  SQ_BUF_RSRC_WORD0_GFX13 srd0;
+  srd0.bits.BASE_ADDRESS = uint32_t(scratch_base);
+
+  SQ_BUF_RSRC_WORD1_GFX13 srd1;
+  srd1.u32All = 0;
+#ifdef HSA_LARGE_MODEL
+  srd1.bits.BASE_ADDRESS_HI = uint32_t(scratch_base >> 32);
+#endif
+
+  // NUM_RECORDS is 45 bits total, split across dwords 1, 2, and 3:
+  // - NUM_RECORDS_1: Bit[6:0]   ( 7 bits)
+  // - NUM_RECORDS_2: Bit[38:7]  (32 bits)
+  // - NUM_RECORDS_3: Bit[44:39] ( 6 bits)
+  uint64_t num_records = queue_scratch_.main_size / num_xcc;
+  srd1.bits.NUM_RECORDS_1 = uint32_t(num_records & 0x7F);  // bits [6:0]
+
+  SQ_BUF_RSRC_WORD2_GFX13 srd2;
+  srd2.bits.NUM_RECORDS_2 = uint32_t((num_records >> 7) & 0xFFFFFFFF);  // bits [38:7]
+
+  SQ_BUF_RSRC_WORD3_GFX13 srd3;
+  srd3.bits.NUM_RECORDS_3 = uint32_t((num_records >> 39) & 0x3F);  // bits [44:39]
+  srd3.bits.WRITE_COMPRESS_ENABLE = 0;
+  srd3.bits.COMPRESSION_EN = 0;
+  srd3.bits.COMPRESSION_ACCESS_MODE = 0;
+  srd3.bits.TH_OVERRIDE = 0;
+  srd3.bits.STRIDE = 0;
+  srd3.bits.STRIDE_SCALE = 0;
+  srd3.bits.SWIZZLE_ENABLE = 1;
+  srd3.bits.OOB_SELECT = 0;  // Note: For GFX13, only value 0 and 1 are valid.  Cannot disable with 2.
+  srd3.bits.TYPE = SQ_RSRC_BUF;
+
+  amd_queue_.scratch_resource_descriptor[0] = srd0.u32All;
+  amd_queue_.scratch_resource_descriptor[1] = srd1.u32All;
+  amd_queue_.scratch_resource_descriptor[2] = srd2.u32All;
+  amd_queue_.scratch_resource_descriptor[3] = srd3.u32All;
+}
+
 // Set concurrent wavefront limits only when scratch is being used.
 void AqlQueue::FillComputeTmpRingSize() {
   COMPUTE_TMPRING_SIZE tmpring_size = {};
@@ -1939,14 +2052,14 @@ void AqlQueue::FillComputeTmpRingSize_Gfx11() {
   uint32_t num_waves =
       queue_scratch_.main_size / (tmpring_size.bits.WAVESIZE * queue_scratch_.mem_alignment_size);
 
-  // For GFX11 we specify number of waves per engine instead of total
+  // For GFX11+ we specify number of waves per engine instead of total
   num_waves /= agent_->properties().NumShaderBanks;
   tmpring_size.bits.WAVES = std::min(num_waves, max_scratch_waves);
   amd_queue_.compute_tmpring_size = tmpring_size.u32All;
 }
 
 // Set concurrent wavefront limits only when scratch is being used.
-void AqlQueue::FillComputeTmpRingSize_Gfx12() {
+void AqlQueue::FillComputeTmpRingSize_Gfx12_Gfx13() {
   // For GFX12, struct field size changes.
   // Consider refactoring code for GFX11/GFX12 if no other changes.
   COMPUTE_TMPRING_SIZE_GFX12 tmpring_size = {};
@@ -1963,8 +2076,10 @@ void AqlQueue::FillComputeTmpRingSize_Gfx12() {
   uint32_t max_scratch_waves = num_cus * agent_props.MaxSlotsScratchCU;
 
   // Scratch is allocated program COMPUTE_TMPRING_SIZE register
-  // Scratch Size per Wave is specified in terms of kilobytes
-  uint32_t wave_scratch = (((queue_scratch_.main_lanes_per_wave * queue_scratch_.main_size_per_thread) +
+  // Scratch Size per Wave is specified in terms of kilobytes.
+  // For wavegroup kernels, WAVESIZE must cover all waves in one wavegroup.
+  const uint32_t wg_scale = std::max(queue_scratch_.wavegroup_scratch_scale, 1u);
+  uint32_t wave_scratch = (((queue_scratch_.main_lanes_per_wave * queue_scratch_.main_size_per_thread * wg_scale) +
                             queue_scratch_.mem_alignment_size - 1) /
                            queue_scratch_.mem_alignment_size);
 
@@ -1984,12 +2099,16 @@ void AqlQueue::FillComputeTmpRingSize_Gfx12() {
 // that enable kernel access scratch memory
 void AqlQueue::InitScratchSRD() {
   switch (agent_->supported_isas()[0]->GetMajorVersion()) {
+    case 13:
+      FillBufRsrcWords_Gfx13();
+      FillComputeTmpRingSize_Gfx12_Gfx13();
+      break;
     case 12:
       FillBufRsrcWord0();
       FillBufRsrcWord1_Gfx11();
       FillBufRsrcWord2();
       FillBufRsrcWord3_Gfx12();
-      FillComputeTmpRingSize_Gfx12();
+      FillComputeTmpRingSize_Gfx12_Gfx13();
       break;
     case 11:
       FillBufRsrcWord0();

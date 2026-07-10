@@ -182,7 +182,7 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
     enableExtension(ClKhrMipMapImageWrites);
   }
 
-  if (gfxipMajor == 12 && gfxipMinor >= 5) {
+  if ((gfxipMajor == 12 && gfxipMinor >= 5 || gfxipMajor >= 13) && !HIP_DISABLE_EXT_PACKET) {
     ext_dispatch_packet_ = true;
     groupMemCarveout_ = true;
   }
@@ -203,6 +203,9 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
     enableExtension(ClKhrD3d11Sharing);
   }
 #endif
+
+  // Wavegroup kernels are supported on gfx12.6+ and gfx13+
+  wavegroup_supported_ = (gfxipMajor == 12 && gfxipMinor >= 6) || (gfxipMajor >= 13);
 
   // Override current device settings
   override();

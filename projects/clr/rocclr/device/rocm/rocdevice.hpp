@@ -658,8 +658,17 @@ class Device : public NullDevice {
   //! Returns true if PM4 emulation is enabled
   bool IsPm4Emulation() const { return pm4_emulation_; }
 
-  //! Waits until all VirtualGPU QueuedAsyncHandlers are zero (30s timeout).
-  void WaitForHsaAsyncHandlersIdle() override;
+  //! Waits until all in-flight HSA async handlers on this device have fully
+  //! returned. Returns true if drained, false if it timed out with handlers
+  //! still in flight.
+  bool WaitForHsaAsyncHandlersIdle() override;
+
+  //! Device-level count of HSA async completion handlers that have been armed
+  //! but not yet fully returned. Bumped at registration and decremented as the
+  //! very last action of the handler, so a value of 0 guarantees no handler is
+  //! still touching device/vgpu state. This is the drain gate's source of truth
+  //! (distinct from the per-VirtualGPU QueuedAsyncHandlers throttle counter).
+  std::atomic<uint64_t>& AsyncHandlersInFlight() const { return async_handlers_inflight_; }
 
   //! Destroy all queues whose destroy was deferred from the async-events thread.
   //! Must only be called on an app thread (e.g. acquireQueue, ~Device).
@@ -818,6 +827,7 @@ class Device : public NullDevice {
 
  public:
   std::atomic<uint> numOfVgpus_;  //!< Virtual gpu unique index
+  mutable std::atomic<uint64_t> async_handlers_inflight_{0};  //!< In-flight async handlers (drain gate)
 
   //! Returns the valid SDMA engine bitmask for the given operation type.
   uint32_t GetSdmaValidMask(HwQueueEngine engine_type) const {

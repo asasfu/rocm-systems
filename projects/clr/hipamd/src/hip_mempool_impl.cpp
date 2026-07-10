@@ -82,16 +82,14 @@ Heap::SortedMap::iterator Heap::EraseAllocation(Heap::SortedMap::iterator& it) {
     return ++it;
   }
   auto memory = it->first.second;
-  const device::Memory* dev_mem = memory->getDeviceMemory(*device_->devices()[0]);
-  void* dev_mem_vaddr = reinterpret_cast<void*>(dev_mem->virtualAddress());
   total_size_ -= it->first.first;
-  if (dev_mem_vaddr == nullptr) {
-    dev_mem_vaddr = memory->getSvmPtr();
-  }
 
   if (use_vm_heap_) {
     vm_heap_.Free(memory);
   } else {
+    // Use getSvmPtr() directly to avoid dereferencing device::Memory which may have
+    // already been freed by a prior EraseAllocation call (use-after-free on DifferentSizes path).
+    void* dev_mem_vaddr = memory->getSvmPtr();
     amd::SvmBuffer::free(memory->getContext(), dev_mem_vaddr);
   }
   // Clear HIP event

@@ -562,7 +562,7 @@ struct formatter<hipLaunchAttributeID> : rocprofiler::hip::details::base_formatt
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, MemSyncDomainMap);
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, MemSyncDomain);
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, Max);
-#    if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 27
+#    if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 19
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, Ignore);
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, ClusterDimension);
             ROCP_SDK_HIP_FORMAT_CASE_STMT(hipLaunchAttribute, ClusterSchedulingPolicyPreference);

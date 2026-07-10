@@ -1,31 +1,9 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palFormat.h
  * @brief Common include for the Platform Abstraction Library (PAL) interface.  Defines format types.
+# Also used in SCPC.
  ***********************************************************************************************************************
  */
 
@@ -189,58 +167,58 @@ enum class ChNumFormat : Util::uint32
     Bc6_Sfloat               = 0x62,    ///< BC6 signed compressed texture format.
     Bc7_Unorm                = 0x63,    ///< BC7 compressed texture format.
     Bc7_Srgb                 = 0x64,    ///< BC7 compressed texture format.
-    Etc2X8Y8Z8_Unorm         = 0x65,
-    Etc2X8Y8Z8_Srgb          = 0x66,
-    Etc2X8Y8Z8W1_Unorm       = 0x67,
-    Etc2X8Y8Z8W1_Srgb        = 0x68,
-    Etc2X8Y8Z8W8_Unorm       = 0x69,
-    Etc2X8Y8Z8W8_Srgb        = 0x6A,
-    Etc2X11_Unorm            = 0x6B,
-    Etc2X11_Snorm            = 0x6C,
-    Etc2X11Y11_Unorm         = 0x6D,
-    Etc2X11Y11_Snorm         = 0x6E,
-    AstcLdr4x4_Unorm         = 0x6F,
-    AstcLdr4x4_Srgb          = 0x70,
-    AstcLdr5x4_Unorm         = 0x71,
-    AstcLdr5x4_Srgb          = 0x72,
-    AstcLdr5x5_Unorm         = 0x73,
-    AstcLdr5x5_Srgb          = 0x74,
-    AstcLdr6x5_Unorm         = 0x75,
-    AstcLdr6x5_Srgb          = 0x76,
-    AstcLdr6x6_Unorm         = 0x77,
-    AstcLdr6x6_Srgb          = 0x78,
-    AstcLdr8x5_Unorm         = 0x79,
-    AstcLdr8x5_Srgb          = 0x7A,
-    AstcLdr8x6_Unorm         = 0x7B,
-    AstcLdr8x6_Srgb          = 0x7C,
-    AstcLdr8x8_Unorm         = 0x7D,
-    AstcLdr8x8_Srgb          = 0x7E,
-    AstcLdr10x5_Unorm        = 0x7F,
-    AstcLdr10x5_Srgb         = 0x80,
-    AstcLdr10x6_Unorm        = 0x81,
-    AstcLdr10x6_Srgb         = 0x82,
-    AstcLdr10x8_Unorm        = 0x83,
-    AstcLdr10x8_Srgb         = 0x84,
-    AstcLdr10x10_Unorm       = 0x85,
-    AstcLdr10x10_Srgb        = 0x86,
-    AstcLdr12x10_Unorm       = 0x87,
-    AstcLdr12x10_Srgb        = 0x88,
-    AstcLdr12x12_Unorm       = 0x89,
-    AstcLdr12x12_Srgb        = 0x8A,
-    AstcHdr4x4_Float         = 0x8B,
-    AstcHdr5x4_Float         = 0x8C,
-    AstcHdr5x5_Float         = 0x8D,
-    AstcHdr6x5_Float         = 0x8E,
-    AstcHdr6x6_Float         = 0x8F,
-    AstcHdr8x5_Float         = 0x90,
-    AstcHdr8x6_Float         = 0x91,
-    AstcHdr8x8_Float         = 0x92,
-    AstcHdr10x5_Float        = 0x93,
-    AstcHdr10x6_Float        = 0x94,
-    AstcHdr10x8_Float        = 0x95,
-    AstcHdr10x10_Float       = 0x96,
-    AstcHdr12x10_Float       = 0x97,
-    AstcHdr12x12_Float       = 0x98,
+    Etc2X8Y8Z8_Unorm         = 0x65,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8_Srgb          = 0x66,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8W1_Unorm       = 0x67,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8W1_Srgb        = 0x68,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8W8_Unorm       = 0x69,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8W8_Srgb        = 0x6A,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X11_Unorm            = 0x6B,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X11_Snorm            = 0x6C,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X11Y11_Unorm         = 0x6D,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X11Y11_Snorm         = 0x6E,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    AstcLdr4x4_Unorm         = 0x6F,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr4x4_Srgb          = 0x70,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr5x4_Unorm         = 0x71,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr5x4_Srgb          = 0x72,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr5x5_Unorm         = 0x73,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr5x5_Srgb          = 0x74,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr6x5_Unorm         = 0x75,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr6x5_Srgb          = 0x76,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr6x6_Unorm         = 0x77,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr6x6_Srgb          = 0x78,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x5_Unorm         = 0x79,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x5_Srgb          = 0x7A,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x6_Unorm         = 0x7B,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x6_Srgb          = 0x7C,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x8_Unorm         = 0x7D,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x8_Srgb          = 0x7E,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x5_Unorm        = 0x7F,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x5_Srgb         = 0x80,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x6_Unorm        = 0x81,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x6_Srgb         = 0x82,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x8_Unorm        = 0x83,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x8_Srgb         = 0x84,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x10_Unorm       = 0x85,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x10_Srgb        = 0x86,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr12x10_Unorm       = 0x87,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr12x10_Srgb        = 0x88,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr12x12_Unorm       = 0x89,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr12x12_Srgb        = 0x8A,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr4x4_Float         = 0x8B,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr5x4_Float         = 0x8C,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr5x5_Float         = 0x8D,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr6x5_Float         = 0x8E,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr6x6_Float         = 0x8F,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr8x5_Float         = 0x90,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr8x6_Float         = 0x91,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr8x8_Float         = 0x92,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr10x5_Float        = 0x93,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr10x6_Float        = 0x94,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr10x8_Float        = 0x95,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr10x10_Float       = 0x96,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr12x10_Float       = 0x97,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr12x12_Float       = 0x98,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
     X8Y8_Z8Y8_Unorm          = 0x99,    ///< _Untested._
     X8Y8_Z8Y8_Uscaled        = 0x9A,    ///< _Untested._
     Y8X8_Y8Z8_Unorm          = 0x9B,    ///< _Untested._
@@ -277,7 +255,7 @@ enum class ChNumFormat : Util::uint32
                                         ///  channels respectively. Image views can use the { Y8X8_Y8Z8, Unorm } format
                                         ///  where the Y0,X0,Y1,Z0 channels are mapped to the Y0,V0,Y1,U0 channels.
     YV12                     = 0xA2,    ///< YVU 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y
-                                        ///  plane is first, containing a uint8 per sample.  Next is the V plane and the U
+                                        ///  plane is first, containg a uint8 per sample.  Next is the V plane and the U
                                         ///  plane, both of which have a uint8 per sample.  Valid Image view formats are
                                         ///  { X8, Unorm } and { X8, Uint }.  Each view only has access to one of the Y,
                                         ///  V, or U planes.
@@ -308,7 +286,7 @@ enum class ChNumFormat : Util::uint32
     P010                     = 0xA7,    ///< YUV 4:2:0 planar format, with 10 bits per luma and chroma sample.  This is
                                         ///  identical to @ref ChNumFormat::P016, except that the lowest 6 bits of each
                                         ///  luma and chroma sample are ignored. This allows the source data to be
-                                        ///  interpreted as either P016 or P010 interchangeably.
+                                        ///  interpreted as either P016 or P010 interchangably.
     P210                     = 0xA8,    ///< YUV 4:2:2 planar format, with 10 bits per luma and chroma sample. This is
                                         ///  similar to @ref ChNumFormat::P010, except that the UV planes are sub-sampled
                                         ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
@@ -357,7 +335,11 @@ enum class ChNumFormat : Util::uint32
                                         ///  The lowest 6 bits of each sample are ignored.
     Y416                     = 0xBC,    ///< YUV 4:4:4 packed, with 16 bits per luma or chroma sample.
     Y410                     = 0xBD,    ///< YUV 4:4:4 packed, with 10 bits per luma or chroma sample and 2 bits for alpha.
+#if PAL_BUILD_GFX13
+    X24_Unorm                = 0xBE,
+#else
     _ReservedBE              = 0xBE,
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
     P216                     = 0xBF,    ///< YUV 4:2:2 planar format, with 16 bits per luma and chroma sample. It consists
                                         ///  of a Y-plane followed by interleaved UV plane.

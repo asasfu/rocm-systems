@@ -650,9 +650,6 @@ class Graph {
     }
     graphUserObj_.clear();
     memAllocNodePtrs_.clear();
-    if (instantiateDeviceId_ != -1) {
-      static_cast<amd::ReferenceCountedObject*>(g_devices[instantiateDeviceId_])->release();
-    }
   }
 
   void AddManualNodeDuringCapture(GraphNode* node) { capturedNodes_.insert(node); }

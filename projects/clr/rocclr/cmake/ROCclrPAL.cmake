@@ -32,7 +32,9 @@ set(PAL_BUILD_NAVI31        ON)
 set(PAL_BUILD_NAVI32        ON)
 set(PAL_BUILD_NAVI33        ON)
 set(PAL_BUILD_PHOENIX1      ON)
-# Please do not set above flags in staging and mainline in new ASICs
+set(PAL_BUILD_STRIX1        ON)
+set(PAL_BUILD_KRACKAN1      ON)
+set(PAL_BUILD_GFX13         ON)
 
 set(PAL_BRANCHDEFS          ON)
 if (AMD_COMPUTE_WIN AND NOT LIB_SRC_BUILD)

@@ -207,9 +207,14 @@ bool DmaBlitManager::copyBuffer(device::Memory& srcMemory, device::Memory& dstMe
                                 const amd::Coord3D& srcOrigin, const amd::Coord3D& dstOrigin,
                                 const amd::Coord3D& size, bool entire,
                                 amd::CopyMetadata copyMetadata) const {
-  if (setup_.disableCopyBuffer_ ||
+  // When FFM/DTIF fast-copy is enabled, plain device allocations are marked
+  // HostMemoryDirectAccess so HtoD/DtoH can short-circuit to a host memcpy. DtoD
+  // must not take that path: the host memcpy CPU-stalls on prior queue work
+  // (releaseGpuMemoryFence) and breaks CUDA-style host-async DtoD semantics.
+  if (!HSA_ENABLE_DTIF_FAST_COPY &&
+      (setup_.disableCopyBuffer_ ||
       (srcMemory.isHostMemDirectAccess() && !srcMemory.isCpuUncached() &&
-       (dev().agent_profile() != HSA_PROFILE_FULL) && dstMemory.isHostMemDirectAccess())) {
+       (dev().agent_profile() != HSA_PROFILE_FULL) && dstMemory.isHostMemDirectAccess()))) {
     // Stall GPU before CPU access
     gpu().releaseGpuMemoryFence();
     return HostBlitManager::copyBuffer(srcMemory, dstMemory, srcOrigin, dstOrigin, size, false,
@@ -226,9 +231,12 @@ bool DmaBlitManager::copyBufferRect(device::Memory& srcMemory, device::Memory& d
                                     const amd::BufferRect& srcRect, const amd::BufferRect& dstRect,
                                     const amd::Coord3D& size, bool entire,
                                     amd::CopyMetadata copyMetadata) const {
-  if (setup_.disableCopyBufferRect_ ||
+  // See note in copyBuffer: skip the host short-circuit when FFM/DTIF fast-copy
+  // is enabled so DtoD stays on the GPU blit path.
+  if (!HSA_ENABLE_DTIF_FAST_COPY &&
+      (setup_.disableCopyBufferRect_ ||
       (srcMemory.isHostMemDirectAccess() && !srcMemory.isCpuUncached() &&
-       dstMemory.isHostMemDirectAccess())) {
+       dstMemory.isHostMemDirectAccess()))) {
     // Stall GPU before CPU access
     gpu().releaseGpuMemoryFence();
     return HostBlitManager::copyBufferRect(srcMemory, dstMemory, srcRect, dstRect, size, entire,
@@ -631,6 +639,21 @@ inline void DmaBlitManager::resolveAgents(const Memory& srcMem, const Memory& ds
       }
     } else {
         dstAgent = dstMem.isHostMemDirectAccess() ? dstMem.dev().getCpuAgent() : dstMem.dev().getBackendDevice();
+    }
+  }
+
+  // FFM/DTIF flags device-local memory (hipMalloc) as HostMemoryDirectAccess,
+  // so the resolution above maps it to the CPU agent. The SDMA copy paths need
+  // GPU agents to select an engine; restore them here for plain device memory.
+  // True host memory (MEMORY_KIND_HOST) and IPC/VMM-owned agents are left intact.
+  if (HSA_ENABLE_DTIF_FAST_COPY) {
+    if (srcMem.getKind() == Memory::MEMORY_KIND_NORMAL &&
+        srcAgent.handle == dev().getCpuAgent().handle) {
+      srcAgent = dev().getBackendDevice();
+    }
+    if (dstMem.getKind() == Memory::MEMORY_KIND_NORMAL &&
+        dstAgent.handle == dev().getCpuAgent().handle) {
+      dstAgent = dev().getBackendDevice();
     }
   }
 }

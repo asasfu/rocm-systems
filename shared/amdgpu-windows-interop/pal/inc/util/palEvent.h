@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palEvent.h
@@ -93,13 +70,13 @@ public:
     /// Changes the event state to _set_
     ///
     /// @returns Success unless the Event has not been initialized yet (@ref ErrorUnavailable) or an unexpected internal
-    ///          error occurred when calling the OS (ErrorUnknown).
+    ///          error occured when calling the OS (ErrorUnknown).
     Result Set() const;
 
     /// Changes the event state to _reset_.
     ///
     /// @returns Success unless the Event has not been initialized yet (ErrorUnavailable) or an unexpected
-    ///         internal error occurred when calling the OS (ErrorUnknown).
+    ///         internal error occured when calling the OS (ErrorUnknown).
     Result Reset() const;
 
     /// Waits for the event to enter the _set_ state before returning control to the caller.  The event will change to
@@ -133,8 +110,8 @@ public:
 private:
     EventHandle m_hEvent;      // OS-specific event handle.
     bool        m_isReference; // If true, the event is a global sharing object handle (not a duplicate) which is
-                               // imported from external, so it can't be closed in the current destructor, and can only
-                               // be closed by the creator.
+                               // imported from external, so it can't be closed in the currect destructor, and can only
+                               // be closed by the creater.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Event);
 };

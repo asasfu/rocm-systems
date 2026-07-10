@@ -92,6 +92,7 @@ SDMA_BLACKLIST=\
 "KFDQMTest.GPUDoorbellWrite:"\
 "KFDQMTest.P2PTest:"\
 "KFDPerformanceTest.P2PBandWidthTest:"\
+"KFDExceptionTest.SdmaQueueException:"\
 "KFDPerformanceTest.P2POverheadTest"
 
 # Anything involving CP queue creation is failing on Kaveri. Separate them here for convenience (KFD-336)
@@ -131,6 +132,21 @@ BLACKLIST_GFX12=\
 "KFDMemoryTest.FlatScratchAccess:"\
 "KFDMemoryTest.BigSysBufferStressTest:"\
 "KFDGWSTest.*"
+"KFDGWSTest.*:"\
+"KFDMemoryTest.Acquire*"
+
+BLACKLIST_GFX13=\
+"KFDQMTest.CreateAqlCpQueue:"\
+"KFDPerfCountersTest.*:"\
+"KFDMemoryTest.FlatScratchAccess:"\
+"KFDGWSTest.*:"\
+"KFDMemoryTest.Acquire*"
+
+BLACKLIST_MGPU=\
+"KFDLocalMemoryTest.MapVramToGPUNodesTest:"\
+"KFDMemoryTest.MapUnmapToNodes:"\
+"KFDPerformanceTest.P2P*:"\
+"KFDQMTest.P2P*"
 
 # KFDQMTest.CpuWriteCoherence fails. 0 dwordsAvailable (KFD-338)
 # KFDMemoryTest.MemoryRegister fails on SDMA queue creation (KFD-337)
@@ -323,6 +339,14 @@ FILTER[gfx1153]=\
 "$BLACKLIST_ALL_ASICS:"\
 "$BLACKLIST_GFX11"
 
+FILTER[gfx1170]=\
+"$BLACKLIST_ALL_ASICS:"\
+"$BLACKLIST_GFX11"
+
+FILTER[gfx1171]=\
+"$BLACKLIST_ALL_ASICS:"\
+"$BLACKLIST_GFX11"
+
 FILTER[gfx1036]=\
 "$BLACKLIST_ALL_ASICS:"\
 "$BLACKLIST_GFX10_NV2X"
@@ -368,6 +392,14 @@ FILTER[gfx1250]=\
 "KFDDBGTest.HitTrapOnWaveStartEndEvent:"\
 "KFDNegativeTest.*"
 
+FILTER[gfx1251]=\
+"$BLACKLIST_ALL_ASICS:"\
+"$BLACKLIST_GFX12"
+
+FILTER[gfx1310]=\
+"$BLACKLIST_ALL_ASICS:"\
+"$BLACKLIST_GFX13"
+
 FILTER[RHEL9]=\
 "$BLACKLIST_ALL_ASICS:"\
 "$BLACKLIST_GFX11:"\
@@ -378,3 +410,35 @@ FILTER[RHEL9]=\
 FILTER[upstream]=\
 "KFDIPCTest.*:"\
 "KFDPCSamplingTest.*"
+
+FILTER[gfx125x_lsc_n-1]=\
+"$BLACKLIST_ALL_ASICS:"\
+"$SDMA_BLACKLIST:"\
+"$BLACKLIST_GFX12:"\
+"$BLACKLIST_MGPU:"\
+"KFDTopologyTest.BasicTest:"\
+"KFDMemoryTest.AccessPPRMem:"\
+"KFDMemoryTest.*Coherence*:"\
+"KFDMemoryTest.*CacheInvalidate*:"\
+"KFDQMTest.OverSubscribeCpQueues:"\
+"KFDQMTest.QueueLatency:"\
+"KFDCWSRTest.BasicTest/2:"\
+"KFDCWSRTest.BasicTest/3:"\
+"KFDSVMRangeTest.Migrate*/0:"\
+"KFDSVMRangeTest.Multi*/0:"\
+"KFDSVMRangeTest.EvictSystemRangeTest/0:"\
+"KFDSVMRangeTest.ReadOnlyRangeTest/0:"\
+"KFDSVMRangeTest.HMMProfilingEvent/0:"\
+"KFDSVMRangeTest.Vram*/0:"\
+"KFDSVMRangeTest.PrefaultPartialRangeTest/0:"\
+"KFDSVMRangeTest.*/1:"\
+"KFDGraphicsInterop.*:"\
+"KFDSVMEvictTest.*:"\
+"KFDPerformanceTest.*:"\
+"KFDPerfCountersTest.*:"\
+"KFDPMTest.*:"\
+"KFDPCSamplingTest.*:"\
+"KFDRASTest.*:"\
+"KFDIPCTest.*:"\
+"KFDHWSTest.*:"\
+"KFDEvictTest.*"

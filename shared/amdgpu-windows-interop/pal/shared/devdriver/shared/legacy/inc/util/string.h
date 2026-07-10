@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -31,7 +8,7 @@
 namespace DevDriver
 {
 // A String class that stores the string inline with a compile-time maximum size.
-// This class facilitates passing bounded sized C Strings around without dynamic allocation. It has POD semantics
+// This class facilitiates passing bounded sized C Strings around without dynamic allocation. It has POD semantics
 // when copied or passed by value into functions, and can be stored in a vector.
 template<size_t FixedSize>
 class FixedString
@@ -187,6 +164,8 @@ inline uint8 HexDigitToValue(char c)
 {
     // We use a switch case here to get the point across
     // gcc9, clang8, and MSVC all turn this into a lookup table indexing with c (sometimes subtracting from it first)
+    //# There's some potential for speedup here. See issue #205
+
 
     switch (c)
     {

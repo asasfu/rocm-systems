@@ -51,7 +51,7 @@ struct WaitcntList
             mem_unroll = gfx9_construct(wave, isa_map);
         else if(gfxip == 10 || gfxip == 11)
             mem_unroll = gfx10_construct(wave, isa_map);
-        else if(gfxip == 12)
+        else if(gfxip == 12 || gfxip == 13)
             mem_unroll = gfx12_construct(wave, isa_map);
         else
             throw std::runtime_error("Invalid gfxip: " + std::to_string(gfxip));

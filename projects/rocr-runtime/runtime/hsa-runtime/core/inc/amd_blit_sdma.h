@@ -109,6 +109,7 @@ class BlitSdmaBase : public core::Blit {
   virtual bool MulticastSupported() const = 0;
   virtual bool PlatformAtomicSupport() const = 0;
   virtual bool IsGfx1250() const = 0;
+  virtual bool IsGfx1260() const = 0;
 
   /// @brief Maximum byte count a single linear copy packet can describe
   /// (the 30-bit count field, ~1 GiB).  Larger copies are split into multiple
@@ -126,10 +127,6 @@ class BlitSdmaBase : public core::Blit {
                                   core::Signal& prologue_signal,
                                   core::Signal& body_signal) = 0;
 
-  /// @brief Submit epilogue that waits for bodies, then performs GCR writeback,
-  /// end timestamp, and sets out_signal to its final value.
-  /// When body_signals is non-empty, polls each body signal for 0 (non-atomic path).
-  /// When body_signals is empty, polls out_signal for body_complete_value (atomic path).
   virtual hsa_status_t SubmitEpilogue(core::Signal& out_signal,
                                       hsa_signal_value_t body_complete_value,
                                       const std::vector<core::Signal*>& body_signals = {}) = 0;
@@ -237,16 +234,6 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
                                              std::vector<core::Signal*>& dep_signals,
                                              core::Signal& out_signal) override;
 
-  /// @brief Submit a broadcast linear copy command. Copies from a single source
-  /// to multiple destinations using SDMA broadcast packets (2 dsts per packet).
-  /// If the destination count is odd, the last destination uses a regular
-  /// linear copy packet. Large transfers are broken into size-chunked packets.
-  ///
-  /// @param dsts Vector of destination memory addresses.
-  /// @param src Memory address of the copy source.
-  /// @param size Size of the data to be copied to each destination.
-  /// @param dep_signals Arrays of dependent signal.
-  /// @param out_signal Output signal.
   hsa_status_t SubmitLinearCopyBroadcastCommand(
       const std::vector<void*>& dsts, const void* src, size_t size,
       std::vector<core::Signal*>& dep_signals,
@@ -283,6 +270,7 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
   size_t MaxSingleLinearCopySize() const override {
     return max_single_linear_copy_size_ ? max_single_linear_copy_size_ : kMaxSingleCopySize;
   }
+  bool IsGfx1260() const override { return is_gfx1260_; }
 
   hsa_status_t SubmitPrologue(const std::vector<core::Signal*>& dep_signals,
                               core::Signal& out_signal,
@@ -511,6 +499,7 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
   static const uint32_t poll_64b_command_size_;
 
   uint32_t gcr_command_size();
+  uint32_t linear_copy_command_size();
 
   // Max copy size of a single linear copy command packet.
   size_t max_single_linear_copy_size_;
@@ -557,6 +546,10 @@ template <bool useGCR, bool scopeFields> class BlitSdma : public BlitSdmaBase {
 
   /// True for gfx1250 (major=12 minor=5): multicast, wait/signal packets, 64b poll/fence.
   bool is_gfx1250_;
+
+  /// True for gfx1260 (major=12 minor=6): same features as gfx1250 plus separate
+  /// COUNT_A/COUNT_B in swap packets and 256-byte ADDR_B alignment.
+  bool is_gfx1260_;
 
   /// True if SDMA supports linear swap copy (gfx94X+).
   bool swap_supported_;

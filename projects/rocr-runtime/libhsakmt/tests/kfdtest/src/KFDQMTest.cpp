@@ -739,17 +739,38 @@ void KFDQMTest::OverSubscribeCpQueues(int gpuNode) {
     for (unsigned int qidx = 0; qidx < MAX_CP_QUEUES; ++qidx)
         queues[qidx].SubmitPacket();
 
-    // Delaying in order to get all the results
-    if(g_IsEmuMode) {
-        LOG() << "Emulation mode detected, delaying for 1 min to allow all packets to be processed." << std::endl;
-        Delay(60000);
-    } else {
-        LOG() << "Delaying for 5 seconds to allow all packets to be processed." << std::endl;
-        Delay(5000);
-    }
+    // Poll until every queue has consumed all its packets, or until the
+    // timeout (g_TestTimeOut ms, tunable via --timeout and scaled for
+    // emulation mode) elapses. This avoids a fixed worst-case delay.
+    const HSAuint64 timeoutMs = g_TestTimeOut;
+    const unsigned int pollIntervalMs = 100;
+    const HSAuint64 startTime = GetSystemTickCountInMicroSec();
 
+    LOG() << std::dec << "Polling up to " << timeoutMs
+          << " ms for all packets to be processed." << std::endl;
+
+    bool allDone;
+    do {
+        allDone = true;
+        for (unsigned int qidx = 0; qidx < MAX_CP_QUEUES; ++qidx) {
+            if (!queues[qidx].AllPacketsSubmitted()) {
+                allDone = false;
+                break;
+            }
+        }
+        if (allDone)
+            break;
+        Delay(pollIntervalMs);
+    } while ((GetSystemTickCountInMicroSec() - startTime) / 1000 < timeoutMs);
+
+    // Final check so any queue that never drained is reported individually,
+    // including how far its read pointer got relative to the write pointer.
     for (unsigned int qidx = 0; qidx < MAX_CP_QUEUES; ++qidx)
-        EXPECT_TRUE_GPU(queues[qidx].AllPacketsSubmitted(), gpuNode)<< "QueueId=" << qidx;;
+        EXPECT_TRUE_GPU(queues[qidx].AllPacketsSubmitted(), gpuNode)
+            << "QueueId=" << qidx
+            << " HwQueueId=" << queues[qidx].GetResource()->QueueId
+            << " wptr=" << *queues[qidx].GetResource()->Queue_write_ptr
+            << " rptr=" << *queues[qidx].GetResource()->Queue_read_ptr;
 
     for (unsigned int qidx = 0; qidx < MAX_CP_QUEUES; ++qidx)
         EXPECT_SUCCESS_GPU(queues[qidx].Destroy(), gpuNode);
@@ -1329,7 +1350,7 @@ void KFDQMTest::extendedCuMasking(int gpuNode) {
 
             // Flip bits and count inactive
             for (int i = 0; i < maskNumDwords; i++) {
-                inactiveMask[i] = ~inactiveMask[i];
+                inactiveMask[i] = ~inactiveMask[i] & mask[i];
                 inactiveCount += __builtin_popcount(inactiveMask[i]);
             }
 

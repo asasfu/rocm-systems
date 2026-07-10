@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palLib.h
@@ -35,8 +12,19 @@
 #include "palSysMemory.h"
 #include "palDbgPrint.h"
 
+#if PAL_CLIENT_DX
+typedef struct _D3DDDI_ADAPTERCALLBACKS DxRtAdapterCallbacks;
+#endif
+
 /* PAL_INTERFACE_MAJOR_VERSION and the version table have moved to inc/util/palVersion.h!
 
+ # The below fake define is a hack to make LLPC work. LLPC's cmake code directly scrapes palLib.h's definition of
+ # PAL_INTERFACE_MAJOR_VERSION which is a problem because that cmake code won't run the C preprocessor before doing the
+ # scraping. That means it's impossible for PAL to safely deprecate anything that any client scrapes in this way. Thus
+ # it must be illegal for any client to do this and they must instead add cmake function to PAL which implement whatever
+ # functionality they need. We already have the pal_get_current_pal_interface_major_version just for this. Anyway,
+ # this hack has to stay here until 26.10 is the oldest branch PAL supports.
+#define PAL_INTERFACE_MAJOR_VERSION 974
 */
 
 namespace Pal
@@ -52,10 +40,16 @@ enum class NullGpuId : uint32
     Navi10,        ///< 10.1.0
     Navi12,        ///< 10.1.1
     Navi14,        ///< 10.1.2
+#if PAL_BUILD_NAVI21_LITE
+    Navi21Lite,    ///< 10.2.0 but we treat it as 10.3.0
+#endif
     Navi21,        ///< 10.3.0
     Navi22,        ///< 10.3.1
     Navi23,        ///< 10.3.2
     Navi24,        ///< 10.3.4
+#if PAL_BUILD_VAN_GOGH
+    VanGogh,       ///< 10.3.3
+#endif
     Rembrandt,     ///< 10.3.5
     Raphael,       ///< 10.3.6
     Navi31,        ///< 11.0.0
@@ -64,12 +58,45 @@ enum class NullGpuId : uint32
     Phoenix1,      ///< 11.0.3
     Phoenix2,      ///< 11.0.3
     Strix1,        ///< 11.5.0
+#if PAL_BUILD_GORGON_POINT1
+    GorgonPoint1,  ///< 11.5.0
+#endif
     StrixHalo,     ///< 11.5.1
     Krackan1,      ///< 11.5.2
+#if PAL_BUILD_GORGON_POINT2
+    GorgonPoint2,  ///< 11.5.2
+#endif
     Krackan2,      ///< 11.5.3
+#if PAL_BUILD_MEDUSA1
+#if PAL_CLOSED_SOURCE
+    Medusa1_A0,    ///< 11.5.FFFE
+#endif
+    Medusa1,       ///< 11.7.0
+#endif
+#if PAL_BUILD_MEDUSA2
+    Medusa2,       ///< 11.7.1
+#endif
+#if PAL_BUILD_MEDUSA3
+    Medusa3,       ///< 11.7.2
+#endif
+#if PAL_BUILD_GAINSBOROUGH
+    Gainsborough,  ///< 11.5.FFFC
+#endif
     Navi44,        ///< 12.0.0
     Navi48,        ///< 12.0.1
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 958
+#if PAL_BUILD_ALPHA_TRION1
+    AlphaTrion1,   ///< 13.0.1
+#endif
+#endif  // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 958
+#if PAL_BUILD_ALPHA_TRION2
+    AlphaTrion2,   ///< 13.1.0
+#endif
+#if PAL_BUILD_AT_LITE3
+    AtLite3,       ///< 13.1.65535
+#endif
+#if PAL_BUILD_GRIMLOCK1
+    Grimlock1,     ///< 13.7.0
 #endif
     Max,           ///< The maximum count of null devices.
     All,           ///< If you want to enumerate all null devices.
@@ -89,7 +116,19 @@ enum class GfxIpLevel : uint32
     GfxIp10_3,     ///< GFXIP 10.3 (Navi2x, Rembrandt, Raphael, Mendocino)
     GfxIp11_0,     ///< GFXIP 11.0 (Navi3x, Phoenix)
     GfxIp11_5,     ///< GFXIP 11.5 (Strix)
+#if (PAL_BUILD_MEDUSA1 || PAL_BUILD_MEDUSA2 || PAL_BUILD_MEDUSA3)
+    GfxIp11_7,     ///< GFXIP 11.7 (Medusa)
+#endif
     GfxIp12,       ///< GFXIP 12.0 (Navi4x)
+#if PAL_BUILD_GFX13
+    GfxIp13,       ///< GFXIP 13.0 (AT)
+#if PAL_BUILD_ALPHA_TRION2
+    GfxIp13_1,     ///< GFXIP 13.1 (AT)
+#endif
+#if PAL_BUILD_GRIMLOCK1
+    GfxIp13_7,     ///< GFXIP 13.7 (GLK, AT)
+#endif
+#endif // PAL_BUILD_GFX13
 };
 
 /// Specifies the hardware revision. Some AMD tools hard-code these values so we cannot change them. New ASICs should
@@ -104,6 +143,12 @@ enum class AsicRevision : uint32
     Navi22           = 0x25, ///< 10.3.1
     Navi23           = 0x26, ///< 10.3.2
     Navi24           = 0x27, ///< 10.3.4
+#if PAL_BUILD_NAVI21_LITE
+    Navi21Lite       = 0x28, ///< 10.2.0, but we treat it as 10.3.
+#endif
+#if PAL_BUILD_VAN_GOGH
+    VanGogh          = 0x29, ///< 10.3.3
+#endif
     Navi31           = 0x2C, ///< 11.0.0
     Navi32           = 0x2D, ///< 11.0.1
     Navi33           = 0x2E, ///< 11.0.2
@@ -119,6 +164,43 @@ enum class AsicRevision : uint32
     Navi44           = 0x3D, ///< 12.0.0
     Navi48           = 0x3E, ///< 12.0.1
     Krackan2         = 0x3F, ///< 11.5.3
+#if PAL_BUILD_AT_LITE3
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 958
+    AlphaTrion1      = 0x40, ///< 13.0.x
+#else
+    AlphaTrionX      = 0x40, ///< 13.0.x
+#endif  // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 958
+#endif
+#if PAL_BUILD_MEDUSA1
+#if PAL_CLOSED_SOURCE
+    Medusa1_A0       = 0x41, ///< 11.5.FFFE
+#endif
+    Medusa1          = 0x42, ///< 11.7.0
+#endif
+#if PAL_BUILD_MEDUSA2
+    Medusa2          = 0x43, ///< 11.7.1
+#endif
+#if PAL_BUILD_MEDUSA3
+    Medusa3          = 0x44, ///< 11.7.2
+#endif
+#if PAL_BUILD_GORGON_POINT1
+    GorgonPoint1     = 0x45, ///< 11.5.0
+#endif
+#if PAL_BUILD_GORGON_POINT2
+    GorgonPoint2     = 0x46, ///< 11.5.2
+#endif
+#if PAL_BUILD_GAINSBOROUGH
+    Gainsborough     = 0x47, ///< 11.5.FFFC
+#endif
+#if PAL_BUILD_GORGON_HALO
+    GorgonHalo       = 0x48, ///< 11.5.1
+#endif
+#if PAL_BUILD_ALPHA_TRION2
+    AlphaTrion2      = 0x49, ///< 13.1.x
+#endif
+#if PAL_BUILD_GRIMLOCK1
+    Grimlock1        = 0x4B, ///< 13.7.x
+#endif
 };
 
 /// Maps a null GPU ID to its associated text name.
@@ -142,6 +224,7 @@ struct GpuInfo
     const char*  pGpuName;    ///< ASIC name and AMDGPU target name (e.g., "NAVI31:gfx1100").
 };
 
+#if PAL_CLIENT_OCL
 /// The client UMD must identify its API using this enum. Some UMD builds may implement multiple APIs so they must
 /// specify which API they're implementing at runtime. Note that the PAL_CLIENT macros are the preferred way to
 /// implement client-specific behavior; runtime ClientApi checks should only be used when necessary.
@@ -150,6 +233,7 @@ enum class ClientApi : uint32
     OpenCl,
     Hip
 };
+#endif
 
 /// Specifies properties for @ref IPlatform creation. Input structure to Pal::CreatePlatform().
 struct PlatformCreateInfo
@@ -197,7 +281,13 @@ struct PlatformCreateInfo
         uint32 u32All;                                  ///< Flags packed as 32-bit uint.
     } flags;                                            ///< Platform-wide creation flags.
 
+#if PAL_CLIENT_DX
+    DxRuntimeHandle              hDxRtAdapter;          ///< DX rumtime adapter handle.
+    const DxRtAdapterCallbacks*  pDxRtAdapterCallbacks; ///< DX runtime adapter callbacks.
+#endif
+#if PAL_CLIENT_OCL
     ClientApi clientApiId; ///< Client API ID.
+#endif
     NullGpuId nullGpuId;   ///< ID for the null device. Ignored unless the above flags.createNullDevice bit is set.
     uint16    apiMajorVer; ///< Major API version number to be used by RGP. Should be set by client based on their
                            ///  contract with RGP.
@@ -374,7 +464,7 @@ inline Result PAL_STDCALL GetGpuInfoForAsicRevision(
  *
  * After a successful call to CreatePlatform(), the client should call @ref IPlatform::EnumerateDevices() in order to
  * get a list of supported devices attached to the system.  This function returns an array of @ref IDevice objects
- * which are used by the client to query properties of the devices and eventually execute work on those devices.
+ * which are used by the client to query properties of the devicess and eventually execute work on those devices.
  * IPlatform::EnumerateDevices() is not available to util-only clients (PAL_BUILD_CORE=0).
  *
  * The client may re-enumerate devices at any time by calling IPlatform::EnumerateDevices().  The client must make sure
@@ -404,5 +494,72 @@ inline Result PAL_STDCALL GetGpuInfoForAsicRevision(
  * Note that Cleanup() doesn't destroy the device; it will return to its initial state, as if it was newly enumerated.
  ***********************************************************************************************************************
  */
+#if PAL_CLOSED_SOURCE
+/**
+ ***********************************************************************************************************************
+ * @page Build Building PAL
+ *
+ * Client-Integrated Builds
+ * ------------------------
+ * PAL is a _source deliverable_.  Clients will periodically promote PAL's source from //depot/stg/pal_prm into their
+ * own tree and build a static pal.lib as part of their build process.  This process matches what is done for other
+ * shared components in our driver stack such as SC, AddrLib, and VAM.
+ *
+ * ### Internal Pipeline Compiler Component
+ *
+ *  PAL is delivered alongside a module which can compile pipeline binaries in ELF format.  This module, named SCPC, is
+ *  based on the AMD proprietary shader compiler (SC).  The following build options in PAL are used to control how SCPC
+ *  is included in the PAL build.
+ *
+ *      __PAL_BUILD_SCPC__: Defaults to 1.  Controls whether or not the SCPC component is built as part of the PAL
+ *      build.  Clients should only change this to zero if they are using something besides SCPC for compiling their
+ *      pipeline binaries.
+ *
+ * ### External Shader Compiler
+ * PAL must be linked with an SC library built by the client.  The client must specify the location of the SC interface
+ * header files with this build parameter:
+ *
+ * + __PAL_SC_DIR__: Root of SC source (PAL will include headers from both the Interface and IL/inc subdirectories).
+ *
+ * The client is responsible for providing a version of the SC library that is compatible with PAL.  PAL will fail to
+ * build if SC's major interface version isn't supported.  Since PAL handles all interaction with SC, PAL is responsible
+ * for defining the SC_CLIENT_INTERFACE_MAJOR_VERSION variable on behalf of the client.
+ *
+ * ### Build Options
+ * The following build options control PAL's behavior, and can be set as desired by the client:
+ *
+ * + __Required__:
+ *     - __PAL_SC_DIR__: As described above.
+ * + __Optional__:
+ *     - __PAL_CLOSED_SOURCE__: Defaults to 1.  Set to 0 to build only open source-able code.
+ * @cond PAL_CLOSED_SOURCE
+ *     - __Client-type specifier__.  These build flags are used to tell PAL which client it is being built for, and will
+ *       allow compile-time selection of execution path or optimizations based on removing features that aren't needed
+ *       by a particular client.  Current choices (only one of these may be set):
+ *         * __PAL_CLIENT_VULKAN__: Set to 1 for the Vulkan ICD.
+ *         * __PAL_CLIENT_DX9__:  Set to 1 for the DX9 user mode driver.
+ *         * __PAL_CLIENT_DX11__: Set to 1 for the DX11 user mode driver.
+ *         * __PAL_CLIENT_DX12__: Set to 1 for the DX12 user mode driver.
+ * @endcond
+ *     - __PAL_BUILD_CORE__: Defaults to 1.  Set to 0 to build only the PAL utility companion functionality (only the
+ *       Util namespace will be usable).
+ *     - The following build options allow specific IP support to be explicitly included or excluded:
+ *         + __PAL_BUILD_GFX9__: Defaults to 1.  Set to 0 to exclude support for GFXIP 9 layer.
+  *     - __PAL_ENABLE_PRINTS_ASSERTS__: Enables debug printing and assertions.  Even if enabled at build time, debug
+ *       prints and asserts can be filtered based on category/severity via runtime setting.  Defaults to 1 on debug
+ *       builds.
+ *     - __PAL_MEMTRACK__: Enables memory leak and buffer overrun tracking.  Defaults to 1 on debug builds if debug
+ *       prints are also enabled.  A report of leaked memory will be printed during IPlatform::Destroy().
+ *     - __PAL_DEVELOPER_BUILD__: Defaults to 0. If 1, enables developer-specific interfaces for development purposes.
+ *
+ * @note Some Util functionality is inline/macro based, and therefore the appropriate defines must be set when building
+ *       client files that include PAL headers.  In particular, PAL_MEMTRACK and PAL_ENABLE_PRINTS_ASSERTS are used in
+ *       palAssert.h and palSysMemory.h, and must match the setting used when building PAL even when included outside
+ *       of the PAL library.
+ *
+ * Next: @ref UtilOverview
+ ***********************************************************************************************************************
+ */
+#endif
 
 } // Pal

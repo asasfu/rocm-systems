@@ -43,6 +43,7 @@ CUmemAllocationHandleType ncclCuMemHandleType = CU_MEM_HANDLE_TYPE_POSIX_FILE_DE
 static int ncclCuMemSupported = 0;
 
 #define KERNEL_VERSION_CODE(major, minor) ((major << 16) | (minor << 8))
+#define RCCL_CUMEM_MIN_HIP_VERSION 70200000
 
 static int ncclGetKernelVersionCode() {
   struct utsname u;
@@ -117,6 +118,7 @@ int ncclCuMemHostEnable() {
   ncclResult_t ret = ncclSuccess;
   int cudaDriverVersion;
   int paramValue = -1;
+  int cudaDev;
   CUDACHECKGOTO(cudaDriverGetVersion(&cudaDriverVersion), ret, error);
   if (!NCCL_CUMEM_HOST_VERSION_SUPPORTED(cudaDriverVersion)) {
     ncclCumemHostEnable = 0;
@@ -130,7 +132,6 @@ int ncclCuMemHostEnable() {
     if (ncclCumemHostEnable) {
       // Verify that host allocations actually work.  Docker in particular is known to disable "get_mempolicy",
       // causing such allocations to fail (this can be fixed by invoking Docker with "--cap-add SYS_NICE").
-      int cudaDev;
       CUdevice currentDev;
       int cpuNumaNodeId = -1;
       CUmemAllocationProp prop = {};

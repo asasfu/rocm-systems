@@ -1198,7 +1198,6 @@ void GraphExec::FindStreamsReqPerDevForSegments() {
 
     if (graphExec != this && graphExec->instantiateDeviceId_ == -1) {
       graphExec->instantiateDeviceId_ = instantiateDeviceId_;
-      static_cast<amd::ReferenceCountedObject*>(g_devices[instantiateDeviceId_])->retain();
     }
 
     for (const auto& [level, segment_ids] : graphExec->segments_per_level_) {
@@ -1527,7 +1526,6 @@ hipError_t GraphExec::Init() {
     }
   }
 
-  static_cast<ReferenceCountedObject*>(hip::getCurrentDevice())->retain();
   return status;
 }
 
@@ -1822,11 +1820,8 @@ hipError_t GraphExec::CaptureAndFormPacketsForGraph() {
       if (childGraphExec != nullptr) {
         // Propagate instantiation device ID so BuildSyncPlan can
         // access the device for barrier packet creation.
-        // Retain balances the release in ~Graph destructor.
         if (childGraphExec->instantiateDeviceId_ == -1) {
           childGraphExec->instantiateDeviceId_ = instantiateDeviceId_;
-          static_cast<amd::ReferenceCountedObject*>(
-              g_devices[instantiateDeviceId_])->retain();
         }
 
         // Child graphs share the same kernel arg manager as parent

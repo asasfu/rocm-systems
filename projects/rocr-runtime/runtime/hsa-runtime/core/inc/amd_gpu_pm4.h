@@ -45,6 +45,7 @@
 
  // clang-format off
 
+// drivers/gpu/drm/amd/amdkfd/kfd_pm4_opcodes.h
 #define PM4_HDR_IT_OPCODE_NOP                             0x10U
 #define PM4_HDR_IT_OPCODE_INDIRECT_BUFFER                 0x3FU
 #define PM4_HDR_IT_OPCODE_RELEASE_MEM                     0x49U
@@ -56,6 +57,9 @@
 #define PM4_HDR_IT_OPCODE_WAIT_REG_MEM                    0x3CU
 #define PM4_HDR_IT_OPCODE_COPY_DATA                       0x40U
 #define PM4_HDR_IT_OPCODE_DMA_DATA                        0x50U
+#ifdef AMD_NPI_ONLY
+#define PM4_HDR_IT_OPCODE_SET_SH_REG                      0x76U
+#endif
 
 #define PM4_HDR_SHADER_TYPE(x)                            (((x) & 0x1U) << 1)
 #define PM4_HDR_IT_OPCODE(x)                              (((x) & 0xFFU) << 8)
@@ -95,6 +99,14 @@
 
 #define PM4_ATOMIC_MEM_DW1_ATOMIC(x)                       (((x) & 0x7FU) << 0)
 #  define PM4_ATOMIC_MEM_GL2_OP_ATOMIC_SWAP_RTN_64         (39U << 0)
+// COMMAND field: bits 11:8 of DW1 (first DW after header)
+#define PM4_ATOMIC_MEM_DW1_COMMAND(x)                      (((x) & 0xFU) << 8)
+// SCOPE field: bits 24:23 of DW1 — MI450+ only (earlier ASICs ignore these bits)
+#define PM4_ATOMIC_MEM_DW1_SCOPE(x)                        (((x) & 0x3U) << 23)
+#  define PM4_ATOMIC_MEM_SCOPE_CU                          0U
+#  define PM4_ATOMIC_MEM_SCOPE_SE                          1U
+#  define PM4_ATOMIC_MEM_SCOPE_DEV                         2U
+#  define PM4_ATOMIC_MEM_SCOPE_SYS                         3U
 #define PM4_ATOMIC_MEM_DW2_ADDR_LO(x)                      (((x) & 0xFFFFFFF8U) << 0)
 #define PM4_ATOMIC_MEM_DW3_ADDR_HI(x)                      (((x) & 0xFFFFFFFFU) << 0)
 #define PM4_ATOMIC_MEM_DW4_SRC_DATA_LO(x)                  (((x) & 0xFFFFFFFFU) << 0)
@@ -141,6 +153,14 @@
 #define PM4_WRITE_DATA_DW2_DST_MEM_ADDR_LO(x)          (((x) & 0xFFFFFFFCU) << 0)
 #define PM4_WRITE_DATA_DW3_DST_MEM_ADDR_HI(x)          (((x) & 0xFFFFFFFFU) << 0)
 #define PM4_WRITE_DATA_DW4_DATA(x)                     (((x) & 0xFFFFFFFFU) << 0)
+
+#ifdef AMD_NPI_ONLY
+#define PM4_SET_SH_REG_DW1(x)                          (((x) & 0xFFFFFFFFU) << 0)
+#   define PM4_SET_SH_REG_DW1_REG_OFFSET(x)            (((x) & 0xFFFFU) << 0)
+#   define PM4_SET_SH_REG_DW1_VMID_SHIFT(x)            (((x) & 0x1FU) << 23)
+#   define PM4_SET_SH_REG_DW1_INDEX(x)                 (((x) & 0xFU) << 28)
+#define PM4_SET_SH_REG_DW2_DATA(x)                     (((x) & 0xFFFFFFFFU) << 0)
+#endif
 
 // clang-format on
 

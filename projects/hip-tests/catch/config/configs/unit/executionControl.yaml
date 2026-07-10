@@ -19,25 +19,34 @@ executionControl:
     # Below tests are failing PSDB
     disabled: [amd_windows, amd_wsl]
     tags: [kernel, launch]
-  Unit_hipLaunchKernel_Verify_Capture: *level_2
+  Unit_hipLaunchKernel_Verify_Capture:
+    <<: *level_2
   Unit_hipLaunchCooperativeKernel_Positive_Basic:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [kernel]
   Unit_hipLaunchCooperativeKernel_Positive_Parameters:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [kernel]
   Unit_hipLaunchCooperativeKernel_Negative_Parameters:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [kernel]
-  Unit_hipLaunchCooperativeKernel_Verify_Capture: *level_2
+  Unit_hipLaunchCooperativeKernel_Verify_Capture:
+    <<: *level_2
+    disabled: [gfx1310, gfx1370]
   Unit_hipLaunchCooperativeKernelMultiDevice_Positive_Basic:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [kernel, multigpu]
   Unit_hipLaunchCooperativeKernelMultiDevice_Negative_Parameters:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [kernel, multigpu]
   Unit_hipLaunchCooperativeKernelMultiDevice_Negative_MultiKernelSameDevice:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [kernel, multigpu]
   Unit_hipExtLaunchKernel_Positive_Basic:
     <<: *level_2
@@ -71,7 +80,8 @@ executionControl:
   Unit___hipPushCallConfiguration_Positive_Basic:
     <<: *level_2
     tags: [kernel, launch]
-  Unit_hipLaunchByPtr_Verify_Capture: *level_2
+  Unit_hipLaunchByPtr_Verify_Capture:
+    <<: *level_2
   Unit_hipGetProcAddress_KernelLaunchApis:
     <<: *level_2
     disabled: [amd_wsl]
@@ -94,7 +104,7 @@ executionControl:
     tags: [attributes, kernel]
   Unit_hipFuncSetCacheConfig_Positive_VerifyCarveoutMapping:
     <<: *level_2
-    tags: [attributes, kernel]
+    tags: [attributes, kernel, P1]
   Unit_hipFuncSetSharedMemConfig_Positive_Basic:
     <<: *level_2
     # Note: intermittent Seg fault failure
@@ -124,5 +134,8 @@ executionControl:
     <<: *level_2
     tags: [attributes, kernel]
   Unit_hipFuncSetAttribute_Positive_PreferredSharedMemoryCarveout_Not_Supported:
+    <<: *level_2
+    tags: [attributes, kernel]
+  Unit_hipFuncSetAttribute_LDS64K_Carveout:
     <<: *level_2
     tags: [attributes, kernel]

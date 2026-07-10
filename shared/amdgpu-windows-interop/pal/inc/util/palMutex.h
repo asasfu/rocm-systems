@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palMutex.h
@@ -145,7 +122,7 @@ public:
     /// Defines RWLockData as a Windows RWLOCK
     typedef SRWLOCK RWLockData;
     RWLock() noexcept : m_osRWLock {} { InitializeSRWLock(&m_osRWLock); }
-    ~RWLock() noexcept { /* No Win32 destroy function */ };
+    ~RWLock() noexcept { /* No Win32 destory function */ };
 #else
     /// Defines RWLockData as a unix pthread_rwlock_t
     typedef pthread_rwlock_t  RWLockData;
@@ -255,6 +232,7 @@ private:
 /// Yields the current thread to another thread in the ready state (if available).
 extern void YieldThread();
 
+
 /// Atomic write of 64-bit unsigned integer, using a relaxed memory ordering policy.
 /// If you need to synchronize more than just pTarget, you may need a new function.
 ///
@@ -262,6 +240,7 @@ extern void YieldThread();
 ///
 /// @returns The original value of *pTarget.
 extern void AtomicWriteRelaxed64(volatile uint64* pTarget, uint64 newValue);
+
 
 /// Atomic read of 64-bit unsigned integer, using a relaxed memory ordering policy.
 /// If you need to synchronize more than just pTarget, you may need a new function.

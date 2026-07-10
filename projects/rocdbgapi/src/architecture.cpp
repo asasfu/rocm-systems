@@ -6203,6 +6203,36 @@ public:
   }
 };
 
+class gfx1170_t final : public gfx11_architecture_t
+{
+public:
+  gfx1170_t ()
+    : gfx11_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX1170,
+                            "amdgcn-amd-amdhsa--gfx1170")
+  {
+  }
+};
+
+class gfx1171_t final : public gfx11_architecture_t
+{
+public:
+  gfx1171_t ()
+    : gfx11_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX1171,
+                            "amdgcn-amd-amdhsa--gfx1171")
+  {
+  }
+};
+
+class gfx1172_t final : public gfx11_architecture_t
+{
+public:
+  gfx1172_t ()
+    : gfx11_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX1172,
+                            "amdgcn-amd-amdhsa--gfx1172")
+  {
+  }
+};
+
 class gfx12_architecture_t : public gfx11_architecture_t
 {
 private:
@@ -8325,6 +8355,16 @@ public:
   }
 };
 
+class gfx1251_t final : public gfx12_5_architecture_t
+{
+public:
+  gfx1251_t ()
+    : gfx12_5_architecture_t (EF_AMDGPU_MACH_AMDGCN_GFX1251,
+                              "amdgcn-amd-amdhsa--gfx1251")
+  {
+  }
+};
+
 architecture_t::architecture_t (elf_amdgpu_machine_t e_machine,
                                 std::string target_triple)
   : m_architecture_id (
@@ -8510,10 +8550,14 @@ decltype (architecture_t::s_architecture_map)
       map.emplace (make_architecture<gfx1151_t> ());
       map.emplace (make_architecture<gfx1152_t> ());
       map.emplace (make_architecture<gfx1153_t> ());
+      map.emplace (make_architecture<gfx1170_t> ());
+      map.emplace (make_architecture<gfx1171_t> ());
+      map.emplace (make_architecture<gfx1172_t> ());
       map.emplace (make_architecture<gfx12_generic_t> ());
       map.emplace (make_architecture<gfx1200_t> ());
       map.emplace (make_architecture<gfx1201_t> ());
       map.emplace (make_architecture<gfx1250_t> ());
+      map.emplace (make_architecture<gfx1251_t> ());
       return map;
     }()
   };

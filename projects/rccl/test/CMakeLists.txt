@@ -4,8 +4,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 if(BUILD_TESTS)
-
-  option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
+option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
   option(ENABLE_MPI_TESTS "Enable MPI-based tests" OFF)
   option(RCCL_HAS_GIN_IB_PROXY "Build the IB Proxy GIN transport-level tests" OFF)
   option(ENABLE_HOST_API_TESTS "Build the host-API tests" OFF)

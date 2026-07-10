@@ -4,18 +4,22 @@
 
 #include "dxcore_loader.h"
 #include "librocdxg.h"
+#include "hsakmt/hsakmtmodeliface.h"
+
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <ntstatus.h>
 #include <util/os.h>
 
+extern bool hsakmt_use_model;
+
 namespace wsl {
 namespace thunk {
 namespace dxcore {
 
 DxcoreLoader::DxcoreLoader()
-    : dxcore_handle_(nullptr)
+    : library_handle_(nullptr)
     , init_flag_()
     , pfn_D3DKMTCreateAllocation2(nullptr)
     , pfn_D3DKMTDestroyAllocation2(nullptr)
@@ -55,28 +59,34 @@ DxcoreLoader::DxcoreLoader()
     , pfn_D3DKMTOpenResource(nullptr) {
 }
 
-DxcoreLoader::~DxcoreLoader() {
-    Shutdown();
-}
+DxcoreLoader::~DxcoreLoader() { Shutdown(); }
 
 bool DxcoreLoader::Initialize() {
     std::ignore = rocr::os::DlError(); // Clear error
+
+#if defined(_WIN32)
+    /* Load model library first to get interface functions */
+    if (!rocr::os::GetEnvVar("HSA_MODEL_TOPOLOGY").empty()) {
+        return LoadModelApis();
+    }
+#endif  // defined(_WIN32)
+
 #if defined(__linux__)
-    constexpr std::string_view dxcore_lib_name = "libdxcore.so";
+    library_name_ = "libdxcore.so";
 #else
-    constexpr std::string_view dxcore_lib_name = "Gdi32.dll";
+    library_name_ = "Gdi32.dll";
 #endif
-    dxcore_handle_ = rocr::os::LoadLib(dxcore_lib_name.data());
-    if (!dxcore_handle_) {
-        pr_err("[DxcoreLoader] Cannot load libdxcore.so: %s\n", rocr::os::DlError());
+    library_handle_ = rocr::os::LoadLib(library_name_.c_str());
+    if (!library_handle_) {
+        pr_err("[DxcoreLoader] Cannot load %s: %s\n", library_name_.c_str(), rocr::os::DlError());
         return false;
     }
 
-    pr_info("[DxcoreLoader] libdxcore.so loaded successfully\n");
+    pr_info("[DxcoreLoader] %s loaded successfully\n", library_name_.c_str());
     if (!LoadDxcoreApis()) {
         // If API loading failed, close the handle to indicate failure
-        rocr::os::CloseLib(dxcore_handle_);
-        dxcore_handle_ = nullptr;
+        rocr::os::CloseLib(library_handle_);
+        library_handle_ = nullptr;
         return false;
     }
 
@@ -84,19 +94,103 @@ bool DxcoreLoader::Initialize() {
 }
 
 void DxcoreLoader::Shutdown() {
-    if (dxcore_handle_) {
-        if (!rocr::os::CloseLib(dxcore_handle_)) {
-            pr_err("[DxcoreLoader] Cannot unload libdxcore.so: %s\n", rocr::os::DlError());
+    if (library_handle_) {
+        if (!rocr::os::CloseLib(library_handle_)) {
+            pr_err("[DxcoreLoader] Cannot unload %s: %s\n", library_name_.c_str(), rocr::os::DlError());
         } else {
-            pr_info("[DxcoreLoader] libdxcore.so unloaded successfully\n");
+            pr_info("[DxcoreLoader] %s unloaded successfully\n", library_name_.c_str());
         }
-        dxcore_handle_ = nullptr;
+        library_handle_ = nullptr;
+        library_name_.clear();
     }
 }
 
+#if defined(_WIN32)
+bool DxcoreLoader::LoadModelApis() {
+    library_name_ = rocr::os::GetEnvVar("HSA_MODEL_LIB");
+    if (library_name_.empty()) {
+        pr_err("model: HSA_MODEL_LIB environment variable must be set to the FFM model library\n");
+        abort();
+    }
+
+    library_handle_ = rocr::os::LoadLib(library_name_);
+    if (!library_handle_) {
+        pr_err("[DxcoreLoader] Cannot load %s: %s\n", library_name_.c_str(), rocr::os::DlError());
+        abort();
+    }
+
+    auto getter = static_cast<get_hsakmt_model_functions_t>(
+        rocr::os::GetExportAddress(library_handle_, "get_hsakmt_model_functions"));
+    if (!getter) {
+        pr_err("model: Failed to get hsakmt_model_functions\n");
+        return false;
+    }
+
+    auto model_functions = getter();
+    constexpr auto expected_version_major = HSAKMT_MODEL_INTERFACE_VERSION_MAJOR;
+    constexpr auto expected_version_minor = HSAKMT_MODEL_INTERFACE_VERSION_MINOR;
+
+    if (model_functions->version_major != expected_version_major ||
+        model_functions->version_minor < expected_version_minor) {
+        pr_err("[MODEL] FATAL: Major version mismatch (breaking API change)!\n");
+        pr_err("[MODEL]   Model file: %s\n", library_name_.c_str());
+        pr_err("[MODEL]   Model version: %u.%u, expected major %u\n", model_functions->version_major,
+               model_functions->version_minor, expected_version_major);
+        return false;
+    }
+
+// Load all D3DKMT functions
+#define LOAD_MODEL_API(func_name)                                                                  \
+    DXCORE_PFN(func_name) = reinterpret_cast<DXCORE_DEF(func_name)*>(model_functions->func_name);
+
+    LOAD_MODEL_API(D3DKMTCreateAllocation2);
+    LOAD_MODEL_API(D3DKMTDestroyAllocation2);
+    LOAD_MODEL_API(D3DKMTMapGpuVirtualAddress);
+    LOAD_MODEL_API(D3DKMTReserveGpuVirtualAddress);
+    LOAD_MODEL_API(D3DKMTFreeGpuVirtualAddress);
+    LOAD_MODEL_API(D3DKMTCreateDevice);
+    LOAD_MODEL_API(D3DKMTDestroyDevice);
+    LOAD_MODEL_API(D3DKMTEnumAdapters2);
+    LOAD_MODEL_API(D3DKMTEnumAdapters3);
+    LOAD_MODEL_API(D3DKMTQueryAdapterInfo);
+    LOAD_MODEL_API(D3DKMTCreateContextVirtual);
+    LOAD_MODEL_API(D3DKMTDestroyContext);
+    LOAD_MODEL_API(D3DKMTSubmitCommand);
+    LOAD_MODEL_API(D3DKMTCreateSynchronizationObject2);
+    LOAD_MODEL_API(D3DKMTDestroySynchronizationObject);
+    LOAD_MODEL_API(D3DKMTQueryStatistics);
+    LOAD_MODEL_API(D3DKMTEscape);
+    LOAD_MODEL_API(D3DKMTLock2);
+    LOAD_MODEL_API(D3DKMTUnlock2);
+    LOAD_MODEL_API(D3DKMTCreatePagingQueue);
+    LOAD_MODEL_API(D3DKMTDestroyPagingQueue);
+    LOAD_MODEL_API(D3DKMTWaitForSynchronizationObjectFromGpu);
+    LOAD_MODEL_API(D3DKMTSignalSynchronizationObjectFromGpu);
+    LOAD_MODEL_API(D3DKMTWaitForSynchronizationObjectFromCpu);
+    LOAD_MODEL_API(D3DKMTQueryClockCalibration);
+    LOAD_MODEL_API(D3DKMTMakeResident);
+    LOAD_MODEL_API(D3DKMTEvict);
+    LOAD_MODEL_API(D3DKMTShareObjects);
+    LOAD_MODEL_API(D3DKMTQueryResourceInfoFromNtHandle);
+    LOAD_MODEL_API(D3DKMTQueryResourceInfo);
+    LOAD_MODEL_API(D3DKMTOpenResourceFromNtHandle);
+    LOAD_MODEL_API(D3DKMTOpenResource);
+    LOAD_MODEL_API(D3DKMTCreateHwQueue);
+    LOAD_MODEL_API(D3DKMTDestroyHwQueue);
+    LOAD_MODEL_API(D3DKMTSubmitCommandToHwQueue);
+
+#undef LOAD_MODEL_API
+
+    hsakmt_use_model = true;
+
+    pr_info("[DxcoreLoader] All D3DKMT Model APIs loaded successfully\n");
+    return true;
+}
+#endif  // _WIN32
+
 bool DxcoreLoader::LoadDxcoreApis() {
-    if (!dxcore_handle_) {
-        pr_err("[DxcoreLoader] Error: dxcore_handle_ is null\n");
+    if (!library_handle_) {
+        pr_err("[DxcoreLoader] Error: library_handle_ is null\n");
         return false;
     }
 
@@ -104,7 +198,7 @@ bool DxcoreLoader::LoadDxcoreApis() {
 
     // Load all D3DKMT functions
     #define LOAD_DXCORE_API(func_name) \
-        DXCORE_PFN(func_name) = (DXCORE_DEF(func_name)*)rocr::os::GetExportAddress(dxcore_handle_, #func_name); \
+        DXCORE_PFN(func_name) = (DXCORE_DEF(func_name)*)rocr::os::GetExportAddress(library_handle_, #func_name); \
         if (!DXCORE_PFN(func_name)) { \
             pr_err("[DxcoreLoader] Failed to load " #func_name ": %s\n", rocr::os::DlError()); \
             goto ERROR_LOAD; \

@@ -1,0 +1,223 @@
+name: PSDB Trigger
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - amd-npi
+
+jobs:
+  check:
+    runs-on: rocm-ci-runner
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    outputs:
+      pass_psdb_merge_guard: ${{ steps.merge_msg.outputs.pass_psdb_merge_guard }}
+      # True when every changed file is skippable per SKIPPABLE_PATH_PATTERNS in public
+      # https://github.com/ROCm/rocm-systems/blob/develop/.github/scripts/therock_configure_ci.py
+      only_skippable_paths: >-
+        ${{ steps.merge_msg.outputs.pass_psdb_merge_guard == 'true' &&
+        steps.paths.outputs.any_file == 'true' &&
+        steps.paths.outputs.non_skippable != 'true' }}
+    steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: PSDB merge-loop guard ([psdb-merge] commits)
+        id: merge_msg
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          COMMIT_MSG=$(curl -s \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.event.pull_request.head.sha }}" \
+            | jq -r '.commit.message // ""')
+          if [[ "$COMMIT_MSG" == *"[psdb-merge]"* ]]; then
+            echo "pass_psdb_merge_guard=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping - this is a re-trigger from our own merge push"
+          else
+            echo "pass_psdb_merge_guard=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clean workspace
+        run: |
+          set -euo pipefail
+          ws="${GITHUB_WORKSPACE}"
+          sudo rm -rf "${ws:?}"/* "${ws}"/.[!.]* 2>/dev/null || true
+          sudo rm -rf "${ws}/.git" 2>/dev/null || true
+          sudo chown -R "$(id -un):$(id -gn)" "${ws}" 2>/dev/null || true
+
+      - name: Checkout .github/scripts for PSDB path classifier
+        if: steps.merge_msg.outputs.pass_psdb_merge_guard == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: |
+            .github/scripts
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+          token: ${{ steps.generate-token.outputs.token }}
+
+      - name: Classify skippable paths (therock_configure_ci rules)
+        id: paths
+        if: steps.merge_msg.outputs.pass_psdb_merge_guard == 'true'
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          python3 "${GITHUB_WORKSPACE}/.github/scripts/psdb_pr_skippable_paths.py" \
+            --pr-number "${PR_NUMBER}"
+
+      - name: Post CI Summary for skippable-path-only PRs
+        if: >-
+          steps.merge_msg.outputs.pass_psdb_merge_guard == 'true' &&
+          steps.paths.outputs.any_file == 'true' &&
+          steps.paths.outputs.non_skippable != 'true' &&
+          (!github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'run-psdb'))
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+            -f state=success \
+            -f context="CI Summary" \
+            -f description="PSDB skipped (skippable paths only; see therock_configure_ci SKIPPABLE_PATH_PATTERNS)." \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+  merge-and-trigger:
+    needs: check
+    if: >-
+      needs.check.outputs.pass_psdb_merge_guard == 'true' &&
+      needs.check.outputs.only_skippable_paths != 'true' &&
+      (!github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'run-psdb'))
+    runs-on: rocm-ci-runner
+    env:
+      INTERNAL_ORG: ${{ secrets.INTERNAL_ORG }}
+      INTERNAL_NPI_REPO: ${{ secrets.INTERNAL_NPI_REPO }}
+    steps:
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Generate GitHub App token for rocm-npi-dev
+        id: generate-token-rocm-npi-dev
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID_ROCM_NPI_DEV }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY_ROCM_NPI_DEV }}
+          owner: ${{ secrets.INTERNAL_ORG }}
+          repositories: ${{ secrets.INTERNAL_NPI_REPO }}
+
+      - name: Cleanup workspace
+        run: |
+          set -euo pipefail
+          ws="${GITHUB_WORKSPACE}"
+          sudo rm -rf "${ws:?}"/* "${ws}"/.[!.]* 2>/dev/null || true
+          sudo rm -rf "${ws}/.git" 2>/dev/null || true
+          sudo chown -R "$(id -un):$(id -gn)" "${ws}" 2>/dev/null || true
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          token: ${{ steps.generate-token.outputs.token }}
+
+      - name: Check if base already merged
+        id: check
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          BASE_SHA=$(git rev-parse origin/${{ github.base_ref }})
+          if git merge-base --is-ancestor $BASE_SHA HEAD; then
+            echo "skip_merge=true" >> $GITHUB_OUTPUT
+            echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          else
+            echo "skip_merge=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Merge base branch
+        if: steps.check.outputs.skip_merge != 'true'
+        id: merge
+        run: |
+          if git merge origin/${{ github.base_ref }} --no-edit \
+            -m "Merge ${{ github.base_ref }} into PR #${{ github.event.pull_request.number }} [psdb-merge]"; then
+            echo "merge_success=true" >> $GITHUB_OUTPUT
+            echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          else
+            echo "merge_success=false" >> $GITHUB_OUTPUT
+            git merge --abort || true
+          fi
+
+      - name: Post conflict status
+        if: steps.merge.outputs.merge_success == 'false'
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          gh api repos/${{ github.repository }}/statuses/${{ github.event.pull_request.head.sha }} \
+            -f state=error \
+            -f context="PSDB - rocm-npi-dev" \
+            -f description="Resolve conflicts with ${{ github.base_ref }}"
+          exit 1
+
+      - name: Push merged commit
+        if: steps.check.outputs.skip_merge != 'true' && steps.merge.outputs.merge_success == 'true'
+        run: git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+      - name: Cancel previous PSDB runs
+        if: steps.merge.outputs.merge_success != 'false'
+        env:
+          ROCM_NPI_DEV_GH_TOKEN: ${{ steps.generate-token-rocm-npi-dev.outputs.token }}
+        run: |
+          RUNS=$(curl -s \
+            -H "Authorization: Bearer $ROCM_NPI_DEV_GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ secrets.INTERNAL_ORG }}/${{ secrets.INTERNAL_NPI_REPO }}/actions/runs?status=in_progress" \
+            | jq -r ".workflow_runs[] | select(.name | contains(\"rocm-systems\") and contains(\"PR #${{ github.event.pull_request.number }}\")) | .id")
+
+          QUEUED=$(curl -s \
+            -H "Authorization: Bearer $ROCM_NPI_DEV_GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ secrets.INTERNAL_ORG }}/${{ secrets.INTERNAL_NPI_REPO }}/actions/runs?status=queued" \
+            | jq -r ".workflow_runs[] | select(.name | contains(\"rocm-systems\") and contains(\"PR #${{ github.event.pull_request.number }}\")) | .id")
+
+          for RUN_ID in $RUNS $QUEUED; do
+            if [ -n "$RUN_ID" ]; then
+              echo "Cancelling PSDB run: $RUN_ID"
+              curl -s -X POST \
+                -H "Authorization: Bearer $ROCM_NPI_DEV_GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ secrets.INTERNAL_ORG }}/${{ secrets.INTERNAL_NPI_REPO }}/actions/runs/$RUN_ID/cancel" || true
+            fi
+          done
+
+      - name: Trigger PSDB
+        if: steps.merge.outputs.merge_success != 'false'
+        env:
+          ROCM_NPI_DEV_GH_TOKEN: ${{ steps.generate-token-rocm-npi-dev.outputs.token }}
+        run: |
+          COMMIT="${{ steps.merge.outputs.commit_sha || steps.check.outputs.commit_sha }}"
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $ROCM_NPI_DEV_GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ secrets.INTERNAL_ORG }}/${{ secrets.INTERNAL_NPI_REPO }}/dispatches \
+            -d "{\"event_type\":\"psdb-trigger\",\"client_payload\":{\"org\":\"${{ github.repository_owner }}\",\"repo\":\"rocm-systems\",\"commit\":\"$COMMIT\",\"pr_number\":\"${{ github.event.pull_request.number }}\",\"families\":\"gfx1251,gfx1260,gfx1310,gfx1370\"}}")
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "PSDB triggered successfully (HTTP $HTTP_CODE)"
+          else
+            echo "Failed to trigger PSDB (HTTP $HTTP_CODE)"
+            cat /tmp/response.txt
+            exit 1
+          fi

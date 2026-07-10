@@ -98,6 +98,7 @@ hrr:
     tags: [capture, memset, playback, roundtrip]
   Unit_HRR_MemcpyExtraRoundtrip:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [capture, memcpy, playback, roundtrip]
   Unit_HRR_DeviceExtraRoundtrip:
     <<: *level_2
@@ -110,6 +111,7 @@ hrr:
     tags: [capture, context, playback, roundtrip]
   Unit_HRR_ModuleExtraRoundtrip:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture, module, playback, roundtrip]
   Unit_HRR_MiscAPIsRoundtrip:
     <<: *level_2

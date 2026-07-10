@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palGpaSession.h
@@ -64,6 +41,12 @@ struct SqttFileChunkCpuInfo;
 struct SqttFileChunkAsicInfo;
 struct SqttCodeObjectDatabaseRecord;
 
+#if PAL_WORK_GRAPHS_SUPPORT
+struct SqttWorkGraphTopologyChunk;
+struct SqttWorkGraphNodeRecord;
+struct SqttWorkGraphDependencyRecord;
+#endif
+
 struct GpuMemoryInfo;
 
 namespace GpuUtil
@@ -93,7 +76,7 @@ enum class UpdateSampleTraceMode : Pal::uint32
                                 ///  active sample.
 };
 
-/// Specifies basic type of sample to perform - either a normal set of "global" perf counters, or a trace consisting
+/// Specifies basic type of sample to perfom - either a normal set of "global" perf counters, or a trace consisting
 /// of SQ thread trace and/or streaming performance counters.
 enum class GpaSampleType : Pal::uint32
 {
@@ -292,6 +275,11 @@ struct GpaSampleConfig
                                      ///  not provided, PAL will default to collecting all tokens or tokens except
                                      ///  instruction tokens if the supressInstructionTokens flag is set. Instruction
                                      ///  tokens will always be filtered out if supressInstructionTokens = true.
+#if PAL_BUILD_GFX13
+        Pal::uint32 rtsTokenMask;    ///< Token mask for tokens generated from RTS. See RTS_TRACE_CTRL.TOKEN_MASK
+                                     ///  Set to 0 will disable RTS token generation
+        Pal::uint32 rtsMaxRays;      ///< Log2 rays traced. See RTS_TRACE_CTRL.MAX_RAYS
+#endif
     } sqtt;  ///< SQ thread trace configuration (only valid for _trace_ samples).
 
     struct
@@ -345,7 +333,19 @@ struct RegisterPipelineInfo
 struct RegisterLibraryInfo
 {
     Pal::uint64 apiHash;      ///< Client-provided api hash.
+#if PAL_WORK_GRAPHS_SUPPORT
+    Pal::uint64 apiGraphHash; ///< Client-provided api graph hash.
+#endif
 };
+
+#if PAL_WORK_GRAPHS_SUPPORT
+/// Struct for supplying API-dependent information about programs.
+struct RegisterProgramInfo
+{
+    Pal::uint64 apiEsoHash;   ///< Client-provided ESO hash.
+    Pal::uint64 apiGraphHash; ///< Client-provided API graph hash.
+};
+#endif
 
 /// Struct for supplying Elf binary.
 struct ElfBinaryInfo
@@ -472,7 +472,7 @@ struct QueueTimingsTraceInfo
 *       written, are allocated from internal pools managed by the session.
 *     - A session is moved from the _building_ state to the _complete_ state by calling End().
 *     - The application will submit all command buffers referenced by the session.
-*     - The session is confirmed as _ready_, either using standard PAL fences to confirm all associated submission have
+*     - The session is confirmed as _ready_, either using standard PAL fences to confirm all assocated submission have
 *       completed, or by polling IsReady() on the session.
 *     - Results for all samples in the session can be queried via GetResults().
 *     - Reset() should be called once results have been gathered and before building a new session.  Resources are
@@ -617,6 +617,8 @@ public:
     /// The counter data is still reported per WGP (not aggregated for the whole SE).
     ///
     /// Check the following two documents for details:
+    ///# //gfxip/gfx11/doc/architecture/subsystem/SH/GFX11_SH_perfcounter_users_guide.docx
+    ///# //gfxip/gfx11/doc/architecture/subsystem/SH/GFX11_PerfCtr_per_WGP.docx
     ///
     /// @param [in]  pCmdBuf      Command buffer to issue the begin sample commands.  All operations performed
     ///                           between executing the BeginSample() and EndSample() GPU commands will contribute to
@@ -850,6 +852,17 @@ public:
     ///          + AlreadyExists if a duplicate library is provided.
     Pal::Result RegisterLibrary(const Pal::IShaderLibrary* pLibrary, const RegisterLibraryInfo& clientInfo);
 
+#if PAL_WORK_GRAPHS_SUPPORT
+    /// Register program library with GpaSession for obtaining shader dumps and load events in the RGP file.
+    ///
+    /// @param [in] pLibrary   The PAL library to be tracked.
+    /// @param [in] clientInfo API-dependent information for this library to also be recorded.
+    ///
+    /// @returns Success if the library has been registered with GpaSession successfully.
+    ///          + AlreadyExists if a duplicate library is provided.
+    Pal::Result RegisterProgramLibrary(const Pal::IShaderLibrary* pLibrary, const RegisterLibraryInfo& clientInfo);
+#endif
+
     /// Unregister library with GpaSession for obtaining unload events in the RGP file.
     /// This should be called immediately before destroying the PAL library object.
     ///
@@ -857,6 +870,27 @@ public:
     ///
     /// @returns Success if the library has been unregistered with GpaSession successfully.
     Pal::Result UnregisterLibrary(const Pal::IShaderLibrary* pLibrary);
+
+#if PAL_WORK_GRAPHS_SUPPORT
+    /// Register program with GpaSession for obtaining shader dumps and load events in the RGP file.
+    ///
+    /// @param [in] pProgram   The program to be tracked.
+    /// @param [in] clientInfo  API-dependent information for this program to also be recorded.
+    ///
+    /// @returns Success if the pipeline has been registered with GpaSession successfully.
+    ///          + AlreadyExists if a duplicate program is provided.
+    Pal::Result RegisterProgram(const Pal::IWorkGraph*     pProgram,
+                                const Pal::IGraphLayout*   pGraphLayout,
+                                const RegisterProgramInfo& clientInfo);
+
+    /// Unregister program with GpaSession for obtaining unload events in the RGP file.
+    /// This should be called immediately before destroying the program object.
+    ///
+    /// @param [in] pProgram   The program to be tracked.
+    ///
+    /// @returns Success if the program has been unregistered with GpaSession successfully.
+    Pal::Result UnregisterProgram(const Pal::IWorkGraph* pProgram);
+#endif //PAL_WORK_GRAPHS_SUPPORT
 
     /// Register ELF binary with GpaSession for obtaining kernel dumps and load events in the RGP file.
     ///
@@ -915,6 +949,26 @@ private:
         Pal::uint64        apiPsoHash;
         Pal::PipelineHash  internalPipelineHash;
     };
+
+#if PAL_WORK_GRAPHS_SUPPORT
+    // Represents all information to be contained in one SqttEsoCorrelationRecord
+    struct EsoCorrelationRecord
+    {
+        Pal::uint64         apiEsoHash;
+        Pal::uint64         apiGraphHash;
+        Pal::WorkGraphHash  internalWorkGraphHash;
+    };
+
+    // Represents all information to be contained in one SqttWorkGraphTopology
+    struct WorkGraphTopology
+    {
+        Pal::uint64         apiEsoHash;
+        Pal::uint64         apiGraphHash;
+        Pal::WorkGraphHash  internalWorkGraphHash;
+        Pal::uint32         numNodeRecords;
+        Pal::uint32         numDependencyRecords;
+    };
+#endif
 
     // Registers a single (non-archive) pipeline with the GpaSession. Returns AlreadyExists on duplicate PAL pipeline.
     Pal::Result RegisterSinglePipeline(const Pal::IPipeline* pPipeline, const RegisterPipelineInfo& clientInfo);
@@ -979,6 +1033,15 @@ private:
     // Unique API PSOs registered with this GpaSession.
     Util::HashSet<Pal::uint64, GpaAllocator, Util::JenkinsHashFunc> m_registeredApiHashes;
 
+#if PAL_WORK_GRAPHS_SUPPORT
+    // Unique programs registered with this GpaSession.
+    Util::HashSet<Pal::uint64, GpaAllocator, Util::JenkinsHashFunc> m_registeredPrograms;
+    // Unique API ESO registered with this GpaSession.
+    Util::HashSet<Pal::uint64, GpaAllocator, Util::JenkinsHashFunc> m_registeredProgramsApiHashes;
+    // Unique API graph registered with this GpaSession.
+    Util::HashSet<Pal::uint64, GpaAllocator, Util::JenkinsHashFunc> m_registeredGraphApiHashes;
+#endif
+
     // List of cached pipeline code object records that will be copied to the final database at the end of a trace
     Util::Deque<SqttCodeObjectDatabaseRecord*, GpaAllocator>  m_codeObjectRecordsCache;
     // List of pipeline code object records that were registered during a trace
@@ -994,7 +1057,33 @@ private:
     // List of PSO correlation records that were registered during a trace
     Util::Deque<PsoCorrelationRecord, GpaAllocator>  m_curPsoCorrelationRecords;
 
+#if PAL_WORK_GRAPHS_SUPPORT
+    // List of cached ESO correlation records that will be copied to the final database at the end of a trace
+    Util::Deque<EsoCorrelationRecord, GpaAllocator>  m_esoCorrelationRecordsCache;
+    // List of ESO correlation records that were registered during a trace
+    Util::Deque<EsoCorrelationRecord, GpaAllocator>  m_curEsoCorrelationRecords;
+
+    // List of WorkGraph topology records that will be copied to the final database at the end of a trace
+    Util::Deque<WorkGraphTopology, GpaAllocator>  m_workGraphTopologyRecordsCache;
+    // List of WorkGraph topology records that were registered during a trace
+    Util::Deque<WorkGraphTopology, GpaAllocator>  m_curWorkGraphTopologyRecordsCache;
+
+    // List of WorkGraph node records  that will be copied to the final database at the end of a trace
+    Util::Deque<SqttWorkGraphNodeRecord, GpaAllocator>  m_workGraphNodeRecordsCache;
+    // List of WorkGraph node records that were registered during a trace
+    Util::Deque<SqttWorkGraphNodeRecord, GpaAllocator>  m_curWorkGraphNodeRecordsCache;
+
+    // List of WorkGraph dependency records that will be copied to the final database at the end of a trace
+    Util::Deque<SqttWorkGraphDependencyRecord, GpaAllocator>  m_workGraphDependencyRecordsCache;
+    // List of WorkGraph dependency records that were registered during a trace
+    Util::Deque<SqttWorkGraphDependencyRecord, GpaAllocator>  m_curWorkGraphDependencyRecordsCache;
+#endif //PAL_WORK_GRAPHS_SUPPORT
+
     Util::RWLock m_registerPipelineLock;
+
+#if PAL_WORK_GRAPHS_SUPPORT
+    Util::RWLock m_registerProgramLock;
+#endif
 
     // Event type for timed queue events
     enum class TimedQueueEventType : Pal::uint32
@@ -1160,6 +1249,10 @@ private:
     Pal::Result AddCodeObjectLoadEvent(const Pal::IPipeline* pPipeline, CodeObjectLoadEventType eventType);
     Pal::Result AddCodeObjectLoadEvent(const Pal::IShaderLibrary* pLibrary, CodeObjectLoadEventType eventType);
     Pal::Result AddCodeObjectLoadEvent(const ElfBinaryInfo& elfBinaryInfo, CodeObjectLoadEventType eventType);
+
+#if PAL_WORK_GRAPHS_SUPPORT
+    Pal::Result AddCodeObjectLoadEvent(const Pal::IWorkGraph* pProgram, CodeObjectLoadEventType eventType);
+#endif
 
     // Recycle used Gart rafts and put back to available pool
     void RecycleGartGpuMem();

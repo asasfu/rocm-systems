@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palSysUtil.h
@@ -52,6 +29,12 @@
 #include <winerror.h>
 typedef void* HANDLE;
 #elif defined(__unix__)
+#if PAL_CLIENT_DX
+#ifndef _HRESULT_DEFINED
+typedef signed int HRESULT;
+#define _HRESULT_DEFINED
+#endif
+#endif
 #define PAL_HAS_CPUID (__i386__ || __x86_64__)
 #if PAL_HAS_CPUID
 #include <cpuid.h>
@@ -182,7 +165,7 @@ enum class KeyCode : uint32
 /// Enum to identify possible configurations
 enum class CpuType : uint32
 {
-    Unknown         = 0,                       ///< No capabilities set
+    Unknown         = 0,                       ///< No capabilites set
     AmdK5           = (CpuVendorAmd + 0),      ///< No MMX, no cmov, no 3DNow
     AmdK6           = (CpuVendorAmd + 1),      ///< No MMX, no cmov, 3DNow (models 6 and 7)
     AmdK6_2         = (CpuVendorAmd + 2),      ///< MMX, no cmov, 3DNow (model 8, no HW WC but not part of cpuid)
@@ -197,7 +180,7 @@ enum class CpuType : uint32
     AmdFamily15h    = (CpuVendorAmd + 11),     ///< Family 15h - Orochi, Trinity, Komodo, Kaveri, Basilisk
     AmdFamily16h    = (CpuVendorAmd + 12),     ///< Family 16h - Kabini
     AmdRyzen        = (CpuVendorAmd + 13),     ///< Ryzen
-    IntelOld        = (CpuVendorIntel + 0),    ///< Indicate cpu type before Intel Pentium III
+    IntelOld        = (CpuVendorIntel + 0),    ///< Inidicate cpu type befor Intel Pentium III
     IntelP3         = (CpuVendorIntel + 1),    ///< Generic Pentium III
     IntelP3Model7   = (CpuVendorIntel + 2),    ///< PIII-7, PIII Xeon-7
     IntelP3Model8   = (CpuVendorIntel + 3),    ///< PIII-8, PIII Xeon-8, Celeron-8
@@ -237,7 +220,7 @@ struct SystemInfo
 ///
 /// @param errno_in Value from 'errno' (or functions that return errno_t)
 ///
-/// @returns Relevant Result value for the given errno-- never Success.
+/// @returns Relevent Result value for the given errno-- never Success.
 inline Result ConvertErrno(
     int32 errnoIn)
 {
@@ -286,7 +269,7 @@ inline Result ConvertErrno(
     return result;
 }
 
-#if defined(_WIN32)
+#if defined(_WIN32) || PAL_CLIENT_DX
 /// Helper function to convert Pal::Result to HRESULT
 ///
 /// @param result Pal::Result to convert
@@ -308,7 +291,7 @@ extern Result HResultToPal(HRESULT hr);
 ///
 /// @param errno_in System error code from 'GetLastError'
 ///
-/// @returns Relevant Result value for the given system error code.
+/// @returns Relevent Result value for the given system error code.
 inline Result ConvertWinError(
     uint32 winError)
 {
@@ -413,7 +396,7 @@ constexpr bool IsValidHandle(HANDLE handle)
 #endif
 }
 #endif
-#endif
+#endif // _WIN32
 
 /// Queries system information.
 ///
@@ -785,7 +768,7 @@ inline void CpuId(
 #error "Not implemented for the current platform"
 #endif
 }
-#endif
+#endif // PAL_HAS_CPUID
 
 /// Play beep sound. Currently function implemented only for WIN platform.
 ///

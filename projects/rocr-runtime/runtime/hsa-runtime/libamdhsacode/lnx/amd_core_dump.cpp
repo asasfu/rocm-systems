@@ -63,6 +63,7 @@
 #include "hsakmt/hsakmt.h"
 #include "core/inc/amd_gpu_agent.h"
 #include "core/inc/amd_aql_queue.h"
+#include "core/inc/runtime.h"
 
 constexpr char SNAPSHOT_INFO_ALIGNMENT = 0x8;
 constexpr uint32_t LOAD_ALIGNMENT_SHIFT = 4;

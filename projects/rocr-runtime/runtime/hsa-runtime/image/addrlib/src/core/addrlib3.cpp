@@ -1,7 +1,7 @@
 /*
 ************************************************************************************************************************
 *
-*  Copyright (C) 2007-2022 Advanced Micro Devices, Inc.  All rights reserved.
+*  Copyright (C) 2007-2025 Advanced Micro Devices, Inc. All rights reserved.
 *  SPDX-License-Identifier: MIT
 *
 ***********************************************************************************************************************/
@@ -25,14 +25,6 @@ namespace V3
 {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-//                               Static Const Member
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const Dim2d         Lib::Block256_2d[] = {{16, 16}, {16, 8}, {8, 8}, {8, 4}, {4, 4}};
-
-const ADDR_EXTENT3D Lib::Block1K_3d[]  = {{16, 8, 8}, {8, 8, 8}, {8, 8, 4}, {8, 4, 4}, {4, 4, 4}};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 //                               Constructor/Destructor
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -48,8 +40,6 @@ const ADDR_EXTENT3D Lib::Block1K_3d[]  = {{16, 8, 8}, {8, 8, 8}, {8, 8, 4}, {8, 
 Lib::Lib()
     :
     Addr::Lib(),
-    m_pipesLog2(0),
-    m_pipeInterleaveLog2(0),
     m_numEquations(0)
 {
     Init();
@@ -68,8 +58,6 @@ Lib::Lib(
     const Client* pClient)
     :
     Addr::Lib(pClient),
-    m_pipesLog2(0),
-    m_pipeInterleaveLog2(0),
     m_numEquations(0)
 {
     Init();
@@ -86,12 +74,12 @@ Lib::Lib(
 */
 void Lib::Init()
 {
-    memset(m_equationTable, 0, sizeof(m_equationTable));
+    memset(m_blockDimensionTable, 0, sizeof(m_blockDimensionTable));
 
     // There is no equation table entry for linear, so start at the "next" swizzle mode entry.
     for (UINT_32  swizzleModeIdx = ADDR3_LINEAR + 1; swizzleModeIdx < ADDR3_MAX_TYPE; swizzleModeIdx++)
     {
-        for (UINT_32  msaaRateIdx = 0; msaaRateIdx < MaxMsaaRateLog2; msaaRateIdx++)
+        for (UINT_32  msaaRateIdx = 0; msaaRateIdx < MaxNumMsaaRates; msaaRateIdx++)
         {
             for (UINT_32  log2BytesIdx = 0; log2BytesIdx < MaxElementBytesLog2; log2BytesIdx++)
             {
@@ -133,7 +121,7 @@ Lib* Lib::GetLib(
 {
     Addr::Lib* pAddrLib = Addr::Lib::GetLib(hLib);
 
-    return static_cast<Lib*>(hLib);
+    return static_cast<Lib*>(pAddrLib);
 }
 
 /**
@@ -184,10 +172,12 @@ UINT_32  Lib::GetBlockSizeLog2(
             break;
         case ADDR3_64KB_2D:
         case ADDR3_64KB_3D:
+        case ADDR3_64KB_2D_Z:
             blockSize = 16;
             break;
         case ADDR3_256KB_2D:
         case ADDR3_256KB_3D:
+        case ADDR3_256KB_2D_Z:
             blockSize = 18;
             break;
         case ADDR3_LINEAR:
@@ -274,7 +264,7 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfo(
             // Overwrite these parameters if we have a valid format
         }
 
-        if (localIn.bpp != 0)
+        if (localIn.bpp >= 8)
         {
             localIn.width  = Max(localIn.width, 1u);
             localIn.height = Max(localIn.height, 1u);
@@ -283,6 +273,11 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfo(
         {
             returnCode = ADDR_INVALIDPARAMS;
         }
+    }
+
+    if (returnCode == ADDR_OK)
+    {
+        returnCode = ComputeSurfaceInfoSanityCheck(&localIn);
     }
 
     if (returnCode == ADDR_OK)
@@ -328,7 +323,14 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfo(
                                                          &pOut->pMipInfo[i].pixelHeight);
                     }
                 }
+
+                if (localIn.flags.qbStereo && (pOut->pStereoInfo != NULL))
+                {
+                    ComputeQbStereoInfo(pOut);
+                }
             }
+
+            SetEquationIndex(&localIn, pOut);
         }
     }
 
@@ -340,16 +342,16 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceInfo(
 *   Lib::GetPossibleSwizzleModes
 *
 *   @brief
-*       Interface function stub of AddrComputeSurfaceInfo.
+*       Populates pOut with a list of the possible swizzle modes for the described surface.
 *
 *   @return
 *       ADDR_E_RETURNCODE
 ************************************************************************************************************************
 */
 ADDR_E_RETURNCODE Lib::GetPossibleSwizzleModes(
-     const ADDR3_GET_POSSIBLE_SWIZZLE_MODE_INPUT* pIn,    ///< [in] input structure
-     ADDR3_GET_POSSIBLE_SWIZZLE_MODE_OUTPUT*      pOut    ///< [out] output structure
-     ) const
+    const ADDR3_GET_POSSIBLE_SWIZZLE_MODE_INPUT*  pIn,
+    ADDR3_GET_POSSIBLE_SWIZZLE_MODE_OUTPUT*       pOut
+    ) const
 {
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
@@ -362,129 +364,14 @@ ADDR_E_RETURNCODE Lib::GetPossibleSwizzleModes(
         }
     }
 
+    if ((returnCode == ADDR_OK) && (HwlValidateNonSwModeParams(pIn) == FALSE))
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+
     if (returnCode == ADDR_OK)
     {
-        const ADDR3_SURFACE_FLAGS flags = pIn->flags;
-
-        // VRS images can only be 2D from the client API rules.
-        ADDR_ASSERT((flags.isVrsImage == 0) || IsTex2d(pIn->resourceType));
-
-        if (pIn->bpp == 96)
-        {
-            pOut->validModes.swLinear = 1;
-        }
-        // Depth/Stencil images can't be linear and must be 2D swizzle modes.
-        // These three are related to DB block that supports only SW_64KB_2D and SW_256KB_2D for DSV.
-        else if (flags.depth || flags.stencil)
-        {
-            pOut->validModes.sw2d64kB  = 1;
-            pOut->validModes.sw2d256kB = 1;
-        }
-        // The organization of elements in the hierarchical surface is the same as any other surface, and it can support
-        // any 2D swizzle mode (SW_256_2D, SW_4KB_2D, SW_64KB_2D, or SW_256KB_2D).  The swizzle mode can be selected
-        // orthogonally to the underlying z or stencil surface.
-        else if (pIn->flags.hiZHiS)
-        {
-            pOut->validModes.sw2d256B  = 1;
-            pOut->validModes.sw2d4kB   = 1;
-            pOut->validModes.sw2d64kB  = 1;
-            pOut->validModes.sw2d256kB = 1;
-        }
-        // MSAA can't be linear and must be 2D swizzle modes.
-        else if (pIn->numSamples > 1)
-        {
-            // NOTE: SW_256B_2D still supports MSAA. The removal of 256B for MSAA is reverted in HW Doc.
-            pOut->validModes.sw2d256B  = 1;
-            pOut->validModes.sw2d4kB   = 1;
-            pOut->validModes.sw2d64kB  = 1;
-            pOut->validModes.sw2d256kB = 1;
-        }
-        // Block-compressed images need to be either using 2D or linear swizzle modes.
-        else if (flags.blockCompressed)
-        {
-            pOut->validModes.swLinear = 1;
-
-            // We find cases where Tex3d BlockCompressed image adopts 2D_256B should be prohibited.
-            if (IsTex3d(pIn->resourceType) == FALSE)
-            {
-                pOut->validModes.sw2d256B = 1;
-            }
-            pOut->validModes.sw2d4kB   = 1;
-            pOut->validModes.sw2d64kB  = 1;
-            pOut->validModes.sw2d256kB = 1;
-        }
-        else if (IsTex1d(pIn->resourceType))
-        {
-            pOut->validModes.swLinear  = 1;
-            pOut->validModes.sw2d256B  = 1;
-            pOut->validModes.sw2d4kB   = 1;
-            pOut->validModes.sw2d64kB  = 1;
-            pOut->validModes.sw2d256kB = 1;
-        }
-        else if (flags.nv12 || flags.p010 || IsTex2d(pIn->resourceType) || flags.view3dAs2dArray)
-        {
-            //      NV12 and P010 support
-            //      SW_LINEAR, SW_256B_2D, SW_4KB_2D, SW_64KB_2D, SW_256KB_2D
-            // There could be more multimedia formats that require more hw specific tiling modes...
-
-            // The exception is VRS images.
-            // Linear is not allowed and the VRS surface needs to be 8BPP format.
-            if (flags.isVrsImage)
-            {
-                ADDR_ASSERT(pIn->bpp == 8);
-            }
-            else
-            {
-                pOut->validModes.swLinear = 1;
-            }
-            if (flags.view3dAs2dArray == 0)
-            {
-                // ADDR3_256B_2D can't support 3D images.
-                pOut->validModes.sw2d256B = 1;
-            }
-            pOut->validModes.sw2d4kB   = 1;
-            pOut->validModes.sw2d64kB  = 1;
-            pOut->validModes.sw2d256kB = 1;
-        }
-        else if (IsTex3d(pIn->resourceType))
-        {
-            // An eventual determination would be based on pal setting of height_watermark and depth_watermark.
-            // However, we just adopt the simpler logic currently.
-            // For 3D images w/ view3dAs2dArray = 0, SW_3D is preferred.
-            // For 3D images w/ view3dAs2dArray = 1, it should go to 2D path above.
-            // Enable linear since client may force linear tiling for 3D texture that does not set view3dAs2dArray.
-            pOut->validModes.swLinear  = 1;
-            pOut->validModes.sw3d4kB   = 1;
-            pOut->validModes.sw3d64kB  = 1;
-            pOut->validModes.sw3d256kB = 1;
-        }
-    }
-
-    constexpr UINT_32 Size256  = 256u;
-    constexpr UINT_32 Size4K   = 4 * 1024;
-    constexpr UINT_32 Size64K  = 64 * 1024;
-    constexpr UINT_32 Size256K = 256 * 1024;
-
-    ADDR_ASSERT(pIn->maxAlign != 0);
-
-    if (pIn->maxAlign < Size256K)
-    {
-        pOut->validModes.value &= ~Gfx12Blk256KBSwModeMask;
-    }
-
-    if (pIn->maxAlign < Size64K)
-    {
-        pOut->validModes.value &= ~Gfx12Blk64KBSwModeMask;
-    }
-
-    if (pIn->maxAlign < Size4K)
-    {
-        pOut->validModes.value &= ~Gfx12Blk4KBSwModeMask;
-    }
-
-    if (pIn->maxAlign < Size256)
-    {
-        pOut->validModes.value &= ~Gfx12Blk256BSwModeMask;
+        returnCode = HwlGetPossibleSwizzleModes(pIn, pOut);
     }
 
     return returnCode;
@@ -492,100 +379,24 @@ ADDR_E_RETURNCODE Lib::GetPossibleSwizzleModes(
 
 /**
 ************************************************************************************************************************
-*   Lib::HwlConvertChipFamily
-*
-*   @brief
-*       Convert familyID defined in atiid.h to ChipFamily and set m_chipFamily/m_chipRevision
-*   @return
-*       ChipFamily
-************************************************************************************************************************
-*/
-ChipFamily Lib::HwlConvertChipFamily(
-    UINT_32 chipFamily,        ///< [in] chip family defined in atiih.h
-    UINT_32 chipRevision)      ///< [in] chip revision defined in "asic_family"_id.h
-{
-    return ADDR_CHIP_FAMILY_NAVI;
-}
-
-/**
-************************************************************************************************************************
 *   Lib::ComputeBlockDimensionForSurf
 *
 *   @brief
-*       Internal function to get block width/height/depth in element from surface input params.
+*       Internal function to get block width/height/depth in elements from surface input params.
 *
 *   @return
 *       VOID
 ************************************************************************************************************************
 */
 VOID Lib::ComputeBlockDimensionForSurf(
-    ADDR_EXTENT3D*    pExtent,
-    UINT_32           bpp,
-    UINT_32           numSamples,
-    Addr3SwizzleMode  swizzleMode
+    const ADDR3_COMPUTE_SURFACE_INFO_PARAMS_INPUT* pIn,
+    ADDR_EXTENT3D*                                 pExtent
     ) const
 {
-    const UINT_32 eleBytes     = bpp >> 3;
-    const UINT_32 log2EleBytes = Log2(eleBytes);
-    const UINT_32 log2BlkSize  = GetBlockSizeLog2(swizzleMode);
+    const ADDR3_COMPUTE_SURFACE_INFO_INPUT* pSurfInfo   = pIn->pSurfInfo;
+    const UINT_32                           log2BlkSize = GetBlockSizeLog2(pSurfInfo->swizzleMode);
 
-    if (IsLinear(swizzleMode))
-    {
-        pExtent->width  = 1 << (log2BlkSize - log2EleBytes);
-        pExtent->height = 1;
-        pExtent->depth  = 1;
-    }
-    else if (Is3dSwizzle(swizzleMode))
-    {
-        const UINT_32 base             = (log2BlkSize / 3) - (log2EleBytes / 3);
-        const UINT_32 log2BlkSizeMod3  = log2BlkSize % 3;
-        const UINT_32 log2EleBytesMod3 = log2EleBytes % 3;
-
-        UINT_32  x = base;
-        UINT_32  y = base;
-        UINT_32  z = base;
-
-        if (log2BlkSizeMod3 > 0)
-        {
-            x++;
-        }
-
-        if (log2BlkSizeMod3 > 1)
-        {
-            z++;
-        }
-
-        if (log2EleBytesMod3 > 0)
-        {
-            x--;
-        }
-
-        if (log2EleBytesMod3 > 1)
-        {
-            z--;
-        }
-
-        pExtent->width  = 1u << x;
-        pExtent->height = 1u << y;
-        pExtent->depth  = 1u << z;
-    }
-    else
-    {
-        const UINT_32 log2Samples = Log2(Max(numSamples, 1u));
-        const UINT_32 log2Width   = (log2BlkSize  >> 1)  -
-                                    (log2EleBytes >> 1)  -
-                                    (log2Samples  >> 1)  -
-                                    (log2EleBytes & log2Samples & 1);
-        const UINT_32 log2Height  = (log2BlkSize  >> 1)  -
-                                    (log2EleBytes >> 1)  -
-                                    (log2Samples  >> 1)  -
-                                    ((log2EleBytes | log2Samples) & 1);
-
-        // Return the extent in actual units, not log2
-        pExtent->width  = 1u << log2Width;
-        pExtent->height = 1u << log2Height;
-        pExtent->depth  = 1;
-    }
+    HwlCalcBlockSize(pIn, pExtent);
 }
 
 /**
@@ -600,44 +411,11 @@ VOID Lib::ComputeBlockDimensionForSurf(
 ************************************************************************************************************************
 */
 ADDR_EXTENT3D Lib::GetMipTailDim(
-    Addr3SwizzleMode      swizzleMode,
-    const ADDR_EXTENT3D&  blockDims
+    const ADDR3_COMPUTE_SURFACE_INFO_PARAMS_INPUT* pIn,
+    const ADDR_EXTENT3D&                           blockDims
     ) const
 {
-    const UINT_32 log2BlkSize = GetBlockSizeLog2(swizzleMode);
-
-    ADDR_EXTENT3D  out = blockDims;
-
-    if (Is3dSwizzle(swizzleMode))
-    {
-        const UINT_32 dim = log2BlkSize % 3;
-
-        if (dim == 0)
-        {
-            out.height >>= 1;
-        }
-        else if (dim == 1)
-        {
-            out.width >>= 1;
-        }
-        else
-        {
-            out.depth >>= 1;
-        }
-    }
-    else
-    {
-        if ((log2BlkSize % 2) == 0)
-        {
-            out.width >>= 1;
-        }
-        else
-        {
-            out.height >>= 1;
-        }
-    }
-
-    return out;
+    return HwlGetMipInTailMaxSize(pIn, blockDims);
 }
 
 /**
@@ -708,6 +486,252 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceAddrFromCoord(
 
 /**
 ************************************************************************************************************************
+*   Lib::CopyLinearSurface
+*
+*   @brief
+*       Implements uncompressed linear copies between memory and images.
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::CopyLinearSurface(
+    const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+    const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+    UINT_32                             regionCount,
+    bool                                surfaceIsDst) const
+{
+    ADDR3_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
+    ADDR3_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
+    ADDR3_MIP_INFO                    mipInfo[Addr3MaxMipLevels] = {{0}};
+    ADDR_ASSERT(pIn->numMipLevels <= Addr3MaxMipLevels);
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (pIn->numSamples > 1)
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+
+    localIn.size         = sizeof(localIn);
+    localIn.flags        = pIn->flags;
+    localIn.swizzleMode  = ADDR3_LINEAR;
+    localIn.resourceType = pIn->resourceType;
+    localIn.format       = pIn->format;
+    localIn.bpp          = pIn->bpp;
+    localIn.width        = Max(pIn->unAlignedDims.width,  1u);
+    localIn.height       = Max(pIn->unAlignedDims.height, 1u);
+    localIn.numSlices    = Max(pIn->unAlignedDims.depth,  1u);
+    localIn.numMipLevels = Max(pIn->numMipLevels,         1u);
+    localIn.numSamples   = Max(pIn->numSamples,           1u);
+
+    if (localIn.numMipLevels <= 1)
+    {
+        localIn.pitchInElement = pIn->pitchInElement;
+    }
+
+    localOut.size     = sizeof(localOut);
+    localOut.pMipInfo = mipInfo;
+
+    if (returnCode == ADDR_OK)
+    {
+        returnCode = ComputeSurfaceInfo(&localIn, &localOut);
+    }
+
+    if (returnCode == ADDR_OK)
+    {
+        for (UINT_32 regionIdx = 0; regionIdx < regionCount; regionIdx++)
+        {
+            const ADDR3_COPY_MEMSURFACE_REGION* pCurRegion = &pRegions[regionIdx];
+
+            void* pMipBase = VoidPtrInc(pIn->pMappedSurface,
+                                        (pIn->singleSubres ? 0 : mipInfo[pCurRegion->mipId].offset));
+
+            const size_t lineSizeBytes = (localIn.bpp >> 3) * pCurRegion->copyDims.width;
+            const size_t lineImgPitchBytes = (localIn.bpp >> 3) * mipInfo[pCurRegion->mipId].pitch;
+
+            for (UINT_32 sliceIdx = 0; sliceIdx < pCurRegion->copyDims.depth; sliceIdx++)
+            {
+                UINT_32 sliceCoord = sliceIdx + pCurRegion->slice;
+                size_t imgOffsetInMip = (localOut.sliceSize * sliceCoord) +
+                                        (lineImgPitchBytes * pCurRegion->y) +
+                                        (pCurRegion->x * (pIn->bpp >> 3));
+                size_t memOffset = sliceIdx * pCurRegion->memSlicePitch;
+
+                for (UINT_32 yIdx = 0; yIdx < pCurRegion->copyDims.height; yIdx++)
+                {
+                    if (surfaceIsDst)
+                    {
+                        memcpy(VoidPtrInc(pMipBase, imgOffsetInMip),
+                               VoidPtrInc(pCurRegion->pMem, memOffset),
+                               lineSizeBytes);
+                    }
+                    else
+                    {
+                        memcpy(VoidPtrInc(pCurRegion->pMem, memOffset),
+                               VoidPtrInc(pMipBase, imgOffsetInMip),
+                               lineSizeBytes);
+                    }
+
+                    imgOffsetInMip += lineImgPitchBytes;
+                    memOffset      += pCurRegion->memRowPitch;
+                }
+            }
+        }
+    }
+
+    return returnCode;
+}
+
+/**
+************************************************************************************************************************
+*   Lib::CopyMemToSurface
+*
+*   @brief
+*       Interface function stub of Addr3CopyMemToSurface.
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::CopyMemToSurface(
+    const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+    const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+    UINT_32                             regionCount) const
+{
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if ((regionCount == 0) || (pRegions == NULL))
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+    else if (GetFillSizeFieldsFlags() == TRUE)
+    {
+        if (pIn->size  != sizeof(ADDR3_COPY_MEMSURFACE_INPUT))
+        {
+            returnCode = ADDR_INVALIDPARAMS;
+        }
+        else if (pIn->copyFlags.blockMemcpy && pIn->copyFlags.hybridMemcpy)
+        {
+            // Invalid to specify conflicting copy modes.
+            returnCode = ADDR_INVALIDPARAMS;
+        }
+        else
+        {
+            UINT_32 baseSlice    = pRegions[0].slice;
+            UINT_32 baseMip      = pRegions[0].mipId;
+            BOOL_32 singleSubres = pIn->singleSubres;
+            for (UINT_32 i = 0; i < regionCount; i++)
+            {
+                if (pRegions[i].size != sizeof(ADDR3_COPY_MEMSURFACE_REGION))
+                {
+                    returnCode = ADDR_INVALIDPARAMS;
+                    break;
+                }
+                if (singleSubres &&
+                    ((pRegions[i].copyDims.depth != 1) ||
+                     (pRegions[i].slice != baseSlice)  ||
+                     (pRegions[i].mipId != baseMip)))
+                {
+                    // Copy will cover multiple/interleaved subresources, a
+                    // mapped pointer to a single subres cannot be valid.
+                    returnCode = ADDR_INVALIDPARAMS;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (returnCode == ADDR_OK)
+    {
+        if (IsLinear(pIn->swizzleMode))
+        {
+            returnCode = CopyLinearSurface(pIn, pRegions, regionCount, true);
+        }
+        else
+        {
+            returnCode = HwlCopyMemToSurface(pIn, pRegions, regionCount);
+        }
+    }
+
+    return returnCode;
+}
+
+/**
+************************************************************************************************************************
+*   Lib::CopySurfaceToMem
+*
+*   @brief
+*       Interface function stub of Addr3CopySurfaceToMem.
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::CopySurfaceToMem(
+    const ADDR3_COPY_MEMSURFACE_INPUT*  pIn,
+    const ADDR3_COPY_MEMSURFACE_REGION* pRegions,
+    UINT_32                             regionCount) const
+{
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
+
+    if (regionCount == 0)
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+    else if (GetFillSizeFieldsFlags() == TRUE)
+    {
+        if (pIn->size  != sizeof(ADDR3_COPY_MEMSURFACE_INPUT))
+        {
+            returnCode = ADDR_INVALIDPARAMS;
+        }
+        else if (pIn->copyFlags.blockMemcpy && pIn->copyFlags.hybridMemcpy)
+        {
+            // Invalid to specify conflicting copy modes.
+            returnCode = ADDR_INVALIDPARAMS;
+        }
+        else
+        {
+            UINT_32 baseSlice    = pRegions[0].slice;
+            UINT_32 baseMip      = pRegions[0].mipId;
+            BOOL_32 singleSubres = pIn->singleSubres;
+            for (UINT_32 i = 0; i < regionCount; i++)
+            {
+                if (pRegions[i].size != sizeof(ADDR3_COPY_MEMSURFACE_REGION))
+                {
+                    returnCode = ADDR_INVALIDPARAMS;
+                    break;
+                }
+                if (singleSubres &&
+                    ((pRegions[i].copyDims.depth != 1) ||
+                     (pRegions[i].slice != baseSlice)  ||
+                     (pRegions[i].mipId != baseMip)))
+                {
+                    // Copy will cover multiple/interleaved subresources, a
+                    // mapped pointer to a single subres cannot be valid.
+                    returnCode = ADDR_INVALIDPARAMS;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (returnCode == ADDR_OK)
+    {
+        if (IsLinear(pIn->swizzleMode))
+        {
+            returnCode = CopyLinearSurface(pIn, pRegions, regionCount, false);
+        }
+        else
+        {
+            returnCode = HwlCopySurfaceToMem(pIn, pRegions, regionCount);
+        }
+    }
+
+    return returnCode;
+}
+
+/**
+************************************************************************************************************************
 *   Lib::ComputeSurfaceAddrFromCoord
 *
 *   @brief
@@ -721,7 +745,7 @@ ADDR_E_RETURNCODE Lib::ComputePipeBankXor(
     const ADDR3_COMPUTE_PIPEBANKXOR_INPUT* pIn,
     ADDR3_COMPUTE_PIPEBANKXOR_OUTPUT*      pOut)
 {
-    ADDR_E_RETURNCODE returnCode;
+    ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
     if ((GetFillSizeFieldsFlags() == TRUE) &&
         ((pIn->size  != sizeof(ADDR3_COMPUTE_PIPEBANKXOR_INPUT)) ||
@@ -731,7 +755,23 @@ ADDR_E_RETURNCODE Lib::ComputePipeBankXor(
     }
     else
     {
-        returnCode = HwlComputePipeBankXor(pIn, pOut);
+        // The swizzle mode determines how many unused bits there are in the address.  We never (ok, rarely...) program
+        // the low eight bits of the address, so the "numSwizzleBits" effectively represents the number of "guaranteed
+        // zero" programmed bits in the address.
+        const UINT_32  numSwizzleBits = GetBlockSizeLog2(pIn->swizzleMode, FALSE) - 8;
+
+        // make sure this configuration supports swizzling
+        if (numSwizzleBits != 0) 
+        {
+            // These cases should have been excluded with the "numSwizzleBits" calculation above, but make sure here.
+            ADDR_ASSERT((IsLinear(pIn->swizzleMode) == FALSE) && (IsBlock256b(pIn->swizzleMode) == FALSE));
+
+            pOut->pipeBankXor = pIn->surfIndex % (1 << numSwizzleBits);
+        }
+        else
+        {
+            pOut->pipeBankXor = 0;
+        }
     }
 
     return returnCode;
@@ -766,44 +806,26 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceAddrFromCoordLinear(
 
     if (valid)
     {
-        ADDR3_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
-        ADDR3_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
-        ADDR3_MIP_INFO                    mipInfo[MaxMipLevels];
-        ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
+        ADDR3_COMPUTE_SURFACE_INFO_INPUT  surfInfoIn = {0};
 
-        localIn.size         = sizeof(localIn);
-        localIn.flags        = pIn->flags;
-        localIn.swizzleMode  = ADDR3_LINEAR;
-        localIn.resourceType = pIn->resourceType;
-        localIn.format       = ADDR_FMT_INVALID;
-        localIn.bpp          = pIn->bpp;
-        localIn.width        = Max(pIn->unAlignedDims.width,  1u);
-        localIn.height       = Max(pIn->unAlignedDims.height, 1u);
-        localIn.numSlices    = Max(pIn->unAlignedDims.depth,  1u);
-        localIn.numMipLevels = Max(pIn->numMipLevels,         1u);
-        localIn.numSamples   = Max(pIn->numSamples,           1u);
+        surfInfoIn.size         = sizeof(surfInfoIn);
+        surfInfoIn.flags        = pIn->flags;
+        surfInfoIn.swizzleMode  = ADDR3_LINEAR;
+        surfInfoIn.resourceType = pIn->resourceType;
+        surfInfoIn.format       = ADDR_FMT_INVALID;
+        surfInfoIn.bpp          = pIn->bpp;
+        surfInfoIn.width        = Max(pIn->unAlignedDims.width,  1u);
+        surfInfoIn.height       = Max(pIn->unAlignedDims.height, 1u);
+        surfInfoIn.numSlices    = Max(pIn->unAlignedDims.depth,  1u);
+        surfInfoIn.numMipLevels = Max(pIn->numMipLevels,         1u);
+        surfInfoIn.numSamples   = Max(pIn->numSamples,           1u);
 
-        if (localIn.numMipLevels <= 1)
+        if (surfInfoIn.numMipLevels <= 1)
         {
-            localIn.pitchInElement = pIn->pitchInElement;
+            surfInfoIn.pitchInElement = pIn->pitchInElement;
         }
 
-        localOut.size     = sizeof(localOut);
-        localOut.pMipInfo = mipInfo;
-
-        returnCode = ComputeSurfaceInfo(&localIn, &localOut);
-
-        if (returnCode == ADDR_OK)
-        {
-            pOut->addr        = (localOut.sliceSize * pIn->slice) +
-                                mipInfo[pIn->mipId].offset +
-                                (pIn->y * mipInfo[pIn->mipId].pitch + pIn->x) * (pIn->bpp >> 3);
-            pOut->bitPosition = 0;
-        }
-        else
-        {
-            valid = FALSE;
-        }
+        returnCode = HwlComputeSurfaceAddrFromCoordLinear(pIn, &surfInfoIn, pOut);
     }
 
     if (valid == FALSE)
@@ -887,8 +909,8 @@ ADDR_E_RETURNCODE Lib::ComputeSubResourceOffsetForSwizzlePattern(
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
     if ((GetFillSizeFieldsFlags() == TRUE) &&
-        ((pIn->size  != sizeof(ADDR2_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_INPUT)) ||
-         (pOut->size != sizeof(ADDR2_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_OUTPUT))))
+        ((pIn->size  != sizeof(ADDR3_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_INPUT)) ||
+         (pOut->size != sizeof(ADDR3_COMPUTE_SUBRESOURCE_OFFSET_FORSWIZZLEPATTERN_OUTPUT))))
     {
         returnCode = ADDR_INVALIDPARAMS;
     }
@@ -1020,17 +1042,43 @@ ADDR_E_RETURNCODE Lib::ApplyCustomizedPitchHeight(
 
     const UINT_32  elementBytes = pIn->bpp >> 3;
 
-    // Calculate the default pitch/height without any user inputs
-    pOut->pitch  = PowTwoAlign(pIn->width,  pOut->blockExtent.width);
-    pOut->height = PowTwoAlign(pIn->height, pOut->blockExtent.height);
+    UINT_32  pitchAlignmentElements      = pOut->blockExtent.width;
+    UINT_32  pitchSliceAlignmentElements = pOut->blockExtent.width;
+
+    if (IsLinear(pIn->swizzleMode))
+    {
+        // Normal pitch of image data
+        const UINT_32  pitchAlignmentBytes    = 1 << GetBlockSizeLog2(pIn->swizzleMode, TRUE);
+        pitchAlignmentElements = pitchAlignmentBytes / elementBytes;
+
+        // Pitch of image data used for slice sizing
+        const UINT_32  pitchSliceAlignmentBytes    = 1 << GetBlockSizeLog2(pIn->swizzleMode, CanTrimLinearPadding(pIn));
+        pitchSliceAlignmentElements = pitchSliceAlignmentBytes / elementBytes;
+    }
+
+    pOut->pitch         = PowTwoAlign(pIn->width, pitchAlignmentElements);
+    pOut->pitchForSlice = PowTwoAlign(pIn->width, pitchSliceAlignmentElements);
+
+    UINT_32 heightAlign = pOut->blockExtent.height;
+
+    if (pIn->flags.qbStereo)
+    {
+        UINT_32 rightXor = 0;
+
+        returnCode = HwlComputeStereoInfo(pIn, &heightAlign, &rightXor);
+
+        if (returnCode == ADDR_OK)
+        {
+            pOut->pStereoInfo->rightSwizzle = rightXor;
+        }
+    }
+
+    pOut->height = PowTwoAlign(pIn->height, heightAlign);
 
     // Custom pitches / alignments are only possible with single mip level / linear images; otherwise,
     // ignore those parameters.
-    if (UseCustomPitch(pIn))
+    if ((returnCode == ADDR_OK) && UseCustomPitch(pIn))
     {
-        const UINT_32  pitchAlignmentBytes    = 1 << GetBlockSizeLog2(pIn->swizzleMode, TRUE);
-        const UINT_32  pitchAlignmentElements = pitchAlignmentBytes / elementBytes;
-
         // Their requested pitch has to meet the pitch alignment constraints applied by the HW.
         if ((pIn->pitchInElement % pitchAlignmentElements) != 0)
         {
@@ -1044,14 +1092,17 @@ ADDR_E_RETURNCODE Lib::ApplyCustomizedPitchHeight(
         else
         {
             pOut->pitch = pIn->pitchInElement;
+            pOut->pitchForSlice = PowTwoAlign(pIn->pitchInElement, pitchSliceAlignmentElements);
         }
     }
 
     if ((returnCode == ADDR_OK) && UseCustomHeight(pIn))
     {
-        UINT_32 customizedHeight = pIn->sliceAlign / elementBytes / pOut->pitch;
+        // Note: if a custom slice align is present, it must be an even multiple
+        // of pitchForSlice, not just pitch.
+        UINT_32 customizedHeight = pIn->sliceAlign / elementBytes / pOut->pitchForSlice;
 
-        if (customizedHeight * elementBytes * pOut->pitch != pIn->sliceAlign)
+        if ((pIn->numSlices > 1) && (customizedHeight * elementBytes * pOut->pitchForSlice != pIn->sliceAlign))
         {
             returnCode = ADDR_INVALIDPARAMS;
         }
@@ -1059,13 +1110,259 @@ ADDR_E_RETURNCODE Lib::ApplyCustomizedPitchHeight(
         {
             returnCode = ADDR_INVALIDPARAMS;
         }
+        else if ((pIn->height * elementBytes * pOut->pitch) > pIn->sliceAlign)
+        {
+            // If we only have one slice/depth, then we don't need an even multiple, but the slice size must still
+            // fit all the pixel data. The one provided is too small!
+            returnCode = ADDR_INVALIDPARAMS;
+        }
         else
         {
-            pOut->height = customizedHeight;
+            // For the single-slice case, the customized height could have been rounded down below the height since
+            // we allow non-multiples of pitch here, so take the max.
+            pOut->height = Max(pOut->height, customizedHeight);
         }
     }
 
     return returnCode;
+}
+
+
+/**
+************************************************************************************************************************
+*   Lib::ComputeQbStereoInfo
+*
+*   @brief
+*       Get quad buffer stereo information
+*   @return
+*       N/A
+************************************************************************************************************************
+*/
+VOID Lib::ComputeQbStereoInfo(
+    ADDR3_COMPUTE_SURFACE_INFO_OUTPUT* pOut   ///< [in,out] updated pOut+pStereoInfo
+    ) const
+{
+    ADDR_ASSERT(pOut->bpp >= 8);
+    ADDR_ASSERT((pOut->surfSize % pOut->baseAlign) == 0);
+
+    // Save original height
+    pOut->pStereoInfo->eyeHeight = pOut->height;
+
+    // Right offset
+    pOut->pStereoInfo->rightOffset = static_cast<UINT_32>(pOut->surfSize);
+
+    // Double height
+    pOut->height <<= 1;
+
+    ADDR_ASSERT(pOut->height <= MaxSurfaceHeight);
+
+    pOut->pixelHeight <<= 1;
+
+    // Double size
+    pOut->surfSize  <<= 1;
+    pOut->sliceSize <<= 1;
+}
+
+/**
+************************************************************************************************************************
+*   Lib::ComputeSurfaceInfoSanityCheck
+*
+*   @brief
+*       Internal function to do basic sanity check before compute surface info
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::ComputeSurfaceInfoSanityCheck(
+    const ADDR3_COMPUTE_SURFACE_INFO_INPUT*  pIn   ///< [in] input structure
+    ) const
+{
+    ADDR3_GET_POSSIBLE_SWIZZLE_MODE_INPUT localIn = {};
+    localIn.size         = sizeof(ADDR3_GET_POSSIBLE_SWIZZLE_MODE_INPUT);
+    localIn.flags        = pIn->flags;
+    localIn.resourceType = pIn->resourceType;
+    localIn.bpp          = pIn->bpp;
+    localIn.width        = pIn->width;
+    localIn.height       = pIn->height;
+    localIn.numSlices    = pIn->numSlices;
+    localIn.numMipLevels = pIn->numMipLevels;
+    localIn.numSamples   = pIn->numSamples;
+
+    return HwlValidateNonSwModeParams(&localIn) ? ADDR_OK : ADDR_INVALIDPARAMS;
+}
+
+/**
+************************************************************************************************************************
+*   Lib::ComputeHtileInfo
+*
+*   @brief
+*       Interface function stub of AddrComputeHtilenfo
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::ComputeHtileInfo(
+    const ADDR3_COMPUTE_HTILE_INFO_INPUT* pIn,    ///< [in] input structure
+    ADDR3_COMPUTE_HTILE_INFO_OUTPUT*      pOut    ///< [out] output structure
+    ) const
+{
+    ADDR_E_RETURNCODE returnCode;
+
+    if ((GetFillSizeFieldsFlags() == TRUE) &&
+        ((pIn->size != sizeof(ADDR3_COMPUTE_HTILE_INFO_INPUT)) ||
+         (pOut->size != sizeof(ADDR3_COMPUTE_HTILE_INFO_OUTPUT))))
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+    else
+    {
+        returnCode = HwlComputeHtileInfo(pIn, pOut);
+        if (returnCode == ADDR_OK)
+        {
+            ValidMetaBaseAlignments(pOut->baseAlign);
+
+            ValidateMipSizes(pIn, pOut);
+        }
+    }
+
+    return returnCode;
+}
+
+/**
+************************************************************************************************************************
+*   Lib::ValidateMipSizes
+*
+*   @brief
+*       Sanity checks the offset and sizes associated with the output "pMipInfo" structure against the overall
+*       surface size parameters.  This function only asserts and thus will not affect release builds.
+*
+*   @return
+*       None.
+************************************************************************************************************************
+*/
+VOID Lib::ValidateMipSizes(
+    const ADDR3_COMPUTE_HTILE_INFO_INPUT*   pIn,
+    const ADDR3_COMPUTE_HTILE_INFO_OUTPUT*  pOut
+    ) const
+{
+#if DEBUG
+    if (pOut->pMipInfo != nullptr)
+    {
+        UINT_64  totalImageSize = 0;
+        for (UINT_32  mipIdx = 0; mipIdx < pIn->numMipLevels; mipIdx++)
+        {
+            const ADDR3_META_MIP_INFO&  mipInfo = pOut->pMipInfo[mipIdx];
+
+            totalImageSize += mipInfo.sliceSize;
+
+            // The size of all the mips combined should be less than the size of one slice.
+            ADDR_ASSERT(totalImageSize <= pOut->sliceSize);
+
+            // The offset of any given mip should be smaller than the slice.
+            ADDR_ASSERT(mipInfo.offset < pOut->sliceSize);
+        }
+    }
+#endif
+}
+
+/**
+************************************************************************************************************************
+*   Lib::ComputeFmaskInfo
+*
+*   @brief
+*       Interface function stub of ComputeFmaskInfo.
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::ComputeFmaskInfo(
+    const ADDR3_COMPUTE_FMASK_INFO_INPUT*    pIn,    ///< [in] input structure
+    ADDR3_COMPUTE_FMASK_INFO_OUTPUT*         pOut    ///< [out] output structure
+    ) const
+{
+    ADDR_E_RETURNCODE returnCode;
+
+    BOOL_32 valid = (pIn->numSamples > 0);
+
+    if (valid)
+    {
+        if (GetFillSizeFieldsFlags())
+        {
+            if ((pIn->size != sizeof(ADDR3_COMPUTE_FMASK_INFO_INPUT)) ||
+                (pOut->size != sizeof(ADDR3_COMPUTE_FMASK_INFO_OUTPUT)))
+            {
+                valid = FALSE;
+            }
+        }
+    }
+
+    if (valid == FALSE)
+    {
+        returnCode = ADDR_INVALIDPARAMS;
+    }
+    else
+    {
+        returnCode = HwlComputeFmaskInfo(pIn, pOut);
+    }
+
+    return returnCode;
+}
+
+
+/**
+************************************************************************************************************************
+*   Lib::ComputeOffsetFromEquation
+*
+*   @brief
+*       Compute offset from equation
+*
+*   @return
+*       Offset
+************************************************************************************************************************
+*/
+UINT_32 Lib::ComputeOffsetFromEquation(
+    const ADDR_EQUATION* pEq,   ///< Equation
+    UINT_32              x,     ///< x coord in bytes
+    UINT_32              y,     ///< y coord in pixel
+    UINT_32              z,     ///< z coord in slice
+    UINT_32              s)      ///< MSAA sample index
+{
+    UINT_32 offset = 0;
+
+    for (UINT_32 i = 0; i < pEq->numBits; i++)
+    {
+        UINT_32 v = 0;
+
+        for (UINT_32 c = 0; c < pEq->numBitComponents; c++)
+        {
+            if (pEq->comps[c][i].valid)
+            {
+                if (pEq->comps[c][i].channel == 0)
+                {
+                    v ^= (x >> pEq->comps[c][i].index) & 1;
+                }
+                else if (pEq->comps[c][i].channel == 1)
+                {
+                    v ^= (y >> pEq->comps[c][i].index) & 1;
+                }
+                else if (pEq->comps[c][i].channel == 2)
+                {
+                    v ^= (z >> pEq->comps[c][i].index) & 1;
+                }
+                else if (pEq->comps[c][i].channel == 3)
+                {
+                    v ^= (s >> pEq->comps[c][i].index) & 1;
+                }
+            }
+        }
+
+        offset |= (v << i);
+    }
+
+    return offset;
 }
 
 } // V3
