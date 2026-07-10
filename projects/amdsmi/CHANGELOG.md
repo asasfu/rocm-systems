@@ -107,6 +107,10 @@ Full documentation for amd_smi_lib is available at [https://rocm.docs.amd.com/pr
   - `amdsmi_get_gpu_device_cuid` has been added as an API for this upcoming change but will remain disabled until full support from the amdgpu driver is available.
   - The CLI `list` output and GPU selection now report the CUID in place of the UUID when a CUID is available, and fall back to the UUID otherwise.
 
+- **Fixed VRAM total reporting incorrect values in CPX/DPX/TPX/QPX compute-partition modes and on APUs**.  
+  - In multi-partition modes, `amdsmi_get_gpu_memory_total()` / `rsmi_dev_memory_total_get()` reported the whole-device VRAM split evenly across partitions instead of the driver's actual per-partition allocation; on APUs (for example gfx1151 / Strix Halo) they reported only the small BIOS VRAM carveout instead of the unified pool the GPU addresses.
+  - The VRAM total is now sourced from the KFD topology (`mem_banks`) in multi-partition modes, when the sysfs read is unusable, or on APUs where sysfs under-reports the carveout. Discrete and SPX GPUs are unaffected.
+
 ## amd_smi_lib for ROCm 7.14.0
 
 ### Added
