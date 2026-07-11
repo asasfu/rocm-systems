@@ -119,3 +119,10 @@ occupancy:
   Unit_hipOccupancyWavegroup_OccupancyCorrectness_HighVGPR:
     <<: *level_2
     tags: [P1]
+
+  Unit_hipOccupancy_DeviceVGPRCount_ArchValidation:
+    <<: *level_2
+    tags: [P1]
+  Unit_hipOccupancy_DeviceLDSSize_ArchValidation:
+    <<: *level_2
+    tags: [P1]

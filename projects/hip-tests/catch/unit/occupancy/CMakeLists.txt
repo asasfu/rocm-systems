@@ -36,6 +36,8 @@ set(TEST_SRC
 )
 
 if(HIP_PLATFORM MATCHES "amd")
+  list(APPEND TEST_SRC hipOccupancyDeviceVGPRValidation.cc)
+
   if (DEFINED OFFLOAD_ARCH_STR)
     CheckRejectedArchs(${OFFLOAD_ARCH_STR})
   elseif(DEFINED $ENV{HCC_AMDGPU_TARGET})
