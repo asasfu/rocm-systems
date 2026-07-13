@@ -45,6 +45,12 @@ public:
      * Explicit on purpose: a typed size never decays into a number implicitly
      * so the unit cannot be dropped by accident.
      *
+     * @warning The result has type @p Rep (double for the built-in aliases).
+     *          Storing it in a narrower integer truncates, and a value outside
+     *          that integer's range is undefined behaviour - prefer a 64-bit or
+     *          floating-point target for large sizes. Because the conversion is
+     *          explicit, that narrowing happens at the call site where
+     *          `-Wconversion` can see it.
      * @return the size in bytes.
      */
     [[nodiscard]] constexpr Rep to_bytes() const noexcept
