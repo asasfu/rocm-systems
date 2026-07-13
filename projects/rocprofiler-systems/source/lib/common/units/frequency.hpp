@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <compare>
 #include <cstdint>
 #include <ratio>
 #include <string_view>
@@ -75,28 +76,23 @@ struct frequency_suffix;
 template <>
 struct frequency_suffix<std::ratio<1>>
 {
-    static constexpr std::string_view value = "Hz";
+    static constexpr std::string_view VALUE = "Hz";
 };
 template <>
 struct frequency_suffix<std::kilo>
 {
-    static constexpr std::string_view value = "kHz";
+    static constexpr std::string_view VALUE = "kHz";
 };
 template <>
 struct frequency_suffix<std::mega>
 {
-    static constexpr std::string_view value = "MHz";
+    static constexpr std::string_view VALUE = "MHz";
 };
 template <>
 struct frequency_suffix<std::giga>
 {
-    static constexpr std::string_view value = "GHz";
+    static constexpr std::string_view VALUE = "GHz";
 };
-
-/** Convenience accessor: the suffix for any frequency type @p F. */
-template <frequency_like F>
-inline constexpr std::string_view FREQUENCY_SUFFIX_V =
-    frequency_suffix<typename F::period>::value;
 
 /**
  * Convert a frequency to another frequency unit at compile time.

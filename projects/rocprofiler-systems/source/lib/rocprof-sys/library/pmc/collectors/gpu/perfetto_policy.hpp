@@ -17,10 +17,6 @@
 namespace rocprofsys::pmc::collectors::gpu
 {
 
-using rocprofsys::common::units::bytes;
-using rocprofsys::common::units::data_size_cast;
-using rocprofsys::common::units::megabytes;
-
 namespace detail
 {
 
@@ -451,7 +447,10 @@ private:
            !memory_it->second.track_indexes.empty())
         {
             const auto usage =
-                data_size_cast<megabytes>(bytes{ metric_values.memory_usage }).count();
+                rocprofsys::common::units::data_size_cast<
+                    rocprofsys::common::units::megabytes>(
+                    rocprofsys::common::units::bytes{ metric_values.memory_usage })
+                    .count();
             TRACE_COUNTER(
                 "device_memory_usage",
                 counter_track::at(device_index, memory_it->second.track_indexes[0]), ts,

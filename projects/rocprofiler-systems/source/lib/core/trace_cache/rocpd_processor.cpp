@@ -15,9 +15,6 @@
 #include "core/trace_cache/sample_type.hpp"
 
 #include "common/units/units.hpp"
-using rocprofsys::common::units::bytes;
-using rocprofsys::common::units::data_size_cast;
-using rocprofsys::common::units::megabytes;
 #include "library/thread_info.hpp"
 #include "logger/debug.hpp"
 
@@ -32,6 +29,10 @@ using rocprofsys::common::units::megabytes;
 #include "library/rocprofiler-sdk/fwd.hpp"
 #include <rocprofiler-sdk/context.h>
 #include <rocprofiler-sdk/version.h>
+
+using rocprofsys::common::units::bytes;
+using rocprofsys::common::units::data_size_cast;
+using rocprofsys::common::units::megabytes;
 
 namespace rocprofsys
 {

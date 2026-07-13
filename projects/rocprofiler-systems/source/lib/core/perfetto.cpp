@@ -4,11 +4,6 @@
 #include "perfetto.hpp"
 #include "common/env_vars.hpp"
 #include "common/units/units.hpp"
-using rocprofsys::common::units::bytes;
-using rocprofsys::common::units::data_size_cast;
-using rocprofsys::common::units::gigabytes;
-using rocprofsys::common::units::kilobytes;
-using rocprofsys::common::units::megabytes;
 #include "config.hpp"
 #include "library/runtime.hpp"
 #include "output_file_registry.hpp"
@@ -16,6 +11,12 @@ using rocprofsys::common::units::megabytes;
 #include "utility.hpp"
 
 #include <chrono>
+
+using rocprofsys::common::units::bytes;
+using rocprofsys::common::units::data_size_cast;
+using rocprofsys::common::units::gigabytes;
+using rocprofsys::common::units::kilobytes;
+using rocprofsys::common::units::megabytes;
 
 namespace rocprofsys
 {

@@ -104,35 +104,30 @@ struct data_size_suffix;
 template <>
 struct data_size_suffix<std::ratio<1>>
 {
-    static constexpr std::string_view value = "B";
+    static constexpr std::string_view VALUE = "B";
 };
 template <>
 struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB>>
 {
-    static constexpr std::string_view value = "KB";
+    static constexpr std::string_view VALUE = "KB";
 };
 template <>
 struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>
 {
-    static constexpr std::string_view value = "MB";
+    static constexpr std::string_view VALUE = "MB";
 };
 template <>
 struct data_size_suffix<
     std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>
 {
-    static constexpr std::string_view value = "GB";
+    static constexpr std::string_view VALUE = "GB";
 };
 template <>
 struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB *
                                    detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>
 {
-    static constexpr std::string_view value = "TB";
+    static constexpr std::string_view VALUE = "TB";
 };
-
-/** Convenience accessor: the suffix for any data-size type @p D. */
-template <data_size_like D>
-inline constexpr std::string_view DATA_SIZE_SUFFIX_V =
-    data_size_suffix<typename D::scale>::value;
 
 /**
  * Convert a data-size to another data-size unit at compile time.

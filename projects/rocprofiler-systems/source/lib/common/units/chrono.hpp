@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <ratio>
 #include <string_view>
 
@@ -30,32 +31,32 @@ struct duration_suffix;
 template <>
 struct duration_suffix<std::nano>
 {
-    static constexpr std::string_view value = "ns";
+    static constexpr std::string_view VALUE = "ns";
 };
 template <>
 struct duration_suffix<std::micro>
 {
-    static constexpr std::string_view value = "us";
+    static constexpr std::string_view VALUE = "us";
 };
 template <>
 struct duration_suffix<std::milli>
 {
-    static constexpr std::string_view value = "ms";
+    static constexpr std::string_view VALUE = "ms";
 };
 template <>
 struct duration_suffix<std::ratio<1>>
 {
-    static constexpr std::string_view value = "s";
+    static constexpr std::string_view VALUE = "s";
 };
 template <>
 struct duration_suffix<std::ratio<detail::SECONDS_PER_MINUTE>>
 {
-    static constexpr std::string_view value = "min";
+    static constexpr std::string_view VALUE = "min";
 };
 template <>
 struct duration_suffix<std::ratio<detail::SECONDS_PER_HOUR>>
 {
-    static constexpr std::string_view value = "h";
+    static constexpr std::string_view VALUE = "h";
 };
 
 }  // namespace rocprofsys::inline common::units

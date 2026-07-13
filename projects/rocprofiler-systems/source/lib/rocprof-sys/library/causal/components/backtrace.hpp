@@ -73,8 +73,7 @@ struct backtrace : comp::empty_base
     auto get_stack() const { return m_stack; }
 
     template <typename Tp = std::uint64_t>
-    static Tp get_period(std::uint64_t _units = static_cast<std::uint64_t>(
-                             std::chrono::nanoseconds{ 1 }.count()));
+    static Tp get_period(std::uint64_t _units = 1);
 
 private:
     bool                  m_selected = false;

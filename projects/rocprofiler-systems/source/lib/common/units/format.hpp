@@ -6,6 +6,10 @@
 // Opt-in header: include only in translation units that use fmt formatting.
 // WARNING: do NOT also include <fmt/chrono.h> in the same TU — it defines its
 // own formatter for std::chrono::duration and the two will collide.
+#ifdef FMT_CHRONO_H_
+#    error                                                                               \
+        "Do not include <fmt/chrono.h> and units/format.hpp in the same translation unit - both define fmt::formatter<std::chrono::duration>."
+#endif
 
 #include <chrono>
 #include <ratio>
@@ -57,7 +61,7 @@ struct fmt::formatter<rocprofsys::common::units::frequency<Rep, Period>>
         }
         using rocprofsys::common::units::frequency_suffix;
         auto out = m_count_formatter.format(value.count(), ctx);
-        return fmt::format_to(out, " {}", frequency_suffix<Period>::value);
+        return fmt::format_to(out, " {}", frequency_suffix<Period>::VALUE);
     }
 
 private:
@@ -71,10 +75,10 @@ private:
         constexpr double k_khz =
             static_cast<double>(std::kilo::num) / static_cast<double>(std::kilo::den);
         const double mag = freq_hz < 0.0 ? -freq_hz : freq_hz;
-        if(mag >= k_ghz) return { freq_hz / k_ghz, frequency_suffix<std::giga>::value };
-        if(mag >= k_mhz) return { freq_hz / k_mhz, frequency_suffix<std::mega>::value };
-        if(mag >= k_khz) return { freq_hz / k_khz, frequency_suffix<std::kilo>::value };
-        return { freq_hz, frequency_suffix<std::ratio<1>>::value };
+        if(mag >= k_ghz) return { freq_hz / k_ghz, frequency_suffix<std::giga>::VALUE };
+        if(mag >= k_mhz) return { freq_hz / k_mhz, frequency_suffix<std::mega>::VALUE };
+        if(mag >= k_khz) return { freq_hz / k_khz, frequency_suffix<std::kilo>::VALUE };
+        return { freq_hz, frequency_suffix<std::ratio<1>>::VALUE };
     }
 
     fmt::formatter<Rep> m_count_formatter;
@@ -118,7 +122,7 @@ struct fmt::formatter<rocprofsys::common::units::data_size<Rep, Scale>>
         }
         using rocprofsys::common::units::data_size_suffix;
         auto out = m_count_formatter.format(value.count(), ctx);
-        return fmt::format_to(out, " {}", data_size_suffix<Scale>::value);
+        return fmt::format_to(out, " {}", data_size_suffix<Scale>::VALUE);
     }
 
 private:
@@ -139,18 +143,26 @@ private:
                                 static_cast<double>(terabytes::scale::den);
         const double mag = bytes_val < 0.0 ? -bytes_val : bytes_val;
         if(mag >= k_tb)
+        {
             return { bytes_val / k_tb,
-                     data_size_suffix<typename terabytes::scale>::value };
+                     data_size_suffix<typename terabytes::scale>::VALUE };
+        }
         if(mag >= k_gb)
+        {
             return { bytes_val / k_gb,
-                     data_size_suffix<typename gigabytes::scale>::value };
+                     data_size_suffix<typename gigabytes::scale>::VALUE };
+        }
         if(mag >= k_mb)
+        {
             return { bytes_val / k_mb,
-                     data_size_suffix<typename megabytes::scale>::value };
+                     data_size_suffix<typename megabytes::scale>::VALUE };
+        }
         if(mag >= k_kb)
+        {
             return { bytes_val / k_kb,
-                     data_size_suffix<typename kilobytes::scale>::value };
-        return { bytes_val, data_size_suffix<std::ratio<1>>::value };
+                     data_size_suffix<typename kilobytes::scale>::VALUE };
+        }
+        return { bytes_val, data_size_suffix<std::ratio<1>>::VALUE };
     }
 
     fmt::formatter<Rep> m_count_formatter;
@@ -193,7 +205,7 @@ struct fmt::formatter<rocprofsys::common::units::power<Rep, Period>>
         }
         using rocprofsys::common::units::power_suffix;
         auto out = m_count_formatter.format(value.count(), ctx);
-        return fmt::format_to(out, " {}", power_suffix<Period>::value);
+        return fmt::format_to(out, " {}", power_suffix<Period>::VALUE);
     }
 
 private:
@@ -209,11 +221,11 @@ private:
         constexpr double k_nw =
             static_cast<double>(std::nano::num) / static_cast<double>(std::nano::den);
         const double mag = watts_val < 0.0 ? -watts_val : watts_val;
-        if(mag >= k_kw) return { watts_val / k_kw, power_suffix<std::kilo>::value };
-        if(mag >= 1.0) return { watts_val, power_suffix<std::ratio<1>>::value };
-        if(mag >= k_mw) return { watts_val / k_mw, power_suffix<std::milli>::value };
-        if(mag >= k_uw) return { watts_val / k_uw, power_suffix<std::micro>::value };
-        return { watts_val / k_nw, power_suffix<std::nano>::value };
+        if(mag >= k_kw) return { watts_val / k_kw, power_suffix<std::kilo>::VALUE };
+        if(mag >= 1.0) return { watts_val, power_suffix<std::ratio<1>>::VALUE };
+        if(mag >= k_mw) return { watts_val / k_mw, power_suffix<std::milli>::VALUE };
+        if(mag >= k_uw) return { watts_val / k_uw, power_suffix<std::micro>::VALUE };
+        return { watts_val / k_nw, power_suffix<std::nano>::VALUE };
     }
 
     fmt::formatter<Rep> m_count_formatter;
@@ -252,7 +264,7 @@ struct fmt::formatter<std::chrono::duration<Rep, Period>>
         }
         auto out = m_count_formatter.format(static_cast<double>(value.count()), ctx);
         using rocprofsys::common::units::duration_suffix;
-        return fmt::format_to(out, " {}", duration_suffix<Period>::value);
+        return fmt::format_to(out, " {}", duration_suffix<Period>::VALUE);
     }
 
 private:
@@ -263,24 +275,28 @@ private:
         -> std::pair<double, std::string_view>
     {
         using rocprofsys::common::units::duration_suffix;
+        constexpr double k_milli =
+            static_cast<double>(std::milli::num) / static_cast<double>(std::milli::den);
+        constexpr double k_micro =
+            static_cast<double>(std::micro::num) / static_cast<double>(std::micro::den);
         const double secs = std::chrono::duration<double>(dur).count();
         const double mag  = secs < 0.0 ? -secs : secs;
         if(mag >= 1.0)
         {
-            return { secs, duration_suffix<std::ratio<1>>::value };
+            return { secs, duration_suffix<std::ratio<1>>::VALUE };
         }
-        if(mag >= 1e-3)
+        if(mag >= k_milli)
         {
             return { std::chrono::duration<double, std::milli>(dur).count(),
-                     duration_suffix<std::milli>::value };
+                     duration_suffix<std::milli>::VALUE };
         }
-        if(mag >= 1e-6)
+        if(mag >= k_micro)
         {
             return { std::chrono::duration<double, std::micro>(dur).count(),
-                     duration_suffix<std::micro>::value };
+                     duration_suffix<std::micro>::VALUE };
         }
         return { std::chrono::duration<double, std::nano>(dur).count(),
-                 duration_suffix<std::nano>::value };
+                 duration_suffix<std::nano>::VALUE };
     }
 
     fmt::formatter<double> m_count_formatter;

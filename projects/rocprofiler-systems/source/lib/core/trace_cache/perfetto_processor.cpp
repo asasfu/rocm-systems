@@ -3,11 +3,6 @@
 
 #include "core/trace_cache/perfetto_processor.hpp"
 #include "common/units/units.hpp"
-using rocprofsys::common::units::bytes;
-using rocprofsys::common::units::data_size_cast;
-using rocprofsys::common::units::gigabytes;
-using rocprofsys::common::units::kilobytes;
-using rocprofsys::common::units::megabytes;
 #include "core/agent_manager.hpp"
 #include "core/categories.hpp"
 #include "core/common.hpp"
@@ -42,6 +37,12 @@ using rocprofsys::common::units::megabytes;
 #include <utility>
 
 #include <rocprofiler-sdk/context.h>
+
+using rocprofsys::common::units::bytes;
+using rocprofsys::common::units::data_size_cast;
+using rocprofsys::common::units::gigabytes;
+using rocprofsys::common::units::kilobytes;
+using rocprofsys::common::units::megabytes;
 
 namespace rocprofsys::trace_cache
 {

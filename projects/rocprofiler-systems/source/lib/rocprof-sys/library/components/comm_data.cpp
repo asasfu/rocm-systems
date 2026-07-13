@@ -12,6 +12,10 @@
 #include "library/tracing.hpp"
 #include <cstdint>
 
+using rocprofsys::common::units::bytes;
+using rocprofsys::common::units::data_size_cast;
+using rocprofsys::common::units::megabytes;
+
 namespace rocprofsys
 {
 namespace component
@@ -190,10 +194,8 @@ comm_data::configure()
     comm_data_tracker_t::label()        = "comm_data";
     comm_data_tracker_t::description()  = "Tracks MPI/RCCL/UCX communication data sizes";
     comm_data_tracker_t::display_unit() = "MB";
-    comm_data_tracker_t::unit()         = static_cast<std::int64_t>(
-        rocprofsys::common::units::data_size_cast<rocprofsys::common::units::bytes>(
-            rocprofsys::common::units::megabytes{ 1.0 })
-            .to_bytes());
+    comm_data_tracker_t::unit() =
+        static_cast<std::int64_t>(data_size_cast<bytes>(megabytes{ 1.0 }).to_bytes());
 
     auto _fmt_flags = comm_data_tracker_t::get_format_flags();
     _fmt_flags &= (std::ios_base::fixed & std::ios_base::scientific);

@@ -3,9 +3,6 @@
 
 #include "library/components/backtrace_metrics.hpp"
 #include "common/units/units.hpp"
-using rocprofsys::common::units::bytes;
-using rocprofsys::common::units::data_size_cast;
-using rocprofsys::common::units::megabytes;
 #include "core/common.hpp"
 #include "core/components/fwd.hpp"
 #include "core/config.hpp"
@@ -60,6 +57,10 @@ using rocprofsys::common::units::megabytes;
 
 #include <pthread.h>
 #include <signal.h>
+
+using rocprofsys::common::units::bytes;
+using rocprofsys::common::units::data_size_cast;
+using rocprofsys::common::units::megabytes;
 
 namespace tracing
 {

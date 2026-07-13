@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <compare>
 #include <cstdint>
 #include <ratio>
 #include <string_view>
@@ -76,33 +77,28 @@ struct power_suffix;
 template <>
 struct power_suffix<std::nano>
 {
-    static constexpr std::string_view value = "nW";
+    static constexpr std::string_view VALUE = "nW";
 };
 template <>
 struct power_suffix<std::micro>
 {
-    static constexpr std::string_view value = "uW";
+    static constexpr std::string_view VALUE = "uW";
 };
 template <>
 struct power_suffix<std::milli>
 {
-    static constexpr std::string_view value = "mW";
+    static constexpr std::string_view VALUE = "mW";
 };
 template <>
 struct power_suffix<std::ratio<1>>
 {
-    static constexpr std::string_view value = "W";
+    static constexpr std::string_view VALUE = "W";
 };
 template <>
 struct power_suffix<std::kilo>
 {
-    static constexpr std::string_view value = "kW";
+    static constexpr std::string_view VALUE = "kW";
 };
-
-/** Convenience accessor: the suffix for any power type @p P. */
-template <power_like P>
-inline constexpr std::string_view POWER_SUFFIX_V =
-    power_suffix<typename P::period>::value;
 
 /**
  * Convert a power value to another power unit at compile time.
