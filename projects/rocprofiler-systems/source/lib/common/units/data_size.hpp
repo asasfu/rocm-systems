@@ -4,10 +4,12 @@
 #pragma once
 
 #include <compare>
+#include <concepts>
 #include <cstdint>
 #include <ratio>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 namespace rocprofsys::inline common::units
 {
@@ -32,8 +34,18 @@ public:
 
     constexpr data_size() = default;
 
-    constexpr explicit data_size(const Rep& value) noexcept
-    : m_count{ value }
+    /**
+     * Converting from `long long`/`unsigned long long` must be explicit at
+     * the call site: those types can hold values a @p Rep like `double`
+     * can't represent exactly, so silently narrowing them here would lose
+     * precision. Other implicit conversions (e.g. `int`) are still allowed.
+     */
+    template <typename U>
+        requires std::convertible_to<const U&, Rep> &&
+                 (!std::same_as<std::remove_cvref_t<U>, long long>) &&
+                 (!std::same_as<std::remove_cvref_t<U>, unsigned long long>)
+    constexpr explicit data_size(U&& value) noexcept
+    : m_count{ static_cast<Rep>(std::forward<U>(value)) }
     {}
 
     /** @return the raw count in units of @p Scale (3 for `3_kb`). */

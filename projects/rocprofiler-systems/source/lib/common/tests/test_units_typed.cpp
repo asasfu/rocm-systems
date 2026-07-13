@@ -3,6 +3,8 @@
 
 #include <gtest/gtest.h>
 
+#include <type_traits>
+
 #include "common/units/format.hpp"
 #include "common/units/units.hpp"
 
@@ -19,6 +21,14 @@ TEST(UnitsFrequency, ConstructionAndCount)
     EXPECT_DOUBLE_EQ(kilohertz{ 1.5 }.count(), 1.5);
     EXPECT_DOUBLE_EQ(megahertz{ 2.0 }.count(), 2.0);
 }
+
+// Construction from long long/unsigned long long must be explicit at the
+// call site, since those can't always be represented exactly as a double.
+// Other implicit conversions (e.g. int) are still allowed.
+static_assert(!std::is_constructible_v<hertz, long long>);
+static_assert(!std::is_constructible_v<hertz, unsigned long long>);
+static_assert(std::is_constructible_v<hertz, int>);
+static_assert(std::is_constructible_v<hertz, double>);
 
 TEST(UnitsFrequency, Literals)
 {
@@ -75,6 +85,14 @@ TEST(UnitsDataSize, ConstructionAndCount)
     EXPECT_DOUBLE_EQ(kilobytes{ 4.0 }.count(), 4.0);
     EXPECT_DOUBLE_EQ(megabytes{ 2.0 }.count(), 2.0);
 }
+
+// Construction from long long/unsigned long long must be explicit at the
+// call site, since those can't always be represented exactly as a double.
+// Other implicit conversions (e.g. int) are still allowed.
+static_assert(!std::is_constructible_v<bytes, long long>);
+static_assert(!std::is_constructible_v<bytes, unsigned long long>);
+static_assert(std::is_constructible_v<bytes, int>);
+static_assert(std::is_constructible_v<bytes, double>);
 
 TEST(UnitsDataSize, Literals)
 {
@@ -207,6 +225,14 @@ TEST(UnitsPower, ConstructionAndCount)
     EXPECT_DOUBLE_EQ(milliwatt{ 250.0 }.count(), 250.0);
     EXPECT_DOUBLE_EQ(kilowatt{ 2.0 }.count(), 2.0);
 }
+
+// Construction from long long/unsigned long long must be explicit at the
+// call site, since those can't always be represented exactly as a double.
+// Other implicit conversions (e.g. int) are still allowed.
+static_assert(!std::is_constructible_v<watt, long long>);
+static_assert(!std::is_constructible_v<watt, unsigned long long>);
+static_assert(std::is_constructible_v<watt, int>);
+static_assert(std::is_constructible_v<watt, double>);
 
 TEST(UnitsPower, Literals)
 {
