@@ -19,6 +19,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
+# \NPI new ISA family: (1) sync shared/machine-readable-isa via download.py and \
+# add amdgpu_isa_<isa>.xml, (2) add its profile in this module, (3) regenerate \
+# per docs/codegen.md, (4) author the hand-written isa.h / insts.h / mma_exec.h \
+# / addr_calc.* under lib/rocjitsu/src/rocjitsu/isa/arch/amdgpu/<isa>/.
 _FLOAT_NAME_MAP: dict[float, str] = {
     -0.5: 'NEG_HALF',
     -1.0: 'NEG_ONE',
@@ -283,6 +287,16 @@ class IsaProfile(ABC):
     @property
     def uses_packed_16bit_e32_source_selectors(self) -> bool:
         """True when E32 16-bit source selectors can address packed high halves."""
+        return False
+
+    @property
+    def uses_true16_vop3_opsel(self) -> bool:
+        """True when VOP3 16-bit operands use op_sel half selectors."""
+        return False
+
+    @property
+    def scalar_null_precedes_m0(self) -> bool:
+        """True when scalar operand code 124 is null and 125 is m0."""
         return False
 
     @property
@@ -1019,6 +1033,13 @@ class CdnaProfile(_AmdgpuProfileBase):
     def coherency_model(self) -> MemoryCoherencyModel:
         return MemoryCoherencyModel.GFX940_SC0_SC1_NT
 
+    @property
+    def uses_true16_vop3_opsel(self) -> bool:
+        # CDNA VOP3 OP_SEL uses bits [0:2] for source half selection and
+        # bit [3] for destination half selection. Low-destination writes
+        # zero the upper half; see the CDNA ISA OP_SEL field description.
+        return True
+
 
 class Cdna1Profile(CdnaProfile):
     """ISA profile for CDNA1 (GFX908 / MI100).
@@ -1303,6 +1324,20 @@ class Rdna3Profile(_AmdgpuProfileBase):
         return ('glc', 'slc', None)
 
     @property
+    def uses_packed_16bit_e32_source_selectors(self) -> bool:
+        # LLVM accepts gfx1100 E32 true16 operands such as
+        # ``v_mov_b16_e32 v2.h, v0.l`` with vdst[7] selecting the high half.
+        return True
+
+    @property
+    def scalar_null_precedes_m0(self) -> bool:
+        return True
+
+    @property
+    def uses_true16_vop3_opsel(self) -> bool:
+        return True
+
+    @property
     def smem_direct_offset_field(self) -> str | None:
         return 'offset'
 
@@ -1363,6 +1398,16 @@ class Rdna4Profile(_AmdgpuProfileBase):
         return '0x3F'
 
     @property
+    def waitcnt_decode(self) -> str:
+        """GFX12 compatibility S_WAITCNT SIMM16 layout.
+
+        RDNA4 XML exposes split S_WAIT_* opcodes, but LLVM still accepts the
+        monolithic opcode-9 S_WAITCNT form. The injected compatibility opcode
+        uses the GFX11 bit layout.
+        """
+        return Rdna3Profile.waitcnt_decode.fget(self)
+
+    @property
     def supported_versions(self) -> list[str]:
         return ['1.1.0']
 
@@ -1405,6 +1450,18 @@ class Rdna4Profile(_AmdgpuProfileBase):
     @property
     def coherency_model(self) -> MemoryCoherencyModel:
         return MemoryCoherencyModel.GFX12_SCOPE_TH
+
+    @property
+    def uses_packed_16bit_e32_source_selectors(self) -> bool:
+        return True
+
+    @property
+    def scalar_null_precedes_m0(self) -> bool:
+        return True
+
+    @property
+    def uses_true16_vop3_opsel(self) -> bool:
+        return True
 
     def mnemonic_rule(self, enc_name: str) -> MnemonicRule:
         """RDNA4 mnemonic rules.
