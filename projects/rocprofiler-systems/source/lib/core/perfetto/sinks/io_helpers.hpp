@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "common/units/data_size.hpp"
+#include "common/units.hpp"
 #include "core/config.hpp"
 #include "core/output_file_registry.hpp"
 #include "core/utility.hpp"
@@ -36,11 +36,12 @@ inline void
 emit_size_line(const std::string& filename, std::size_t bytes)
 {
     if(!stderr_log_allowed()) return;
-    const auto size = units::bytes{ static_cast<double>(bytes) };
-    LOG_INFO("{} perfetto ({:.2f} KB / {:.2f} MB / {:.2f} GB)... Done", filename,
-             units::data_size_cast<units::kilobytes>(size).count(),
-             units::data_size_cast<units::megabytes>(size).count(),
-             units::data_size_cast<units::gigabytes>(size).count());
+    std::fprintf(
+        stderr, "[rocprofsys][%i]> %s perfetto (%.2f KB / %.2f MB / %.2f GB)... Done\n",
+        dmp::rank(), filename.c_str(), static_cast<double>(bytes) / units::kilobyte,
+        static_cast<double>(bytes) / units::megabyte,
+        static_cast<double>(bytes) / units::gigabyte);
+    std::fflush(stderr);
 }
 
 inline void
