@@ -313,16 +313,6 @@ class Flag {
     var = os::GetEnvVar("HSA_ENABLE_DTIF");
     enable_dtif_ = (var == "1") ? true : false;
 
-    // Shared DTIF/FFM fast-copy enable: skips the staging blit and uses host
-    // memcpy in the ROCr blit kernel/SDMA paths.
-    //   HSA_ENABLE_DTIF_FAST_COPY=1 -> on
-    //   HSA_ENABLE_DTIF_FAST_COPY=0 -> off
-    //   unset -> on if HSA_MODEL_TOPOLOGY is set (FFM model mode default).
-    var = os::GetEnvVar("HSA_ENABLE_DTIF_FAST_COPY");
-    enable_dtif_fast_copy_ = var.empty()
-        ? os::IsEnvVarSet("HSA_MODEL_TOPOLOGY")
-        : (var == "1");
-
     var = os::GetEnvVar("HSA_DTIF_SKIP_INV_CODE_CACHE");
     enable_dtif_skip_inv_code_cache_ = (var == "1") ? true : false;
 
@@ -331,7 +321,24 @@ class Flag {
     enable_dxg_detection_ = (var == "0") ? false : true;
 
     var = os::GetEnvVar("HSA_CO_DMACOPY_SIZE");
-    co_dmacopy_size_ = var.empty() ? 1024*1024 : atoi(var.c_str());
+    if (var.empty()) {
+      co_dmacopy_size_ = 1024 * 1024;
+    } else {
+      // Use base 0 so large thresholds can be provided as decimal or hex
+      // (for example, 0x10000000000). atoi would stop at "0x" and return 0.
+      char* end = nullptr;
+      co_dmacopy_size_ = strtoull(var.c_str(), &end, 0);
+      if (end == var.c_str()) {
+        co_dmacopy_size_ = 1024 * 1024;
+        fprintf(stderr,
+                "Failed to parse HSA_CO_DMACOPY_SIZE=\"%s\"; using default %zu.\n",
+                var.c_str(), co_dmacopy_size_);
+      } else if (*end != '\0') {
+        fprintf(stderr,
+                "Partially parsed HSA_CO_DMACOPY_SIZE=\"%s\" as %zu; ignored trailing \"%s\".\n",
+                var.c_str(), co_dmacopy_size_, end);
+      }
+    }
     var = os::GetEnvVar("HSA_AGENT_CACHELINE_SIZE_OVERRIDE");
     cacheline_size_override_ = var.empty() ? -1 : atoi(var.c_str());
 
@@ -528,8 +535,6 @@ class Flag {
 
   bool enable_dtif() const { return enable_dtif_; }
 
-  bool enable_dtif_fast_copy() const { return enable_dtif_fast_copy_; }
-
   bool enable_dtif_skip_inv_code_cache() const { return enable_dtif_skip_inv_code_cache_; }
 
   bool enable_dxg_detection() const { return enable_dxg_detection_; }
@@ -620,7 +625,6 @@ class Flag {
   int  async_events_thread_priority_;
   bool enable_3d_swizzle_ = false;
   bool enable_dtif_;
-  bool enable_dtif_fast_copy_;
   bool enable_dtif_skip_inv_code_cache_;
   bool enable_dxg_detection_;
   SDMA_OVERRIDE sdma_linear_b2b_ = SDMA_DEFAULT;
