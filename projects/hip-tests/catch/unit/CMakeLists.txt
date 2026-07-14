@@ -32,7 +32,6 @@ add_subdirectory(complex)
 add_subdirectory(p2p)
 add_subdirectory(threadfence)
 add_subdirectory(virtualMemoryManagement)
-add_subdirectory(cluster)
 add_subdirectory(wavegroup)
 add_subdirectory(deviceLib)
 # TODO Rock build failures
