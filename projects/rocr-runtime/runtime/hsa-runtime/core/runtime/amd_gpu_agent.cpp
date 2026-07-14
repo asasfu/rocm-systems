@@ -1885,15 +1885,14 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
 
   bool use_body_signals = !coordinator->PlatformAtomicSupport();
 
+  // Fan out: one body per entry on its resolved engine.
   // On gfx1250 with shared out_signal, use WaitSignal body to fuse
-  // poll+copy+signal per body; the builder chunks large entries internally.
-  // Only indirect bodies can't chunk (requires_multi_packet), so they fall back
-  // to the classic path here and are rejected just below.
-  const bool waitsignal_body =
-      coordinator->IsGfx1250() && !use_body_signals && !requires_multi_packet;
+  // poll+copy+signal into a single packet per body.
+  const bool waitsignal_body = (coordinator->IsGfx1250() ||
+		                coordinator->IsGfx1260()) && !use_body_signals;
 
   // Indirect bodies only implement fused packets
-  if (is_indirect && !waitsignal_body) return HSA_STATUS_ERROR_INVALID_ARGUMENT;
+  if (is_indirect && !waitsignal_body || requires_multi_packet) return HSA_STATUS_ERROR_INVALID_ARGUMENT;
 
   // Allocate prologue synchronization signal
   core::unique_signal_ptr prologue_signal(new core::DefaultSignal(1));
@@ -1949,10 +1948,6 @@ hsa_status_t GpuAgent::DmaCopyFanOutOp(
                                                   *prologue_raw);
   if (stat != HSA_STATUS_SUCCESS) return stat;
 
-  // Fan out: one body per entry on its resolved engine.
-  // On gfx1250 with shared out_signal, use WaitSignal body to fuse
-  // poll+copy+signal into a single packet per body.
-  const bool waitsignal_body = (coordinator->IsGfx1250() || coordinator->IsGfx1260()) && !use_body_signals;
   const std::vector<core::Signal*> body_deps = waitsignal_body
       ? std::vector<core::Signal*>{prologue_raw} : std::vector<core::Signal*>{};
 
