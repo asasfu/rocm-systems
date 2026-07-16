@@ -95,7 +95,6 @@ set(ROCPROFSYS_EXAMPLE_DIRS
     jpegdecode
     roctx
     thread-limit
-    transferBench
     hpc
     shmem
     scratch-memory
