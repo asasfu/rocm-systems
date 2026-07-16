@@ -215,6 +215,9 @@ class Flag {
     var = os::GetEnvVar("HSA_NO_SCRATCH_THREAD_LIMITER");
     no_scratch_thread_limit_ = (var == "1") ? true : false;
 
+    var = os::GetEnvVar("HSA_FORCE_SCRATCH_DEVICE_SLOTS_DEBUG");
+    force_scratch_device_slots_debug_ = (var == "1") ? true : false;
+
     var = os::GetEnvVar("HSA_DISABLE_IMAGE");
     disable_image_ = (var == "1") ? true : false;
 
@@ -431,6 +434,8 @@ class Flag {
 
   bool no_scratch_thread_limiter() const { return no_scratch_thread_limit_; }
 
+  bool force_scratch_device_slots_debug() const { return force_scratch_device_slots_debug_; }
+
   SDMA_OVERRIDE enable_sdma() const { return enable_sdma_; }
 
   SDMA_OVERRIDE enable_peer_sdma() const { return enable_peer_sdma_; }
@@ -607,6 +612,7 @@ class Flag {
   bool fine_grain_pcie_;
   bool no_scratch_reclaim_;
   bool no_scratch_thread_limit_;
+  bool force_scratch_device_slots_debug_;
   bool disable_image_;
   bool disable_pc_sampling_;
   bool loader_enable_mmap_uri_;

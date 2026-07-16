@@ -182,7 +182,15 @@ bool Settings::create(bool fullProfile, const amd::Isa& isa, bool enableXNACK, b
     enableExtension(ClKhrMipMapImageWrites);
   }
 
-  if ((gfxipMajor == 12 && gfxipMinor >= 5 || gfxipMajor >= 13) && !HIP_DISABLE_EXT_PACKET) {
+  // The extended dispatch packet encodes the grid as
+  //   cluster_count * cluster_size * workgroup_size
+  // and cannot represent a non-uniform (partial last) work-group. HIP guarantees the
+  // grid is divisible by the block/cluster, but OpenCL CL2.0 permits non-uniform
+  // work-groups, which would drop the remainder work-items. OpenCL also never uses the
+  // cluster feature, so the ext packet gives it no benefit. Restrict the ext packet
+  // (and the ext-only group-mem carveout perf hint that rides in it) to HIP.
+  if ((gfxipMajor == 12 && gfxipMinor >= 5 || gfxipMajor >= 13) && !HIP_DISABLE_EXT_PACKET &&
+      amd::IS_HIP) {
     ext_dispatch_packet_ = true;
     groupMemCarveout_ = true;
   }
