@@ -1275,6 +1275,8 @@ graph:
     <<: *level_2
     tags: [capture]
   Unit_hipLaunchHostFunc_H2D_Kernel_D2H_Capture:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [capture]
   Unit_hipLaunchHostFunc_CrossStreamDep_UncapturedFirstNode:
@@ -1555,6 +1557,8 @@ graph:
     # SWDEV-446588 - Disable graph multi gpu testcases until graph has support for it
     disabled: [amd_windows, amd_wsl]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional_2:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [query]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional_3:
@@ -1592,6 +1596,8 @@ graph:
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_1:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_2:
@@ -1796,12 +1802,18 @@ graph:
   Unit_hipEventQuery_SameThread_GlobalCapture: *level_2
   Unit_hipEventQuery_SameThread_RelaxedCapture: *level_2
   Unit_hipGraphAllocNodeMemReuse_SameStream_SameSizes:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_SameStream_DifferentSizes_NoReuse:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_RepeatedLaunches:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_MemoryTrim:
@@ -1818,12 +1830,18 @@ graph:
     disabled: [amd_windows, amd_wsl]
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_DifferentStreams_Reuse:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_MemSteal_Remap:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_AutoFreeOnLaunch:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_CaptureEscapedUseAfterDestroy:
