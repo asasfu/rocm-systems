@@ -698,6 +698,8 @@ graph:
     <<: *level_2
     tags: [capture]
   Unit_hipGraphAddMemcpyNode1D_Functional:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAddMemcpyNode1D_Negative:
@@ -1357,9 +1359,13 @@ graph:
     disabled: [amd_wsl]
     tags: [lifecycle]
   Unit_hipGraphClone_hipGraphMemcpyNodeSetParamsFromSymbol_exec:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [lifecycle]
   Unit_hipGraphClone_hipGraphMemcpyNodeSetParamsToSymbol_exec:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [lifecycle]
   Unit_hipGraphClone_Test_hipGraphMemsetNodeSetParams_exec:

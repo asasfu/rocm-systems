@@ -1229,15 +1229,23 @@ memory:
     <<: *level_2
     tags: [alloc, P1, image]
   Unit_hipMemcpyDeviceToDeviceNoCU_SingleStream:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyDeviceToDeviceNoCU_WithCU_NoCU_Comb_SingleStrm:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyDeviceToDeviceNoCU_NoCU_MulStrm:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyDeviceToDeviceNoCU_Memcpy_Kernel_InParallel:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipGetProcAddress_MemoryApisMallocFree:
@@ -1254,6 +1262,8 @@ memory:
   Unit_hipGetProcAddress_MemoryApisMemCopy:
     <<: *level_2
   Unit_hipGetProcAddress_MemoryApisMemCopyWithStreams:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipGetProcAddress_MemoryApisMemset: *level_2
   Unit_hipGetProcAddress_MemoryApisMemset2D3D:
