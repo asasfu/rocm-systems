@@ -23,12 +23,16 @@ virtualMemoryManagement:
   Unit_hipMemImportFromShareableHandle_Negative_Parameters:
     <<: *level_2
   Unit_hipMemImportFromShareableHandle_MulProc_ChldUseHdl:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipMemImportFromShareableHandle_MulProc_ParntChldUseHdl:
     # FFM gfx1260/1310/1370: requires dma_buf idempotent-export aliasing fix (AMD-GFX-Modeling/hsakmt-sim#45)
     disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipMemImportFromShareableHandle_MulProc_GrndChldUseHdl:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipMemImportFromShareableHandle_Capture:
     <<: *level_2
@@ -37,8 +41,11 @@ virtualMemoryManagement:
   Unit_hipMemGetHandleForAddressRange_DeviceMemory:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [asan]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [asan, gfx1260, gfx1310, gfx1370]
   Unit_hipMemGetHandleForAddressRange_VM:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipMemGetHandleForAddressRange_DeviceMemory_InAnotherDevice:
     <<: *level_2
@@ -52,12 +59,16 @@ virtualMemoryManagement:
   Unit_hipMemGetHandleForAddressRange_MulProc_Socket_DeviceMem:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [asan]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [asan, gfx1260, gfx1310, gfx1370]
   Unit_hipMemGetHandleForAddressRange_MulProc_Socket_VM:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [asan]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [asan, gfx1260, gfx1310, gfx1370]
   Unit_hipMemGetHandleForAddressRange_MultipleThreads:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipMemGetHandleForAddressRange_DifferentOffsets:
     <<: *level_2
@@ -71,6 +82,8 @@ virtualMemoryManagement:
   Unit_hipMemUnmap_RemapCrossLinks:
     <<: *level_2
   Unit_hipGetProcAddress_VMM:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipMemAddressFree_negative:
     <<: *level_2
@@ -83,7 +96,8 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) NOTE: The following test is disabled due to defect - EXSWHTEC-245
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemAddressReserve_Negative:
     <<: *level_2
     # === Patch which removes the typetraits implementation from std namespace in hiprtc is reverted ===
@@ -97,25 +111,30 @@ virtualMemoryManagement:
   Unit_hipMemCreate_ChkDev2HstMemcpy_ReleaseHdlPostUnmap:
     <<: *level_2
     # Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemCreate_ChkDev2HstMemcpy_ReleaseHdlPreUse:
     <<: *level_2
     # Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemCreate_ChkWithKerLaunch:
     <<: *level_2
     # (amd_windows) SWDEV-396615 mGPUs not considered correctly
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemCreate_MapNonContiguousChunks:
     <<: *level_2
     # (amd_windows) SWDEV-396615 mGPUs not considered correctly
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemCreate_ChkWithMemset:
     <<: *level_2
     # Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemCreate_Negative:
     <<: *level_2
     # Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
@@ -126,7 +145,8 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) SWDEV-396615 mGPUs not considered correctly
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemSetAccess_MultDevSetGet:
     <<: *level_2
     tags: [multigpu]
@@ -137,10 +157,12 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) SWDEV-396615 mGPUs not considered correctly
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemGetAccess_NegTst:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemSetAccess_FuncTstOnMultDev:
     <<: *level_2
     tags: [multigpu]
@@ -151,17 +173,20 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) SWDEV-413997: VMM test still failing in windows
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemSetAccess_Vmm2UnifiedMemCpy:
     <<: *level_2
     # (amd_windows) SWDEV-396615 mGPUs not considered correctly
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemSetAccess_Vmm2DevMemCpy:
     <<: *level_2
     # (amd_windows) SWDEV-444041: These tests fail randomly in gfx1030 MGU
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemSetAccess_Vmm2PeerDevMemCpy:
     <<: *level_2
     tags: [multigpu]
@@ -177,7 +202,8 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) SWDEV-444041: These tests fail in gfx1100 MGPU
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemSetAccess_Vmm2VMMInterDevMemCpy:
     <<: *level_2
     tags: [multigpu]
@@ -188,7 +214,8 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) SWDEV-396615 mGPUs not considered correctly
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemSetAccess_Multithreaded:
     <<: *level_2
     # (amd_windows) SWDEV-444031: This test fails in gfx1101 MGPU
@@ -201,11 +228,14 @@ virtualMemoryManagement:
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
     disabled: [amd_windows, amd_wsl]
   Unit_hipMemSetGetAccess_Capture:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipMemSetAccessHostDevice_hostalloc:
     <<: *level_2
     # SWDEV-555665
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemSetAccessHost_devicealloc:
     <<: *level_2
     disabled: [amd_windows, amd_wsl, gfx1250, gfx1260, gfx1310, gfx1370]
@@ -224,12 +254,14 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) SWDEV-444041: These tests fail randomly in gfx1030 MGU
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemMap_PhysicalMemoryReuse_SingleGPU:
     <<: *level_2
     # (amd_windows) SWDEV-444041: These tests fail in gfx1100 MGPU
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemMap_PhysicalMemory_Map2MultVMMs:
     <<: *level_2
     # (amd_windows) SWDEV-444041: These tests fail in gfx1100 MGPU
@@ -240,7 +272,8 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) SWDEV-444041: These tests fail in gfx1100 MGPU
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemMap_PhysicalMemoryReuse_MultiDev:
     <<: *level_2
     tags: [multigpu]
@@ -250,7 +283,8 @@ virtualMemoryManagement:
   Unit_hipMemMap_VMMMemoryReuse_SingleGPU:
     <<: *level_2
     # Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemMap_VMMMemoryReuse_MultiGPU:
     <<: *level_2
     tags: [multigpu]
@@ -260,7 +294,8 @@ virtualMemoryManagement:
   Unit_hipMemMap_MapPartialVMMMem:
     <<: *level_2
     # Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemMap_negative:
     <<: *level_2
     # (amd_windows) SWDEV-444041: These tests fail randomly in gfx1030 MGU
@@ -295,4 +330,6 @@ virtualMemoryManagement:
     # Below tests are failing PSDB
     disabled: [nvidia_linux, nvidia_windows]
   Unit_hipMemSetAccess_SegmentsAccess:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2

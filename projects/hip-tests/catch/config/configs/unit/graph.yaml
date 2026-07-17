@@ -1823,6 +1823,8 @@ graph:
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_MemoryTrim:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_ExplicitAllocFreeNodes_SameSize:
@@ -1851,6 +1853,8 @@ graph:
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_CaptureEscapedUseAfterDestroy:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAddDependencies_Functional:

@@ -58,18 +58,26 @@ hrr:
     <<: *level_2
     tags: [format, recovery, multiprocess, cpu]
   Unit_HRR_AllApisRoundtrip:
+    # FFM gfx1260/1310/1370: HRR record/replay roundtrip harness fails under functional model
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [capture, allapis, playback, roundtrip]
   Unit_HRR_CaptureReplayRoundtrip:
+    # FFM gfx1260/1310/1370: HRR record/replay roundtrip harness fails under functional model
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [capture, playback, roundtrip]
   Unit_HRR_GraphRoundtrip:
+    # FFM gfx1260/1310/1370: HRR record/replay roundtrip harness fails under functional model
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [capture, graph, playback, roundtrip]
   Unit_HRR_HostMemRoundtrip:
     <<: *level_2
     tags: [capture, hostmem, playback, roundtrip]
   Unit_HRR_StressApisRoundtrip:
+    # FFM gfx1260/1310/1370: HRR record/replay roundtrip harness fails under functional model
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [capture, stress, playback, roundtrip]
   Unit_HRR_MemsetVariantsRoundtrip:
@@ -91,6 +99,8 @@ hrr:
     <<: *level_2
     tags: [capture, hostmem, playback, roundtrip]
   Unit_HRR_MemPoolExtendedRoundtrip:
+    # FFM gfx1260/1310/1370: HRR record/replay roundtrip harness fails under functional model
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [capture, mempool, playback, roundtrip]
   Unit_HRR_MemsetExtraRoundtrip:
@@ -132,6 +142,8 @@ hrr:
     <<: *level_2
     tags: [capture, module, launch, playback, roundtrip]
   Unit_HRR_VMMRoundtrip:
+    # FFM gfx1260/1310/1370: HRR record/replay roundtrip harness fails under functional model
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [capture, vmm, playback, roundtrip]
   Unit_HRR_ChevronLaunchRoundtrip:
@@ -158,11 +170,13 @@ hrr:
   Unit_HRR_ReplaceKernelRoundtrip:
     <<: *level_2
     tags: [capture, playback, roundtrip, replacekernel]
-    disabled: [amd_windows]
+    # FFM gfx1260/1310/1370: HRR record/replay roundtrip harness fails under functional model
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
   Unit_HRR_ReplaceKernelMissingCO:
     <<: *level_2
     tags: [capture, playback, roundtrip, replacekernel]
-    disabled: [amd_windows]
+    # FFM gfx1260/1310/1370: HRR record/replay roundtrip harness fails under functional model
+    disabled: [amd_windows, gfx1260, gfx1310, gfx1370]
   Unit_HRR_ReplaceKernelBadSpec:
     <<: *level_2
     tags: [capture, playback, roundtrip, replacekernel]

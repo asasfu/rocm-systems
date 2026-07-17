@@ -925,9 +925,13 @@ memory:
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_H2D_Functional:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_D2H_Functional:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_H2H_Functional:
@@ -1202,6 +1206,8 @@ memory:
     disabled: [amd_windows, amd_wsl, amd_linux]
     tags: [virtualMemoryManagement, P1]
   Unit_hipMemVmm_Uncached:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc]
   Unit_hipArray_Valid:
@@ -1518,9 +1524,13 @@ memory:
     disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_Basic_OneAlloc:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P0]
   Unit_hipMallocFromPoolAsync_Basic_TwoAllocs:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_Basic_Reuse:
@@ -2211,7 +2221,8 @@ memory:
     tags: [query, P1]
   Unit_hipPointerGetAttribute_ipc_capable:
     <<: *level_2
-    disabled: [amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipDrvPtrGetAttributes_Negative:
     <<: *level_2
@@ -2502,9 +2513,13 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocAsync_Basic_OneAlloc:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P0]
   Unit_hipMallocAsync_Basic_TwoAllocs:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P0]
   Unit_hipMallocAsync_Basic_Reuse:
