@@ -25,6 +25,8 @@ virtualMemoryManagement:
   Unit_hipMemImportFromShareableHandle_MulProc_ChldUseHdl:
     <<: *level_2
   Unit_hipMemImportFromShareableHandle_MulProc_ParntChldUseHdl:
+    # FFM gfx1260/1310/1370: requires dma_buf idempotent-export aliasing fix (AMD-GFX-Modeling/hsakmt-sim#45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipMemImportFromShareableHandle_MulProc_GrndChldUseHdl:
     <<: *level_2
@@ -232,7 +234,8 @@ virtualMemoryManagement:
     <<: *level_2
     # (amd_windows) SWDEV-444041: These tests fail in gfx1100 MGPU
     # (amd_wsl) Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: requires dma_buf idempotent-export aliasing fix (AMD-GFX-Modeling/hsakmt-sim#45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipMemMap_UnmapOneAliasOfMultiAliasedHandle:
     <<: *level_2
     # (amd_windows) SWDEV-444041: These tests fail in gfx1100 MGPU
