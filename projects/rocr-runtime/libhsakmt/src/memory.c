@@ -24,6 +24,7 @@
  */
 
 #include "libhsakmt.h"
+#include <hsakmt/hsakmtmodel.h>
 #include "hsakmt/linux/kfd_ioctl.h"
 #include <stdlib.h>
 #include <string.h>
@@ -1123,7 +1124,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryVaMap(HsaMemoryObjectHandle Handle,
 		return result;
 
 	uint32_t gem_handle = 0;
-	int ret = amdgpu_bo_export(drmhandle, amdgpu_bo_handle_type_kms, &gem_handle);
+	int ret = hsakmt_amdgpu_bo_export(drmhandle, amdgpu_bo_handle_type_kms, &gem_handle);
 	if (ret)
 		return HSAKMT_STATUS_ERROR;
 	
@@ -1139,7 +1140,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryVaMap(HsaMemoryObjectHandle Handle,
 	va.vm_timeline_syncobj_out     = vm_timeline_syncobj;
 	va.vm_timeline_point           = vm_timeline_seqnum;
 
-	ret = drmCommandWriteRead(drm_fd, DRM_AMDGPU_GEM_VA, &va, sizeof(va));
+	ret = hsakmt_drm_command_write_read(drm_fd, DRM_AMDGPU_GEM_VA, &va, sizeof(va));
 	if (ret) {
 		pr_err("[%s] DRM_AMDGPU_GEM_VA MAP failed: %d\n", __func__, ret);
 		return HSAKMT_STATUS_ERROR;
@@ -1153,7 +1154,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryVaMap(HsaMemoryObjectHandle Handle,
 	tw.count_handles = 1;
 	tw.timeout_nsec = INT64_MAX;
 	tw.flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
-	ret = drmIoctl(drm_fd, DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT, &tw);
+	ret = hsakmt_use_model ? 0 : drmIoctl(drm_fd, DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT, &tw);
 
 	if (ret) {
 		pr_err("[%s] DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT failed after MAP: %d\n", __func__, ret);
@@ -1183,7 +1184,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryVaUnmap(HsaMemoryObjectHandle Handle,
 		return result;
 
 	uint32_t gem_handle = 0;
-	ret = amdgpu_bo_export(drmhandle, amdgpu_bo_handle_type_kms, &gem_handle);
+	ret = hsakmt_amdgpu_bo_export(drmhandle, amdgpu_bo_handle_type_kms, &gem_handle);
 	if (ret)
 		return HSAKMT_STATUS_ERROR;
 
@@ -1198,7 +1199,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryVaUnmap(HsaMemoryObjectHandle Handle,
 	va.vm_timeline_syncobj_out = vm_timeline_syncobj;
 	va.vm_timeline_point       = vm_timeline_seqnum;
 
-	ret = drmCommandWriteRead(drm_fd, DRM_AMDGPU_GEM_VA, &va, sizeof(va));
+	ret = hsakmt_drm_command_write_read(drm_fd, DRM_AMDGPU_GEM_VA, &va, sizeof(va));
 	if (ret) {
 		pr_err("[%s] DRM_AMDGPU_GEM_VA UNMAP failed: %d\n", __func__, ret);
 		return HSAKMT_STATUS_ERROR;
@@ -1212,7 +1213,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMemoryVaUnmap(HsaMemoryObjectHandle Handle,
 	tw.count_handles = 1;
 	tw.timeout_nsec = INT64_MAX;
 	tw.flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
-	ret = drmIoctl(drm_fd, DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT, &tw);
+	ret = hsakmt_use_model ? 0 : drmIoctl(drm_fd, DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT, &tw);
 
 	if (ret) {
 		pr_err("[%s] DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT failed after UNMAP: %d\n", __func__, ret);
