@@ -998,12 +998,16 @@ memory:
     <<: *level_2
     tags: [transfer]
   Unit_hipMemcpyBatchAsync_Attrs_Functional:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260]
     <<: *level_2
     tags: [transfer]
   Unit_hipMemcpyBatchAsync_H2D_Pageable_DuringApiCall_SourceAccess:
     <<: *level_2
     tags: [transfer]
   Unit_hipMemcpyBatchAsync_H2D_Pageable_Stream_SourceAccess:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260]
     <<: *level_2
     tags: [transfer, stream]
   Unit_hipMemcpyBatchAsync_Mixed_Functional:
@@ -1288,6 +1292,8 @@ memory:
   Unit_hipGetProcAddress_MemoryApisManagedMemory:
     <<: *level_2
   Unit_hipGetProcAddress_MemoryApisStreamOrderedMemory:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipGetProcAddress_MemoryApisPeerToPeer:
     <<: *level_2
@@ -1340,6 +1346,8 @@ memory:
     disabled: [gfx1260]
     tags: [query, P1]
   Unit_hipMemPoolApi_Basic:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [stream, P1]
   Unit_hipMemPoolApi_BasicAlloc:
@@ -1457,6 +1465,8 @@ memory:
     disabled: [amd_windows, amd_wsl]
     tags: [alloc, P1]
   Unit_hipMemPoolSetAttribute_ResetMemHighAttr:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_Negative_Parameters:
@@ -1468,12 +1478,18 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_UsedMem:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_ReservedMem:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_UsageStatistics:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_hipMalloc_DefMempool:
@@ -1486,9 +1502,13 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolCreate_With_maxSize:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolCreate_Without_maxSize:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolCreate_DeviceTest:
@@ -2494,7 +2514,8 @@ memory:
   Unit_hipFreeAsync_Negative_Parameters:
     <<: *level_2
     # Below tests are failing PSDB
-    disabled: [amd_windows, amd_wsl]
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipFreeAsync_capturehipFreeAsync:
     <<: *level_2

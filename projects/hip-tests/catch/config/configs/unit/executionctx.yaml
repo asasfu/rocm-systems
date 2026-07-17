@@ -24,6 +24,8 @@ executionctx:
   Unit_hipExecutionCtxStreamDetached_MemsetAsync_Negative:
     <<: *level_2
   Unit_hipExecutionCtxStreamDetached_MempoolAsync_Negative:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipExecutionCtxStreamDetached_HmmAsync_Negative:
     <<: *level_2

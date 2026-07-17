@@ -306,8 +306,14 @@ virtualMemoryManagement:
   Unit_hipMemMap_Retrieve_AllocationHandle: *level_2
   Unit_hipMemMap_Retrieve_MultiAllocationHandle: *level_2
   Unit_hipMemMap_CheckAddMemObj: *level_2
-  Unit_hipMemMap_RoundTrip: *level_2
-  Unit_hipMemMap_ConcurrentDisjointMapsNoDeadlock: *level_2
+  Unit_hipMemMap_RoundTrip:
+    <<: *level_2
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
+  Unit_hipMemMap_ConcurrentDisjointMapsNoDeadlock:
+    <<: *level_2
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemRelease_negative:
     <<: *level_2
     # Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
@@ -322,8 +328,14 @@ virtualMemoryManagement:
     <<: *level_2
   Unit_hipMemUnmap_CrossLinksTornDown: *level_2
   Unit_hipMemUnmap_ReapCrossLinks: *level_2
-  Unit_hipMemUnmap_DirectPath_BasicRoundTrip: *level_2
-  Unit_hipMemUnmap_DirectPath_InFlightKernelDrained: *level_2
+  Unit_hipMemUnmap_DirectPath_BasicRoundTrip:
+    <<: *level_2
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
+  Unit_hipMemUnmap_DirectPath_InFlightKernelDrained:
+    <<: *level_2
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemMapArrayAsync_Positive_Basic:
     <<: *level_2
     tags: [image]

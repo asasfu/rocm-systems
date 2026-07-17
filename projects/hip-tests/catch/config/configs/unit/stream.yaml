@@ -148,6 +148,8 @@ stream:
     disabled: [amd_windows, amd_wsl, amd_linux]
     tags: [memory, P1]
   Unit_hipMemPoolApi_hipStreamLegacy_Basic:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [memory]
   Unit_hipStreamValue_Write:
