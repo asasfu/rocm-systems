@@ -907,7 +907,7 @@ hipError_t hipOccupancyMaxPotentialClusterSize(int* clusterSize, const void* f,
 
   // 1 per CU (the result is the number CUs on the smallest Shader Engine of the design)
   // Note that for devices not supporting clustered launches, clusterSize would be set
-  // to zero (but the function does not necessarily return an error)
+  // to one
   *clusterSize = device.info().clusterMaxSize_;
   HIP_RETURN(hipSuccess);
 }

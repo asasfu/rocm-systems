@@ -88,6 +88,7 @@
 #include "suites/functional/signal_kernel.h"
 #include "suites/functional/cu_masking.h"
 #include "suites/functional/filter_devices.h"
+#include "suites/functional/fp_exception_shutdown.h"
 #include "suites/functional/gpu_coredump.h"
 #include "amd_smi/amdsmi.h"
 #include "common/common.h"
@@ -399,6 +400,13 @@ TEST(rocrtstFunc, GpuCoreDump_PipePattern) {
     RunCustomTestEpilog(&gcd);
 }
 
+TEST(rocrtstFunc, FP_Exception_Shutdown) {
+    FpExceptionShutdownTest fpx;
+    if (!RunCustomTestProlog(&fpx)) return;
+    fpx.TestShutdownSurvivesStrictFpEnv();
+    RunCustomTestEpilog(&fpx);
+}
+
 TEST(rocrtstFunc, Memory_Atomic_Add_Test) {
     MemoryAtomic ma(ADD);
     if (!RunCustomTestProlog(&ma)) return;
@@ -518,6 +526,13 @@ TEST(rocrtstFunc, SvmMemory_Negative_Test) {
     RunCustomTestEpilog(&smt);
 }
 
+TEST(rocrtstFunc, SvmMemory_AccessedBy_All_Devices_Test) {
+    SvmMemoryTestBasic smt;
+    if (!RunCustomTestProlog(&smt)) return;
+    smt.TestAccessedByAllDevices();
+    RunCustomTestEpilog(&smt);
+}
+
 TEST(rocrtstFunc, VirtMemory_Basic_Test) {
     VirtMemoryTestBasic vmt;
 
@@ -554,8 +569,30 @@ TEST(rocrtstFunc, VirtMemory_Aliasing_Test) {
     RunCustomTestEpilog(&vmt);
 }
 
-TEST(rocrtstFunc, VirtMemory_Interprocess_Test) {
-    VirtMemoryTestInterProcess vmt;
+TEST(rocrtstFunc, VirtMemory_NonContiguousChunks_Test) {
+  VirtMemoryTestBasic vmt;
+
+  if (!RunCustomTestProlog(&vmt)) return;
+  vmt.NonContiguousChunks();
+  RunCustomTestEpilog(&vmt);
+}
+
+TEST(rocrtstFunc, VirtMemory_GPUtoHostAccess_Test) {
+  VirtMemoryTestBasic vmt;
+
+  if (!RunCustomTestProlog(&vmt)) return;
+  vmt.TestGpuAccessToHostMemoryAllocation();
+  RunCustomTestEpilog(&vmt);
+}
+
+TEST(rocrtstFunc, VirtMemory_Interprocess_DevicePool_Test) {
+    VirtMemoryTestInterProcess vmt(PoolType::kDevicePool);
+    if (!RunCustomTestProlog(&vmt)) return;
+    RunCustomTestEpilog(&vmt);
+}
+
+TEST(rocrtstFunc, VirtMemory_Interprocess_HostPool_Test) {
+    VirtMemoryTestInterProcess vmt(PoolType::kCpuPool);
     if (!RunCustomTestProlog(&vmt)) return;
     RunCustomTestEpilog(&vmt);
 }

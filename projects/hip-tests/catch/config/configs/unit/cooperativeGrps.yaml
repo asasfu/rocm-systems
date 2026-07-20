@@ -238,6 +238,11 @@ cooperativeGrps:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
     disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Tile_Scan_All_Parameter_Sizes:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
   Unit_Thread_Block_Tile_Reduce_Basic:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
@@ -245,6 +250,11 @@ cooperativeGrps:
   Unit_Thread_Block_Tile_Reduce_Custom_Op:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Tile_Scan_Custom_Op:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
     disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
   Unit_Thread_Block_Tile_Reduce_Standard_Op_Custom_Type:
     <<: *level_2
@@ -254,6 +264,11 @@ cooperativeGrps:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
     disabled: [amd_windows, amd_wsl]
+  Unit_Thread_Block_Tile_Scan_Trivially_Copyable_Parameters:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
   Unit_Thread_Block_Tile_Reduce_All_Parameter_Sizes:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
@@ -270,6 +285,51 @@ cooperativeGrps:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
     disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
+  Unit_Thread_Block_Tile_Multi_Dimensional_Reduce:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Tile_Inclusive_Scan_Basic:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Tile_Exclusive_Scan_Basic:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Tile_Scan_Random_arithmetic:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Tile_Scan_Random_boolean:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Tile_2D_3D_Blocks:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Coalesced_Scan_arithmetic:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Coalesced_Scan_boolean:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
+  Unit_Thread_Block_Scan_partition:
+    <<: *level_2
+    # Rock_Window_Failures_on_gfx1151
+    # FFM gfx1310/1370: cooperative-groups GWS scan failure, needs num_gws=1 topology fix (AMD-GFX-Modeling/jitcu_package#208)
+    disabled: [amd_windows, amd_wsl, gfx1310, gfx1370]
   Unit_Thread_Block_Tile_Reduce_Standard_Op_Custom_Type:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151

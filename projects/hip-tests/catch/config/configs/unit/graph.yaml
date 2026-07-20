@@ -130,12 +130,14 @@ graph:
   Unit_hipGraphInstantiateWithFlags_FlagAutoFreeOnLaunch_check:
     <<: *level_2
     # SWDEV-402082 - PAL Backend fails to reserve address on GPU except first one
-    disabled: [amd_windows, amd_wsl]
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphInstantiateWithFlags_AutoFreeOnLaunchInLoop:
     <<: *level_2
     # SWDEV-517063 Below tests are temporarily disabled due to PSDB failure
-    disabled: [amd_windows, amd_wsl]
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphInstantiateWithFlags_AutoFreeOnLaunchFillKernel:
     <<: *level_2
@@ -698,6 +700,8 @@ graph:
     <<: *level_2
     tags: [capture]
   Unit_hipGraphAddMemcpyNode1D_Functional:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAddMemcpyNode1D_Negative:
@@ -814,7 +818,8 @@ graph:
   Unit_hipGraphMemFreeNodeGetParams_ValidArgs:
     <<: *level_2
     # test hangs on gfx1260
-    disabled: [gfx1260]
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipGraphMemFreeNodeGetParams_InvalidArgs:
     <<: *level_2
@@ -864,6 +869,8 @@ graph:
     <<: *level_2
     tags: [node]
   Unit_hipDrvGraphAddMemFreeNode_Positive:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipStreamCapture_ExtModuleLaunchKernel:
@@ -1275,6 +1282,8 @@ graph:
     <<: *level_2
     tags: [capture]
   Unit_hipLaunchHostFunc_H2D_Kernel_D2H_Capture:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [capture]
   Unit_hipLaunchHostFunc_CrossStreamDep_UncapturedFirstNode:
@@ -1355,9 +1364,13 @@ graph:
     disabled: [amd_wsl]
     tags: [lifecycle]
   Unit_hipGraphClone_hipGraphMemcpyNodeSetParamsFromSymbol_exec:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [lifecycle]
   Unit_hipGraphClone_hipGraphMemcpyNodeSetParamsToSymbol_exec:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [lifecycle]
   Unit_hipGraphClone_Test_hipGraphMemsetNodeSetParams_exec:
@@ -1547,14 +1560,19 @@ graph:
     <<: *level_2
     tags: [node]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [query]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional_MultiDevice:
     <<: *level_2
     tags: [query]
     # SWDEV-446588 - Disable graph multi gpu testcases until graph has support for it
-    disabled: [amd_windows, amd_wsl]
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional_2:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [query]
   Unit_hipGraphMem_Alloc_Free_NodeGetParams_Functional_3:
@@ -1592,18 +1610,24 @@ graph:
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_1:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_2:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_3:
     <<: *level_2
-    disabled: [gfx1250]
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Functional_4:
     <<: *level_2
-    disabled: [gfx1250]
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Argument_Check:
     <<: *level_2
@@ -1632,6 +1656,8 @@ graph:
     disabled: [amd_windows, amd_wsl]
     tags: [node]
   Unit_hipGraphAddMemFreeNode_Functional:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipDrvGraphMemcpyNodeGetParams_Negative_Parameters:
@@ -1660,15 +1686,21 @@ graph:
     <<: *level_2
     tags: [exec]
   Unit_hipDeviceGetGraphMemAttribute_Positive_DoubleMemory:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [query]
   Unit_hipDeviceGetGraphMemAttribute_Negative_Parameters:
     <<: *level_2
     tags: [query]
   Unit_hipDeviceGetGraphMemAttribute_Functional:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [query]
   Unit_hipDeviceGetGraphMemAttribute_Functional_Multi_Device:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [query]
   Unit_hipDeviceGetGraphMemAttribute_Negative:
@@ -1780,6 +1812,7 @@ graph:
   Unit_hipGraph_SimpleGraphWithKernel_kernel_arg_prefetch:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
+    tags: [exec]
   Unit_hipEventQuery_GlobalCapture_DefaultMode_NormalEvent: *level_2
   Unit_hipEventQuery_GlobalCapture_DefaultMode_CapturedEvent: *level_2
   Unit_hipEventSynchronize_GlobalCapture_DefaultMode_NormalEvent: *level_2
@@ -1795,37 +1828,58 @@ graph:
   Unit_hipEventQuery_SameThread_GlobalCapture: *level_2
   Unit_hipEventQuery_SameThread_RelaxedCapture: *level_2
   Unit_hipGraphAllocNodeMemReuse_SameStream_SameSizes:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_SameStream_DifferentSizes_NoReuse:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_RepeatedLaunches:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_MemoryTrim:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_ExplicitAllocFreeNodes_SameSize:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_ExplicitAllocFreeNodes_DifferentSizes:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_MallocWithoutFree_NoReuse:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl]
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_DifferentStreams_Reuse:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_MemSteal_Remap:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_AutoFreeOnLaunch:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAllocNodeMemReuse_CaptureEscapedUseAfterDestroy:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAddDependencies_Functional:

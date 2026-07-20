@@ -416,6 +416,9 @@ memory:
     # Does not play well with ASAN
     disabled: [asan]
     tags: [P1]
+  Unit_hipMemcpy_DynamicQueueChurn_StagedCopies:
+    <<: *level_2
+    tags: [multigpu, transfer]
   Unit_hipHostRegister_ReferenceFromKernelandhipMemset:
     <<: *level_2
     tags: [P1]
@@ -462,6 +465,9 @@ memory:
     # Tests behaviour after free which throws off the sanitizer
     disabled: [asan, gfx1260, gfx1310, gfx1370]
   Unit_hipHostRegister_DuplicateAndDisjoint:
+    <<: *level_2
+    tags: [alloc]
+  Unit_hipHostRegister_with_hipExtHostRegisterCoarseGrained:
     <<: *level_2
     tags: [alloc]
   Unit_hipHostRegister_Capture:
@@ -617,6 +623,9 @@ memory:
   Unit_hipMemset_2AsyncOperations:
     <<: *level_2
     tags: [memset, P1]
+  Unit_hipMemset_UnalignedKernelCornerCases:
+    <<: *level_2
+    tags: [memset, fillBuffer, unaligned]
   Unit_hipMemset_Capture:
     <<: *level_2
   Unit_hipMemsetD8_Capture:
@@ -863,6 +872,21 @@ memory:
   Unit_hipMemsetD8Async_KernelBuffer:
     <<: *level_2
     tags: [memset, P1]
+  Unit_hipMemset_UnalignedKernelCornerCases:
+    <<: *level_2
+    tags: [memset]
+  Unit_hipMemsetD16_UnalignedPatternFill:
+    <<: *level_2
+    tags: [memset]
+  Unit_hipMemsetD32_UnalignedPatternFill:
+    <<: *level_2
+    tags: [memset]
+  Unit_hipMemsetD16Async_UnalignedPatternFill:
+    <<: *level_2
+    tags: [memset]
+  Unit_hipMemsetD32Async_UnalignedPatternFill:
+    <<: *level_2
+    tags: [memset]
   Unit_hipMemcpy2DArrayToArray_Negative:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -901,9 +925,13 @@ memory:
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_H2D_Functional:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_D2H_Functional:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_H2H_Functional:
@@ -963,6 +991,34 @@ memory:
   Unit_hipMemcpyBatchAsync_NegativeTsts:
     <<: *level_2
     tags: [transfer, P1]
+  Unit_hipMemcpyBatchAsync_Negative:
+    <<: *level_2
+    tags: [transfer]
+  Unit_hipMemcpyBatchAsync_Attrs_Negative:
+    <<: *level_2
+    tags: [transfer]
+  Unit_hipMemcpyBatchAsync_Attrs_Functional:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260]
+    <<: *level_2
+    tags: [transfer]
+  Unit_hipMemcpyBatchAsync_H2D_Pageable_DuringApiCall_SourceAccess:
+    <<: *level_2
+    tags: [transfer]
+  Unit_hipMemcpyBatchAsync_H2D_Pageable_Stream_SourceAccess:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260]
+    <<: *level_2
+    tags: [transfer, stream]
+  Unit_hipMemcpyBatchAsync_Mixed_Functional:
+    <<: *level_2
+    tags: [transfer]
+  Unit_hipMemcpyBatchAsync_Stream:
+    <<: *level_2
+    tags: [transfer, stream]
+  Unit_hipMemcpyBatchAsync_P2P_Functional:
+    <<: *level_2
+    tags: [transfer, multigpu]
   Unit_hipMemsetD2D8_BasicFunctional:
     <<: *level_2
     disabled: [amd_wsl]
@@ -1154,6 +1210,8 @@ memory:
     disabled: [amd_windows, amd_wsl, amd_linux]
     tags: [virtualMemoryManagement, P1]
   Unit_hipMemVmm_Uncached:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc]
   Unit_hipArray_Valid:
@@ -1181,15 +1239,23 @@ memory:
     <<: *level_2
     tags: [alloc, P1, image]
   Unit_hipMemcpyDeviceToDeviceNoCU_SingleStream:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyDeviceToDeviceNoCU_WithCU_NoCU_Comb_SingleStrm:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyDeviceToDeviceNoCU_NoCU_MulStrm:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyDeviceToDeviceNoCU_Memcpy_Kernel_InParallel:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipGetProcAddress_MemoryApisMallocFree:
@@ -1206,6 +1272,8 @@ memory:
   Unit_hipGetProcAddress_MemoryApisMemCopy:
     <<: *level_2
   Unit_hipGetProcAddress_MemoryApisMemCopyWithStreams:
+    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipGetProcAddress_MemoryApisMemset: *level_2
   Unit_hipGetProcAddress_MemoryApisMemset2D3D:
@@ -1224,6 +1292,8 @@ memory:
   Unit_hipGetProcAddress_MemoryApisManagedMemory:
     <<: *level_2
   Unit_hipGetProcAddress_MemoryApisStreamOrderedMemory:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipGetProcAddress_MemoryApisPeerToPeer:
     <<: *level_2
@@ -1276,37 +1346,49 @@ memory:
     disabled: [gfx1260]
     tags: [query, P1]
   Unit_hipMemPoolApi_Basic:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [stream, P1]
   Unit_hipMemPoolApi_BasicAlloc:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMemPoolApi_BasicTrim:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMemPoolApi_BasicReuse:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMemPoolApi_Opportunistic:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipMemPoolApi_Default:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipDeviceGetMemPool_Basic:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipDeviceGetMemPool_Functional:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipDeviceGetMemPool_Multidevice:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipDeviceGetDefaultMemPool_Functional:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipDeviceSetMemPool_Basic:
@@ -1316,9 +1398,13 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipDeviceSetMemPool_functional:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipDeviceSetMemPool_functionalAttribute:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolSetGetAccess_Positive_Basic:
@@ -1363,12 +1449,15 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolSetAttribute_Opportunistic:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc]
   Unit_hipMemPoolSetAttribute_EventDependencies:
     <<: *level_2
     # mlsejenkins_Window_Failures_on_gfx1201
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMemPoolSetAttribute_Negative_Parameters:
     <<: *level_2
@@ -1376,6 +1465,8 @@ memory:
     disabled: [amd_windows, amd_wsl]
     tags: [alloc, P1]
   Unit_hipMemPoolSetAttribute_ResetMemHighAttr:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_Negative_Parameters:
@@ -1387,12 +1478,18 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_UsedMem:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_ReservedMem:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_UsageStatistics:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolGetAttribute_hipMalloc_DefMempool:
@@ -1405,9 +1502,13 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolCreate_With_maxSize:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolCreate_Without_maxSize:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolCreate_DeviceTest:
@@ -1425,9 +1526,13 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolTrimTo_Positive_Basic:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P0]
   Unit_hipMemPoolTrimTo_VaryingMinBytesToHold:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemPoolTrimTo_MGpuVaryingMinBytesToHold:
@@ -1435,30 +1540,45 @@ memory:
     tags: [alloc, P1, multigpu]
   Unit_hipMemPoolTrimTo_Multithreaded:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_Basic_OneAlloc:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P0]
   Unit_hipMallocFromPoolAsync_Basic_TwoAllocs:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_Basic_Reuse:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_Negative_Parameters:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_ReleaseThreshold:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_NullStream:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_hipStreamPerThread:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_ReleaseThreshold_Mgpu:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_Multidevice_Concurrent:
@@ -1473,39 +1593,55 @@ memory:
   Unit_hipMallocFromPoolAsync_MThread_DefaultThresh:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [asan]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [asan, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_MThread_MaxThresh:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [amd_windows, amd_wsl, asan]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_windows, amd_wsl, asan, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_MThread_CommonMpool_DefaultMempool:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [amd_windows, amd_wsl, asan]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_windows, amd_wsl, asan, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_MThread_CommonMpool_MaxThresh:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [asan]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [asan, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_MultStream_Sync:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_MultStream_DefaultStreams:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_MultStream_UserStreams:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_ReuseFollowEventDependencies:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_ReuseAllowOpportunistic:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocFromPoolAsync_ReuseAllowInternalDependencies:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMemcpyPeer_Positive_Default:
@@ -2105,7 +2241,8 @@ memory:
     tags: [query, P1]
   Unit_hipPointerGetAttribute_ipc_capable:
     <<: *level_2
-    disabled: [amd_wsl]
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [query]
   Unit_hipDrvPtrGetAttributes_Negative:
     <<: *level_2
@@ -2377,7 +2514,8 @@ memory:
   Unit_hipFreeAsync_Negative_Parameters:
     <<: *level_2
     # Below tests are failing PSDB
-    disabled: [amd_windows, amd_wsl]
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipFreeAsync_capturehipFreeAsync:
     <<: *level_2
@@ -2396,29 +2534,42 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocAsync_Basic_OneAlloc:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P0]
   Unit_hipMallocAsync_Basic_TwoAllocs:
+    # FFM gfx1260/1310/1370: fails on functional model pending VMM/mempool fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P0]
   Unit_hipMallocAsync_Basic_Reuse:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P0]
   Unit_hipMallocAsync_Negative_Parameters:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocAsync_basic:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocAsync_Multistream_Concurrent:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocAsync_StreamEvent_CrissCross:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [asan]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [asan, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMallocAsync_Multidevice:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocAsync_Multidevice_Concurrent:
@@ -2434,19 +2585,25 @@ memory:
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocAsync_ByUsinghipFree:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipMallocAsync_MThread_ThreadLocalStream:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [asan]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [asan, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMallocAsync_MThread_ThreadSharedStream:
     <<: *level_2
     # Does not play well with ASAN
-    disabled: [asan]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [asan, gfx1260, gfx1310, gfx1370]
     tags: [alloc, P1]
   Unit_hipMallocAsync_DefaultStreams_Concurrent:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [alloc, P1]
   Unit_hipStreamAttachMemAsync_Positive_Basic:

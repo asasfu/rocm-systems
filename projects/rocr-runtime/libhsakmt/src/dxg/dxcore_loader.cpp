@@ -95,7 +95,7 @@ bool DxcoreLoader::Initialize() {
 
 void DxcoreLoader::Shutdown() {
     if (library_handle_) {
-        if (rocr::os::CloseLib(library_handle_) != 0) {
+        if (!rocr::os::CloseLib(library_handle_)) {
             pr_err("[DxcoreLoader] Cannot unload %s: %s\n", library_name_.c_str(), rocr::os::DlError());
         } else {
             pr_info("[DxcoreLoader] %s unloaded successfully\n", library_name_.c_str());
