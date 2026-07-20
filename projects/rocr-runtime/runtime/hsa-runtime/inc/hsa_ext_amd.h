@@ -245,6 +245,18 @@ typedef enum {
 } hsa_amd_ext_perf_hint_subfield_width_t;
 
 /**
+ * @brief Sub-fields of the setup byte in
+ * @ref hsa_amd_ext_kernel_dispatch_packet_t. Bits [1:0] are the standard
+ * HSA dimensions; higher bits are AMD vendor extensions. Values are bit
+ * offsets, used as @c (1 << value) to form masks.
+ */
+typedef enum {
+  /** Kernel uses wavegroup launch mode (GFX12+). When set, the scratch handler
+   *  scales COMPUTE_TMPRING_SIZE.WAVESIZE to cover all waves in a wavegroup. */
+  HSA_AMD_EXT_KERNEL_DISPATCH_SETUP_ENABLE_WAVEGROUP = 2,
+} hsa_amd_ext_kernel_dispatch_setup_t;
+
+/**
  * @brief Performance hints used by @ref hsa_amd_ext_kernel_dispatch_packet_t.
  *
  * The sub-fields of this packet give performance optimization hints to

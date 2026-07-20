@@ -72,7 +72,6 @@
 #include "core/inc/amd_gpu_pm4.h"
 #include "core/inc/hsa_amd_tool_int.hpp"
 #include "core/inc/amd_core_dump.hpp"
-#include "loader/AMDHSAKernelDescriptor.h"
 
 namespace rocr {
 namespace AMD {
@@ -1159,10 +1158,7 @@ void AqlQueue::HandleInsufficientScratch(hsa_signal_value_t& error_code,
   // waves_per_group/4 waves sharing a scratch slot.
   uint32_t wavegroup_scratch_scale = 1;
   constexpr uint32_t kNumWavegroups = 4;  // one per SIMD in a WGP
-  const auto* kd = reinterpret_cast<const rocr::llvm::amdhsa::kernel_descriptor_t*>(
-      pkt->dispatch.kernel_object);
-  if (kd && AMDHSA_BITS_GET(kd->kernel_code_properties,
-                            rocr::llvm::amdhsa::KERNEL_CODE_PROPERTY_ENABLE_WAVEGROUP)) {
+  if (pkt->isWavegroupKernel()) {
     wavegroup_scratch_scale = waves_per_group / kNumWavegroups;
   }
 

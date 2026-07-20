@@ -4699,7 +4699,8 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
         (sizes.dimensions() > 0 && sizes.cluster()[0] > 1) ||
         (sizes.dimensions() > 1 && sizes.cluster()[1] > 1) ||
         (sizes.dimensions() > 2 && sizes.cluster()[2] > 1) ||
-        dev().settings().ext_dispatch_packet_;
+        dev().settings().ext_dispatch_packet_ ||
+        devKernel->workGroupInfo()->isWavegroupKernel_;
 
     if (extDispatchPacket) {
       auto& dispatchPacketExt = dispatchPacketUnion.extKernelDispatch;
@@ -4783,8 +4784,17 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
                               (1 << HSA_PACKET_HEADER_BARRIER) |
                               (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_ACQUIRE_FENCE_SCOPE) |
                               (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_RELEASE_FENCE_SCOPE);
-        aql_packet->setup = static_cast<uint8_t>(sizes.dimensions()
-                              << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS);
+        // For an ext-dispatch vendor packet byte+2 is amd_format, not setup; set
+        // amd_format=EXT_KERNEL_DISPATCH in byte+2 and shift setup into byte+3.
+        // (Ported from ROCm/rocm-systems#8046)
+        {
+          uint8_t pkt_setup = (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS);
+          if (devKernel->workGroupInfo()->isWavegroupKernel_) {
+            pkt_setup |= (1 << HSA_AMD_EXT_KERNEL_DISPATCH_SETUP_ENABLE_WAVEGROUP);
+          }
+          aql_packet->setup = static_cast<uint16_t>(
+              HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH | (pkt_setup << 8));
+        }
       } else {
         aql_packet->header = (HSA_PACKET_TYPE_KERNEL_DISPATCH << HSA_PACKET_HEADER_TYPE) |
                               (1 << HSA_PACKET_HEADER_BARRIER) |
@@ -4802,8 +4812,11 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
       // on normal dispatch packet, first 32 bits are header & setup. In ext dispatch packet,
       // the first 32 bits are header, amd_format, setup. Update the "rest" of the 32 bits, so we
       // can commit it atomically in packet_store_release.
-      rest = (HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH
-              | ((sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS) << 8));
+      uint8_t setup_bits = (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS);
+      if (devKernel->workGroupInfo()->isWavegroupKernel_) {
+        setup_bits |= (1 << HSA_AMD_EXT_KERNEL_DISPATCH_SETUP_ENABLE_WAVEGROUP);
+      }
+      rest = (HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH | (setup_bits << 8));
     } else {
       rest = (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS);
     }
