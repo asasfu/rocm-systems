@@ -95,11 +95,10 @@ set(ROCPROFSYS_EXAMPLE_DIRS
     jpegdecode
     roctx
     thread-limit
-    transferBench
     hpc
     shmem
     scratch-memory
-    sdma_test
+    sdma-test
     unified-memory
     minimal
 )

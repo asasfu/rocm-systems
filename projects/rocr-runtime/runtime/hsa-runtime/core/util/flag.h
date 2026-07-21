@@ -360,9 +360,6 @@ class Flag {
     debug_set_resource_limits_ = var.empty() ? 0 : atoi(var.c_str());
 #endif
 
-    var = os::GetEnvVar("HSA_ENABLE_SDMA_FASTPATH_DEBUG");
-    enable_sdma_fastpath_debug_ = (var == "1") ? true : false;
-
     var = os::GetEnvVar("HSA_COREDUMP_SHOW_PROGRESS");
     enable_core_dump_progress_ = (var == "1");
 
@@ -375,12 +372,12 @@ class Flag {
     var = os::GetEnvVar("HSA_ENABLE_LIGHTWEIGHT_COREDUMP");
     lightweight_core_dump_enable_ = (var == "1");
 
-    // This limits the maximum number of hardware queues that can be created per 
+    // This limits the maximum number of hardware queues that can be created per
     // priority level for counted queues on every GPU agent. By default, the limit is set to 4.
     var = os::GetEnvVar("GPU_MAX_HW_QUEUES");
     cp_queues_limit_ = var.empty() ? DEFAULT_GPU_HW_QUEUES_MAX : atoi(var.c_str());
 
-    // This allows configuring the size of counted queues created through 
+    // This allows configuring the size of counted queues created through
     // hsa_amd_counted_queue_acquire API. If not set, default queue size is set to 16384.
     var = os::GetEnvVar("HSA_COUNTED_QUEUE_SIZE");
     counted_queue_size_ = var.empty() ? DEFAULT_COUNTED_QUEUE_SIZE : atoi(var.c_str());
@@ -388,6 +385,11 @@ class Flag {
     // HSA_SDMA_LINEAR_B2B: 1=force B2B, 0=force broadcast, unset=auto (size threshold)
     var = os::GetEnvVar("HSA_SDMA_LINEAR_B2B");
     sdma_linear_b2b_ = (var == "0") ? SDMA_DISABLE : ((var == "1") ? SDMA_ENABLE : SDMA_DEFAULT);
+
+    // HSA_SDMA_MULTICAST: 1=force multicast at any size, 0=force off (fan-out),
+    // unset=auto (use multicast up to kMulticastMaxSize, fan-out above).
+    var = os::GetEnvVar("HSA_SDMA_MULTICAST");
+    sdma_multicast_ = (var == "0") ? SDMA_DISABLE : ((var == "1") ? SDMA_ENABLE : SDMA_DEFAULT);
 
   }
 
@@ -544,6 +546,8 @@ class Flag {
 
   SDMA_OVERRIDE sdma_linear_b2b() const { return sdma_linear_b2b_; }
 
+  SDMA_OVERRIDE sdma_multicast() const { return sdma_multicast_; }
+
   [[nodiscard]]
   bool core_dump_disable() const { return core_dump_disable_; }
 
@@ -556,8 +560,8 @@ class Flag {
                                          return core_dump_pattern_; }
 
   [[nodiscard]]
-  bool lightweight_core_dump_enable() const { 
-    return lightweight_core_dump_enable_; 
+  bool lightweight_core_dump_enable() const {
+    return lightweight_core_dump_enable_;
   }
 
   [[nodiscard]]
@@ -630,6 +634,9 @@ class Flag {
   bool enable_dtif_skip_inv_code_cache_;
   bool enable_dxg_detection_;
   SDMA_OVERRIDE sdma_linear_b2b_ = SDMA_DEFAULT;
+
+  SDMA_OVERRIDE sdma_multicast_ = SDMA_DEFAULT;
+
   int cacheline_size_override_ = -1;
   SDMA_OVERRIDE enable_sdma_;
   SDMA_OVERRIDE enable_peer_sdma_;

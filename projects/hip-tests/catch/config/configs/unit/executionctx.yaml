@@ -24,6 +24,8 @@ executionctx:
   Unit_hipExecutionCtxStreamDetached_MemsetAsync_Negative:
     <<: *level_2
   Unit_hipExecutionCtxStreamDetached_MempoolAsync_Negative:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
   Unit_hipExecutionCtxStreamDetached_HmmAsync_Negative:
     <<: *level_2
@@ -64,6 +66,19 @@ executionctx:
   Unit_hipExecutionCtxRecordEventFunctional:
     <<: *level_2
   Unit_hipExecutionCtxRecordWait_Blocking:
+    <<: *level_2
+  Unit_hipExecutionCtxRecordEvent_ElapsedTime_SingleStream:
+    <<: *level_2
+  Unit_hipExecutionCtxRecordEvent_ElapsedTime_MultiStream:
+    <<: *level_2
+    disabled: [amd_linux, amd_windows, amd_wsl, nvidia_linux, nvidia_windows]
+  Unit_hipExecutionCtxRecordWaitEvent_Negative:
+    <<: *level_2
+  Unit_hipExecutionCtxWaitEvent_CrossCtx:
+    <<: *level_2
+  Unit_hipExecutionCtxRecordEvent_WaitFromPlainStream:
+    <<: *level_2
+  Unit_hipExecutionCtxWaitEvent_RecordedOnPlainStream:
     <<: *level_2
   Unit_hipExecutionCtxResourceSplit_Sanity:
     <<: *level_2

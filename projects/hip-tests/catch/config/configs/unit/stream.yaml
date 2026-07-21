@@ -109,6 +109,19 @@ stream:
   Unit_hipStreamCreateWithPriority_TestMultipleStreamWithPriority:
     <<: *level_2
     tags: [lifecycle, P1]
+  Unit_hipStreamPriorityAqlLog_ChildWorkload:
+    <<: *level_2
+    # Internal helper, only invoked by the parent test via re-exec (by exact
+    # name, which still runs hidden [.] cases). Disabled everywhere so it does
+    # not run as a standalone no-op in the regular suite.
+    disabled: [amd_linux, amd_windows, amd_wsl, nvidia_linux, nvidia_windows]
+    tags: [lifecycle]
+  Unit_hipStreamPriorityAqlLog_TraceReportsPriority:
+    <<: *level_2
+    # Verifies AQL packet trace reports stream priority next to HWq; relies on
+    # AMD_LOG AQL output, so AMD/Linux only.
+    disabled: [amd_windows, amd_wsl, nvidia_linux, nvidia_windows]
+    tags: [lifecycle]
   Unit_hipStreamDestroy_Default:
     <<: *level_2
     tags: [lifecycle, smoke, P0]
@@ -135,6 +148,8 @@ stream:
     disabled: [amd_windows, amd_wsl, amd_linux]
     tags: [memory, P1]
   Unit_hipMemPoolApi_hipStreamLegacy_Basic:
+    # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [memory]
   Unit_hipStreamValue_Write:
@@ -222,19 +237,25 @@ stream:
   Unit_hipLaunchHostFunc_multistreams:
     <<: *level_2
     # SWDEV-430116:Below tests failed in stress test on 27/10/23
-    disabled: [amd_wsl]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [callback, P1]
   Unit_hipLaunchHostFunc_KernelHost:
     <<: *level_2
-    disabled: [amd_windows, amd_wsl]
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [callback, P1]
   Unit_hipLaunchHostFunc_multidevice:
     <<: *level_2
     tags: [callback, multigpu, P1]
   Unit_hipLaunchHostFunc_Samepriority:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [callback, P1]
   Unit_hipLaunchHostFunc_Diffpriority:
+    # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
+    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [callback, P1]
   Unit_hipLaunchHostFunc_Graph:
@@ -439,6 +460,18 @@ stream:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [synchronization, P1]
+  Unit_hipStreamWriteValue_Decrement_Default:
+    <<: *level_2
+    tags: [synchronization]
+  Unit_hipStreamWriteValue_Decrement_MultiStream_MultiDevice:
+    <<: *level_2
+    tags: [synchronization, multigpu]
+  Unit_hipStreamWriteValue_Increment_Default:
+    <<: *level_2
+    tags: [synchronization]
+  Unit_hipStreamWriteValue_Increment_MultiStream_MultiDevice:
+    <<: *level_2
+    tags: [synchronization, multigpu]
   Unit_hipKernelNameRefByPtr_Negative_StreamNullptr:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]

@@ -16,8 +16,8 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
   endif()
 
   if (ENABLE_CODE_COVERAGE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
-    set(HIPCC_COMPILE_FLAGS "${HIPCC_COMPILE_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+    add_compile_options("SHELL:-Xarch_host -fprofile-instr-generate" "SHELL:-Xarch_host -fcoverage-mapping")
+    add_link_options("SHELL:-Xarch_host -fprofile-instr-generate" "SHELL:-Xarch_host -fcoverage-mapping")
     # Allow ProcessIsolatedTestRunner.cpp to call __llvm_profile_write_file()
     # explicitly before _exit() so child-process coverage data is flushed.
     add_compile_definitions(RCCL_TEST_CODE_COVERAGE=1)
@@ -177,8 +177,10 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
     ReduceTests.cpp
     RegisterTests.cpp
     ScatterTests.cpp
+    VersionGateTests.cpp
     SendRecvTests.cpp
     StandaloneTests.cpp
+    DdaIpcTests.cpp
     TeardownStressTests.cpp
     _RecorderTests.cpp
     common/main.cpp
@@ -219,6 +221,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
 
     set(TEST_FIXTURE_SOURCE_FILES
       BitOpsTests.cpp
+      IommuPassthrough_test.cpp
       MiscTests.cpp
       RomeTopoConsensusTests.cpp
       EnqueueCountTests.cpp
@@ -230,6 +233,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       common/EnvVars.cpp
       common/ProcessIsolatedTestRunner.cpp
       common/TestChecks.cpp
+      ../src/misc/kernel_config.cc
     )
 
     add_executable(rccl-UnitTestsFixtures ${TEST_FIXTURE_SOURCE_FILES})
@@ -252,7 +256,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       DdaIpcEligibilityTests.cpp
       EnqueueTests.cpp
       IpcsocketTests.cpp
-      NetDevsPolicyTests.cpp
+      TopoEnvPolicyTests.cpp
       NetSocketTests.cpp
       ProxyTests.cpp
       RcclWrapTests.cpp
@@ -260,6 +264,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       TimeoutTests.cpp
       mem_manager/MemManagerTests.cpp
       graph/XmlTests.cpp
+      graph/NetDevsPolicyP2pNetTests.cpp
       graph/TopoTests.cpp
       common/main_fixtures.cpp
       common/EnvVars.cpp
@@ -268,8 +273,9 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
 
     add_executable(rccl-UnitTestsFixturesDebug ${TEST_FIXTURE_DEBUG_SOURCE_FILES})
 
-    # NetDevsPolicyTests loads a topology XML fixture from the source tree
-    # (tools/topo_expl/models). Expose the test source dir so it can build the path.
+    # TopoEnvPolicyTests and NetDevsPolicyP2pNetTests load a topology XML fixture
+    # from the source tree (tools/topo_expl/models). Expose the test source dir
+    # so they can build the path.
     target_compile_definitions(rccl-UnitTestsFixturesDebug PRIVATE
       RCCL_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   endif()
@@ -318,6 +324,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       transport/NetIbMPI/NicFusionTests.cpp
       transport/NetIbMPI/CastTests.cpp
       transport/NetIbMPI/FaultInjectTests.cpp
+      transport/NetIbMPI/OpsFaultUnitTests.cpp
       transport/GinMPI/GinMPITests.cpp
       transport/NetIbMPI/StressTests.cpp
       transport/GinDeviceMPITests.cpp
@@ -332,6 +339,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       ce/CeInternalMPITests.cpp
       GrowMPITests.cpp
       GinNcclTimeoutMPITests.cpp
+      SymmetricKernelMPITests.cpp
     )
 
     add_executable(rccl-UnitTestsMPI ${MPI_TEST_SOURCE_FILES})
@@ -352,7 +360,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       if(DEFINED ASAN_RUNTIME_DIR)
         target_link_options(${test_executable} PRIVATE "LINKER:-rpath,${ASAN_RUNTIME_DIR}")
       endif()
-    endif()                                                                                                                                                                     
+    endif()
 
     # Add MPI-specific configuration if MPI tests are enabled
     if(ENABLE_MPI_TESTS)
