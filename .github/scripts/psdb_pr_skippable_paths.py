@@ -69,7 +69,7 @@ def main() -> int:
     if str(scripts_dir) not in sys.path:
         sys.path.insert(0, str(scripts_dir))
 
-    from therock_configure_ci import check_for_non_skippable_path
+    from skippable_paths import check_for_non_skippable_path
 
     try:
         files = _list_pr_filenames(repo, args.pr_number)

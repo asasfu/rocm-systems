@@ -10,23 +10,21 @@ and some workflow_dispatch invocations do not require SUBTREES.
 import fnmatch
 import json
 import logging
-from pathlib import Path
 import subprocess
-import sys
 from therock_matrix import (
     subtree_to_project_map,
     project_map,
     trigger_windows_ci_for_subtrees_paths,
     windows_only_subtrees,
 )
+from skippable_paths import (
+    SKIPPABLE_PATH_PATTERNS,
+    check_for_non_skippable_path,
+    is_path_skippable,
+)
 import time
 from typing import Mapping, Optional, Iterable
 import os
-
-# Add TheRock's github_actions to path for shared utilities
-THEROCK_ACTIONS_PATH = Path("TheRock") / "build_tools" / "github_actions"
-sys.path.insert(0, str(THEROCK_ACTIONS_PATH))
-from amdgpu_family_matrix import get_build_runner_labels, select_weighted_label
 
 logging.basicConfig(level=logging.INFO)
 
@@ -121,45 +119,6 @@ def check_trigger_windows_ci_for_subtree(subtree: str) -> bool:
         if subtree == subtree_prefix or subtree.startswith(subtree_prefix + "/"):
             return True
     return False
-
-
-# Paths matching any of these patterns are considered to have no influence over
-# build or test workflows so any related jobs can be skipped if all paths
-# modified by a commit/PR match a pattern in this list.
-SKIPPABLE_PATH_PATTERNS = [
-    "docs/*",
-    ".gitignore",
-    "*.md",
-    "*.rtf",
-    "*.rst",
-    "*/.markdownlint-ci2.yaml",
-    "*/.readthedocs.yaml",
-    "*/.spellcheck.local.yaml",
-    "*/.wordlist.txt",
-    "projects/*/docs/*",
-    "projects/*/.gitignore",
-    "projects/rocr-runtime/libhsakmt/src/dxg/*",
-    "shared/*/docs/*",
-    "shared/*/.gitignore",
-    "experimental/python/perfxpert/*",
-    ".github/CODEOWNERS",
-    ".github/label*.yml",
-    ".github/workflows/labeler.yml",
-    ".github/workflows/amdsmi-manylinux-build.yml",
-    ".github/workflows/rocjitsu-corpus-tests.yml",
-]
-
-
-def is_path_skippable(path: str) -> bool:
-    """Determines if a given relative path to a file matches any skippable patterns."""
-    return any(fnmatch.fnmatch(path, pattern) for pattern in SKIPPABLE_PATH_PATTERNS)
-
-
-def check_for_non_skippable_path(paths: Optional[Iterable[str]]) -> bool:
-    """Returns true if at least one path is not in the skippable set."""
-    if paths is None:
-        return False
-    return any(not is_path_skippable(p) for p in paths)
 
 
 def check_rccl_changes(modified_paths: Optional[Iterable[str]]) -> bool:
@@ -363,6 +322,14 @@ def retrieve_projects(args):
 
 def select_build_runner(platform: str) -> str:
     """Select a build runner label based on platform and build variant."""
+    from pathlib import Path
+    import sys
+
+    therock_actions_path = Path("TheRock") / "build_tools" / "github_actions"
+    if str(therock_actions_path) not in sys.path:
+        sys.path.insert(0, str(therock_actions_path))
+    from amdgpu_family_matrix import get_build_runner_labels, select_weighted_label
+
     build_runner_labels = get_build_runner_labels()
     if platform not in build_runner_labels:
         # Platform not configured for weighted selection, return default
