@@ -2,10 +2,83 @@
 synchronization:
   Unit_Copy_Coherency:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [coherency]
   Unit_cache_coherency_cpu_gpu:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [coherency]
   Unit_cache_coherency_gpu_gpu:
     <<: *level_2
+    disabled: [gfx1310, gfx1370]
     tags: [coherency, multigpu]
+  Unit_test_kernel_monitor:
+    <<: *level_2
+    disabled: [gfx1310, gfx1370]
+  Unit_hipStreamValue_Wait32_Blocking_Mask_And:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait32_Blocking_Mask_Eq_1:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait32_Blocking_Mask_Eq_2:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait32_Blocking_Mask_Gte:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait32_Blocking_NoMask_And:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait32_Blocking_NoMask_Eq:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait32_Blocking_NoMask_Gte:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait32_Blocking_NoMask_Nor:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait64_Blocking_Mask_And:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait64_Blocking_Mask_Eq_1:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait64_Blocking_Mask_Eq_2:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait64_Blocking_Mask_Gte_1:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait64_Blocking_Mask_Gte_2:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait64_Blocking_NoMask_And:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait64_Blocking_NoMask_Eq:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait64_Blocking_NoMask_Gte:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
+
+  Unit_hipStreamValue_Wait64_Blocking_NoMask_Nor:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]

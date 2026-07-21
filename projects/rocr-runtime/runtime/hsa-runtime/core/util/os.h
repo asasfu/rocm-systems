@@ -331,6 +331,9 @@ uint64_t HostTotalPhysicalMemory();
 /// Find First Set for any OS
 int Ffs(int i);
 
+/// Population count (number of set bits) for any OS
+int Popcount(uint32_t i);
+
 /// Find the count of leading zeros
 int Ctz(uint64_t i);
 

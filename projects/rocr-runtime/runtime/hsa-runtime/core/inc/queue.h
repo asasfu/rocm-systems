@@ -116,6 +116,12 @@ struct AqlPacket {
     return false;
   }
 
+  bool __forceinline isWavegroupKernel() const {
+    return isExtDispatch() &&
+           (ext_dispatch.setup &
+            (1 << HSA_AMD_EXT_KERNEL_DISPATCH_SETUP_ENABLE_WAVEGROUP));
+  }
+
   uint32_t __forceinline dispatch_grid_size_x() const {
     if (isDispatch()) {
       return dispatch.grid_size_x;

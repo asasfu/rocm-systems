@@ -146,7 +146,7 @@ class GpuSqttBuilder : public SqttBuilder, protected Primitives {
   explicit GpuSqttBuilder(const AgentInfo* agent_info)
       : builder(acquire_ip_offset_table(agent_info)),
         xcc_number_(agent_info->xcc_num),
-        se_number_total(agent_info->se_num),
+        se_number_total(Primitives::GFXIP_LEVEL == 13 ? 1 : agent_info->se_num), // Gopher topology has wrong SE num
         timestamp_freq(agent_info->timestamp_freq),
         cu_per_se(agent_info->cu_num / agent_info->se_num) {}
 
@@ -339,7 +339,7 @@ class GpuSqttBuilder : public SqttBuilder, protected Primitives {
       SetGRBMToBroadcast(cmd_buffer);
       builder.BuildWritePConfigRegPacket(cmd_buffer, Primitives::SQ_THREAD_TRACE_STATUS_ADDR, 0);
 
-      if (Primitives::GFXIP_LEVEL == 12) {
+      if (Primitives::GFXIP_LEVEL >= 12) {
         WriteConfigPacket(cmd_buffer, Primitives::SPI_SQG_EVENT_CTL_ADDR,
                           Primitives::spi_sqg_event_ctl(true));
       }
@@ -367,7 +367,7 @@ class GpuSqttBuilder : public SqttBuilder, protected Primitives {
           Select_GRBM_SE_SH0(cmd_buffer, local_se);
           builder.BuildPrimeL2(cmd_buffer, base_addr);
 
-          if (Primitives::GFXIP_LEVEL == 12) {
+          if (Primitives::GFXIP_LEVEL >= 12) {
             WriteConfigPacket(cmd_buffer, Primitives::SQ_THREAD_TRACE_BUF0_SIZE_ADDR,
                               Primitives::sqtt_buffer0_size_value(sqtt_size));
 
@@ -400,7 +400,7 @@ class GpuSqttBuilder : public SqttBuilder, protected Primitives {
           // If we are in double buffer mode
           if (!config->buffer_data.empty())
           {
-            if (Primitives::GFXIP_LEVEL != 12) throw std::runtime_error("Not supported");
+            if (Primitives::GFXIP_LEVEL < 12) throw std::runtime_error("Not supported");
 
             uint64_t buf1_addr = reinterpret_cast<uint64_t>(config->buffer_data.at(global_se).at(0));
             unsigned buff1_lo = Low32(buf1_addr >> Primitives::TT_BUFF_ALIGN_SHIFT);
@@ -557,6 +557,8 @@ class GpuSqttBuilder : public SqttBuilder, protected Primitives {
         XCC_Packet_Lock<Builder> lock(builder, cmd_buffer, GetXCCNumber(), xcc);
         for (uint64_t index = 0; index < se_number_xcc; index++)
         {
+          if (config->target_cu_per_se.at(index + xcc*se_number_xcc) < 0) continue;
+
           Select_GRBM_SE_SH0(cmd_buffer, index);
           ReadValues(cmd_buffer, config, index + xcc*se_number_xcc);
         }

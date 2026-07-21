@@ -215,6 +215,9 @@ class Flag {
     var = os::GetEnvVar("HSA_NO_SCRATCH_THREAD_LIMITER");
     no_scratch_thread_limit_ = (var == "1") ? true : false;
 
+    var = os::GetEnvVar("HSA_FORCE_SCRATCH_DEVICE_SLOTS_DEBUG");
+    force_scratch_device_slots_debug_ = (var == "1") ? true : false;
+
     var = os::GetEnvVar("HSA_DISABLE_IMAGE");
     disable_image_ = (var == "1") ? true : false;
 
@@ -331,7 +334,41 @@ class Flag {
     enable_dxg_detection_ = (var == "0") ? false : true;
 
     var = os::GetEnvVar("HSA_CO_DMACOPY_SIZE");
-    co_dmacopy_size_ = var.empty() ? 1024*1024 : atoi(var.c_str());
+    if (var.empty()) {
+      co_dmacopy_size_ = 1024 * 1024;
+    } else {
+      // Use base 0 so large thresholds can be provided as decimal or hex
+      // (for example, 0x10000000000). atoi would stop at "0x" and return 0.
+      char* end = nullptr;
+      co_dmacopy_size_ = strtoull(var.c_str(), &end, 0);
+      if (end == var.c_str()) {
+        co_dmacopy_size_ = 1024 * 1024;
+        fprintf(stderr,
+                "Failed to parse HSA_CO_DMACOPY_SIZE=\"%s\"; using default %zu.\n",
+                var.c_str(), co_dmacopy_size_);
+      } else if (*end != '\0') {
+        fprintf(stderr,
+                "Partially parsed HSA_CO_DMACOPY_SIZE=\"%s\" as %zu; ignored trailing \"%s\".\n",
+                var.c_str(), co_dmacopy_size_, end);
+      }
+    }
+    var = os::GetEnvVar("HSA_AGENT_CACHELINE_SIZE_OVERRIDE");
+    cacheline_size_override_ = var.empty() ? -1 : atoi(var.c_str());
+
+    var = os::GetEnvVar("HSA_ENABLE_SDMA_FASTPATH_DEBUG");
+    enable_sdma_fastpath_debug_ = (var == "1") ? true : false;
+
+    // NPI ONLY - DO NOT UPSTREAM
+#ifdef AMD_NPI_ONLY
+    var = os::GetEnvVar("HSA_NPI_RAW_TIMESTAMPS");
+    raw_timestamps_ = (var == "1") ? true : false;
+
+    var = os::GetEnvVar("HSA_DISABLE_COREDUMP");
+    disable_coredump_ = (var == "1") ? true : false;
+
+    var = os::GetEnvVar("HSA_NPI_SET_RESOURCE_LIMITS");
+    debug_set_resource_limits_ = var.empty() ? 0 : atoi(var.c_str());
+#endif
 
     var = os::GetEnvVar("HSA_COREDUMP_SHOW_PROGRESS");
     enable_core_dump_progress_ = (var == "1");
@@ -406,6 +443,8 @@ class Flag {
   bool no_scratch_reclaim() const { return no_scratch_reclaim_; }
 
   bool no_scratch_thread_limiter() const { return no_scratch_thread_limit_; }
+
+  bool force_scratch_device_slots_debug() const { return force_scratch_device_slots_debug_; }
 
   SDMA_OVERRIDE enable_sdma() const { return enable_sdma_; }
 
@@ -500,6 +539,15 @@ class Flag {
 
   bool enable_3d_swizzle() const { return enable_3d_swizzle_; }
 
+  int cacheline_size_override() const { return cacheline_size_override_; }
+
+#ifdef AMD_NPI_ONLY
+  bool raw_timestamps() const  { return raw_timestamps_; }
+  bool disable_coredump() const { return disable_coredump_; }
+#endif
+
+  bool enable_sdma_fastpath_debug() const { return enable_sdma_fastpath_debug_; }
+
   bool enable_dtif() const { return enable_dtif_; }
 
   bool enable_dtif_fast_copy() const { return enable_dtif_fast_copy_; }
@@ -527,6 +575,10 @@ class Flag {
   bool lightweight_core_dump_enable() const {
     return lightweight_core_dump_enable_;
   }
+
+  [[nodiscard]]
+  const uint32_t debug_set_resource_limits() const {
+                                        return debug_set_resource_limits_; }
 
   void set_sdma(bool peer_sdma, bool sdma_gang) {
     enable_peer_sdma_ = peer_sdma ? SDMA_ENABLE : SDMA_DISABLE;
@@ -572,6 +624,7 @@ class Flag {
   bool fine_grain_pcie_;
   bool no_scratch_reclaim_;
   bool no_scratch_thread_limit_;
+  bool force_scratch_device_slots_debug_;
   bool disable_image_;
   bool disable_pc_sampling_;
   bool loader_enable_mmap_uri_;
@@ -597,6 +650,7 @@ class Flag {
 
   SDMA_OVERRIDE sdma_multicast_ = SDMA_DEFAULT;
 
+  int cacheline_size_override_ = -1;
   SDMA_OVERRIDE enable_sdma_;
   SDMA_OVERRIDE enable_peer_sdma_;
   SDMA_OVERRIDE enable_sdma_gang_;
@@ -636,9 +690,17 @@ class Flag {
 
   uint32_t cp_queues_limit_;
   size_t counted_queue_size_;
+  uint32_t debug_set_resource_limits_ = 0;
 
   // Map GPU index post RVD to its default cu mask.
   std::map<uint32_t, std::vector<uint32_t>> cu_mask_;
+
+  bool enable_sdma_fastpath_debug_;
+
+#ifdef AMD_NPI_ONLY
+  bool raw_timestamps_;
+  bool disable_coredump_;
+#endif
 
   void parse_masks(std::string& args, uint32_t maxGpu, uint32_t maxCU);
 

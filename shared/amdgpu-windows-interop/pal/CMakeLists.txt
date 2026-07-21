@@ -32,7 +32,7 @@ set_target_properties(pal PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE
 )
 target_compile_features(pal INTERFACE cxx_std_20)
-if (NOT PAL_CLIENT_INTERFACE_MAJOR_VERSION EQUAL 995)
+if (NOT PAL_CLIENT_INTERFACE_MAJOR_VERSION EQUAL 954)
     message(WARNING "PAL: PAL_CLIENT_INTERFACE_MAJOR_VERSION ${PAL_CLIENT_INTERFACE_MAJOR_VERSION} not supported !!!")
 endif()
 target_link_libraries(pal
@@ -51,8 +51,6 @@ target_link_libraries(pal
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/Release/x64/DriverUtilsService.lib
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/Release/x64/dd_settings.lib
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/Release/x64/SettingsRpcService2.lib
-        ${CMAKE_CURRENT_SOURCE_DIR}/lib/Release/x64/dd_crc32.lib
-        ${CMAKE_CURRENT_SOURCE_DIR}/lib/Release/x64/ddApi.lib
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/Release/x64/ddRpcServer.lib
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/Release/x64/ddNet.lib
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/Release/x64/ddRpcShared.lib
@@ -75,11 +73,34 @@ target_link_libraries(pal
 )
 target_compile_definitions(pal
     INTERFACE
-        PAL_CLIENT_INTERFACE_MAJOR_VERSION=995
+        PAL_CLIENT_INTERFACE_MAJOR_VERSION=954
         GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION=42
         PAL_BUILD_RDF=1
         PAL_DEVELOPER_BUILD=0
         PAL_KMT_BUILD=1
+        PAL_CLIENT_OCL=1
+        PAL_CLOSED_SOURCE=1
+        PAL_BUILD_GFX9=1
+        PAL_BUILD_LIGHT_SHAFT_OPT=1
+        PAL_BUILD_OSS=1
+        PAL_BUILD_VIDEO=1
+        PAL_BUILD_VCN3=1
+        PAL_BUILD_VCN4=1
+        PAL_BUILD_VCN5=1
+        PAL_WORK_GRAPHS_SUPPORT=1
+        PAL_BUILD_GFX13=1
+        PAL_BUILD_MEDUSA1=1
+        PAL_BUILD_MEDUSA2=1
+        PAL_BUILD_MEDUSA3=1
+        PAL_BUILD_GAINSBOROUGH=1
+        PAL_BUILD_GORGON_POINT1=1
+        PAL_BUILD_GORGON_POINT2=1
+        PAL_BUILD_GORGON_HALO=1
+        PAL_BUILD_ALPHA_TRION1=1
+        PAL_BUILD_ALPHA_TRION2=1
+        PAL_BUILD_ALPHA_TRION3=1
+        PAL_BUILD_AT_LITE3=1
+        PAL_BUILD_GRIMLOCK1=1
 )
 target_include_directories(pal
     INTERFACE
@@ -88,9 +109,7 @@ target_include_directories(pal
         inc/gpuUtil
         inc/util
         shared/inc
-        shared/devdriver/shared/legacy
         shared/devdriver/shared/legacy/inc
-        shared/devdriver/shared/legacy/core/inc
         shared/devdriver/third_party/dd_crc32/inc
         shared/metrohash/src
 )

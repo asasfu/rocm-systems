@@ -1,33 +1,10 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
 #include <ddDefs.h>
 
-#define GPUOPEN_INTERFACE_MAJOR_VERSION 43
+#define GPUOPEN_INTERFACE_MAJOR_VERSION 42
 
 #define GPUOPEN_INTERFACE_MINOR_VERSION 1
 
@@ -50,7 +27,6 @@
 ***********************************************************************************************************************
 *| Version | Change Description                                                                                       |
 *| ------- | ---------------------------------------------------------------------------------------------------------|
-*| 43.0    | Exhibit G refactor                                                                                       |
 *| 42.1    | Move Escape Commands to the shared header for access outside of message.h                                |
 *| 42.0    | Updates RGP Protocol to support SPM counters and SE masking.                                             |
 *| 41.0    | Updates DriverControlProtocol to allow user to query device clock frequencies for a given                |
@@ -162,7 +138,6 @@
 ***********************************************************************************************************************
 */
 
-#define GPUOPEN_INTERFACE_EXHIBIT_G_REFACTOR                                  43
 #define GPUOPEN_RGP_SPM_COUNTERS_VERSION                                      42
 #define GPUOPEN_DRIVER_CONTROL_QUERY_CLOCKS_BY_MODE_VERSION                   41
 #define GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION                                40
@@ -267,11 +242,7 @@ namespace DevDriver
 
     union ProtocolFlags
     {
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_INTERFACE_EXHIBIT_G_REFACTOR
-        struct DD_ALIGNAS(4) Bits
-#else
         struct DD_ALIGNAS(4)
-#endif
         {
             // TODO: Replace logging, settings, and gpuCrashDump with "reserved" once all driver usage is removed.
             uint32 logging          : 1;
@@ -282,11 +253,7 @@ namespace DevDriver
             uint32 gpuCrashDump     : 1;
             uint32 event            : 1;
             uint32 reserved         : 25;
-        }
-#if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_INTERFACE_EXHIBIT_G_REFACTOR
-        bits
-#endif
-        ;
+        };
         uint32 value;
     };
 
@@ -312,7 +279,24 @@ namespace DevDriver
 
         // For System messages, which are not session-based, we alias the sequence field as ClientMetadata.  This constructor
         // is provided to help unpack the raw 64-bit sequence field into a ClientMetadata struct without needing to type-cast
-        explicit ClientMetadata(uint64 value);
+        explicit ClientMetadata(uint64 value)
+        {
+            // If we're going to alias as a 64-bit value, make sure the struct is still just 64-bits)
+            static_assert(sizeof(uint64) == sizeof(ClientMetadata),
+                          "Size of ClientMetadata is no longer 64-bits, alias constructor needs updating");
+
+            // Bits 0-31 are the ProtocolFlags
+            protocols.value = static_cast<uint32>(value & 0xFFFF);
+
+            // Bits 32-39 are the Component
+            clientType = static_cast<Component>((value & 0xFF00000000) >> 32);
+
+            // Bits 40-47 are reserved, ignore them and zero initialize
+            reserved = 0;
+
+            // Bits 48-63 are the StatusFlags
+            status = static_cast<StatusFlags>((value & 0xFFFF000000000000) >> 48);
+        }
 
         // Default constructor, default initialize everything
         ClientMetadata() = default;
@@ -324,10 +308,56 @@ namespace DevDriver
         }
 
         // Test if all non-zero fields in the ClientMetadata value are contained in the function parameter
-        bool Matches(const ClientMetadata &right) const;
+        bool Matches(const ClientMetadata &right) const
+        {
+            bool result = true;
+
+            // The Matches function treats this struct as a filter, so a ClientMetadata with all default (zero) values
+            // by definition always matches.
+            if (IsDefault() == false)
+            {
+                // Component is an enum, so the comparison needs to be equality
+                const bool clientTypeMatches =
+                    (clientType != Component::Unknown)
+                    ? (clientType == right.clientType)
+                    : true;
+
+                // ProtocolFlags is a bit field, so we can do a bitwise comparison
+                const bool protocolMatches =
+                    (protocols.value != 0)
+                    ? (protocols.value & right.protocols.value) == protocols.value
+                    : true;
+                // StatusFlags is a bit field, so we can do a bitwise comparison
+                const bool statusMatches =
+                    (status != 0)
+                    ? (status & right.status) == status
+                    : true;
+                result = clientTypeMatches & protocolMatches & statusMatches;
+            }
+
+            return result;
+        }
 
         // Test if any non-zero fields in the ClientMetadata value are contained in the function parameter
-        bool MatchesAny(const ClientMetadata &right) const;
+        bool MatchesAny(const ClientMetadata &right) const
+        {
+            bool result = true;
+
+            // The MatchesAny function treats this struct as a filter, so a ClientMetadata with all default (zero) values
+            // by definition always matches.
+            if (IsDefault() == false)
+            {
+                // Component is an enum, so the comparison needs to be equality
+                const bool clientTypeMatches = (clientType == right.clientType);
+                // ProtocolFlags is a bit field, so we can do a bitwise comparison
+                const bool protocolMatches = (protocols.value & right.protocols.value) != 0;
+                // StatusFlags is a bit field, so we can do a bitwise comparison
+                const bool statusMatches = (status & right.status) != 0;
+                result = clientTypeMatches | protocolMatches | statusMatches;
+            }
+
+            return result;
+        }
     };
 
     DD_CHECK_SIZE(ClientMetadata, 8);
@@ -387,6 +417,9 @@ namespace DevDriver
 #if defined(DD_PLATFORM_WINDOWS_UM)
         MessageBus,
 #endif
+#if DD_ACCESS_INTERNAL
+        LocalNg,
+#endif
     };
 
     // Struct used to designate a transport type, port number, and hostname
@@ -418,6 +451,15 @@ namespace DevDriver
     DD_STATIC_CONST HostInfo kMessageBus =
     {
         TransportType::MessageBus,
+        0,
+        nullptr
+    };
+#endif
+
+#if DD_ACCESS_INTERNAL
+    DD_STATIC_CONST HostInfo kLocalNg =
+    {
+        TransportType::LocalNg,
         0,
         nullptr
     };
@@ -466,7 +508,35 @@ namespace DevDriver
 
     // Helper function used to validate message buffers that arrive from an external source
     // Returns Success if the message buffer is valid and Error otherwise.
-    Result ValidateMessageBuffer(const void* pMsgBuffer, size_t msgBufferSize);
+    inline Result ValidateMessageBuffer(const void* pMsgBuffer, size_t msgBufferSize)
+    {
+        Result result = Result::Error;
+
+        // Ensure that we've been passed valid parameters
+        if ((pMsgBuffer != nullptr) && (msgBufferSize > 0))
+        {
+            // A valid message buffer must be no larger than the full size message buffer structure
+            // and it must also be large enough to contain a valid header.
+            if ((msgBufferSize <= sizeof(MessageBuffer)) && (msgBufferSize >= sizeof(MessageHeader)))
+            {
+                // Calculate the total size of the message from the data encoded in the buffer.
+                const MessageHeader* pHeader = reinterpret_cast<const MessageHeader*>(pMsgBuffer);
+                const size_t encodedMessageSize = (sizeof(MessageHeader) + pHeader->payloadSize);
+
+                // The encoded message size should match our expected size exactly
+                if (encodedMessageSize == msgBufferSize)
+                {
+                    result = Result::Success;
+                }
+            }
+        }
+        else
+        {
+            result = Result::InvalidParameter;
+        }
+
+        return result;
+    }
 
     // tripwire - this intentionally will break if the message version changes. Since these are breaking changes already, we need to address
     // this problem when it happens.

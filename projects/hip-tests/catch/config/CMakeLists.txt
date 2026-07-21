@@ -22,8 +22,11 @@ else()
 
     if (HIP_PLATFORM MATCHES "amd")
         # TODO multiple arch support
+        # Skip empty elements from trailing semicolons in HIP_GPU_ARCH_LIST
         foreach(ARCH ${HIP_GPU_ARCH_LIST})
-            set(CONFIG_ARCH ${ARCH})
+            if(ARCH)
+                set(CONFIG_ARCH ${ARCH})
+            endif()
         endforeach()
     else()
         set(CONFIG_ARCH "linux")
@@ -58,6 +61,15 @@ if(ENABLE_YAML_TAGS)
         COMMAND "${Python3_EXECUTABLE}" "${SOURCES_CHECK_SCRIPT}" "${HIP_TESTS_CONFIGS_DIR}" "${CMAKE_SOURCE_DIR}"
         COMMENT "Checking hip-tests sources for missing YAML configurations"
     )
+endif()
+
+# Compile-time switch: register disabled tests as enabled in ctest.
+# OFF (default): disabled tests carry [disabled] tag and are DISABLED TRUE in ctest.
+# ON: ctest registers them as normal enabled tests; binary tags are unchanged.
+option(HIP_TESTS_RUN_DISABLED
+    "Register disabled tests as enabled in ctest so plain ctest runs them." OFF)
+if(HIP_TESTS_RUN_DISABLED)
+    message(STATUS "HIP_TESTS_RUN_DISABLED=ON: disabled tests will run in plain ctest")
 endif()
 
 # Generate both test definitions and parameter headers from YAML

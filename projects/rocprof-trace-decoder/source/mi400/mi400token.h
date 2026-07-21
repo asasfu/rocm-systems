@@ -165,6 +165,7 @@ union header_type
         uint64_t aldet    : 1;
         uint64_t exbarw   : 1;
         uint64_t trans2   : 1;
+        uint64_t mxray    : 3; // gfx13-only
     };
     uint64_t raw;
 

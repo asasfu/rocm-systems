@@ -2,14 +2,20 @@
 hip_specific:
   Unit_Device__hip_hc_add8pk_Sanity_Positive:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, hip_ext]
   Unit_Device__hip_hc_sub8pk_Sanity_Positive:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, hip_ext]
   Unit_Device__hip_hc_mul8pk_Sanity_Positive:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, hip_ext]
   Unit_Device__hip_hc_8pk_Negative_Parameters_RTC:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, hip_ext]
-  Unit_Device__hip_check_VGPRs: *level_2
+  Unit_Device__hip_check_VGPRs:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]

@@ -705,6 +705,12 @@ class VirtualGPU : public device::VirtualDevice {
                                   hsa_signal_t completionSignal = hsa_signal_t{0});
   void initializeDispatchPacket(hsa_kernel_dispatch_packet_t* packet, amd::NDRangeContainer& sizes);
 
+  void logAqlDispatchStandard(uint16_t header, const hsa_kernel_dispatch_packet_t* packet,
+                              uint64_t wptr, uint64_t rptr, LogLevel logLevel = amd::LOG_DEBUG) const;
+  void logAqlDispatchExtended(uint16_t header,
+                              const hsa_amd_ext_kernel_dispatch_packet_t* packet, uint64_t wptr,
+                              uint64_t rptr, LogLevel logLevel = amd::LOG_DEBUG) const;
+
   void resetKernArgPool() { managed_kernarg_buffer_.ResetPool(); }
 
   uint64_t getVQVirtualAddress();

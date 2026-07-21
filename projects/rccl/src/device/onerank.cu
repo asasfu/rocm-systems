@@ -120,7 +120,10 @@ ncclResult_t ncclLaunchOneRank(void* dst, void const* src, size_t nElts, struct 
     CASE(ncclUint32, uint32_t)
     CASE(ncclInt64, int64_t)
     CASE(ncclUint64, uint64_t)
-#if defined(RCCL_FLOAT8)
+#if defined(RCCL_FLOAT8) && \
+    (!__HIP_DEVICE_COMPILE__ || defined(__gfx942__) || defined(__gfx950__) || \
+     defined(__gfx1200__) || defined(__gfx1201__) || defined(__gfx1250__)  || \
+     defined(__gfx1260__))
     CASE(ncclFloat8e4m3, rccl_float8)
     CASE(ncclFloat8e5m2, rccl_bfloat8)
 #endif

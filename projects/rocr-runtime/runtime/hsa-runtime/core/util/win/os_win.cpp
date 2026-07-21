@@ -474,6 +474,8 @@ int Ffs(int i) {
   return res;
 }
 
+int Popcount(uint32_t i) { return static_cast<int>(__popcnt(i)); }
+
 int Ctz(uint64_t i) {
   unsigned long index;
   if (_BitScanForward64(&index, i)) {
@@ -482,8 +484,6 @@ int Ctz(uint64_t i) {
     return sizeof(i) * 8;
   }
 }
-
-int Popcount(uint32_t i) { return __popcnt(i); }
 
 char* DlError() { return nullptr; }
 

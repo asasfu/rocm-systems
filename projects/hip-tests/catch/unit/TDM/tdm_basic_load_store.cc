@@ -43,7 +43,7 @@ __global__ void  TDM_load_store_tester([[maybe_unused]] const int* data,
     #endif // #if defined(__gfx1250__) || defined(__gfx1251__)
 }
 
-TEST_CASE("TDM_Basic_load_2d")
+HIP_TEST_CASE(TDM_Basic_load_2d)
 {
 #if HT_AMD
     int device = 0;

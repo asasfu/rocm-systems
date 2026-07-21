@@ -538,9 +538,16 @@ bool HsaAmdSignalHandler(hsa_signal_value_t value, void* arg) {
     Hsa::signal_subtract_relaxed(callback_signal, 1);
   }
 
-  // Return false, so the callback will not be called again for this signal
+  // Return false, so the callback will not be called again for this signal.
+  // Capture the device before release(): gpu->release() may destroy the
+  // VirtualGPU (and its per-vgpu counter), but the device outlives the handler
+  // because the teardown drain waits on AsyncHandlersInFlight below. Decrement
+  // the device-level drain counter as the very last action so that a zero
+  // reading guarantees the handler is fully done touching any state.
+  const Device& dev = gpu->dev();
   gpu->QueuedAsyncHandlers()--;
   gpu->release();
+  dev.AsyncHandlersInFlight()--;
   return false;
 }
 
@@ -839,11 +846,13 @@ hsa_signal_t VirtualGPU::HwQueueTracker::ActiveSignal(hsa_signal_value_t init_va
         }
       }
       gpu_.QueuedAsyncHandlers()++;
+      gpu_.dev().AsyncHandlersInFlight()++;
       ts->gpu()->retain();
       hsa_status_t result = Hsa::signal_async_handler(
           prof_signal->signal_, HSA_SIGNAL_CONDITION_LT, init_value, &HsaAmdSignalHandler, ts);
       if (HSA_STATUS_SUCCESS != result) {
         gpu_.QueuedAsyncHandlers()--;
+        gpu_.dev().AsyncHandlersInFlight()--;
         ts->gpu()->release();
         LogError("hsa_amd_signal_async_handler() failed to set the handler!");
       } else {
@@ -1097,8 +1106,8 @@ bool VirtualGPU::processMemObjects(const amd::Kernel& kernel, const_address para
         mem = memories[index];
         const void* globalAddress = *reinterpret_cast<const void* const*>(params + desc.offset_);
         if (mem == nullptr) {
-          ClPrint(amd::LOG_DEBUG, amd::LOG_KERN, "Arg%d: %s %s = ptr:%p ", i, desc.typeName_.c_str(),
-                  desc.name_.c_str(), globalAddress);
+          ClPrint(amd::LOG_DEBUG, amd::LOG_KERN, "Arg%d: %s %s = ptr:%p ", i,
+                  desc.typeName_.c_str(), desc.name_.c_str(), globalAddress);
           //! This condition is for SVM fine-grain
           if (dev().isFineGrainedSystem(true)) {
             // Sync AQL packets
@@ -1368,6 +1377,70 @@ std::string VirtualGPU::AnalyzeAqlQueue() const {
                         priority_, AqlLogSink::kStderr);
   }
   return kernelName;
+}
+
+// ================================================================================================
+void VirtualGPU::logAqlDispatchStandard(uint16_t header,
+                                        const hsa_kernel_dispatch_packet_t* packet, uint64_t wptr,
+                                        uint64_t rptr, LogLevel logLevel) const {
+  ClPrint(logLevel, amd::LOG_AQL,
+          "SWq=0x%zx, HWq=0x%zx, id=%d, %s, Dispatch Header = "
+          "0x%x (type=%d, barrier=%d, acquire=%d, release=%d), "
+          "setup=%d, grid=[%u, %u, %u], workgroup=[%u, %u, %u], private_seg_size=%u, "
+          "group_seg_size=%u, kernel_obj=0x%zx, kernarg_address=0x%zx, completion_signal=0x%zx, "
+          "correlation_id=%u, rptr=%u, wptr=%u",
+          gpu_queue_, gpu_queue_->base_address, gpu_queue_->id,
+          [this]() -> const char* {
+            if (!roc_device_.settings().queue_pipe_dist_) return "";
+            static thread_local char buf[32];
+            snprintf(buf, sizeof(buf), " virtual_pipe_id=%lu,",
+                     gpu_queue_->id % roc_device_.NumHwPipes());
+            return buf;
+          }(), header,
+          extractAqlBits(header, HSA_PACKET_HEADER_TYPE, HSA_PACKET_HEADER_WIDTH_TYPE),
+          extractAqlBits(header, HSA_PACKET_HEADER_BARRIER, HSA_PACKET_HEADER_WIDTH_BARRIER),
+          extractAqlBits(header, HSA_PACKET_HEADER_SCACQUIRE_FENCE_SCOPE,
+                         HSA_PACKET_HEADER_WIDTH_SCACQUIRE_FENCE_SCOPE),
+          extractAqlBits(header, HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE,
+                         HSA_PACKET_HEADER_WIDTH_SCRELEASE_FENCE_SCOPE),
+          packet->setup, packet->grid_size_x, packet->grid_size_y, packet->grid_size_z,
+          packet->workgroup_size_x, packet->workgroup_size_y, packet->workgroup_size_z,
+          packet->private_segment_size, packet->group_segment_size, packet->kernel_object,
+          packet->kernarg_address, packet->completion_signal.handle, packet->reserved2,
+          static_cast<uint32_t>(rptr), static_cast<uint32_t>(wptr));
+}
+
+void VirtualGPU::logAqlDispatchExtended(uint16_t header,
+                                        const hsa_amd_ext_kernel_dispatch_packet_t* packet,
+                                        uint64_t wptr, uint64_t rptr, LogLevel logLevel) const {
+  ClPrint(logLevel, amd::LOG_AQL,
+          "SWq=0x%zx, HWq=0x%zx, id=%d, %s, Dispatch Header = "
+          "0x%x (type=%d, barrier=%d, acquire=%d, release=%d), "
+          "setup=%d, cluster_count=[%u, %u, %u], cluster_size=[%u, %u, %u], "
+          "workgroup=[%u, %u, %u], private_seg_size=%u, "
+          "group_seg_size=%u, kernel_obj=0x%zx, kernarg_address=0x%zx, dep_signal=0x%zx, "
+          "completion_signal=0x%zx, "
+          "rptr=%u, wptr=%u",
+          gpu_queue_, gpu_queue_->base_address, gpu_queue_->id,
+          [this]() -> const char* {
+            if (!roc_device_.settings().queue_pipe_dist_) return "";
+            static thread_local char buf[32];
+            snprintf(buf, sizeof(buf), " virtual_pipe_id=%lu,",
+                     gpu_queue_->id % roc_device_.NumHwPipes());
+            return buf;
+          }(), header,
+          extractAqlBits(header, HSA_PACKET_HEADER_TYPE, HSA_PACKET_HEADER_WIDTH_TYPE),
+          extractAqlBits(header, HSA_PACKET_HEADER_BARRIER, HSA_PACKET_HEADER_WIDTH_BARRIER),
+          extractAqlBits(header, HSA_PACKET_HEADER_SCACQUIRE_FENCE_SCOPE,
+                         HSA_PACKET_HEADER_WIDTH_SCACQUIRE_FENCE_SCOPE),
+          extractAqlBits(header, HSA_PACKET_HEADER_SCRELEASE_FENCE_SCOPE,
+                         HSA_PACKET_HEADER_WIDTH_SCRELEASE_FENCE_SCOPE),
+          packet->setup, packet->cluster_count_x, packet->cluster_count_y, packet->cluster_count_z,
+          packet->cluster_size_x, packet->cluster_size_y, packet->cluster_size_z,
+          packet->workgroup_size_x, packet->workgroup_size_y, packet->workgroup_size_z,
+          packet->private_segment_size, packet->group_segment_size, packet->kernel_object,
+          packet->kernarg_address, packet->dep_signal.handle, packet->completion_signal.handle,
+          static_cast<uint32_t>(rptr), static_cast<uint32_t>(wptr));
 }
 
 // ================================================================================================
@@ -2115,7 +2188,6 @@ VirtualGPU::VirtualGPU(Device& device, bool profiling, bool cooperative,
     const auto& isa = device.isa();
     const bool isGfx12 = (isa.versionMajor() == 12) && (isa.versionMinor() == 0) &&
                          (isa.versionStepping() == 0 || isa.versionStepping() == 1);
-
     dispatchPacketHeaderNoSync_ =
         ((device.settings().ext_dispatch_packet_ ? vendorSpecificHBits : kernelDispatchHBits) |
          (isGfx12 ? sysAcquireAgentReleaseHBits : agentScopeHBits));
@@ -2336,8 +2408,7 @@ address VirtualGPU::ManagedBuffer::Acquire(uint32_t size, uint32_t alignment) {
   } else {
     // Reset the signal for the barrier packet
     Hsa::signal_silent_store_relaxed(pool_signal_[active_chunk_], kInitSignalValueOne);
-    ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_KERN, "Issue barrier to flush chunk %d",
-            active_chunk_);
+    ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_KERN, "Issue barrier to flush chunk %d", active_chunk_);
     // Currently don't skip wait signal check, because SDMA engine cna be used in staging copy
     constexpr bool kSkipSignal = false;
     // Dispatch a barrier packet into the queue
@@ -4059,7 +4130,7 @@ void VirtualGPU::submitVirtualMap(amd::VirtualMapCommand& vcmd) {
     hsa_amd_vmem_alloc_handle_t opaque_hsa_handle;
     opaque_hsa_handle.handle = phys_mem_obj->getUserData().hsa_handle;
     if ((hsa_status = Hsa::vmem_map(vaddr_sub_obj->getSvmPtr(), vcmd.size(),
-                                       vaddr_sub_obj->getOffset(), opaque_hsa_handle, 0)) ==
+                                    vaddr_sub_obj->getOffset(), opaque_hsa_handle, 0)) ==
         HSA_STATUS_SUCCESS) {
       constexpr bool kImportVmmForInterprocess = true;
       dev().FinalizeMapMemObjBookkeeping(vaddr_sub_obj, phys_mem_obj, const_cast<void*>(vcmd.ptr()),
@@ -4713,7 +4784,8 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
         (sizes.dimensions() > 0 && sizes.cluster()[0] > 1) ||
         (sizes.dimensions() > 1 && sizes.cluster()[1] > 1) ||
         (sizes.dimensions() > 2 && sizes.cluster()[2] > 1) ||
-        dev().settings().ext_dispatch_packet_;
+        dev().settings().ext_dispatch_packet_ ||
+        devKernel->workGroupInfo()->isWavegroupKernel_;
 
     if (extDispatchPacket) {
       auto& dispatchPacketExt = dispatchPacketUnion.extKernelDispatch;
@@ -4721,6 +4793,10 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
       dispatchPacketExt.cluster_size_x = sizes.dimensions() > 0 ? sizes.cluster()[0] : 1;
       dispatchPacketExt.cluster_size_y = sizes.dimensions() > 1 ? sizes.cluster()[1] : 1;
       dispatchPacketExt.cluster_size_z = sizes.dimensions() > 2 ? sizes.cluster()[2] : 1;
+
+      if (vcmd != nullptr && vcmd->getDispatchAheadProgrammaticFlag()) {
+        dispatchPacketExt.perf_hint.reverse_dispatch_order = 1;
+      }
 
       // Already validated in HIP Launch Params that newGlobalSize is perfectly divisible by local
       // and it is divisible by cluster size.
@@ -4794,10 +4870,16 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
                               (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_ACQUIRE_FENCE_SCOPE) |
                               (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_RELEASE_FENCE_SCOPE);
         // For an ext-dispatch vendor packet byte+2 is amd_format, not setup; set
-        // amd_format=EXT_KERNEL_DISPATCH and shift setup (dimensions) into byte+3.
-        aql_packet->setup = static_cast<uint16_t>(HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH
-                              | ((sizes.dimensions()
-                                  << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS) << 8));
+        // amd_format=EXT_KERNEL_DISPATCH in byte+2 and shift setup into byte+3.
+        // (Ported from ROCm/rocm-systems#8046)
+        {
+          uint8_t pkt_setup = (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS);
+          if (devKernel->workGroupInfo()->isWavegroupKernel_) {
+            pkt_setup |= (1 << HSA_AMD_EXT_KERNEL_DISPATCH_SETUP_ENABLE_WAVEGROUP);
+          }
+          aql_packet->setup = static_cast<uint16_t>(
+              HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH | (pkt_setup << 8));
+        }
       } else {
         aql_packet->header = (HSA_PACKET_TYPE_KERNEL_DISPATCH << HSA_PACKET_HEADER_TYPE) |
                               (1 << HSA_PACKET_HEADER_BARRIER) |
@@ -4815,8 +4897,11 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
       // on normal dispatch packet, first 32 bits are header & setup. In ext dispatch packet,
       // the first 32 bits are header, amd_format, setup. Update the "rest" of the 32 bits, so we
       // can commit it atomically in packet_store_release.
-      rest = (HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH
-              | ((sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS) << 8));
+      uint8_t setup_bits = (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS);
+      if (devKernel->workGroupInfo()->isWavegroupKernel_) {
+        setup_bits |= (1 << HSA_AMD_EXT_KERNEL_DISPATCH_SETUP_ENABLE_WAVEGROUP);
+      }
+      rest = (HSA_AMD_PACKET_TYPE_EXT_KERNEL_DISPATCH | (setup_bits << 8));
     } else {
       rest = (sizes.dimensions() << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS);
     }
@@ -4834,36 +4919,36 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const 
       return false;
     }
 
-  // Output printf buffer
-  if (!printfDbg()->output(*this, printfEnabled, gpuKernel.printfInfo())) {
-    LogError("\nCould not print data from the printf buffer!");
-    return false;
-  }
+// Output printf buffer
+if (!printfDbg()->output(*this, printfEnabled, gpuKernel.printfInfo())) {
+  LogError("Could not print data from the printf buffer!");
+  return false;
+}
 
-  if (gpuKernel.dynamicParallelism()) {
-    dispatchBarrierPacket(kBarrierPacketHeader, true);
-    if (virtualQueue_ != nullptr) {
-      static_cast<KernelBlitManager&>(blitMgr()).runScheduler(
-          getVQVirtualAddress(), schedulerQueue_, schedulerThreads_, spVA);
-    }
+if (gpuKernel.dynamicParallelism()) {
+  dispatchBarrierPacket(kBarrierPacketHeader, true);
+  if (virtualQueue_ != nullptr) {
+    static_cast<KernelBlitManager&>(blitMgr()).runScheduler(getVQVirtualAddress(), schedulerQueue_,
+                                                            schedulerThreads_, spVA);
   }
+}
 
-  // Check if image buffer write back is required
-  if (imageBufferWrtBack) {
-    // Make sure the original kernel execution is done
-    releaseGpuMemoryFence();
-    for (const auto imageBuffer : wrtBackImageBuffer) {
-      Memory* buffer = dev().getGpuMemory(imageBuffer->owner()->parent());
-      amd::Image* image = imageBuffer->owner()->asImage();
-      Image* devImage = static_cast<Image*>(dev().getGpuMemory(imageBuffer->owner()));
-      Memory* cpyImage = dev().getGpuMemory(devImage->CopyImageBuffer());
-      amd::Coord3D offs(0);
-      // Copy memory from the the backing store image into original buffer
-      bool result = blitMgr().copyImageToBuffer(*cpyImage, *buffer, offs, offs, image->getRegion(),
-                                                true, image->getRowPitch(), image->getSlicePitch());
-    }
+// Check if image buffer write back is required
+if (imageBufferWrtBack) {
+  // Make sure the original kernel execution is done
+  releaseGpuMemoryFence();
+  for (const auto imageBuffer : wrtBackImageBuffer) {
+    Memory* buffer = dev().getGpuMemory(imageBuffer->owner()->parent());
+    amd::Image* image = imageBuffer->owner()->asImage();
+    Image* devImage = static_cast<Image*>(dev().getGpuMemory(imageBuffer->owner()));
+    Memory* cpyImage = dev().getGpuMemory(devImage->CopyImageBuffer());
+    amd::Coord3D offs(0);
+    // Copy memory from the the backing store image into original buffer
+    bool result = blitMgr().copyImageToBuffer(*cpyImage, *buffer, offs, offs, image->getRegion(),
+                                              true, image->getRowPitch(), image->getSlicePitch());
   }
-  return true;
+}
+return true;
 }
 
 /**

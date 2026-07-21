@@ -277,6 +277,13 @@ if(HIP_PLATFORM MATCHES "amd")
                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/copyKernel.cc
                   COMMENT "Compiling copyKernelGenericTargetCompressed.code")
   add_custom_target(copyKernelGenericTargetCompressed_code DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/copyKernelGenericTargetCompressed.code)
+
+  add_custom_target(anyOrderLaunch.code
+                    COMMAND ${CMAKE_HIP_COMPILER} -mcode-object-version=5 --cuda-device-only ${OFFLOAD_ARCH_LIST}
+                    -x hip ${CMAKE_CURRENT_SOURCE_DIR}/anyOrderLaunch.cc
+                    -o ${CMAKE_CURRENT_BINARY_DIR}/../../unit/module/anyOrderLaunch.code
+                    -I${CMAKE_CURRENT_SOURCE_DIR}/../../include ${HIP_PATH_OPT})
+  #target_link_libraries(copyKernelGenericTargetCompressed.code hip::host hip::device)
   set_property(GLOBAL APPEND PROPERTY G_INSTALL_CUSTOM_TARGETS
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernel.code
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernel.s
@@ -284,6 +291,7 @@ if(HIP_PLATFORM MATCHES "amd")
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernelCompressed.code
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernelGenericTarget.code
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernelGenericTargetCompressed.code
+  ${CMAKE_CURRENT_BINARY_DIR}/anyOrderLaunch.code
 )
 
   if(UNIX)
@@ -410,6 +418,7 @@ if(HIP_PLATFORM MATCHES "amd")
   add_dependencies(ModuleTest copyKernelGenericTarget_code)
   add_dependencies(ModuleTest copyKernelGenericTargetCompressed_code)
 
+  add_dependencies(build_tests anyOrderLaunch.code)
   if(UNIX)
     add_dependencies(ModuleTest copiousArgKernel_code copiousArgKernel0_code copiousArgKernel1_code copiousArgKernel2_code
 copiousArgKernel3_code copiousArgKernel16_code copiousArgKernel17_code)

@@ -37,6 +37,28 @@
 #if GFX12_VARIANT == GFX12_VARIANT_1250
 #include "linux/registers/gc/gc_12_1_0_offset.h"
 #include "linux/registers/gc/gc_12_1_0_sh_mask.h"
+#undef regDFLL_DFLL_REG_ADDR
+#undef regDFLL_DFLL_WR_DATA
+#undef regXVMIN_XVMIN_REG_ADDR
+#undef regXVMIN_XVMIN_WR_DATA
+#undef regDBGU_PORT_A_INDEX
+#undef regDBGU_PORT_A_DATA_LO
+#undef regDBGU_PORT_A_DATA_HI
+#undef regDBGU_PORT_B_INDEX
+#undef regDBGU_PORT_B_DATA_LO
+#undef regDBGU_PORT_B_DATA_HI
+#undef regDBGU_PORT_C_INDEX
+#undef regDBGU_PORT_C_DATA_LO
+#undef regDBGU_PORT_C_DATA_HI
+#undef regDBGU_PORT_D_INDEX
+#undef regDBGU_PORT_D_DATA_LO
+#undef regDBGU_PORT_D_DATA_HI
+#undef regMSFLL_MSFLL_REG_ADDR
+#undef regMSFLL_MSFLL_WR_DATA
+#undef XVMIN_REG5__RESERVED__SHIFT
+#undef XVMIN_REG5__RESERVED_MASK
+#undef GFX_BP_OBSERVE__Reserved__SHIFT
+#undef GFX_BP_OBSERVE__Reserved_MASK
 #include "linux/registers/gc/gc_12_1_1_offset.h"
 #include "linux/registers/gc/gc_12_1_1_sh_mask.h"
 #else

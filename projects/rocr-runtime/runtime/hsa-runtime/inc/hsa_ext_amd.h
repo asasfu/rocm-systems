@@ -81,9 +81,10 @@
  * - 1.27 - hsa_amd_queue_signal_external_semaphore, hsa_amd_queue_wait_external_semaphore
  * - 1.28 - hsa_amd_agent_info_t: HSA_AMD_AGENT_INFO_HOST_ALLOC_DMABUF_SUPPORTED
  * - 1.29 - hsa_amd_image_create_v2, hsa_amd_interop_map_buffer_with_size
+ * - 1.30 - Metadata Prefetch
  */
 #define HSA_AMD_INTERFACE_VERSION_MAJOR 1
-#define HSA_AMD_INTERFACE_VERSION_MINOR 29
+#define HSA_AMD_INTERFACE_VERSION_MINOR 30
 
 #ifdef __cplusplus
 extern "C" {
@@ -242,6 +243,18 @@ typedef enum {
   HSA_AMD_EXT_PERF_HINT_WIDTH_GROUP_MEM_CARVEOUT = 7,
   HSA_AMD_EXT_PERF_HINT_WIDTH_REVERSE_DISPATCH_ORDER = 1,
 } hsa_amd_ext_perf_hint_subfield_width_t;
+
+/**
+ * @brief Sub-fields of the setup byte in
+ * @ref hsa_amd_ext_kernel_dispatch_packet_t. Bits [1:0] are the standard
+ * HSA dimensions; higher bits are AMD vendor extensions. Values are bit
+ * offsets, used as @c (1 << value) to form masks.
+ */
+typedef enum {
+  /** Kernel uses wavegroup launch mode (GFX12+). When set, the scratch handler
+   *  scales COMPUTE_TMPRING_SIZE.WAVESIZE to cover all waves in a wavegroup. */
+  HSA_AMD_EXT_KERNEL_DISPATCH_SETUP_ENABLE_WAVEGROUP = 2,
+} hsa_amd_ext_kernel_dispatch_setup_t;
 
 /**
  * @brief Performance hints used by @ref hsa_amd_ext_kernel_dispatch_packet_t.
@@ -985,6 +998,17 @@ typedef enum hsa_amd_agent_info_s {
    * The type of this attribute is bool.
    */
   HSA_AMD_AGENT_INFO_HOST_ALLOC_DMABUF_SUPPORTED = 0xA124,
+
+  // ====================================================================
+  // RANGE 0xA130-0xA1FF: Reserved for future NPI-specific features
+  //
+  // When adding NPI-only enums, start from 0xA130 to leave buffer space
+  // for potential develop branch additions (0xA123-0xA12F).
+  //
+  // When NPI features are released to public develop branch, they should
+  // be reassigned values from the develop range starting after the last
+  // develop enum (currently 0xA122). Update this comment accordingly.
+  // ====================================================================
 } hsa_amd_agent_info_t;
 
 /**
@@ -2444,6 +2468,8 @@ hsa_amd_memory_copy_engine_status(hsa_agent_t dst_agent, hsa_agent_t src_agent,
  *
  * @retval ::HSA_STATUS_SUCCESS For mask returned
  *
+ * @retval ::HSA_STATUS_ERROR_INVALID_AGENT dst_agent and src_agent are the same as
+ * dst_agent == src_agent is generally used for shader copies.
  */
 hsa_status_t HSA_API
 hsa_amd_memory_get_preferred_copy_engine(hsa_agent_t dst_agent, hsa_agent_t src_agent,

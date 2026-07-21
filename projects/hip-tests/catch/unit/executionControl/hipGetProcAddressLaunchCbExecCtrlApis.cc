@@ -442,8 +442,15 @@ HIP_TEST_CASE(Unit_hipGetProcAddress_ExecutionControlAPIs) {
                                        hipFuncAttributeMax};
   int value = 90;
   for (auto funcAttribute : funcAttributes) {
-    HIP_CHECK(
-        dyn_hipFuncSetAttribute_ptr(reinterpret_cast<void*>(addOneKernel), funcAttribute, value));
+    hipError_t result =
+        dyn_hipFuncSetAttribute_ptr(reinterpret_cast<void*>(addOneKernel), funcAttribute, value);
+    // Skip if PreferredSharedMemoryCarveout is not supported
+    if (funcAttribute == hipFuncAttributePreferredSharedMemoryCarveout &&
+        result == hipErrorNotSupported) {
+      HIP_SKIP_TEST("hipFuncAttributePreferredSharedMemoryCarveout not supported on this device");
+      return;
+    }
+    HIP_CHECK(result);
   }
 
   // Validating hipFuncSetCacheConfig API
