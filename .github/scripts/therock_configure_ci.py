@@ -10,14 +10,17 @@ and some workflow_dispatch invocations do not require SUBTREES.
 import fnmatch
 import json
 import logging
-from pathlib import Path
 import subprocess
-import sys
 from therock_matrix import (
     subtree_to_project_map,
     project_map,
     trigger_windows_ci_for_subtrees_paths,
     windows_only_subtrees,
+)
+from skippable_paths import (
+    SKIPPABLE_PATH_PATTERNS,
+    check_for_non_skippable_path,
+    is_path_skippable,
 )
 import time
 from typing import List, Mapping, Optional, Iterable
@@ -434,6 +437,14 @@ def retrieve_projects(args):
 
 def select_build_runner(platform: str) -> str:
     """Select a build runner label based on platform and build variant."""
+    from pathlib import Path
+    import sys
+
+    therock_actions_path = Path("TheRock") / "build_tools" / "github_actions"
+    if str(therock_actions_path) not in sys.path:
+        sys.path.insert(0, str(therock_actions_path))
+    from amdgpu_family_matrix import get_build_runner_labels, select_weighted_label
+
     build_runner_labels = get_build_runner_labels()
     if platform not in build_runner_labels:
         # Platform not configured for weighted selection, return default
