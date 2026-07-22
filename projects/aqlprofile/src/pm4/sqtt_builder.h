@@ -146,7 +146,7 @@ class GpuSqttBuilder : public SqttBuilder, protected Primitives {
   explicit GpuSqttBuilder(const AgentInfo* agent_info)
       : builder(acquire_ip_offset_table(agent_info)),
         xcc_number_(agent_info->xcc_num),
-        se_number_total(Primitives::GFXIP_LEVEL == 13 ? 1 : agent_info->se_num), // Gopher topology has wrong SE num
+        se_number_total(agent_info->se_num),
         timestamp_freq(agent_info->timestamp_freq),
         cu_per_se(agent_info->cu_num / agent_info->se_num) {}
 

@@ -119,6 +119,7 @@ rocprofiler-sdk:
             - gfx942
             - gfx950
             - gfx1250
+            - gfx1310
             - gfx1150
             - gfx1151
             - gfx1152
@@ -136,6 +137,7 @@ rocprofiler-sdk:
             - gfx942
             - gfx950
             - gfx1250
+            - gfx1310
             - gfx1150
             - gfx1151
             - gfx1152
@@ -153,6 +155,7 @@ rocprofiler-sdk:
             - gfx942
             - gfx950
             - gfx1250
+            - gfx1310
             - gfx1150
             - gfx1151
             - gfx1152
@@ -3508,6 +3511,7 @@ rocprofiler-sdk:
           event: 303
         - architectures:
             - gfx1250
+            - gfx1310
           block: SQ
           event: 643
         - architectures:
@@ -3768,6 +3772,18 @@ rocprofiler-sdk:
             - gfx1153
           block: SQG
           event: 15
+        - architectures:
+            - gfx1310
+          block: SQG
+          event: 14
+    - name: SQG_WAVE_CYCLES
+      description: Number of SQG clock cycles (per shader engine). SQG_PERF_SEL_CYCLES.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SQG
+          event: 16
     - name: SQG_ITEMS
       description: Sum of work items processed by SQG-tracked waves. Useful for computing average 
         wave occupancy across pipeline stages (per shader engine). SQG_PERF_SEL_ITEMS.
@@ -3815,6 +3831,10 @@ rocprofiler-sdk:
             - gfx1153
           block: SQG
           event: 20
+        - architectures:
+            - gfx1310
+          block: SQG
+          event: 19
     - name: SQG_WAVES_INITIAL_PREFETCH
       description: Number of waves that issued an initial instruction prefetch (per shader engine). 
         SQG_PERF_SEL_WAVES_INITIAL_PREFETCH.
@@ -15489,6 +15509,14 @@ rocprofiler-sdk:
             - gfx1310
           block: VMW
           event: 35
+    - name: VMW_LDS_BANK_CONFLICT
+      description: .
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: VMW
+          event: 136
     - name: VCA_BUSY
       description: Cycles VCA block is busy. Perf_windowing not supported for this counter.
       properties: []
@@ -15529,6 +15557,22 @@ rocprofiler-sdk:
             - gfx1310
           block: SPI
           event: 286
+    - name: SPI_ALL_WAVE_INFLIGHT
+      description: Number of clocks where any wave is launched
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 287
+    - name: SPI_ALL_WAVE_ITEMS
+      description: Number of clocks where any wave is launched
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1310
+          block: SPI
+          event: 300
     - name: SPI_CSN_NUM_CLUSTERS
       description: Number of Clusters
       properties: []
@@ -16737,7 +16781,7 @@ rocprofiler-sdk:
             - gfx1310
           block: VCD
           event: 11
-    - name: VCA_TOTAL
+    - name: VCA_TOTAL_WAVEFRONTS
       description: 'WARNING: Non-public counter.'
       properties: []
       definitions:
@@ -16745,7 +16789,7 @@ rocprofiler-sdk:
             - gfx1310
           block: VCA
           event: 10
-    - name: VCA_LOAD
+    - name: VCA_LOAD_WAVEFRONTS
       description: 'WARNING: Non-public counter.'
       properties: []
       definitions:
@@ -16753,7 +16797,7 @@ rocprofiler-sdk:
             - gfx1310
           block: VCA
           event: 11
-    - name: VCA_STORE
+    - name: VCA_STORE_WAVEFRONTS
       description: 'WARNING: Non-public counter.'
       properties: []
       definitions:
@@ -16785,7 +16829,7 @@ rocprofiler-sdk:
             - gfx1310
           block: VCA
           event: 124
-    - name: VCA_LDS_CYCLES
+    - name: VCA_LDS_TOTAL_CYCLES
       description: 'WARNING: Non-public counter.'
       properties: []
       definitions:

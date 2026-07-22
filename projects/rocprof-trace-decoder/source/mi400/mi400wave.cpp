@@ -163,10 +163,12 @@ enum EINST
     lds_other_simd_6,
     lds_other_simd_10,
     barrier_signal = 122,
+    lds_block_load = 128,
     dyn_vgpr = 135,
     try_lock,
     unlock,
     barrier_join,
+    wmma_xdl_32 = 142,
     icpref = 150,
     kcpref,
     salu_float3,
@@ -180,7 +182,8 @@ enum EINST
     async_store_2,
     async_store_3,
     async_store_5,
-    valut_1 = 165,
+    valut_4 = 164,
+    valut_1,
     valu_selftest,
     valu_no_exec = 169,
     vmpref,
@@ -204,7 +207,7 @@ enum EINST
     sema_wait,
     block_store = 222,
     block_store_end = 255,
-    einst_final
+    valu_dpmacc_8 = 302
 };
 
 static std::unordered_map<int, mapped_inst_t> table_map_to_common_type{
@@ -285,10 +288,11 @@ static std::unordered_map<int, mapped_inst_t> table_map_to_common_type{
     {(int) EINST::raytrace9,              {WaveInstCategory::BVH, 9}            },
     {(int) EINST::raytrace11,             {WaveInstCategory::BVH, 11}           },
     {(int) EINST::raytrace12,             {WaveInstCategory::BVH, 12}           },
-    {(int) EINST::flat_other_simd_1,      {WaveInstCategory::NONE, 0}           },
+    {(int) EINST::flat_other_simd_1,      {WaveInstCategory::FLAT_OTHER_SIMD, 1}},
 
     {(int) EINST::lds_dir_load,           {WaveInstCategory::LDS, 1}            },
     {(int) EINST::lds_param_load,         {WaveInstCategory::LDS, 1}            },
+    {(int) EINST::lds_block_load,         {WaveInstCategory::LDS, 1}            },
     {(int) EINST::salu_wr_exec,           {WaveInstCategory::SALU, 1}           },
     {(int) EINST::valu1_wr_exec,          {WaveInstCategory::VALU, 1}           },
     {(int) EINST::valu_b2_wr_exec,        {WaveInstCategory::VALU, 2}           },
@@ -314,9 +318,10 @@ static std::unordered_map<int, mapped_inst_t> table_map_to_common_type{
     {(int) EINST::async_store_2,          {WaveInstCategory::VMEM, 2}           },
     {(int) EINST::async_store_3,          {WaveInstCategory::VMEM, 3}           },
     {(int) EINST::async_store_5,          {WaveInstCategory::VMEM, 5}           },
+    {(int) EINST::valut_1,                {WaveInstCategory::VALU, 1}           },
+    {(int) EINST::valut_4,                {WaveInstCategory::VALU, 4}           },
     {(int) EINST::valu_no_exec,           {WaveInstCategory::VALU, 1}           },
     {(int) EINST::tdm,                    {WaveInstCategory::VMEM, 1}           },
-    {(int) EINST::tdm_other_simd,         {WaveInstCategory::NONE, 0}           },
     {(int) EINST::lds_async_barrier,      {WaveInstCategory::LDS, 1}            },
     {(int) EINST::vmpref,                 {WaveInstCategory::VMEM, 1}           },
     {(int) EINST::cluster_barrier_signal, {WaveInstCategory::MSG, 1}            },
@@ -327,8 +332,10 @@ static std::unordered_map<int, mapped_inst_t> table_map_to_common_type{
     {(int) EINST::wmma_xdl_4,             {WaveInstCategory::VALU, 4}           },
     {(int) EINST::wmma_xdl_8,             {WaveInstCategory::VALU, 8}           },
     {(int) EINST::wmma_xdl_16,            {WaveInstCategory::VALU, 16}          },
+    {(int) EINST::wmma_xdl_32,            {WaveInstCategory::VALU, 32}          },
     {(int) EINST::valu_dpmacc_1,          {WaveInstCategory::DPMACC1, 1}        },
     {(int) EINST::valu_dpmacc_4,          {WaveInstCategory::VALU, 4}           },
+    {(int) EINST::valu_dpmacc_8,          {WaveInstCategory::VALU, 8}           },
     {(int) EINST::valu_dpmacc_32,         {WaveInstCategory::VALU, 32}          },
     {(int) EINST::wmma_ld_scale,          {WaveInstCategory::LD_SCALE, 1}       },
 

@@ -143,7 +143,7 @@ class Pm4Factory {
   pm4_builder::SqttBuilder* GetSqttBuilder() const { return sqtt_builder_; }
 
   // Return Shader Engines number
-  uint32_t GetShaderEnginesNumber() const { return IsGFX13() ? 1 : agent_info_->se_num; }
+  uint32_t GetShaderEnginesNumber() const { return agent_info_->se_num; }
   uint32_t GetShaderArraysNumber() const { return agent_info_->shader_arrays_per_se; }
   uint32_t GetComputeUnitNumber() const { return agent_info_->cu_num; }
   // Return SQTT buffer alignment
