@@ -55,43 +55,48 @@ jobs:
           sudo rm -rf "${ws}/.git" 2>/dev/null || true
           sudo chown -R "$(id -un):$(id -gn)" "${ws}" 2>/dev/null || true
 
-      - name: Checkout .github/scripts for PSDB path classifier
-        if: steps.merge_msg.outputs.pass_psdb_merge_guard == 'true'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.base_ref }}
-          sparse-checkout: |
-            .github/scripts
-          sparse-checkout-cone-mode: true
-          fetch-depth: 1
-          token: ${{ steps.generate-token.outputs.token }}
-
-      - name: Classify skippable paths (therock_configure_ci rules)
-        id: paths
-        if: steps.merge_msg.outputs.pass_psdb_merge_guard == 'true'
-        env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-          python3 "${GITHUB_WORKSPACE}/.github/scripts/psdb_pr_skippable_paths.py" \
-            --pr-number "${PR_NUMBER}"
-
-      - name: Post CI Summary for skippable-path-only PRs
-        if: >-
-          steps.merge_msg.outputs.pass_psdb_merge_guard == 'true' &&
-          steps.paths.outputs.any_file == 'true' &&
-          steps.paths.outputs.non_skippable != 'true' &&
-          (!github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'run-psdb'))
-        env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
-            -f state=success \
-            -f context="CI Summary" \
-            -f description="PSDB skipped (skippable paths only; see therock_configure_ci SKIPPABLE_PATH_PATTERNS)." \
-            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+      # TODO: Temporarily disabled. The skippable-path classifier import was
+      # broken under the sparse checkout (ModuleNotFoundError: amdgpu_family_matrix).
+      # With these steps disabled, steps.paths.outputs.* are empty, so
+      # only_skippable_paths evaluates to false and PSDB always proceeds (safe
+      # default). Re-enable once the script fix is merged into amd-npi.
+      # - name: Checkout .github/scripts for PSDB path classifier
+      #   if: steps.merge_msg.outputs.pass_psdb_merge_guard == 'true'
+      #   uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      #   with:
+      #     ref: ${{ github.base_ref }}
+      #     sparse-checkout: |
+      #       .github/scripts
+      #     sparse-checkout-cone-mode: true
+      #     fetch-depth: 1
+      #     token: ${{ steps.generate-token.outputs.token }}
+      #
+      # - name: Classify skippable paths (therock_configure_ci rules)
+      #   id: paths
+      #   if: steps.merge_msg.outputs.pass_psdb_merge_guard == 'true'
+      #   env:
+      #     GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+      #     PR_NUMBER: ${{ github.event.pull_request.number }}
+      #   run: |
+      #     set -euo pipefail
+      #     python3 "${GITHUB_WORKSPACE}/.github/scripts/psdb_pr_skippable_paths.py" \
+      #       --pr-number "${PR_NUMBER}"
+      #
+      # - name: Post CI Summary for skippable-path-only PRs
+      #   if: >-
+      #     steps.merge_msg.outputs.pass_psdb_merge_guard == 'true' &&
+      #     steps.paths.outputs.any_file == 'true' &&
+      #     steps.paths.outputs.non_skippable != 'true' &&
+      #     (!github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'run-psdb'))
+      #   env:
+      #     GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+      #     HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      #   run: |
+      #     gh api "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+      #       -f state=success \
+      #       -f context="CI Summary" \
+      #       -f description="PSDB skipped (skippable paths only; see therock_configure_ci SKIPPABLE_PATH_PATTERNS)." \
+      #       -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
   merge-and-trigger:
     needs: check

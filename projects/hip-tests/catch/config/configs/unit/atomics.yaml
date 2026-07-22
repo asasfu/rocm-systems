@@ -352,7 +352,6 @@ atomics:
     disabled: [amd_linux, amd_wsl]
   Unit_atomicAdd_system_Positive_Host_And_GPU:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, system]
   Unit_atomicAdd_system_Positive_Host_And_Peer_GPUs:
     <<: *level_2
@@ -386,7 +385,6 @@ atomics:
     tags: [deviceLib, system, multigpu]
   Unit_atomicSub_system_Positive_Host_And_GPU:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, system]
   Unit_atomicSub_system_Positive_Host_And_Peer_GPUs:
     <<: *level_2
@@ -405,7 +403,6 @@ atomics:
     tags: [deviceLib, system, multigpu]
   Unit_atomicCAS_system_Positive_Host_And_GPU:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib, system]
   Unit_atomicCAS_system_Positive_Host_And_Peer_GPUs:
     <<: *level_2
