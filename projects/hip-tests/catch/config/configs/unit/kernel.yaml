@@ -144,6 +144,7 @@ kernel:
     tags: [launch]
   Unit_KernelStackSize:
     <<: *level_2
+    tags: [P0]
     disabled: [amd_linux, amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
   Unit_Validate_User_Sgpr_Count:
     <<: *level_2

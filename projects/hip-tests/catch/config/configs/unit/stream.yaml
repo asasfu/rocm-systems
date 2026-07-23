@@ -481,6 +481,7 @@ stream:
 
   Unit_hipStreamCreateWithPriority_ValidateWithEvents:
     <<: *level_2
+    tags: [P1]
     disabled: [gfx1260, gfx1310, gfx1370]
 
   Unit_hipStreamCreate_MultistreamBasicFunctionalities:
