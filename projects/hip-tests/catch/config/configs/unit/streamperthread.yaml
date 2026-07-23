@@ -68,7 +68,7 @@ streamperthread:
   Unit_hipStrmPerThrdDefault:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
-    tags: [stream]
+    tags: [stream, image]
   Unit_hipGetProcAddress_spt_MemCpy:
     <<: *level_2
     tags: [stream]
