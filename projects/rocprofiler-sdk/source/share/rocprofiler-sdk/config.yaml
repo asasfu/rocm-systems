@@ -4002,6 +4002,7 @@ rocprofiler-sdk:
           block: SQG
           event: 15
         - architectures:
+            - gfx1250
             - gfx1310
           block: SQG
           event: 14
