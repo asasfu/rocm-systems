@@ -361,6 +361,8 @@ typedef struct _HsaNodeProperties
     HSAuint64       WallClockKHz;      // Wall Clock Frequency in KHz
 
     HSAuint32       FabricHandleSupported; // 0 - not supported, 1 - supported
+    HSAuint32       MaxPhysCUperEngine;    // Max number of physical CUs an engine can have.
+                                           // Used to calculate scratch space for GFX13.
 } HsaNodeProperties;
 
 
