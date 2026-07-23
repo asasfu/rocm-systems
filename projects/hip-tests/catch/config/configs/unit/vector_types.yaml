@@ -2,31 +2,24 @@
 vector_types:
   Unit_make_vector_SanityCheck_Basic_Host:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_make_vector_SanityCheck_Basic_Device:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_VectorAndVectorOperations_SanityCheck_Basic_Host:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_VectorAndValueTypeOperations_SanityCheck_Basic_Host:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_VectorAndVectorOperations_SanityCheck_Basic_Device:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_VectorAndValueTypeOperations_SanityCheck_Basic_Device:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_VectorStructuredBindings_SanityCheck_Basic_host:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_VectorConstexpr_SanityCheck_Basic_host_device:
     <<: *level_2

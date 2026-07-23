@@ -273,7 +273,6 @@ deviceLib:
     tags: [math, P0]
   Unit_unsafeAtomicAdd:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [atomics, P0]
   Unit_mbcnt:
     <<: *level_2
@@ -464,19 +463,15 @@ deviceLib:
     tags: [types]
   Unit_all_fp6_ocp_vector_cvt_interger_data:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_all_fp6_ocp_vector_cvt_unsigned_interger_data:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_all_fp6_ocp_vector_cvt_unsigned_integer_device:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_all_fp6_ocp_vector_cvt_interger_data_device:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_all_fp4_from_double:
     <<: *level_2
@@ -486,19 +481,15 @@ deviceLib:
     tags: [types]
   Unit_all_fp4_from_interger_data:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_all_fp4_from__unsigned_integer_data:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_all_fp4_from_integer_data_device:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_all_fp4_from__unsigned_integer_data_device:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [types]
   Unit_ocp_fp4_from_double_full_range_host:
     <<: *level_2
