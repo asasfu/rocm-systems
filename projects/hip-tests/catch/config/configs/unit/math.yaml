@@ -85,7 +85,6 @@ math:
     disabled: [gfx1310, gfx1370]
   Unit_Device_asinh_Accuracy_Positive_double:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_asinh_asinhf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -132,7 +131,6 @@ math:
     tags: [deviceLib]
   Unit_Device_atan2_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_atan2_atan2f_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -166,28 +164,24 @@ math:
     tags: [deviceLib]
   Unit_Device_copysign_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_copysign_copysignf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_fmax_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_fmax_fmaxf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_fmin_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_fmin_fminf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_nextafter_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_nextafter_nextafterf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -241,14 +235,12 @@ math:
     tags: [deviceLib]
   Unit_Device_fmod_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_fmod_fmodf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_remainder_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_remainder_remainder_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -474,17 +466,14 @@ math:
     tags: [deviceLib]
   Unit_Device___clz_Sanity_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device___clzll_Sanity_Positive:
     <<: *level_2
     # Rock_Linux_Failures_on_gfx94X
-    disabled: [amd_linux, amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_linux, amd_wsl]
   Unit_Device___ffs_Sanity_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device___ffsll_Sanity_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device___popc_Sanity_Positive:
     <<: *level_2
     tags: [deviceLib]
@@ -591,42 +580,36 @@ math:
     tags: [deviceLib]
   Unit_Device_hypot_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_hypot_hypotf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_rhypot_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_rhypot_rhypotf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_norm3d_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_norm3d_norm3df_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_rnorm3d_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_rnorm3d_rnorm3df_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_norm4d_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_norm4d_norm4df_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_rnorm4d_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_rnorm4d_rnorm4df_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -676,7 +659,7 @@ math:
   Unit_Device_log1p_Accuracy_Positive_double:
     <<: *level_2
     # special values test, fix: comment out [HEX_DBL(-, 0, 0000000000001, -, 1022)]
-    disabled: [amd_linux, amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_linux, amd_wsl]
   Unit_Device_log1p_log1pf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -779,7 +762,6 @@ math:
     tags: [deviceLib]
   Unit_Device_tgamma_Accuracy_Limited_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_tgamma_tgammaf_Negative_RTC:
     <<: *level_2
@@ -790,7 +772,6 @@ math:
     tags: [deviceLib]
   Unit_Device_lgamma_Accuracy_Limited_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_lgamma_lgammaf_Negative_RTC:
     <<: *level_2
@@ -821,7 +802,6 @@ math:
     tags: [deviceLib]
   Unit_Device_y0_Accuracy_Limited_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_y0_y0f_Negative_RTC:
     <<: *level_2
@@ -832,7 +812,6 @@ math:
     tags: [deviceLib]
   Unit_Device_y1_Accuracy_Limited_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_y1_y1f_Negative_RTC:
     <<: *level_2
@@ -1463,28 +1442,24 @@ math:
     tags: [deviceLib]
   Unit_Device_pow_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_pow_powf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_ldexp_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_ldexp_ldexpf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_powi_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_powi_powif_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
     tags: [deviceLib]
   Unit_Device_scalbn_Accuracy_Positive:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Device_scalbn_scalbnf_Negative_RTC:
     <<: *level_2
     disabled: [gfx1310, gfx1370]

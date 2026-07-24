@@ -35,6 +35,7 @@ stream:
     tags: [properties, P1]
   Unit_hipMultiStream_sameDevice:
     <<: *level_2
+    # Disabled: times out / long runtime in CI
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle, P0]
   Unit_hipMultiStream_multimeDevice:
@@ -165,6 +166,7 @@ stream:
     tags: [synchronization, P0]
   Unit_hipStreamWaitValue_Default:
     <<: *level_2
+    # Disabled: times out / long runtime in CI
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [synchronization, P0]
   Unit_hipStreamSynchronize_EmptyStream:
@@ -221,7 +223,7 @@ stream:
     <<: *level_2
     # (amd_windows) SWDEV-400049 tdr intermittently
     # (amd_wsl) Note: Following four tests disabled due to defect - EXSWHTEC-203
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl]
     tags: [callback, P1]
   Unit_hipLaunchHostFunc_basic:
     <<: *level_2
@@ -250,13 +252,13 @@ stream:
     tags: [callback, multigpu, P1]
   Unit_hipLaunchHostFunc_Samepriority:
     # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [callback, P1]
   Unit_hipLaunchHostFunc_Diffpriority:
     # FFM gfx1260/1310/1370: requires DRM_AMDGPU_GEM_VA handler (AMD-GFX-Modeling/hsakmt-sim#44)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [callback, P1]
   Unit_hipLaunchHostFunc_Graph:
     <<: *level_2
@@ -458,6 +460,7 @@ stream:
     tags: [synchronization, P1]
   Unit_hipStreamValue_Wait_Blocking:
     <<: *level_2
+    # Disabled: times out / long runtime in CI
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [synchronization, P1]
   Unit_hipStreamWriteValue_Decrement_Default:
@@ -478,6 +481,7 @@ stream:
 
   Unit_hipStreamCreateWithPriority_ValidateWithEvents:
     <<: *level_2
+    tags: [P1]
     disabled: [gfx1260, gfx1310, gfx1370]
 
   Unit_hipStreamCreate_MultistreamBasicFunctionalities:

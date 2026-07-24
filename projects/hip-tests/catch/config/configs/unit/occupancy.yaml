@@ -13,6 +13,7 @@ occupancy:
     <<: *level_2
   Unit_hipOccupancyMaxPotentialBlockSize_Positive_RangeValidation:
     <<: *level_2
+    tags: [P0]
   Unit_hipOccupancyMaxPotentialBlockSize_Positive_TemplateInvocation:
     <<: *level_2
   Unit_hipModuleOccupancyMaxPotentialBlockSize_Negative_Parameters:

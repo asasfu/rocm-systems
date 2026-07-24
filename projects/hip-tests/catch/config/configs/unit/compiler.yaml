@@ -33,7 +33,6 @@ compiler:
     tags: [integration, rtc]
   Unit_test_compressed_codeobject:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [integration, rtc]
   Unit_test_generic_target_in_compressed_fatbin:
     <<: *level_2

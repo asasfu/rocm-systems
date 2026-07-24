@@ -174,7 +174,7 @@ device:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
     disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
-    tags: [query, P0]
+    tags: [query, P0, multigpu]
   Unit_hipDeviceAPUCheck:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
