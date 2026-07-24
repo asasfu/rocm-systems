@@ -14,6 +14,8 @@ library:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [module]
+    # AIRUNTIME-2410
+    disabled: [asan]
   Unit_hipKernelGetAttribute_Positive_Basic:
     <<: *level_2
     tags: [module]

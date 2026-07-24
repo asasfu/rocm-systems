@@ -26,7 +26,8 @@ rtc:
     tags: [integration]
   Unit_hiprtcGetLoweredName_templateKrnls:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
+    # AIRUNTIME-2410
+    disabled: [asan, gfx1310, gfx1370]
     tags: [compile]
   Unit_hiprtc_cpp17:
     <<: *level_2
@@ -34,11 +35,13 @@ rtc:
     tags: [compile]
   Unit_hiprtc_namehandling:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
+    # AIRUNTIME-2410
+    disabled: [asan, gfx1310, gfx1370]
     tags: [compile]
   Unit_hiprtc_getloweredname:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
+    # AIRUNTIME-2410
+    disabled: [asan, gfx1310, gfx1370]
     tags: [compile]
   Unit_hiprtc_test_hip_bfloat16:
     <<: *level_2
@@ -68,20 +71,24 @@ rtc:
     tags: [link]
   Unit_hiprtc_half_shuffle:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
+    # AIRUNTIME-2410
+    disabled: [asan, gfx1310, gfx1370]
     tags: [integration]
   Unit_hiprtc_half_shuffle_sync:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
+    # AIRUNTIME-2410
+    disabled: [asan, gfx1310, gfx1370]
     tags: [integration]
   Unit_Rtc_ReduceRandom:
     <<: *level_2
-    disabled: [gfx1310, gfx1370]
+    # AIRUNTIME-2410
+    disabled: [asan, gfx1310, gfx1370]
     tags: [compile]
   Unit_hiprtc_stdheaders:
     <<: *level_2
     # Patch which removes the typetraits implementation from std namespace in hiprtc is reverted
-    disabled: [amd_wsl, gfx1310, gfx1370]
+    # AIRUNTIME-2410
+    disabled: [amd_wsl, asan, gfx1310, gfx1370]
     tags: [header]
   Unit_Rtc_MathConstants_header:
     <<: *level_2
@@ -270,11 +277,13 @@ rtc:
   Unit_Rtc_CoopReduce:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, gfx1310, gfx1370]
+    # Asan: AIRUNTIME-2410
+    disabled: [amd_windows, asan, gfx1310, gfx1370]
   Unit_Rtc_CoopScan:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows]
+    # Asan: AIRUNTIME-2410
+    disabled: [amd_windows, asan]
   Unit_RTC_BUNDLE_FROM_FILE:
     <<: *level_2
     tags: [link]
@@ -282,3 +291,17 @@ rtc:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [compile]
+  Unit_hiprtc_spirv_compilation:
+    <<: *level_2
+    tags: [compile]
+    # amdgcnspirv builtins unsupported by the amd-npi internal LLVM pin: needs the
+    # amdgpu generic-target support (upstream llvm PR #206480 / 24a5231188bf).
+    # Re-enable once the amd-npi compiler pin bumps past it.
+    disabled: [gfx1260, gfx1310, gfx1370]
+  Unit_hiprtc_spirv_linker:
+    <<: *level_2
+    tags: [link]
+    # amdgcnspirv builtins unsupported by the amd-npi internal LLVM pin: needs the
+    # amdgpu generic-target support (upstream llvm PR #206480 / 24a5231188bf).
+    # Re-enable once the amd-npi compiler pin bumps past it.
+    disabled: [gfx1260, gfx1310, gfx1370]

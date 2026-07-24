@@ -5,12 +5,15 @@
 /// @brief Tests for simdojo simulation engine: LBTS correctness, cross-partition
 /// communication, async causality, termination, pacing, spinlock, and stress.
 
+#include "simdojo/components/cache.h"
 #include "simdojo/sim/pacing_controller.h"
 #include "simdojo/sim/simulation.h"
 #include "util/spinlock.h"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -719,4 +722,143 @@ TEST(StressTest, AsyncInjectionDuringActiveSimulation) {
   auto exit = engine.run();
 
   EXPECT_GT(async_processed.load(), 0u);
+}
+
+// ============================================================================
+// Cache VMID-tagging invariants
+// ============================================================================
+//
+// The memory hierarchy tags every line by (vmid, addr) so two processes that
+// alias the same guest VA do not share a cached line. These tests exercise that
+// invariant directly on the header-only Cache: distinct data per VMID at the
+// same address, eviction reporting the evicted line's owner VMID, and per-VMID
+// invalidation.
+
+namespace {
+// 64B lines, 4 sets, 2-way. Small associativity makes eviction easy to force.
+using TestCache = Cache<6, 4, 2>;
+
+// Fill the whole line for @p addr/@p vmid with a repeating 32-bit pattern.
+void fill_line_word(TestCache &cache, uint64_t addr, uint32_t vmid, uint32_t word) {
+  uint8_t line[TestCache::LINE_SIZE];
+  for (uint32_t i = 0; i < TestCache::LINE_SIZE; i += sizeof(word))
+    std::memcpy(line + i, &word, sizeof(word));
+  cache.allocate(addr, vmid);
+  cache.fill_line(addr, line, vmid);
+}
+
+uint32_t read_line_word(TestCache &cache, uint64_t addr, uint32_t vmid) {
+  uint32_t word = 0;
+  cache.read_line(addr, reinterpret_cast<uint8_t *>(&word), 0, sizeof(word), vmid);
+  return word;
+}
+} // namespace
+
+TEST(CacheVmidTest, SameAddressUnderTwoVmidsStoresDistinctData) {
+  TestCache cache;
+  constexpr uint64_t kAddr = 0x4000;
+
+  fill_line_word(cache, kAddr, /*vmid=*/1, 0xAAAAAAAAu);
+  fill_line_word(cache, kAddr, /*vmid=*/2, 0xBBBBBBBBu);
+
+  // Two distinct lines coexist in the same set; each VMID sees its own data.
+  CacheTag *tag1 = nullptr;
+  CacheTag *tag2 = nullptr;
+  EXPECT_TRUE(cache.lookup(kAddr, &tag1, /*vmid=*/1));
+  EXPECT_TRUE(cache.lookup(kAddr, &tag2, /*vmid=*/2));
+  EXPECT_EQ(read_line_word(cache, kAddr, /*vmid=*/1), 0xAAAAAAAAu);
+  EXPECT_EQ(read_line_word(cache, kAddr, /*vmid=*/2), 0xBBBBBBBBu);
+}
+
+TEST(CacheVmidTest, EvictionReportsEvictedLineOwnerVmid) {
+  TestCache cache;
+  // Three addresses that map to the same set (set index = (addr >> 6) & 3).
+  // With 2 ways, allocating a third forces eviction of the LRU (first) line.
+  constexpr uint64_t kSetStride = static_cast<uint64_t>(TestCache::LINE_SIZE) * 4;
+  const uint64_t addr_a = 0x1000;
+  const uint64_t addr_b = addr_a + kSetStride;
+  const uint64_t addr_c = addr_b + kSetStride;
+
+  // First line is owned by vmid 7 and marked dirty so a real cache would write
+  // it back under that vmid.
+  CacheTag *ta = cache.allocate(addr_a, /*vmid=*/7);
+  ta->dirty = true;
+  cache.allocate(addr_b, /*vmid=*/8);
+
+  CacheTag evicted;
+  cache.allocate(addr_c, /*vmid=*/9, &evicted);
+
+  EXPECT_TRUE(evicted.valid);
+  EXPECT_TRUE(evicted.dirty);
+  EXPECT_EQ(evicted.vmid, 7u); // writeback must use the evicted line's owner.
+}
+
+TEST(CacheVmidTest, InvalidatePerVmidLeavesOtherVmidIntact) {
+  TestCache cache;
+  constexpr uint64_t kAddr = 0x8000;
+
+  fill_line_word(cache, kAddr, /*vmid=*/1, 0x11111111u);
+  fill_line_word(cache, kAddr, /*vmid=*/2, 0x22222222u);
+
+  cache.invalidate(kAddr, /*vmid=*/1);
+
+  EXPECT_FALSE(cache.lookup(kAddr, nullptr, /*vmid=*/1));
+  EXPECT_TRUE(cache.lookup(kAddr, nullptr, /*vmid=*/2));
+  EXPECT_EQ(read_line_word(cache, kAddr, /*vmid=*/2), 0x22222222u);
+}
+
+TEST(CacheVmidTest, AllocateWithDataReturnsWritableLineAndEvictedBytes) {
+  TestCache cache;
+  constexpr uint64_t kSetStride = static_cast<uint64_t>(TestCache::LINE_SIZE) * 4;
+  constexpr uint64_t kAddrA = 0x1000;
+  constexpr uint64_t kAddrB = kAddrA + kSetStride;
+  constexpr uint64_t kAddrC = kAddrB + kSetStride;
+
+  auto first = cache.allocate_with_data(kAddrA, /*vmid=*/7);
+  ASSERT_NE(first.tag, nullptr);
+  ASSERT_NE(first.data, nullptr);
+  first.tag->dirty = true;
+  std::fill_n(first.data, TestCache::LINE_SIZE, 0xA5);
+  cache.allocate(kAddrB, /*vmid=*/8);
+
+  CacheTag evicted;
+  std::array<uint8_t, TestCache::LINE_SIZE> evicted_data{};
+  auto replacement = cache.allocate_with_data(kAddrC, /*vmid=*/9, &evicted, evicted_data.data());
+
+  ASSERT_NE(replacement.tag, nullptr);
+  ASSERT_NE(replacement.data, nullptr);
+  EXPECT_TRUE(evicted.valid);
+  EXPECT_TRUE(evicted.dirty);
+  EXPECT_EQ(evicted.vmid, 7u);
+  EXPECT_TRUE(std::all_of(evicted_data.begin(), evicted_data.end(),
+                          [](uint8_t byte) { return byte == 0xA5; }));
+}
+
+TEST(CacheVmidTest, InvalidateAllVmidsRemovesEveryAliasedLine) {
+  TestCache cache;
+  constexpr uint64_t kAddr = 0xC000;
+
+  fill_line_word(cache, kAddr, /*vmid=*/1, 0x11111111u);
+  fill_line_word(cache, kAddr, /*vmid=*/2, 0x22222222u);
+
+  cache.invalidate_all_vmids(kAddr);
+
+  EXPECT_FALSE(cache.lookup(kAddr, nullptr, /*vmid=*/1));
+  EXPECT_FALSE(cache.lookup(kAddr, nullptr, /*vmid=*/2));
+}
+
+TEST(CacheVmidTest, LineDataForReadReturnsMatchingVmidData) {
+  TestCache cache;
+  constexpr uint64_t kAddr = 0x10000;
+
+  auto allocation = cache.allocate_with_data(kAddr, /*vmid=*/4);
+  ASSERT_NE(allocation.data, nullptr);
+  for (uint32_t i = 0; i < TestCache::LINE_SIZE; ++i)
+    allocation.data[i] = static_cast<uint8_t>(i ^ 0x5A);
+
+  const uint8_t *line = cache.line_data_for_read(kAddr, /*vmid=*/4);
+  ASSERT_NE(line, nullptr);
+  for (uint32_t i = 0; i < TestCache::LINE_SIZE; ++i)
+    EXPECT_EQ(line[i], static_cast<uint8_t>(i ^ 0x5A));
+  EXPECT_EQ(cache.line_data_for_read(kAddr, /*vmid=*/5), nullptr);
 }

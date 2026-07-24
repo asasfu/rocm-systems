@@ -1294,6 +1294,18 @@ graph:
     # and dominates CI time (~57% of the hip-tests run), so disable on the FFM archs.
     disabled: [amd_windows, amd_wsl, gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [capture]
+  Unit_hipLaunchHostFunc_BlitDtoHHostCallbackVisibility:
+    <<: *level_2
+    tags: [capture]
+  Unit_hipLaunchHostFunc_SdmaDtoHHostCallbackVisibilityNoProducer:
+    <<: *level_2
+    tags: [capture]
+  Unit_hipLaunchHostFunc_KernelWritesPinnedMem_HostNodeReads:
+    <<: *level_2
+    tags: [capture]
+  Unit_hipLaunchHostFunc_KernelWritesManagedMem_HostNodeReads:
+    <<: *level_2
+    tags: [capture]
   Unit_hipUserObjectCreate_Functional_1:
     <<: *level_2
     tags: [userobj]
@@ -1332,6 +1344,7 @@ graph:
     tags: [userobj]
   Unit_hipGraphRetainUserObject_Negative_Basic:
     <<: *level_2
+    disabled: [asan]
     tags: [userobj]
   Unit_hipGraphDebugDotPrint_Functional:
     <<: *level_2

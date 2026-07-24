@@ -34,7 +34,7 @@ ComputeUnitCore::ComputeUnitCore(std::string name, const Config &config, GpuMemo
     : simdojo::CompositeComponent(std::move(name)), config_(config), memory_(memory),
       wf_size_(wf_size), decoder_(Decoder::create(config.arch)), l2_(l2), l1_scalar_(l2),
       l1_vector_(l2), lds_(config.lds_size_kb), scalar_mem_pipeline_(&l1_scalar_),
-      global_mem_pipeline_(&l1_vector_, l2), local_mem_pipeline_(&lds_) {
+      global_mem_pipeline_(&l1_vector_, l2), local_mem_pipeline_() {
   if (!decoder_)
     throw std::runtime_error("Unsupported architecture for ComputeUnit decoder");
 
@@ -74,6 +74,7 @@ std::unique_ptr<ComputeUnitCore> ComputeUnitCore::create(std::string name, const
     break
 
   switch (config.arch) {
+    // \NPI new ISA family: add ROCJITSU_CU_CASE(ROCJITSU_CODE_ARCH_<NAME>, <isa>::Isa);
     ROCJITSU_CU_CASE(ROCJITSU_CODE_ARCH_CDNA1, cdna1::Isa);
     ROCJITSU_CU_CASE(ROCJITSU_CODE_ARCH_CDNA2, cdna2::Isa);
     ROCJITSU_CU_CASE(ROCJITSU_CODE_ARCH_CDNA3, cdna3::Isa);
@@ -124,7 +125,7 @@ Wavefront *ComputeUnitCore::dispatch_wf(uint32_t wg_id, uint64_t pc, uint32_t sg
   // Zero the allocated register blocks so reused slots don't inherit stale
   // values from previous kernel runs.
   std::fill(&sgpr_file_[sgpr_base], &sgpr_file_[sgpr_base] + config_.sgprs_per_wf, 0u);
-  std::memset(vgpr_data(static_cast<uint32_t>(vgpr_base)), 0,
+  std::memset(raw_vgpr_data(static_cast<uint32_t>(vgpr_base)), 0,
               vgpr_allocation_block_size() * wf_size_ * sizeof(uint32_t));
 
   // Invalidate the L1 scalar cache so this wavefront reads fresh kernel
