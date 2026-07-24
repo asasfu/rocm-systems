@@ -294,6 +294,14 @@ rtc:
   Unit_hiprtc_spirv_compilation:
     <<: *level_2
     tags: [compile]
+    # amdgcnspirv builtins unsupported by the amd-npi internal LLVM pin: needs the
+    # amdgpu generic-target support (upstream llvm PR #206480 / 24a5231188bf).
+    # Re-enable once the amd-npi compiler pin bumps past it.
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hiprtc_spirv_linker:
     <<: *level_2
     tags: [link]
+    # amdgcnspirv builtins unsupported by the amd-npi internal LLVM pin: needs the
+    # amdgpu generic-target support (upstream llvm PR #206480 / 24a5231188bf).
+    # Re-enable once the amd-npi compiler pin bumps past it.
+    disabled: [gfx1260, gfx1310, gfx1370]

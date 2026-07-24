@@ -947,9 +947,10 @@ memory:
   Unit_hipMemcpyBatchAsync_Broadcast_VaryingDstCount:
     <<: *level_2
     tags: [transfer, P1]
-    # Disabled on gfx1310: FFM model lacks SDMA broadcast packet decode -> segfault.
-    # Fix: AMD-GFX-Modeling/ffm#4283; re-enable once it lands.
-    disabled: [gfx1310, gfx1370]
+    # gfx1310/gfx1370: FFM lacks SDMA broadcast packet decode (AMD-GFX-Modeling/ffm#4283).
+    # gfx1260: FFM lacks fused wait/signal multicast packet decode -> segfault (AMD-GFX-Modeling/ffm#4573).
+    # Re-enable once the FFM fixes land.
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemcpyBatchAsync_Broadcast_LargeBuffer:
     <<: *level_2
     tags: [transfer, P1]
@@ -959,24 +960,27 @@ memory:
   Unit_hipMemcpyBatchAsync_Broadcast_MixedWithLinear:
     <<: *level_2
     tags: [transfer, P1]
-    # Disabled on gfx1310: FFM model lacks SDMA broadcast packet decode -> segfault.
-    # Fix: AMD-GFX-Modeling/ffm#4283; re-enable once it lands.
-    disabled: [gfx1310, gfx1370]
+    # gfx1310/gfx1370: FFM lacks SDMA broadcast packet decode (AMD-GFX-Modeling/ffm#4283).
+    # gfx1260: FFM lacks fused wait/signal multicast packet decode -> segfault (AMD-GFX-Modeling/ffm#4573).
+    # Re-enable once the FFM fixes land.
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemcpyBatchAsync_Broadcast_DataIntegrity:
     <<: *level_2
     tags: [transfer, P1]
-    # Disabled on gfx1310: FFM model lacks SDMA broadcast packet decode -> segfault.
-    # Fix: AMD-GFX-Modeling/ffm#4283; re-enable once it lands.
-    disabled: [gfx1310, gfx1370]
+    # gfx1310/gfx1370: FFM lacks SDMA broadcast packet decode (AMD-GFX-Modeling/ffm#4283).
+    # gfx1260: FFM lacks fused wait/signal multicast packet decode -> segfault (AMD-GFX-Modeling/ffm#4573).
+    # Re-enable once the FFM fixes land.
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemcpyBatchAsync_Broadcast_NoPreferCE:
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyBatchAsync_Broadcast_MultipleGroups:
     <<: *level_2
     tags: [transfer, P1]
-    # Disabled on gfx1310: FFM model lacks SDMA broadcast packet decode -> segfault.
-    # Fix: AMD-GFX-Modeling/ffm#4283; re-enable once it lands.
-    disabled: [gfx1310, gfx1370]
+    # gfx1310/gfx1370: FFM lacks SDMA broadcast packet decode (AMD-GFX-Modeling/ffm#4283).
+    # gfx1260: FFM lacks fused wait/signal multicast packet decode -> segfault (AMD-GFX-Modeling/ffm#4573).
+    # Re-enable once the FFM fixes land.
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemcpyBatchAsync_Broadcast_WithSwap:
     <<: *level_2
     tags: [transfer, P1]
@@ -989,6 +993,11 @@ memory:
   Unit_hipMemcpyBatchAsync_Broadcast_DifferentSizes:
     <<: *level_2
     tags: [transfer, P1]
+    # gfx1310/gfx1370: different per-dst sizes take the classic (non-fused) multi-entry
+    # fan-out copy path, which the FFM model mis-decodes -> segfault. Separate from the
+    # broadcast (ffm#4283) and multicast (ffm#4573) packet gaps; FFM fix pending.
+    # Passes on gfx1260 (fused copy path is handled). Re-enable once the FFM fix lands.
+    disabled: [gfx1310, gfx1370]
   Unit_hipMemcpyBatchAsync_Broadcast_ZeroSize:
     <<: *level_2
     tags: [transfer, P1]
