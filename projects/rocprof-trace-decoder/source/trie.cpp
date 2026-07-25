@@ -53,10 +53,12 @@ constexpr TrieEntry type_dict[] = {
     {"s_sleep",          InstCategory::IMMED},
     {"s_wakeup",         InstCategory::IMMED},
     {"s_sendmsg",        InstCategory::IMMED},
+    {"s_sema",           InstCategory::IMMED},
     {"s_setprio ",       InstCategory::IMMED},
     {"s_setprio_inc",    InstCategory::SALU },
     {"s_set_inst",       InstCategory::IMMED},
     {"s_inst_prefetch",  InstCategory::IMMED},
+    {"s_inst_auto_p",    InstCategory::IMMED},
     {"s_setkill",        InstCategory::IMMED},
     {"s_version",        InstCategory::IMMED},
     {"s_trap",           InstCategory::IMMED},
@@ -64,6 +66,8 @@ constexpr TrieEntry type_dict[] = {
     {"s_endpgm",         InstCategory::IMMED},
     {"s_icache_inv",     InstCategory::IMMED},
     {"s_dcache_inv",     InstCategory::IMMED},
+    {"s_inv_wgp",        InstCategory::IMMED},
+    {"s_inv_simd",       InstCategory::IMMED},
     {"s_incperflvl",     InstCategory::IMMED},
     {"s_sethalt",        InstCategory::IMMED},
     {"s_decperflvl",     InstCategory::IMMED},
@@ -155,6 +159,7 @@ constexpr TrieEntry type_dict[] = {
     {"image_a",          InstCategory::VMEM },
     {"image_m",          InstCategory::VMEM },
     {"image_g",          InstCategory::VMEM },
+    {"rts_",             InstCategory::BVH  },
 };
 } // namespace
 

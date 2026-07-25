@@ -756,7 +756,7 @@ uint32_t ImageManagerGfx12::GetAddrlibSurfaceInfoNv(
     }
   }
 
-  in.flags.texture = 1;
+  //in.flags.texture = 1;
 
   if (tileMode == Image::TileMode::LINEAR)
   {

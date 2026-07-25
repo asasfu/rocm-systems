@@ -1771,7 +1771,6 @@ struct HipDispatchTable {
   // HIP_RUNTIME_API_TABLE_STEP_VERSION == 20
   t_hipKernelGetParamInfo hipKernelGetParamInfo_fn;
 
-
   // HIP_RUNTIME_API_TABLE_STEP_VERSION == 21
   t_hipExtDisableLogging hipExtDisableLogging_fn;
   t_hipExtEnableLogging hipExtEnableLogging_fn;

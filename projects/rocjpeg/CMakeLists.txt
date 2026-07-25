@@ -293,7 +293,7 @@ if(HIP_FOUND AND Libva_FOUND AND Libdrm_amdgpu_FOUND AND Threads_FOUND)
 
   # Export the package for use from the build-tree
   # (this registers the build-tree with a global CMake-registry)
-  export(PACKAGE ${PROJECT_NAME})
+  # export(PACKAGE ${PROJECT_NAME})
   set(CONF_LIB_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 
   # Create the rocjpeg-config.cmake and rocjpeg-config-version files

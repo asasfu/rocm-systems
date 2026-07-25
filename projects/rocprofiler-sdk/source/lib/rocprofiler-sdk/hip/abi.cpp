@@ -628,6 +628,7 @@ ROCP_SDK_ENFORCE_ABI(::HipDispatchTable, hipExtDisableLogging_fn, 508);
 ROCP_SDK_ENFORCE_ABI(::HipDispatchTable, hipExtEnableLogging_fn, 509);
 ROCP_SDK_ENFORCE_ABI(::HipDispatchTable, hipExtSetLoggingParams_fn, 510);
 #endif
+
 #if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 22
 ROCP_SDK_ENFORCE_ABI(::HipDispatchTable, hipMemSetMemPool_fn, 511);
 ROCP_SDK_ENFORCE_ABI(::HipDispatchTable, hipMemGetMemPool_fn, 512);

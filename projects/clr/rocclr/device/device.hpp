@@ -311,6 +311,9 @@ struct Info : public amd::EmbeddedObject {
   //! Maximum number of workgroups in cluster
   size_t clusterMaxSize_;
 
+  //! Whether the device supports wavegroup kernel launches
+  bool wavegroupSupported_ = false;
+
   //! uint32_t Preferred native vector width size for built-in scalar types
   //  that can be put into vectors.
   uint32_t preferredVectorWidthChar_;
@@ -657,6 +660,8 @@ struct Info : public amd::EmbeddedObject {
 
   //! CPU supports MOVDIR64B (atomic 64-byte write with WC buffer close).
   bool movdir64b_;
+  //! whether all local memory size can be shared within wgp mode
+  bool shareLocalMemInWGP_;
 
   uint32_t hmmSupported_;            //!< ROCr supports HMM interfaces
   uint32_t hmmCpuMemoryAccessible_;  //!< CPU memory is accessible by GPU without pinning/register
@@ -717,6 +722,8 @@ class Settings {
       uint customHostAllocator_ : 1;          //!< True if device has custom host allocator
                                               //  that replaces generic OS allocation routines
       uint supportDepthsRGB_ : 1;             //!< Support DEPTH and sRGB channel order format
+      uint reportFMAF_ : 1;                   //!< Report FP_FAST_FMAF define in CL program
+      uint reportFMA_ : 1;                    //!< Report FP_FAST_FMA define in CL program
       uint singleFpDenorm_ : 1;               //!< Support Single FP Denorm
       uint enableWgpMode_ : 1;                //!< Enable WGP mode for this device
       uint enableWave32Mode_ : 1;             //!< Enable Wave32 mode for this device
@@ -2245,8 +2252,9 @@ class Device : public RuntimeObject {
   virtual void QuiesceHwEvents(const std::vector<void*>& hw_events) const {}
 
   //! Block until all in-flight HSA async signal handlers (e.g. profiling
-  //! completion callbacks) have finished running.
-  virtual void WaitForHsaAsyncHandlersIdle() {}
+  //! completion callbacks) have finished running. Returns true if drained,
+  //! false if it timed out with handlers still in flight.
+  virtual bool WaitForHsaAsyncHandlersIdle() { return true; }
 
   struct HwEventPatch {
     static constexpr int kCompletionSignal = -1;
@@ -2329,6 +2337,12 @@ class Device : public RuntimeObject {
   device::Memory* findMemoryFromVA(const void* ptr, size_t* offset) const;
 
   static std::vector<Device*>& devices() { return *devices_; }
+
+  //! Null-safe view of all known devices (empty if none registered yet).
+  static const std::vector<Device*>& registeredDevices() {
+    static const std::vector<Device*> empty;
+    return (devices_ != nullptr) ? *devices_ : empty;
+  }
 
   // P2P devices that are accessible from the current device
   std::vector<cl_device_id> p2pDevices_;

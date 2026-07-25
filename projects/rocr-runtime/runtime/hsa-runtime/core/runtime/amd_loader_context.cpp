@@ -356,6 +356,13 @@ bool RegionMemory::Freeze() {
   const bool isLargeBarDisabled = isGpuDevice && !reinterpret_cast<AMD::GpuAgent*>(agent)->LargeBarEnabled();
   const bool shouldDmaCopy = isGpuDevice && (isLargeBarDisabled || size_ > code_object_dmacopy_size);
 
+  LogPrint(HSA_AMD_LOG_FLAG_INFO,
+           "Code object freeze copy: path=%s, dst=%p, src=%p, size=0x%zx, "
+           "dmacopy_threshold=0x%zx, is_gpu=%d, large_bar=%d",
+           shouldDmaCopy ? "DmaCopy" : "memcpy", ptr_, host_ptr_, size_,
+           code_object_dmacopy_size, isGpuDevice ? 1 : 0,
+           (isGpuDevice && !isLargeBarDisabled) ? 1 : 0);
+
   if (shouldDmaCopy) {
       if (HSA_STATUS_SUCCESS != agent->DmaCopy(ptr_, host_ptr_, size_)) return false;
   } else {

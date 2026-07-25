@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
 ***********************************************************************************************************************
 * @file  palVector.h
@@ -187,6 +164,7 @@ public:
     /// @returns Result ErrorOutOfMemory if the operation failed.
     template <typename... Args>
     Result EmplaceBack(Args&&... args);
+
 
     /// Returns the element at the end of the vector and destroys it.
     ///
@@ -439,29 +417,16 @@ Vector<T, defaultCapacity, Allocator>::Vector(
                 PAL_PLACEMENT_NEW(m_pData + idx) T(Move(vector.m_pData[idx]));
             }
         }
-
-        // Leave moved-from vector in the same valid empty state as default construction (inline buffer, full
-        // capacity). Without this, source retains a non-zero element count and/or moved-from objects, and
-        // subsequent PushBack / Clear on the source can corrupt state or leak.
-        if (!std::is_trivial<T>::value)
-        {
-            for (uint32 idx = 0; idx < m_numElements; ++idx)
-            {
-                vector.m_pData[idx].~T();
-            }
-        }
-        vector.m_numElements = 0;
     }
     else // Heap allocation
     {
         // Steal heap allocation from dying vector.
         m_pData = vector.m_pData;
 
-        // Reset source to default-constructed invariants. Setting m_pData to nullptr / m_maxCapacity to 0 left the
-        // moved-from vector unusable: PushBack would call Reserve(0), never allocate, then placement-new at null.
-        vector.m_pData         = reinterpret_cast<T*>(vector.m_data);
-        vector.m_numElements   = 0;
-        vector.m_maxCapacity   = defaultCapacity;
+        // After the allocation has been stolen, dying vector is just an empty shell.
+        vector.m_pData = nullptr;
+        vector.m_numElements = 0;
+        vector.m_maxCapacity = 0;
     }
 }
 

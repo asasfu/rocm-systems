@@ -38,8 +38,6 @@ void Kernel::setWorkGroupInfo(const uint32_t privateSegmentSize,
   workGroupInfo_.usedVGPRs_ = numVGPRs;
 
   if (!prog().isNull()) {
-    workGroupInfo_.availableLDSSize_ =
-        palDevice().properties().gfxipProperties.shaderCore.ldsSizePerCu;
     workGroupInfo_.availableSGPRs_ =
         palDevice().properties().gfxipProperties.shaderCore.numAvailableSgprs;
     workGroupInfo_.availableVGPRs_ =

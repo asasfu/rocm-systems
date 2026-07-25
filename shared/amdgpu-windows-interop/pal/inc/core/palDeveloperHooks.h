@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palDeveloperHooks.h
@@ -69,6 +46,9 @@ enum class CallbackType : uint32
     BindGpuMemory,          ///< This callback is to inform of a new binding to GPU memory.
     SubAllocGpuMemory,      ///< This callback is to inform of suballocation from base GPU memory allocation.
     SubFreeGpuMemory,       ///< This callback is to inform that GPU memory suballocation has been freed.
+#if PAL_WORK_GRAPHS_SUPPORT
+    BindWorkGraph,          ///< This callback is to inform that a WorkGraph has been bound.
+#endif
 #if PAL_DEVELOPER_BUILD
     RpmBlt,                 ///< This callback is to describe the internal RPM blt calls.
 #endif
@@ -145,6 +125,10 @@ struct GpuMemoryData
         uint32 reserved         : 24;       ///< Reserved for future use.
     } flags;                                ///< Flags describing the allocation.
 
+#if PAL_CLIENT_DX
+    DxKmtHandle hAllocation;                ///< Handle to the KM allocation object that GpuMemory represents.
+#endif
+
     GpuMemoryAllocationMethod allocMethod;  ///< Allocation method
     const IGpuMemory*         pGpuMemory;   ///< Handle to the Pal::IGpuMemory object of this GPU memory allocation
     gpusize                   offset;       ///< Offset, in bytes, of a suballocation within a base allocation.  For
@@ -188,8 +172,7 @@ struct BarrierOperations
             uint16 waitOnTs                       : 1;  ///< Wait on an timestamp event (EOP or EOS) at the ME.
                                                         ///  Which event is not necesarily specified here, though any
                                                         ///  that are specified here would be waited on.
-            uint16 reserved1                      : 1;
-            uint16 reserved                       : 6;  ///< Reserved for future use.
+            uint16 reserved                       : 7;  ///< Reserved for future use.
         };
 
         uint16 u16All;  ///< Unsigned integer containing all the values.
@@ -238,7 +221,11 @@ struct BarrierOperations
             uint16 flushDbMetadata  : 1; ///< Flush DB meta-data cache.
             uint16 invalTccMetadata : 1; ///< Invalidate L2 meta-data cache (also called the GLM).
             uint16 invalGl1         : 1; ///< Invalidate the global L1 cache
+#if PAL_BUILD_GFX13
+            uint16 flushTcp         : 1; ///< Flush vector cache.
+#else
             uint16 placeholder      : 1; ///< Reserved for future use.
+#endif
         };
 
         uint16 u16All; ///< Unsigned integer containing all the values.
@@ -396,7 +383,12 @@ enum class DrawDispatchType : uint32
     CmdDispatchIndirect,               ///< Indirect compute dispatch.
     CmdDispatchOffset,                 ///< Direct compute dispatch (offsetted start).
     CmdGenExecuteIndirectDispatch,     ///< ExecuteIndirect dispatch.
+#if PAL_CLIENT_OCL
     CmdDispatchAql,                    ///< AQL compute dispatch
+#endif
+#if PAL_WORK_GRAPHS_SUPPORT
+    CmdDispatchGraph,                  ///< Dispatch a GPU work graph
+#endif
 
     Count,
     FirstDispatch = CmdDispatch        ///< All callbacks with an enum value greater or equal than this are dispatches
@@ -462,6 +454,22 @@ struct BindPipelineData
     /// the marker.
     RgpMarkerSubQueueFlags subQueueFlags;
 };
+
+#if PAL_WORK_GRAPHS_SUPPORT
+/// Information for BindWorkGraph callbacks
+struct BindWorkGraphData
+{
+    const IWorkGraph* pWorkGraph;   ///< Work Graph to use for the next @ref CmdDispatchGraph call.
+    ICmdBuffer*       pCmdBuffer;   ///< The command buffer that is recording this command
+    uint64            apiGraphHash; ///< The hash to correlate APIs and corresponding Workgraph
+    PipelineBindPoint bindPoint;    ///< The bind point of the pipeline within a queue.
+
+    /// If the handler of this callback inserts an RGP trace marker using ICmdBuffer::CmdInsertRgpTraceMarker(),
+    /// these flags should be passed to that call to control which sub-queue(s) in the command buffer should insert
+    /// the marker.
+    RgpMarkerSubQueueFlags subQueueFlags;
+};
+#endif
 
 #if PAL_DEVELOPER_BUILD
 /// Information for DrawDispatchValidation callbacks

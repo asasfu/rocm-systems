@@ -112,7 +112,8 @@ endif()
 set(DEFAULT_TARGETS "gfx700;gfx701;gfx702;gfx801;gfx802;gfx803;gfx805;gfx810"
                     "gfx900;gfx902;gfx904;gfx906;gfx908;gfx909;gfx90a;gfx90c;gfx942;gfx950"
                     "gfx1010;gfx1011;gfx1012;gfx1013;gfx1030;gfx1031;gfx1032;gfx1033;gfx1034;gfx1035;gfx1036"
-                    "gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx1200;gfx1201;gfx1250;gfx1251")
+                    "gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1152;gfx115E;gfx1170;gfx1171"
+                    "gfx1200;gfx1201;gfx1250;gfx1251gfx1260;gfx1310;gfx131F;gfx1370")
 
 #
 # Currently support for Windows platform is not present
@@ -322,7 +323,10 @@ endif()
 
 # Target devices configuration
 if(NOT DEFINED TARGET_DEVICES OR TARGET_DEVICES STREQUAL "")
-  if(DEFINED GPU_TARGETS AND NOT GPU_TARGETS STREQUAL "")
+  if(DEFINED THEROCK_DIST_AMDGPU_TARGETS AND NOT THEROCK_DIST_AMDGPU_TARGETS STREQUAL "")
+    message(STATUS "Using THEROCK_DIST_AMDGPU_TARGETS from build system: ${THEROCK_DIST_AMDGPU_TARGETS}")
+    set(TARGET_DEVICES ${THEROCK_DIST_AMDGPU_TARGETS})
+  elseif(DEFINED GPU_TARGETS AND NOT GPU_TARGETS STREQUAL "")
     message(STATUS "Using GPU_TARGETS from build system: ${GPU_TARGETS}")
     set(TARGET_DEVICES ${GPU_TARGETS})
   elseif(DEFINED AMDGPU_TARGETS AND NOT AMDGPU_TARGETS STREQUAL "")

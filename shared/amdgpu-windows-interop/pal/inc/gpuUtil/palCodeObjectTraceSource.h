@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 
 #pragma once
 
@@ -123,46 +100,6 @@ struct CodeObjectCorrelation
     Pal::uint32       reserved         : 31; /// Bitflags reserved for future use
 };
 
-/// Identifies shader types inside RDF chunks
-enum class ApiShaderType : Pal::uint32
-{
-    Compute  = 0, ///< API compute shader
-    Task     = 1, ///< API task shader
-    Vertex   = 2, ///< API vertex shader
-    Hull     = 3, ///< API hull shader
-    Domain   = 4, ///< API domain shader
-    Geometry = 5, ///< API geometry shader
-    Mesh     = 6, ///< API mesh shader
-    Pixel    = 7, ///< API pixel shader
-};
-
-/// Ensure RDF shader types match PAL shader types for simple conversion
-static_assert(static_cast<Pal::uint32>(Pal::ShaderType::Cs)   == static_cast<Pal::uint32>(ApiShaderType::Compute));
-static_assert(static_cast<Pal::uint32>(Pal::ShaderType::Task) == static_cast<Pal::uint32>(ApiShaderType::Task));
-static_assert(static_cast<Pal::uint32>(Pal::ShaderType::Vs)   == static_cast<Pal::uint32>(ApiShaderType::Vertex));
-static_assert(static_cast<Pal::uint32>(Pal::ShaderType::Hs)   == static_cast<Pal::uint32>(ApiShaderType::Hull));
-static_assert(static_cast<Pal::uint32>(Pal::ShaderType::Ds)   == static_cast<Pal::uint32>(ApiShaderType::Domain));
-static_assert(static_cast<Pal::uint32>(Pal::ShaderType::Gs)   == static_cast<Pal::uint32>(ApiShaderType::Geometry));
-static_assert(static_cast<Pal::uint32>(Pal::ShaderType::Mesh) == static_cast<Pal::uint32>(ApiShaderType::Mesh));
-static_assert(static_cast<Pal::uint32>(Pal::ShaderType::Ps)   == static_cast<Pal::uint32>(ApiShaderType::Pixel));
-
-/// "PsoCorrelation" RDF chunk identifier & version
-constexpr char        ShaderObjectCorrelationChunkId[TextIdentifierSize] = "SOCorrelation";
-constexpr Pal::uint32 ShaderObjectCorrelationChunkVersion                = 1;
-
-struct ShaderObjectCorrelationHeader
-{
-    Pal::uint32 count; /// Number of Shader Correlations in this chunk
-};
-
-/// Payload for the "ShaderObjectCorrelation" RDF chunks
-struct ShaderObjectCorrelation
-{
-    Pal::uint64   apiPsoHash;          /// Hash of the API-level Pipeline State Object
-    Pal::uint64   apiShaderObjectHash; /// Hash of the API-level Shader Object
-    ApiShaderType apiShaderType;       /// Type of the shader
-};
-
 } // namespace TraceChunk
 
 /// CodeObject Trace Source name & version
@@ -183,13 +120,18 @@ public:
     Pal::Result RegisterLibrary(const Pal::IShaderLibrary* pLibrary, const RegisterLibraryInfo& clientInfo);
     Pal::Result UnregisterLibrary(const Pal::IShaderLibrary* pLibrary);
 
-#if PAL_BUILD_CODE_OBJECT_INTERFACE
-    Pal::Result RegisterCodeObject(const Pal::ICodeObject* pCodeObject, const RegisterCodeObjectInfo& clientInfo);
-    Pal::Result UnregisterCodeObject(const Pal::ICodeObject* pCodeObject);
-#endif
-
     Pal::Result RegisterElfBinary(const ElfBinaryInfo& elfBinaryInfo);
     Pal::Result UnregisterElfBinary(const ElfBinaryInfo& elfBinaryInfo);
+
+#if PAL_WORK_GRAPHS_SUPPORT
+    Pal::Result RegisterProgram(
+        Pal::IWorkGraph*         pProgram,
+        const Pal::IGraphLayout* pGraphLayout,
+        RegisterProgramInfo      programInfo);
+    Pal::Result UnregisterProgram(Pal::IWorkGraph* pProgram);
+    Pal::Result RegisterProgramLibrary(const Pal::IShaderLibrary* pLibrary, const RegisterLibraryInfo& clientInfo);
+#endif
+
 
     // ==== Base Class Overrides =================================================================================== //
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < COMPRESSION_ARG_VERSION
@@ -201,7 +143,11 @@ public:
     virtual void OnTraceAccepted(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override;
     virtual void OnTraceBegin(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override { }
     virtual void OnTraceEnd(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override { }
-    virtual void OnPostambleEnd(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override { }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 939
+    virtual void OnPostambleEnd(
+        Pal::uint32      gpuIndex,
+        Pal::ICmdBuffer* pCmdBuf) override { }
+#endif
     virtual void OnTraceFinished() override;
 
     virtual const char* GetName()    const override { return CodeObjectTraceSourceName; }
@@ -214,14 +160,14 @@ private:
     Pal::Result AddCodeObjectLoadEvent(
         const Pal::IShaderLibrary*          pLibrary,
         TraceChunk::CodeObjectLoadEventType eventType);
-#if PAL_BUILD_CODE_OBJECT_INTERFACE
     Pal::Result AddCodeObjectLoadEvent(
-        const Pal::ICodeObject*             pCodeObject,
+        const Pal::IPipeline*               pLibrary,
+        TraceChunk::CodeObjectLoadEventType eventType);
+#if PAL_WORK_GRAPHS_SUPPORT
+    Pal::Result AddCodeObjectLoadEvent(
+        const Pal::IWorkGraph*              pLibrary,
         TraceChunk::CodeObjectLoadEventType eventType);
 #endif
-    Pal::Result AddCodeObjectLoadEvent(
-        const Pal::IPipeline*               pPipeline,
-        TraceChunk::CodeObjectLoadEventType eventType);
     Pal::Result AddCodeObjectLoadEvent(
         const ElfBinaryInfo&                elfBinaryInfo,
         TraceChunk::CodeObjectLoadEventType eventType);
@@ -230,7 +176,6 @@ private:
     Pal::Result WriteLoaderEventsChunk();
     Pal::Result WritePsoCorrelationChunk();
     Pal::Result WriteCoCorrelationChunk();
-    Pal::Result WriteSoCorrelationChunk();
 
     struct CodeObjectDatabaseRecord
     {
@@ -242,17 +187,20 @@ private:
 
     Pal::uint32 m_traceGpuIndex;
 
-    Util::RWLock                                                          m_registerPipelineLock;
-    Util::Vector<CodeObjectDatabaseRecord*,           1, Pal::IPlatform>  m_codeObjectRecords;
-    Util::Vector<TraceChunk::CodeObjectLoadEvent,     1, Pal::IPlatform>  m_loadEventRecords;
-    Util::Vector<TraceChunk::PsoCorrelation,          1, Pal::IPlatform>  m_psoCorrelationRecords;
-    Util::Vector<TraceChunk::CodeObjectCorrelation,   1, Pal::IPlatform>  m_coCorrelationRecords;
-    Util::Vector<TraceChunk::ShaderObjectCorrelation, 1, Pal::IPlatform>  m_soCorrelationRecords;
+    Util::RWLock                                                        m_registerPipelineLock;
+    Util::Vector<CodeObjectDatabaseRecord*,         1, Pal::IPlatform>  m_codeObjectRecords;
+    Util::Vector<TraceChunk::CodeObjectLoadEvent,   1, Pal::IPlatform>  m_loadEventRecords;
+    Util::Vector<TraceChunk::PsoCorrelation,        1, Pal::IPlatform>  m_psoCorrelationRecords;
+    Util::Vector<TraceChunk::CodeObjectCorrelation, 1, Pal::IPlatform>  m_coCorrelationRecords;
 
     // API hashes -> internal pipeline hash (-> child code object hashes)
     Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredApiHashes;
     Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredPipelines;
     Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredCoHashes;
+#if PAL_WORK_GRAPHS_SUPPORT
+    Util::RWLock                                                        m_registerProgramLock;
+    Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredGraphApiHashes;
+#endif
 
 };
 

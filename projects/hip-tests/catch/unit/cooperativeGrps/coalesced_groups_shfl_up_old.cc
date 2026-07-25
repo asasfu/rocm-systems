@@ -52,12 +52,6 @@ __global__ void kernel_cg_group_partition_shfl_up(int* dPtr, unsigned int tileSz
     // we pass its own thread rank as inputs
     input = threadBlockCGTy.thread_rank();
 
-    // Choose a leader thread to print the results
-    if (threadBlockCGTy.thread_rank() == 0) {
-      printf(" Creating %d groups, of tile size %d threads:\n\n",
-             (int)threadBlockCGTy.size() / tileSz, tileSz);
-    }
-
     threadBlockCGTy.sync();
 
     coalesced_group tiledPartition = tiled_partition(threadBlockCGTy, tileSz);

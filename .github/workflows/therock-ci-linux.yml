@@ -144,5 +144,6 @@ jobs:
       projects_to_test: ${{ inputs.projects_to_test }}
       test_type: ${{ inputs.test_type }}
       amdgpu_families: ${{ inputs.amdgpu_families }}
+      # Due to migrating MI325s, we have lost capacity as of 3/13/2026 11:41am PST
       test_runs_on: ${{ inputs.test_runs_on }}
       platform: "linux"

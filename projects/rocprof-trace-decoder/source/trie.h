@@ -83,6 +83,8 @@ public:
                 type = InstCategory::MFMA_SCALE;
             else if (gfxip == 12 && line.find("v_mov_b64") == 0)
                 type = InstCategory::V_MOV_B64;
+            else if (gfxip == 13 && line.find("v_send") == 0)
+                type = InstCategory::IMMED;
         }
         else if (gfxip == 9 && type == InstCategory::IMMED)
         {

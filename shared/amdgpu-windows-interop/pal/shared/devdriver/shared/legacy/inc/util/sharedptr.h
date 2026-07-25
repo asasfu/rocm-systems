@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -52,7 +29,7 @@ namespace DevDriver
         // public functions available to all subclasses
     public:
         // check to see if the class has been set
-        bool IsNull() const;
+        bool IsNull() const { return m_pObject == nullptr; }
 
         // clear the pointer and, if required, delete the underlying allocation
         void Clear()
@@ -76,30 +53,28 @@ namespace DevDriver
         class ContainerBase
         {
         public:
-            using AtomicValueType = decltype(+Platform::Atomic{});
-            static_assert(sizeof(AtomicValueType) == sizeof(Platform::Atomic), "Atomic storage must match Platform::Atomic size.");
-            static_assert(alignof(AtomicValueType) == alignof(Platform::Atomic), "Atomic storage must match Platform::Atomic alignment.");
-
             // Construct container and initialize ref count to zero. This class should never be
             // constructed directly by anything other than a subclass.
-            ContainerBase(const AllocCb &allocCb);
-
-            ContainerBase& operator=(const ContainerBase&) = delete;
-            ContainerBase& operator=(ContainerBase&&) = delete;
+            constexpr ContainerBase(const AllocCb &allocCb)
+                : m_allocCb(allocCb)
+                , m_refCount(0)
+            {
+                //DD_PRINT(LogLevel::Never, "Created reference counted container %i", m_refCount);
+            }
 
             // Destroy the container. Since this class is never directly created, this ensures
             // subclasses (and the contained object) are always destroyed correctly.
             virtual ~ContainerBase()
             {
-                DD_ASSERT(RefCountValue() == 0);
-                DD_PRINT(LogLevel::Never, "Deleted reference counted container %i", RefCountValue());
+                DD_ASSERT(m_refCount == 0);
+                DD_PRINT(LogLevel::Never, "Deleted reference counted container %i", m_refCount);
             }
 
             // Increments the reference count of the container
             int32 Retain(void)
             {
-                DD_ASSERT(RefCountValue() >= 0);
-                int32 result = Platform::AtomicIncrement(RefCountAtomic());
+                DD_ASSERT(m_refCount >= 0);
+                int32 result = Platform::AtomicIncrement(&m_refCount);
                 DD_ASSERT(result >= 1);
                 DD_PRINT(LogLevel::Never, "Incremented reference count: %i", result);
                 return result;
@@ -108,54 +83,62 @@ namespace DevDriver
             // Decrements the reference count of the container
             int32 Release(void)
             {
-                int32 result = Platform::AtomicDecrement(RefCountAtomic());
+                int32 result = Platform::AtomicDecrement(&m_refCount);
                 DD_ASSERT(result >= 0);
                 DD_PRINT(LogLevel::Never, "Decremented reference count: %i", result);
                 return result;
             }
 
             // Returns the reference count of the container
-            int32 QueryReferenceCount(void) const;
+            int32 QueryReferenceCount(void) const
+            {
+                return m_refCount;
+            }
 
             // Retrieve the allocator callbacks so it can be destroyed
             const AllocCb& GetAllocCb() const { return m_allocCb; }
         private:
-            Platform::Atomic* RefCountAtomic()
-            {
-                return &m_refCount;
-            }
-
-            const Platform::Atomic* RefCountAtomic() const
-            {
-                return &m_refCount;
-            }
-
-            int32 RefCountValue() const
-            {
-                return Platform::AtomicAdd(const_cast<Platform::Atomic*>(RefCountAtomic()), 0);
-            }
-
             // Allocator callbacks
             const AllocCb       m_allocCb;
             // Reference count
-            AtomicValueType     m_refCount;
+            Platform::Atomic    m_refCount;
 
         };
 
-        // Default constructor that initializes an empty shared pointer base.
-        SharedPointerBase();
+        // Default constructor that is constexpr. Allows the compiler to inline this if it wants to.
+        constexpr SharedPointerBase()
+            : m_pContainer(nullptr)
+            , m_pObject(nullptr)
+        {
+        }
 
         // Initialize the object using the provided pointer
-        SharedPointerBase(ContainerBase* pContainer, void* pObject);
+        SharedPointerBase(ContainerBase* pContainer, void* pObject)
+            : m_pContainer(pContainer)
+            , m_pObject(pObject)
+        {
+            // We should always have a valid object if the container is valid.
+            DD_ASSERT((m_pContainer == nullptr) || (m_pObject != nullptr));
+
+            // If we have a valid container, increment the reference count.
+            if (m_pContainer != nullptr)
+            {
+                m_pContainer->Retain();
+            }
+        }
 
         // Copy constructor copies the container pointer and increments the reference count
-        SharedPointerBase(const SharedPointerBase &right);
+        SharedPointerBase(const SharedPointerBase &right)
+            : SharedPointerBase(right.m_pContainer, right.m_pObject)
+        {
+        }
 
         // Move constructor takes the container pointer and clears the other container's pointer
-        SharedPointerBase(SharedPointerBase &&right);
-
-        SharedPointerBase& operator=(const SharedPointerBase&) = delete;
-        SharedPointerBase& operator=(SharedPointerBase&&) = delete;
+        SharedPointerBase(SharedPointerBase &&right)
+            : m_pContainer(Platform::Exchange(right.m_pContainer, nullptr))
+            , m_pObject(Platform::Exchange(right.m_pObject, nullptr))
+        {
+        }
 
         // On deletion of the object clear the pointer
         ~SharedPointerBase()
@@ -175,7 +158,7 @@ namespace DevDriver
     {
     public:
         // Create SharedPointer object with the default constructor
-        SharedPointer() : SharedPointerBase() {};
+        constexpr SharedPointer() : SharedPointerBase() {};
 
         SharedPointer(const SharedPointer<T>&) = default;
 
@@ -266,7 +249,7 @@ namespace DevDriver
         public:
             // Constructor that initializes ContainerBase class and the object using the provided parameters
             template<typename... Args>
-            explicit Container(const AllocCb& allocCb, Args&&... args)
+            explicit constexpr Container(const AllocCb& allocCb, Args&&... args)
                 : ContainerBase(allocCb)
                 , m_object(Platform::Forward<Args>(args)...)
             {

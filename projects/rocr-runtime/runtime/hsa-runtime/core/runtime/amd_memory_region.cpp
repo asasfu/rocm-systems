@@ -647,6 +647,7 @@ void MemoryRegion::Trim() const { fragment_allocator_.trim(); }
 
 void* MemoryRegion::BlockAllocator::alloc(size_t request_size, size_t& allocated_size) const {
   size_t bsize = AlignUp(request_size, block_size());
+  //uint64_t mmap_offset; //unused
 
   // The block's driver identity is reconstructed from base address and length
   // on free (see BlockAllocator::free), so the handle is not retained here.

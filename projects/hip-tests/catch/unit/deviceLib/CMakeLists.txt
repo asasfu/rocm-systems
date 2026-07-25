@@ -63,7 +63,6 @@ set(AMD_TEST_SRC
     hipTestHalfConstexpr.cc
     hipComplex.cc
     hipTestFMA.cc
-    hipTestNativeHalf.cc
     hip_test_make_type.cc
     bfloat16.cc
     AtomicsWithRandomActiveLanesInWavefront.cc
@@ -72,6 +71,7 @@ set(AMD_TEST_SRC
     fp8_e8m0.cc
     fp6_ocp.cc
     fp4_ocp.cc
+    fp8_ocp.cc
     memcpy_async.cc
     bfloat16_atomic_test.cc
     fp16_atomic_test.cc
@@ -102,10 +102,6 @@ set(AMD_ARCH_SPEC_TEST_SRC
 
 set(AMD_GFX940_SPEC_TEST_SRC
     fp8_fnuz.cc
-)
-
-set(AMD_GFX1200_SPEC_TEST_SRC
-    fp8_ocp.cc
 )
 
 if (HIP_PLATFORM MATCHES "amd")
@@ -191,11 +187,11 @@ set_property(GLOBAL APPEND PROPERTY G_INSTALL_CUSTOM_TARGETS ${CMAKE_CURRENT_BIN
 # Accepted archs to compile this cmake file
 set(ACCEPTED_OFFLOAD_ARCHS gfx90a gfx942)
 set(ACCEPTED_GFX940_ARCH gfx942)
-set(ACCEPTED_GFX1200_ARCH gfx1200 gfx1201)
+set(ACCEPTED_GFX1300_ARCH gfx1300)
 function(CheckAcceptedArchs OFFLOAD_ARCH_STR_LOCAL)
   set(ARCH_CHECK -1 PARENT_SCOPE)
   set(ARCH_GFX940 -1 PARENT_SCOPE)
-  set(ARCH_GFX1200 -1 PARENT_SCOPE)
+  set(ARCH_GFX1300 -1 PARENT_SCOPE)
   string(REGEX MATCHALL "--offload-arch=gfx[0-9a-z]+" OFFLOAD_ARCH_LIST ${OFFLOAD_ARCH_STR_LOCAL})
   foreach(OFFLOAD_ARCH IN LISTS OFFLOAD_ARCH_LIST)
     string(REGEX MATCHALL "--offload-arch=(gfx[0-9a-z]+)" matches ${OFFLOAD_ARCH})
@@ -206,8 +202,8 @@ function(CheckAcceptedArchs OFFLOAD_ARCH_STR_LOCAL)
       if (CMAKE_MATCH_1 IN_LIST ACCEPTED_GFX940_ARCH)
         set(ARCH_GFX940 1 PARENT_SCOPE)
       endif()
-      if (CMAKE_MATCH_1 IN_LIST ACCEPTED_GFX1200_ARCH)
-        set(ARCH_GFX1200 1 PARENT_SCOPE)
+      if (CMAKE_MATCH_1 IN_LIST ACCEPTED_GFX1300_ARCH)
+        set(ARCH_GFX1300 1 PARENT_SCOPE)
       endif()
     endif()        # CMAKE_MATCH_COUNT
   endforeach()   # OFFLOAD_ARCH_LIST
@@ -222,7 +218,7 @@ if(HIP_PLATFORM MATCHES "amd")
   else()
     set(ARCH_CHECK -1)
     set(ARCH_GFX940 -1)
-    set(ARCH_GFX1200 -1)
+    set(ARCH_GFX1300 -1)
   endif()
   set(TEST_SRC ${TEST_SRC} ${AMD_TEST_SRC})
   set_source_files_properties(bfloat16.cc PROPERTIES COMPILE_FLAGS "-DHIP_ENABLE_WARP_SYNC_BUILTINS")
@@ -245,8 +241,9 @@ if(HIP_PLATFORM MATCHES "amd")
   if(${ARCH_GFX940} GREATER_EQUAL 0)
     set(TEST_SRC ${TEST_SRC} ${AMD_GFX940_SPEC_TEST_SRC})
   endif()
-  if(${ARCH_GFX1200} GREATER_EQUAL 0)
-    set(TEST_SRC ${TEST_SRC} ${AMD_GFX1200_SPEC_TEST_SRC})
+  #This test triggers a crash in llvm for gfx1300 (see SWDEV-498760)
+  if(${ARCH_GFX1300} EQUAL -1)
+    set(TEST_SRC ${TEST_SRC} hipTestNativeHalf.cc)
   endif()
   hip_add_exe_to_target(NAME UnitDeviceTests
                       TEST_SRC ${TEST_SRC}

@@ -209,7 +209,8 @@ typedef struct hipDeviceProp_t {
   int ipcEventSupported;                 ///< Device supports IPC events
   int clusterLaunch;                     ///< Device supports cluster launch
   int unifiedFunctionPointers;           ///< Indicates device supports unified function pointers
-  int reserved[63];                      ///< CUDA Reserved.
+  int wavegroupLaunch;                   ///< Device supports wavegroup kernel launches
+  int reserved[62];                      ///< CUDA Reserved.
 
   int hipReserved[32];  ///< Reserved for adding new entries for HIP/CUDA.
 
@@ -604,6 +605,7 @@ typedef enum hipDeviceAttribute_t {
                                                  ///< '0' otherwise.
   hipDeviceAttributeMaxDynDataPrefetchRegions,   ///< Maximum number of dynamic data prefetch regions
                                                  ///< per kernel launch (0 if unsupported).
+  hipDeviceAttributeWavegroupLaunch,             ///< Device supports wavegroup kernel launches.
 
   hipDeviceAttributeAmdSpecificEnd = 19999,
   hipDeviceAttributeVendorSpecificBegin = 20000,
@@ -1029,6 +1031,8 @@ enum hipLimit_t {
 // Flags that can be used with hipExtLaunch Set of APIs.
 /** AnyOrderLaunch of kernels.*/
 #define hipExtAnyOrderLaunch 0x01
+/** Dispatch ahead for programmatic dependent launch (AQL DispatchAheadProgrammatic).*/
+#define hipExtDispatchAheadProgrammatic 0x02
 // Flags to be used with hipStreamWaitValue32 and hipStreamWaitValue64.
 #define hipStreamWaitValueGte 0x0
 #define hipStreamWaitValueEq 0x1
@@ -1720,6 +1724,7 @@ typedef enum hipLaunchAttributeID {
   hipLaunchAttributeSynchronizationPolicy = 3,             ///< Valid for streams
   hipLaunchAttributeClusterDimension = 4,                  ///< Valid for graph nodes, launches
   hipLaunchAttributeClusterSchedulingPolicyPreference = 5, ///< Valid for graph nodes, launches
+  hipLaunchAttributeProgrammaticStreamSerialization = 6,   ///< Valid for launches; programmatic dependent launch
   hipLaunchAttributePriority = 8, ///< Valid for graph node, streams, launches
   hipLaunchAttributeMemSyncDomainMap = 9,       ///< Valid for streams, graph nodes, launches
   hipLaunchAttributeMemSyncDomain = 10,         ///< Valid for streams, graph nodes, launches
@@ -1767,6 +1772,8 @@ typedef union hipLaunchAttributeValue {
   hipClusterSchedulingPolicy clusterSchedulingPolicyPreference;  ///< Value of launch attribute :: hipLaunchAttributeClusterSchedulingPolicyPreference
                                                                  ///< determines the preferred strategy for distributing blocks within a compute cluster
   const hipExtDynDataPrefetchConfig* dynDataPrefetch;  ///< Value of launch attribute ::hipLaunchAttributeExtDynDataPrefetch
+  int programmaticStreamSerializationAllowed;  ///< Value of launch attribute ::hipLaunchAttributeProgrammaticStreamSerialization.
+                                               ///< Non-zero allows the kernel to be launched ahead for programmatic dependent launch.
 } hipLaunchAttributeValue;
 
 /**
@@ -2183,7 +2190,7 @@ typedef struct hipArrayMemoryRequirements {
 /**
  * Requested handle type for address range.
  */
-typedef enum hipMemRangeHandleType {
+ typedef enum hipMemRangeHandleType {
   hipMemRangeHandleTypeDmaBufFd = 0x1,
   hipMemRangeHandleTypeMax = 0x7fffffff
 } hipMemRangeHandleType;
@@ -10266,7 +10273,6 @@ hipError_t hipCreateSurfaceObject(hipSurfaceObject_t* pSurfObject, const hipReso
 hipError_t hipDestroySurfaceObject(hipSurfaceObject_t surfaceObject);
 // end of surface
 
-
 /**
  * @brief Enable HIP runtime logging.
  *
@@ -10986,8 +10992,8 @@ static inline __host__ hipError_t hipLaunchKernelEx(const hipLaunchConfig_t* con
   }(std::forward<Params>(args)...);
 }
 /**
- * @}
- */
+* @}
+*/
 
 
 #endif  // __cplusplus

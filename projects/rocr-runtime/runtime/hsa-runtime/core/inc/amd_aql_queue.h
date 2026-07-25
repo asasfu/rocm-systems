@@ -293,10 +293,11 @@ class AqlQueue : public core::Queue, private core::LocalSignal, public core::Doo
   void FillBufRsrcWord3_Gfx10();
   void FillBufRsrcWord3_Gfx11();
   void FillBufRsrcWord3_Gfx12();
+  void FillBufRsrcWords_Gfx13();
   void FillComputeTmpRingSize();
   void FillAltComputeTmpRingSize();
   void FillComputeTmpRingSize_Gfx11();
-  void FillComputeTmpRingSize_Gfx12();
+  void FillComputeTmpRingSize_Gfx12_Gfx13();
 
   void FreeMainScratchSpace();
   void FreeAltScratchSpace();
@@ -314,6 +315,9 @@ class AqlQueue : public core::Queue, private core::LocalSignal, public core::Doo
 
   /// @brief Fill queue properties
   void GetInfoProperties(uint8_t value[8]) const;
+  #ifdef AMD_NPI_ONLY
+  void SetResourceLimits(uint32_t limit);
+  #endif
 
   // AQL packet ring buffer
   void* ring_buf_;

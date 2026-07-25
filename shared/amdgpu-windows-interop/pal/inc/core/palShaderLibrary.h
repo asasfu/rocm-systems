@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palShaderLibrary.h
@@ -46,8 +23,6 @@ struct Hash;
 
 namespace Pal
 {
-struct GpuSymbol;
-class ICodeObject;
 
 using Hash128 = Util::MetroHash::Hash;
 
@@ -58,19 +33,9 @@ union LibraryCreateFlags
 {
     struct
     {
-        uint32 clientInternal               : 1;  ///< Internal library not created by the application.
-        uint32 isGraphics                   : 1;  ///< Whether it is a graphics library
-#if PAL_BUILD_CODE_OBJECT_INTERFACE
-        uint32 disableCodeObjectReferencing : 1;  ///< Indicates that this library will not manage the reference
-                                                  ///  counter for the pCodeObject.
-                                                  ///  It's the client's responsibility to ensure the pCodeObject stay
-                                                  ///  alive during library creation and execution.
-                                                  ///  This is useful for clients who want to manage the lifetime of the
-                                                  ///  code objects separately from the library.
-        uint32 reserved                     : 29; ///< Reserved for future use.
-#else
-        uint32 reserved                     : 30; ///< Reserved for future use.
-#endif
+        uint32 clientInternal  : 1;  ///< Internal library not created by the application.
+        uint32 isGraphics      : 1;  ///< Whether it is a graphics library
+        uint32 reserved        : 30; ///< Reserved for future use.
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
@@ -96,6 +61,15 @@ enum class ShaderSubType : uint32
     Miss,
     Callable,
     LaunchKernel,           ///< Raytracing launch kernel
+#if PAL_WORK_GRAPHS_SUPPORT
+    FixedExpansionNode,     ///< Corresponds to Pal::GraphNodeType::FixedExpansion
+    DynamicExpansionNode,   ///< Corresponds to Pal::GraphNodeType::DynamicExpansion
+    AggregationNode,        ///< Corresponds to Pal::GraphNodeType::Aggregation
+    ThreadLaunchNode,       ///< Corresponds to Pal::GraphNodeType::ThreadLaunch
+    DrawNode,               ///< Corresponds to Pal::GraphNodeType::Draw
+    DrawIndexedNode,        ///< Corresponds to Pal::GraphNodeType::DrawIndexed
+    DispatchMeshNode,       ///< Corresponds to Pal::GraphNodeType::DispatchMesh
+#endif
     Count
 };
 
@@ -117,16 +91,10 @@ struct ShaderLibraryCreateInfo
 {
     LibraryCreateFlags   flags;          ///< Library creation flags
 
-#if PAL_BUILD_CODE_OBJECT_INTERFACE
-    ICodeObject*         pCodeObj;       ///< Pointer to code-object ELF binary implementing the Pipeline ABI interface,
-                                         ///  obtained via IDevice::LoadCodeObject().
-                                         ///  The code-object ELF contains pre-compiled shaders, register values, and
-                                         ///  additional metadata.
-    Util::Span<ICodeObject*> shaders;    ///< an array of Shader Object Elves
-#endif
     const void*          pCodeObject;    ///< Pointer to code-object ELF binary implementing the Pipeline ABI interface.
                                          ///  The code-object ELF contains pre-compiled shaders, register values, and
                                          ///  additional metadata.
+                                         //#  SEE: pal\doc\design\palPipelineAbiSpec.docx for more information.
     size_t               codeObjectSize; ///< Size of code object in bytes.
     GetContentsCallback* pGetContents;   ///< Callback to get ELF contents; can be nullptr if client never provides an
                                          ///  archive with empty members.
@@ -231,11 +199,6 @@ public:
     virtual Result GetCodeObjects(
         uint32*                             pCount,
         Util::Span<Util::Span<const void>>* pCodeObjects) const = 0;
-
-    /// Obtains the ICodeObjects used to create this shader library.
-    ///
-    /// @returns A span of ICodeObject pointers.
-    virtual Util::Span<ICodeObject*> GetCreateInfoCodeObjects() = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

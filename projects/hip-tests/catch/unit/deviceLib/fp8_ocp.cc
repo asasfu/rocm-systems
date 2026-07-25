@@ -13,33 +13,50 @@
 
 /*
  * This catch test is meant for FP8 OCP conversions
- * tests only supported on gfx1200 and gfx1201 archs
+ * tests supported on all OCP FP8 capable archs as advertised by
+ * HIP_FP8_TYPE_OCP in hip_fp8.h
  */
 
 static_assert(sizeof(unsigned int) == sizeof(float));
 
-std::string arch_type() {
-  hipDeviceProp_t prop;
-  int device;
-  HIP_CHECK(hipGetDevice(&device));
-  HIP_CHECK(hipGetDeviceProperties(&prop, device));
-  std::string gfxName(prop.gcnArchName);
-  return gfxName;
+// Device kernel that reports whether the current GPU supports OCP FP8.
+// Uses the same HIP_FP8_TYPE_OCP macro that guards the device code, so
+// it automatically tracks the header without maintaining an arch list.
+__global__ void check_ocp_fp8_support(int* result) {
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
+  *result = 1;
+#else
+  *result = 0;
+#endif
 }
 
-#define ARCH_TYPE_GFX1200(name)                                                                    \
-  (name.find("gfx1200") != std::string::npos) || (name.find("gfx1201") != std::string::npos)
+static bool device_supports_ocp_fp8() {
+  static int cached_result = -1;
+  if (cached_result >= 0) {
+    return cached_result != 0;
+  }
+
+  int* d_result;
+  int h_result = 0;
+  HIP_CHECK(hipMalloc(&d_result, sizeof(int)));
+  HIP_CHECK(hipMemset(d_result, 0, sizeof(int)));
+  check_ocp_fp8_support<<<1, 1>>>(d_result);
+  HIP_CHECK(hipGetLastError());
+  HIP_CHECK(hipMemcpy(&h_result, d_result, sizeof(int), hipMemcpyDeviceToHost));
+  HIP_CHECK(hipFree(d_result));
+  cached_result = h_result != 0;
+  return cached_result != 0;
+}
 
 #define FP8_OCP_SKIP_TEST                                                                          \
-  std::string gfxName = arch_type();                                                               \
-  if (!(ARCH_TYPE_GFX1200(gfxName))) {                                                             \
-    HIP_SKIP_TEST("this test requires GFX1200.");                                                  \
+  if (!device_supports_ocp_fp8()) {                                                                \
+    HIP_SKIP_TEST("this test requires an OCP FP8 capable device.");                                \
   }
 
 #define __FP8_DEVICE__ __device__ static inline
 
 template <typename T> __FP8_DEVICE__ void e4m3_ocp_device(T* val) {
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8_e4m3 tmp(*val);
   *val = tmp;
 #else
@@ -48,7 +65,7 @@ template <typename T> __FP8_DEVICE__ void e4m3_ocp_device(T* val) {
 }
 
 template <typename T> __FP8_DEVICE__ void e5m2_ocp_device(T* val) {
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8_e5m2 tmp(*val);
   *val = tmp;
 #else
@@ -130,7 +147,7 @@ HIP_TEMPLATE_TEST_CASE(Unit_fp8_ocp_compare_host_device, float, double) {
 }
 
 __FP8_DEVICE__ void e4m3_fp8x2_ocp_device(float2* val) {
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8x2_e4m3 tmp(*val);
   *val = tmp;
 #else
@@ -139,7 +156,7 @@ __FP8_DEVICE__ void e4m3_fp8x2_ocp_device(float2* val) {
 }
 
 __FP8_DEVICE__ void e5m2_fp8x2_ocp_device(float2* val) {
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8x2_e5m2 tmp(*val);
   *val = tmp;
 #else
@@ -282,7 +299,7 @@ HIP_TEST_CASE(Unit_fp8x2_ocp_split_compare) {
 }
 
 __FP8_DEVICE__ void e4m3_fp8x4_ocp_device(float4* val) {
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8x4_e4m3 tmp(*val);
   *val = tmp;
 #else
@@ -291,7 +308,7 @@ __FP8_DEVICE__ void e4m3_fp8x4_ocp_device(float4* val) {
 }
 
 __FP8_DEVICE__ void e5m2_fp8x4_ocp_device(float4* val) {
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8x4_e5m2 tmp(*val);
   *val = tmp;
 #else
@@ -384,7 +401,7 @@ HIP_TEST_CASE(Unit_fp8x4_ocp_split_compare) {
 __FP8_DEVICE__ bool e4m3_bool_ocp_device(float val) {
   bool x = false;
   float y = val;
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8_e4m3 tmp(y);
   x = tmp;
 #else
@@ -396,7 +413,7 @@ __FP8_DEVICE__ bool e4m3_bool_ocp_device(float val) {
 __FP8_DEVICE__ bool e5m2_bool_ocp_device(float val) {
   bool x = false;
   float y = val;
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8_e5m2 tmp(y);
   x = tmp;
 #else
@@ -487,7 +504,7 @@ std::vector<__hip_fp8_storage_t> get_all_fp8_nums(bool is_e4m3_ocp) {
 __FP8_DEVICE__ __hip_fp8_storage_t e4m3_ocp_fp8_device(float val) {
   __hip_fp8_storage_t x = 0;
   float y = val;
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8_e4m3 tmp(y);
   x = tmp.__x;
 #else
@@ -499,7 +516,7 @@ __FP8_DEVICE__ __hip_fp8_storage_t e4m3_ocp_fp8_device(float val) {
 __FP8_DEVICE__ __hip_fp8_storage_t e5m2_ocp_fp8_device(float val) {
   __hip_fp8_storage_t x = 0;
   float y = val;
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8_e5m2 tmp(y);
   x = tmp.__x;
 #else
@@ -614,7 +631,7 @@ HIP_TEST_CASE(Unit_all_fp8_ocp_cvt) {
 
 template <typename T> __FP8_DEVICE__ void e4m3_ocp_fp8_cvt(T val, float* cvt1, float* cvt2) {
   T y = val;
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8_e4m3 tmp(y);
   *cvt1 = tmp;
 
@@ -632,7 +649,7 @@ template <typename T> __FP8_DEVICE__ void e4m3_ocp_fp8_cvt(T val, float* cvt1, f
 
 template <typename T> __FP8_DEVICE__ void e5m2_ocp_fp8_cvt(T val, float* cvt1, float* cvt2) {
   T y = val;
-#if (defined(__gfx1200__) || defined(__gfx1201__)) && __HIP_DEVICE_COMPILE__
+#if HIP_FP8_TYPE_OCP && __HIP_DEVICE_COMPILE__
   __hip_fp8_e5m2 tmp(y);
   *cvt1 = tmp;
 

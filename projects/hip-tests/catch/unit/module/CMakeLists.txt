@@ -423,6 +423,7 @@ if(HIP_PLATFORM MATCHES "amd")
   add_dependencies(ModuleTest copyKernelGenericTargetCompressed_code)
   add_dependencies(ModuleTest anyOrderLaunch_code)
 
+  add_dependencies(build_tests anyOrderLaunch_code)
   if(UNIX)
     add_dependencies(ModuleTest copiousArgKernel_code copiousArgKernel0_code copiousArgKernel1_code copiousArgKernel2_code
 copiousArgKernel3_code copiousArgKernel16_code copiousArgKernel17_code)

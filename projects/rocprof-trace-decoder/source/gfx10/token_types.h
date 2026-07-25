@@ -56,7 +56,10 @@ enum RdnaType
     // New MI400
     LDS_CONFIG,
     MEDIUM_TIME,
-    LAST_MI400_TYPE = MEDIUM_TIME,
+    MI400_TYPE_LAST,
+    // New gfx13
+    RAYTRACE = MI400_TYPE_LAST,
+    LONGTIME,
     NAVI_TYPE_LAST
 };
 

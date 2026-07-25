@@ -22,6 +22,39 @@ using vecT = T __attribute__((ext_vector_type(Rank)));
 template<typename T> using vec4 = vecT<T, 4>;
 template<typename T> using vec8 = vecT<T, 8>;
 
+// __builtin_amdgcn_mfma_* (e.g. mfma_f32_16x16x16f16) must not be compiled for these AMDGPU targets:
+// gfx906 or client gfx1250/gfx1251/gfx1252/gfx1260/gfx1310/gfx1370 — list each __gfx*__ macro here explicitly.
+#if !defined(__gfx906__) && !defined(__gfx1250__) && !defined(__gfx1251__) && !defined(__gfx1252__) \
+    && !defined(__gfx1260__) && !defined(__gfx1310__) && !defined(__gfx1370__)
+#define ROC_FLOP_COMPILE_MFMA_KERNELS 1
+#else
+#define ROC_FLOP_COMPILE_MFMA_KERNELS 0
+#endif
+
+// SMFMAC follows MFMA availability and gfx908/gfx90a exclusions (unchanged from original).
+#if ROC_FLOP_COMPILE_MFMA_KERNELS && !defined(__gfx908__) && !defined(__gfx90a__)
+#define ROC_FLOP_COMPILE_SMFMAC_KERNELS 1
+#else
+#define ROC_FLOP_COMPILE_SMFMAC_KERNELS 0
+#endif
+
+// Runtime: skip matrix paths if a multi-arch or generic binary runs on gfx1250/1260/1310/1370.
+
+static inline bool rocflop_gfx_bypass_cdna_matrix_kernels(int gfx_id_hex)
+{
+    switch(static_cast<unsigned>(gfx_id_hex)) {
+    case 0x1250:
+    case 0x1251:
+    case 0x1252:
+    case 0x1260:
+    case 0x1310:
+    case 0x1370:
+        return true;
+    default:
+        return false;
+    }
+}
+
 
 // Kernels
 
@@ -54,9 +87,8 @@ template<typename T> __global__ void fma_throughput(vec4<T>* buffer, int count)
     ptr[tid] = value0 + value1 + value2 + value3;
 }
 
-// MFMA requires CDNA's mai-insts target feature; kernel bodies are empty on
-// targets without the builtin and are never launched (run_tests gates on a
-// runtime has_mfma check).
+// MFMA instructions: gfx908+ only, not gfx906; gfx1250/1260/1310/1370 excluded via ROC_FLOP_COMPILE_MFMA_KERNELS.
+#if ROC_FLOP_COMPILE_MFMA_KERNELS
 __global__ void matmul_fp16_throughput(vec4<float16>* inputs, vec4<float>* outputs, int count)
 {
 #if __has_builtin(__builtin_amdgcn_mfma_f32_16x16x16f16)
@@ -118,14 +150,10 @@ __global__ void matmul_fp32_throughput(float* inputs, vec4<float>* outputs, int 
     outputs[tid] = accum0 + accum1 + accum2 + accum3;
 #endif
 }
+#endif // MFMA block
 
-// SMFMAC needs CDNA3+ (gfx940 and later). Clang over-reports the builtin
-// on gfx908/gfx90a so specifically guard those until upstream catches up.
-// Empty body never launched on unsupported targets (like MFMA)
-//
-// TODO: remove the `!defined(__gfx908__) && !defined(__gfx90a__)` portion
-// once ROCm/llvm-project picks up llvm/llvm-project#193999
-// Fixes the over-report, builtin check alone becomes correct.
+// SMFMAC (Sparse MFMA): gfx940+ only; not gfx906/908/90a; requires ROC_FLOP_COMPILE_SMFMAC_KERNELS.
+#if ROC_FLOP_COMPILE_SMFMAC_KERNELS
 __global__ void sparse_matmul_fp16_throughput(vec4<float16>* input0, vec8<float16>* input1, vec4<float>* outputs, int count)
 {
 #if __has_builtin(__builtin_amdgcn_smfmac_f32_16x16x32_f16) && \
@@ -140,17 +168,17 @@ __global__ void sparse_matmul_fp16_throughput(vec4<float16>* input0, vec8<float1
     vec4<float16> x1 = x_ptr[1 * grid_size + tid];
     vec4<float16> x2 = x_ptr[2 * grid_size + tid];
     vec4<float16> x3 = x_ptr[3 * grid_size + tid];
-
+    
     vec8<float16> y0 = y_ptr[0 * grid_size + tid];
     vec8<float16> y1 = y_ptr[1 * grid_size + tid];
     vec8<float16> y2 = y_ptr[2 * grid_size + tid];
     vec8<float16> y3 = y_ptr[3 * grid_size + tid];
-
+    
     vec4<float> accum0;
     vec4<float> accum1;
     vec4<float> accum2;
     vec4<float> accum3;
-
+   
     for(int i = 0; i < count; i++) {
         for(int j = 0; j < 64; j++) {
             // 4 SMFMAC ops
@@ -164,6 +192,7 @@ __global__ void sparse_matmul_fp16_throughput(vec4<float16>* input0, vec8<float1
     outputs[tid] = accum0 + accum1 + accum2 + accum3;
 #endif
 }
+#endif // SMFMAC block
 
 int g_current_device = -1;
 
@@ -179,6 +208,7 @@ void HIP_CALL(hipError_t err)
 }
 
 struct GCNArch {
+    int gfx_id_hex; // full ID from gcnArchName, e.g. 0x1250 for gfx1250
     int major;
     int minor;
     int rev;
@@ -193,12 +223,13 @@ GCNArch get_gcn_arch(int device)
     // Example: gfx908:sramecc+:xnack-
     std::string arch_full(props.gcnArchName);
 
-    // Extract number e.g. "908"
+    // Extract number e.g. "908" 
     std::string gfx_str = arch_full.substr(3, arch_full.find_first_of(':'));
 
     int gfx_num = std::stoi(gfx_str, nullptr, 16);
 
     GCNArch arch;
+    arch.gfx_id_hex = gfx_num;
     arch.major = (gfx_num & 0xff00) >> 8;
     arch.minor = (gfx_num & 0x00f0) >> 4;
     arch.rev   = (gfx_num & 0x000f);
@@ -259,13 +290,13 @@ template<typename T> double fma_throughput_test(int device, int count, int runs 
 
     hipDeviceProp_t props;
     HIP_CALL(hipGetDeviceProperties(&props, device));
-
+    
     int blocks = props.multiProcessorCount * 512;
     int threads_per_block = 64;
     int total_threads = blocks * threads_per_block;
 
     HIP_CALL(hipMalloc(&buffer, sizeof(vec4<T>) * total_threads * 4));
-
+    
     HIPTimer t;
     t.start();
     for(int i = 0; i < runs; i++) {
@@ -283,6 +314,7 @@ template<typename T> double fma_throughput_test(int device, int count, int runs 
     return flops;
 }
 
+#if ROC_FLOP_COMPILE_MFMA_KERNELS
 template<typename matT, typename accumT> double matmul_throughput_test(int device, int count, int runs = 1)
 {
     const int wave_size = 64;
@@ -301,7 +333,7 @@ template<typename matT, typename accumT> double matmul_throughput_test(int devic
     } else {
         assert(false);
     }
-
+    
     int ops_per_matmul = k * m * n * 2;
 
     void* buffer = nullptr;
@@ -338,7 +370,9 @@ template<typename matT, typename accumT> double matmul_throughput_test(int devic
 
     return flops;
 }
+#endif // matmul_throughput_test
 
+#if ROC_FLOP_COMPILE_SMFMAC_KERNELS
 template<typename matT, typename accumT> double sparse_matmul_throughput_test(int device, int count, int runs = 1)
 {
     const int wave_size = 64;
@@ -392,6 +426,7 @@ template<typename matT, typename accumT> double sparse_matmul_throughput_test(in
 
     return flops;
 }
+#endif // sparse_matmul_throughput_test
 
 struct Result {
     int device = -1;
@@ -467,9 +502,10 @@ Result run_tests(int device, int runs, uint32_t mask)
         res.valu_int32 = fma_throughput_test<int>(device, 4096, runs);
     }
 
-    // MFMA available on gfx908+ (excludes gfx906 with rev=6); kernel bodies are
-    // empty on targets without the builtin, so only launch when has_mfma.
+#if ROC_FLOP_COMPILE_MFMA_KERNELS
+    // MFMA available on gfx908+ (excludes gfx906 with rev=6); skip gfx1250/1260/1310/1370 at runtime too.
     bool has_mfma = arch.major == 0x9 && (arch.minor >= 0x4 || (arch.minor == 0 && arch.rev >= 8));
+    has_mfma = has_mfma && !rocflop_gfx_bypass_cdna_matrix_kernels(arch.gfx_id_hex);
 
     if(mask & MATRIX_FP16) {
         if(has_mfma) {
@@ -482,13 +518,31 @@ Result run_tests(int device, int runs, uint32_t mask)
             res.mfma_fp32 = matmul_throughput_test<float, float>(device, 4096, runs);
         }
     }
+#else
+    // MFMA kernels not in this build (gfx906 or gfx1250/1260/1310/1370 offload target).
+    if(mask & MATRIX_FP16) {
+        res.mfma_fp16 = 0;
+    }
+    if(mask & MATRIX_FP32) {
+        res.mfma_fp32 = 0;
+    }
+#endif
 
-    // SMFMAC only available on gfx940 (MI300) and later.
+#if ROC_FLOP_COMPILE_SMFMAC_KERNELS
     if(mask & SMATRIX_FP16) {
-        if(arch.major == 0x9 && arch.minor >= 0x4) {
+        // SMFMAC only available on gfx940 (MI300) and later, not on gfx906, gfx908, or gfx90a
+        bool has_smfmac = arch.major == 0x9 && arch.minor >= 0x4;
+        has_smfmac = has_smfmac && !rocflop_gfx_bypass_cdna_matrix_kernels(arch.gfx_id_hex);
+        if(has_smfmac) {
             res.smfmac_fp16 = sparse_matmul_throughput_test<float16, float>(device, 4096, runs);
         }
     }
+#else
+    // SMFMAC kernels not in this build.
+    if(mask & SMATRIX_FP16) {
+        res.smfmac_fp16 = 0;
+    }
+#endif
 
     return res;
 }
@@ -567,7 +621,7 @@ void run(std::vector<int>& devices, int runs, uint32_t mask)
     // Start a new process for each GPU
     for(auto d : devices) {
         pid_t pid = fork_process(d, runs, mask, fd[1]);
-
+        
         pids.push_back(pid);
     }
 
@@ -628,7 +682,7 @@ void usage()
 {
     std::cout << "--device  ID          Use device with the given numerical ID" << std::endl;
     std::cout << "--devices IDS | ALL   Comma-separated list of device Ids (e.g., 1,2,3)" << std::endl;
-    std::cout << "                      ALL for all devices" << std::endl;
+    std::cout << "                      ALL for all devices" << std::endl;                                  
     std::cout << "--runs    RUNS        Number of times each kernel is dispatched" << std::endl;
 
     std::cout << "--fp16                Run FP16 (VALU) test" << std::endl;
@@ -673,7 +727,7 @@ int main(int argc, char** argv)
             return 0;
         } else if(arg == "--device") {
             devices.push_back(atoi(argv[i + 1]));
-            // Skip next
+            // Skip next 
             i++;
         } else if(arg == "--devices") {
             // Parse comma-separated string of numbers
@@ -688,7 +742,7 @@ int main(int argc, char** argv)
                     devices.push_back(std::stoi(r));
                 }
             }
-            // Skip next
+            // Skip next 
             i++;
         } else if(arg == "--runs") {
             runs = atoi(argv[i + 1]);
@@ -745,3 +799,4 @@ int main(int argc, char** argv)
 
     return 0;
 }
+

@@ -273,6 +273,8 @@ release(uint, HIP_SKIP_ABORT_ON_GPU_ERROR, true,                              \
         "Set this to true, to avoid host side abort for GPU errors")          \
 release(bool, HIP_FORCE_SPIRV_CODEOBJECT, false,                              \
         "Force use of SPIRV instead of device specific code object.")         \
+release(bool, HIP_VALIDATE_GFX1250_CODEOBJECT, false,                         \
+        "Validate code object for gfx1250.")                                  \
 release(uint, DEBUG_CLR_BATCH_CPU_SYNC_SIZE, 16,                              \
         "Forces the minimum batch size for CPU sync")                         \
 release(bool, DEBUG_CLR_DISABLE_IMAGE, false,                                 \
@@ -294,6 +296,9 @@ release(uint, DEBUG_CLR_AQL_DEV_QUEUE, 0,                                     \
 release(uint, DEBUG_CLR_USE_MOVDIR64B, 1,                                     \
         "Use MOVDIR64B full-packet writes for AQL + metadata rings"           \
         "(1=enabled (default), 0=non-temporal store path)")                   \
+release(bool, HIP_DISABLE_EXT_PACKET, false,                                  \
+        "Disable extended packet support even if the device supports it")
+
 
 namespace amd {
 

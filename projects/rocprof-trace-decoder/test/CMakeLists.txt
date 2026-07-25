@@ -108,8 +108,13 @@ if(BUILD_INTEGRATION_TESTS)
         mi300_pc2
         mi300_cwsr)
     set(MI350_DATA mi350_histo0 mi350_scale)
+    set(MI450_DATA
+        mi450_hipcomplex
+        mi450_ld_scale
+        mi450_llama169)
+    set(GFX13_DATA gfx13_fifo gfx13_setpc gfx13_simpleconv)
 
-    set(DATA_DIR ${GFX10_DATA} ${GFX11_DATA} ${GFX12_DATA} ${MI300_DATA} ${MI350_DATA})
+    set(DATA_DIR ${GFX10_DATA} ${GFX11_DATA} ${GFX12_DATA} ${MI300_DATA} ${MI350_DATA} ${MI450_DATA} ${GFX13_DATA})
 
     set(CSV_PY ${CMAKE_CURRENT_SOURCE_DIR}/csv_test.py)
     set(ATT_TOOL_PY ${CMAKE_CURRENT_SOURCE_DIR}/../python/att_tool.py)
@@ -233,7 +238,8 @@ if(BUILD_INTEGRATION_TESTS)
         if(${DATA} STREQUAL "mi300_pcs"
            OR ${DATA} STREQUAL "mi300_gemmv2"
            OR ${DATA} STREQUAL "mi300_sgemm"
-           OR ${DATA} STREQUAL "mi300_perf")
+           OR ${DATA} STREQUAL "mi300_perf"
+           OR ${DATA} STREQUAL "mi450_ld_scale")
             set(USES_VCMPX TRUE)
         endif()
 

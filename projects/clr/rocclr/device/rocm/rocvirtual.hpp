@@ -748,6 +748,11 @@ class VirtualGPU : public device::VirtualDevice {
 
   //! Ring the queue doorbell via direct UC store or ROCr signal.
   void ringQueueDoorbell(uint64_t index);
+  void logAqlDispatchStandard(uint16_t header, const hsa_kernel_dispatch_packet_t* packet,
+                              uint64_t wptr, uint64_t rptr, LogLevel logLevel = amd::LOG_DEBUG) const;
+  void logAqlDispatchExtended(uint16_t header,
+                              const hsa_amd_ext_kernel_dispatch_packet_t* packet, uint64_t wptr,
+                              uint64_t rptr, LogLevel logLevel = amd::LOG_DEBUG) const;
 
   void resetKernArgPool() { managed_kernarg_buffer_.ResetPool(); }
 

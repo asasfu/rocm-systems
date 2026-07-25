@@ -261,36 +261,27 @@ Device::~Device() {
 
 void NullDevice::tearDown() {}
 
-void Device::WaitForHsaAsyncHandlersIdle() {
-  constexpr int kDrainTimeoutMs = 5000;
+bool Device::WaitForHsaAsyncHandlersIdle() {
+  constexpr int kDrainTimeoutMs = 60000;
   const std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
   const std::chrono::steady_clock::duration fast_timeout =
       std::chrono::milliseconds(kDrainTimeoutMs);
 
-  auto sumQueuedHandlers = [this]() -> uint64_t {
-    uint64_t sum = 0;
-    std::scoped_lock lock(vgpusAccess_);
-    for (VirtualGPU* vgpu : vgpus_) {
-      if (vgpu != nullptr) {
-        sum += vgpu->QueuedAsyncHandlers().load(std::memory_order_acquire);
-      }
-    }
-    return sum;
-  };
-
-  while (sumQueuedHandlers() != 0) {
+  while (async_handlers_inflight_.load(std::memory_order_acquire) != 0) {
     if (std::chrono::steady_clock::now() - start_time > fast_timeout) {
-      const uint64_t remaining = sumQueuedHandlers();
+      const uint64_t remaining = async_handlers_inflight_.load(std::memory_order_acquire);
       if (remaining != 0) {
         LogPrintfError(
-            "WaitForHsaAsyncHandlersIdle: %d ms elapsed, VirtualGPU queued_async total=%llu; "
-            "proceeding with device destruction.",
+            "WaitForHsaAsyncHandlersIdle: %d ms elapsed, async handlers in flight=%llu; "
+            "still not idle.",
             kDrainTimeoutMs, static_cast<unsigned long long>(remaining));
+        return false;
       }
-      return;
+      return true;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
+  return true;
 }
 
 bool NullDevice::init() {
@@ -1091,15 +1082,19 @@ bool Device::populateOCLDeviceConstants() {
   info_.globalMemCacheLineSize_ =
       (info_.globalMemCacheLineSize_ != 0) ? info_.globalMemCacheLineSize_ : 64;
 
+
+  if (isa().versionMajor() >= 13 && info_.globalMemCacheLineSize_ < 256) {
+    info_.globalMemCacheLineSize_ = 256;
+  }
+
   uint32_t cachesize[4] = {0};
   if (HSA_STATUS_SUCCESS !=
       Hsa::agent_get_info(bkendDevice_, HSA_AGENT_INFO_CACHE_SIZE, cachesize)) {
     return false;
   }
 
-  if (info_.globalMemCacheLineSize_ < 256 &&
-      (isa().versionMajor() >= 13 ||
-       (isa().versionMajor() == 12 && isa().versionMinor() >= 5))) {
+  if ((isa().versionMajor() == 12 && (isa().versionMinor() == 5 || isa().versionMinor() == 6) && isa().versionStepping() == 0)
+       && (info_.globalMemCacheLineSize_ < 256)) {
     info_.globalMemCacheLineSize_ = 256;
   }
 
@@ -1238,6 +1233,10 @@ bool Device::populateOCLDeviceConstants() {
 
   info_.localMemSizePerCU_ = group_segment_size;
   info_.localMemSize_ = group_segment_size;
+  if (info_.shareLocalMemInWGP_) {
+    info_.localMemSizePerCU_ *= 2;
+    info_.localMemSize_ *= 2;
+  }
 
   info_.maxWorkItemDimensions_ = 3;
 
@@ -1774,7 +1773,6 @@ bool Device::populateOCLDeviceConstants() {
       bkendDevice_, static_cast<hsa_agent_info_t>(HSA_AMD_AGENT_INFO_CLUSTER_MAX_SIZE),
       &info_.clusterMaxSize_);
 
-
   // this is required for clustered kernel launches; but it might not be supported in older rocr,
   // so invalid argument might no be necessarily an error
   if (HSA_STATUS_SUCCESS != hsaStatus && HSA_STATUS_ERROR_INVALID_ARGUMENT != hsaStatus) {
@@ -1786,6 +1784,8 @@ bool Device::populateOCLDeviceConstants() {
                             info_.maxComputeUnits_ / info_.numberOfShaderEngines_ :
                             1;
   }
+
+  info_.wavegroupSupported_ = settings().wavegroup_supported_;
 
   info_.gpuDirectRdmaWithHipVmmSupported_ =
       info_.virtualMemoryManagement_ && info_.dmabufSupported_;
