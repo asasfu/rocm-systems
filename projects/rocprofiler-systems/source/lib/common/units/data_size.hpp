@@ -18,8 +18,11 @@ namespace rocprofsys::inline common::units
  * A data-size value, modelled on std::chrono::duration.
  *
  * Stores a count of @p Scale bytes, where @p Scale is a std::ratio relative to
- * one byte. Units are binary (1 KB = 1024 B), so
- * `data_size<double, std::ratio<1024>>{1}` represents 1 KB = 1024 bytes.
+ * one byte, so `data_size<double, std::ratio<1024>>{1}` represents 1024 bytes.
+ *
+ * Both unit families are available: decimal SI (@ref kilobytes, 1 KB = 1000 B)
+ * and binary IEC (@ref kibibytes, 1 KiB = 1024 B). They are distinct types and
+ * print distinct suffixes, so pick whichever the consumer of the value expects.
  *
  * @tparam Rep   underlying arithmetic representation (defaults to double so that
  *               scaling never silently truncates).
@@ -82,14 +85,22 @@ namespace detail
 inline constexpr std::intmax_t BYTES_PER_KIB = 1024LL;
 }  // namespace detail
 
-using bytes     = data_size<double, std::ratio<1>>;
-using kilobytes = data_size<double, std::ratio<detail::BYTES_PER_KIB>>;
-using megabytes =
+using bytes = data_size<double, std::ratio<1>>;
+
+/// Decimal (SI) sizes: 1 KB = 1000 B. Suffixes "KB", "MB", "GB", "TB".
+using kilobytes = data_size<double, std::kilo>;
+using megabytes = data_size<double, std::mega>;
+using gigabytes = data_size<double, std::giga>;
+using terabytes = data_size<double, std::tera>;
+
+/// Binary (IEC) sizes: 1 KiB = 1024 B. Suffixes "KiB", "MiB", "GiB", "TiB".
+using kibibytes = data_size<double, std::ratio<detail::BYTES_PER_KIB>>;
+using mebibytes =
     data_size<double, std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>;
-using gigabytes =
+using gibibytes =
     data_size<double, std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB *
                                  detail::BYTES_PER_KIB>>;
-using terabytes =
+using tebibytes =
     data_size<double, std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB *
                                  detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>;
 
@@ -125,26 +136,46 @@ struct data_size_suffix<std::ratio<1>>
     static constexpr std::string_view VALUE = "B";
 };
 template <>
-struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB>>
+struct data_size_suffix<std::kilo>
 {
     static constexpr std::string_view VALUE = "KB";
 };
 template <>
-struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>
+struct data_size_suffix<std::mega>
 {
     static constexpr std::string_view VALUE = "MB";
+};
+template <>
+struct data_size_suffix<std::giga>
+{
+    static constexpr std::string_view VALUE = "GB";
+};
+template <>
+struct data_size_suffix<std::tera>
+{
+    static constexpr std::string_view VALUE = "TB";
+};
+template <>
+struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB>>
+{
+    static constexpr std::string_view VALUE = "KiB";
+};
+template <>
+struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>
+{
+    static constexpr std::string_view VALUE = "MiB";
 };
 template <>
 struct data_size_suffix<
     std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>
 {
-    static constexpr std::string_view VALUE = "GB";
+    static constexpr std::string_view VALUE = "GiB";
 };
 template <>
 struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB *
                                    detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>
 {
-    static constexpr std::string_view VALUE = "TB";
+    static constexpr std::string_view VALUE = "TiB";
 };
 
 /**
@@ -215,6 +246,15 @@ constexpr gigabytes operator""_gb(long double value)        noexcept { return gi
 constexpr gigabytes operator""_gb(unsigned long long value) noexcept { return gigabytes{static_cast<double>(value)}; }
 constexpr terabytes operator""_tb(long double value)        noexcept { return terabytes{static_cast<double>(value)}; }
 constexpr terabytes operator""_tb(unsigned long long value) noexcept { return terabytes{static_cast<double>(value)}; }
+
+constexpr kibibytes operator""_kib(long double value)        noexcept { return kibibytes{static_cast<double>(value)}; }
+constexpr kibibytes operator""_kib(unsigned long long value) noexcept { return kibibytes{static_cast<double>(value)}; }
+constexpr mebibytes operator""_mib(long double value)        noexcept { return mebibytes{static_cast<double>(value)}; }
+constexpr mebibytes operator""_mib(unsigned long long value) noexcept { return mebibytes{static_cast<double>(value)}; }
+constexpr gibibytes operator""_gib(long double value)        noexcept { return gibibytes{static_cast<double>(value)}; }
+constexpr gibibytes operator""_gib(unsigned long long value) noexcept { return gibibytes{static_cast<double>(value)}; }
+constexpr tebibytes operator""_tib(long double value)        noexcept { return tebibytes{static_cast<double>(value)}; }
+constexpr tebibytes operator""_tib(unsigned long long value) noexcept { return tebibytes{static_cast<double>(value)}; }
 // clang-format on
 
 }  // namespace literals

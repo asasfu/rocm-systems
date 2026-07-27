@@ -103,35 +103,66 @@ TEST(UnitsDataSize, Literals)
     EXPECT_DOUBLE_EQ((1_tb).count(), 1.0);
 }
 
-TEST(UnitsDataSize, ToBytes)
+TEST(UnitsDataSize, ToBytesDecimal)
 {
-    EXPECT_DOUBLE_EQ((1_kb).to_bytes(), 1024.0);
-    EXPECT_DOUBLE_EQ((1_mb).to_bytes(), 1024.0 * 1024.0);
-    EXPECT_DOUBLE_EQ((1_gb).to_bytes(), 1024.0 * 1024.0 * 1024.0);
+    EXPECT_DOUBLE_EQ((1_kb).to_bytes(), 1000.0);
+    EXPECT_DOUBLE_EQ((1_mb).to_bytes(), 1000.0 * 1000.0);
+    EXPECT_DOUBLE_EQ((1_gb).to_bytes(), 1000.0 * 1000.0 * 1000.0);
+}
+
+TEST(UnitsDataSize, ToBytesBinary)
+{
+    EXPECT_DOUBLE_EQ((1_kib).to_bytes(), 1024.0);
+    EXPECT_DOUBLE_EQ((1_mib).to_bytes(), 1024.0 * 1024.0);
+    EXPECT_DOUBLE_EQ((1_gib).to_bytes(), 1024.0 * 1024.0 * 1024.0);
 }
 
 TEST(UnitsDataSize, CastBToKb)
 {
-    const auto result = data_size_cast<kilobytes>(2048_b);
+    const auto result = data_size_cast<kilobytes>(2000_b);
+    EXPECT_DOUBLE_EQ(result.count(), 2.0);
+}
+
+TEST(UnitsDataSize, CastBToKib)
+{
+    const auto result = data_size_cast<kibibytes>(2048_b);
     EXPECT_DOUBLE_EQ(result.count(), 2.0);
 }
 
 TEST(UnitsDataSize, CastMbToKb)
 {
     const auto result = data_size_cast<kilobytes>(2_mb);
+    EXPECT_DOUBLE_EQ(result.count(), 2000.0);
+}
+
+TEST(UnitsDataSize, CastMibToKib)
+{
+    const auto result = data_size_cast<kibibytes>(2_mib);
     EXPECT_DOUBLE_EQ(result.count(), 2048.0);
+}
+
+// The two families are distinct types that never alias: 1 KiB is 24 B larger.
+TEST(UnitsDataSize, CastAcrossFamilies)
+{
+    EXPECT_DOUBLE_EQ(data_size_cast<bytes>(1_kib).count(), 1024.0);
+    EXPECT_DOUBLE_EQ(data_size_cast<bytes>(1_kb).count(), 1000.0);
+    EXPECT_GT(1_kib, 1_kb);
 }
 
 TEST(UnitsDataSize, EqualityAcrossUnits)
 {
-    EXPECT_EQ(1024_b, 1_kb);
-    EXPECT_EQ(1024_kb, 1_mb);
+    EXPECT_EQ(1000_b, 1_kb);
+    EXPECT_EQ(1000_kb, 1_mb);
+    EXPECT_EQ(1024_b, 1_kib);
+    EXPECT_EQ(1024_kib, 1_mib);
 }
 
 TEST(UnitsDataSize, OrderingAcrossUnits)
 {
-    EXPECT_LT(1023_b, 1_kb);
-    EXPECT_GT(2_mb, 2047_kb);
+    EXPECT_LT(999_b, 1_kb);
+    EXPECT_GT(2_mb, 1999_kb);
+    EXPECT_LT(1023_b, 1_kib);
+    EXPECT_GT(2_mib, 2047_kib);
 }
 
 // ---------------------------------------------------------------------------
@@ -175,16 +206,25 @@ TEST(UnitsFmtDataSize, PlainBytes) { EXPECT_EQ(fmt::format("{}", 512_b), "512 B"
 
 TEST(UnitsFmtDataSize, PlainMb) { EXPECT_EQ(fmt::format("{}", 5_mb), "5 MB"); }
 
+TEST(UnitsFmtDataSize, PlainMib) { EXPECT_EQ(fmt::format("{}", 5_mib), "5 MiB"); }
+
 TEST(UnitsFmtDataSize, AutoscaleBToMb)
 {
-    EXPECT_EQ(fmt::format("{:~}", bytes{ 5'242'880.0 }), "5 MB");
+    EXPECT_EQ(fmt::format("{:~}", bytes{ 5'000'000.0 }), "5 MB");
 }
 
-TEST(UnitsFmtDataSize, AutoscaleBToKb) { EXPECT_EQ(fmt::format("{:~}", 2048_b), "2 KB"); }
+TEST(UnitsFmtDataSize, AutoscaleBToKb) { EXPECT_EQ(fmt::format("{:~}", 2000_b), "2 KB"); }
 
 TEST(UnitsFmtDataSize, AutoscaleWithPrecision)
 {
-    EXPECT_EQ(fmt::format("{:~.1f}", 1536_b), "1.5 KB");
+    EXPECT_EQ(fmt::format("{:~.1f}", 1500_b), "1.5 KB");
+}
+
+// Autoscaling always reports decimal units, whatever family the input used:
+// the value is converted to bytes first, so number and suffix stay consistent.
+TEST(UnitsFmtDataSize, AutoscaleBinaryInputReportsDecimal)
+{
+    EXPECT_EQ(fmt::format("{:~.3f}", 1_mib), "1.049 MB");
 }
 
 // ---------------------------------------------------------------------------

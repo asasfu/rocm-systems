@@ -89,7 +89,10 @@ private:
 // fmt::formatter<rocprofsys::common::units::data_size<Rep, Scale>>
 //
 // Default:   fmt::format("{}", 2_mb)         -> "2 MB"
-// Autoscale: fmt::format("{:~}", 5242880_b)  -> "5 MB"
+//            fmt::format("{}", 2_mib)        -> "2 MiB"
+// Autoscale: fmt::format("{:~}", 5000000_b)  -> "5 MB"
+//            Autoscaling always reports decimal units, whatever family the
+//            input used, since the value is normalised to bytes first.
 // ---------------------------------------------------------------------------
 template <typename Rep, typename Scale>
 struct fmt::formatter<rocprofsys::common::units::data_size<Rep, Scale>>
