@@ -1863,6 +1863,7 @@ memory:
   Unit_hipMemcpyAsync_H2H_H2D_D2H_H2PinMem:
     <<: *level_2
     tags: [P1]
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemcpyAsync_hipMultiMemcpyMultiThread:
     <<: *level_2
     tags: [P1]
@@ -3188,10 +3189,6 @@ memory:
   Unit_hipMemcpy3D_multiDevice_Basic_Size_Test:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
-
-  Unit_hipMemcpyAsync_H2H-H2D-D2H-H2PinMem:
-    <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
 
   Unit_hipMemcpyAsync_KernelLaunch:
     <<: *level_2
