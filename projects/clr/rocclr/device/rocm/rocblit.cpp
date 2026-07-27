@@ -207,9 +207,14 @@ bool DmaBlitManager::copyBuffer(device::Memory& srcMemory, device::Memory& dstMe
                                 const amd::Coord3D& srcOrigin, const amd::Coord3D& dstOrigin,
                                 const amd::Coord3D& size, bool entire,
                                 amd::CopyMetadata copyMetadata) const {
-  if (setup_.disableCopyBuffer_ ||
+  // When FFM/DTIF fast-copy is enabled, plain device allocations are marked
+  // HostMemoryDirectAccess so HtoD/DtoH can short-circuit to a host memcpy. DtoD
+  // must not take that path: the host memcpy CPU-stalls on prior queue work
+  // (releaseGpuMemoryFence) and breaks CUDA-style host-async DtoD semantics.
+  if (!HSA_ENABLE_DTIF_FAST_COPY &&
+      (setup_.disableCopyBuffer_ ||
       (srcMemory.isHostMemDirectAccess() && !srcMemory.isCpuUncached() &&
-       (dev().agent_profile() != HSA_PROFILE_FULL) && dstMemory.isHostMemDirectAccess())) {
+       (dev().agent_profile() != HSA_PROFILE_FULL) && dstMemory.isHostMemDirectAccess()))) {
     // Stall GPU before CPU access
     gpu().releaseGpuMemoryFence();
     return HostBlitManager::copyBuffer(srcMemory, dstMemory, srcOrigin, dstOrigin, size, false,
@@ -226,9 +231,12 @@ bool DmaBlitManager::copyBufferRect(device::Memory& srcMemory, device::Memory& d
                                     const amd::BufferRect& srcRect, const amd::BufferRect& dstRect,
                                     const amd::Coord3D& size, bool entire,
                                     amd::CopyMetadata copyMetadata) const {
-  if (setup_.disableCopyBufferRect_ ||
+  // See note in copyBuffer: skip the host short-circuit when FFM/DTIF fast-copy
+  // is enabled so DtoD stays on the GPU blit path.
+  if (!HSA_ENABLE_DTIF_FAST_COPY &&
+      (setup_.disableCopyBufferRect_ ||
       (srcMemory.isHostMemDirectAccess() && !srcMemory.isCpuUncached() &&
-       dstMemory.isHostMemDirectAccess())) {
+       dstMemory.isHostMemDirectAccess()))) {
     // Stall GPU before CPU access
     gpu().releaseGpuMemoryFence();
     return HostBlitManager::copyBufferRect(srcMemory, dstMemory, srcRect, dstRect, size, entire,
@@ -482,8 +490,9 @@ inline bool DmaBlitManager::rocrCopyBuffer(address dst, hsa_agent_t& dstAgent, c
   uint32_t copyMask = 0;
   bool kUseRegularCopyApi = false;
   constexpr size_t kRetainCountThreshold = 8;
-  bool forceSDMA =
+  const bool requireSDMA =
       (copyMetadata.copyEnginePreference_ == amd::CopyMetadata::CopyEnginePreference::SDMA);
+  bool forceSDMA = requireSDMA;
   HwQueueEngine engine = HwQueueEngine::Unknown;
 
   hsa_agent_t copyAgent, peerAgent;
@@ -550,9 +559,12 @@ inline bool DmaBlitManager::rocrCopyBuffer(address dst, hsa_agent_t& dstAgent, c
                 &gpu(), copyMask, engine);
       } else {
         ClPrint(amd::LOG_WARNING, amd::LOG_COPY,
-                "Failed to allocate SDMA engine for VirtualGPU %p, falling back to regular copy",
-                &gpu());
-        kUseRegularCopyApi = true;
+                "Failed to allocate SDMA engine for VirtualGPU %p", &gpu());
+        if (requireSDMA) {
+          status = HSA_STATUS_ERROR_OUT_OF_RESOURCES;
+        } else {
+          kUseRegularCopyApi = true;
+        }
       }
     }
 
@@ -569,7 +581,7 @@ inline bool DmaBlitManager::rocrCopyBuffer(address dst, hsa_agent_t& dstAgent, c
       status =
           Hsa::memory_async_copy_on_engine(dst, peerAgent, src, copyAgent, size, wait_events.size(),
                                            wait_events.data(), active, copyEngine, forceSDMA);
-    } else {
+    } else if (!requireSDMA) {
       kUseRegularCopyApi = true;
     }
   }
@@ -591,7 +603,11 @@ inline bool DmaBlitManager::rocrCopyBuffer(address dst, hsa_agent_t& dstAgent, c
     gpu().setFenceDirty(false);
   } else {
     gpu().Barriers().ResetCurrentSignal();
-    LogPrintfError("HSA copy failed with code %d, falling to Blit copy", status);
+    if (requireSDMA) {
+      LogPrintfError("Required SDMA copy failed with code %d", status);
+    } else {
+      LogPrintfError("HSA copy failed with code %d, falling to Blit copy", status);
+    }
   }
 
   return (status == HSA_STATUS_SUCCESS);
@@ -3243,11 +3259,14 @@ bool KernelBlitManager::copyBuffer(device::Memory& srcMemory, device::Memory& ds
 
   const Memory& srcRocMemory = gpuMem(srcMemory);
   const Memory& dstRocMemory = gpuMem(dstMemory);
+  const bool requireSDMA =
+      copyMetadata.copyEnginePreference_ == amd::CopyMetadata::CopyEnginePreference::SDMA;
   bool useLimitedP2pBlitWg = false;
   const bool useShaderCopyBuffer =
       useShaderCopyBufferPath(srcRocMemory, dstRocMemory, sizeIn[0], copyMetadata,
                               &useLimitedP2pBlitWg);
-  const bool useShaderCopyPath = setup_.disableHwlCopyBuffer_ || useShaderCopyBuffer;
+  const bool useShaderCopyPath =
+      !requireSDMA && (setup_.disableHwlCopyBuffer_ || useShaderCopyBuffer);
   if (useLimitedP2pBlitWg) {
     constexpr uint32_t kLimitWgForKernelP2p = 16;
     blitWg = kLimitWgForKernelP2p;
@@ -3268,7 +3287,9 @@ bool KernelBlitManager::copyBuffer(device::Memory& srcMemory, device::Memory& ds
   }
 
   if (!result) {
-    if (DEBUG_CLR_DISABLE_FALLBACK) {
+    if (requireSDMA) {
+      LogError("SDMA copy failed and shader fallback is not permitted");
+    } else if (DEBUG_CLR_DISABLE_FALLBACK) {
       guarantee(false, "DMA copy failed and fallback path is disabled");
     } else {
       // Check CL_MEM_SVM_ATOMICS flag to see if we used system_coarse_segment_
@@ -3568,12 +3589,19 @@ bool KernelBlitManager::batchMemOps(const void* paramArray, size_t paramSize,
   size_t dim = 1;
 
   size_t globalWorkOffset[1] = {0};
-  size_t globalWorkSize[1] = {count};
+  // Launch a single work-item; the kernel loops over all ops sequentially.
+  // CUDA spec: ops execute in array order — globalWorkSize=1 enforces this.
+  size_t globalWorkSize[1] = {1};
   size_t localWorkSize[1] = {1};
 
-  // Get constant buffer and copy the array of parameters
+  // During graph packet capture, allocate from the graph's stable kernarg pool so the
+  // address baked into the captured AQL packet remains valid on re-launch.
   constexpr bool kDirectVa = true;
-  auto constBuf = gpu().allocKernArg((count * paramSize), kCBAlignment);
+  bool isGraphPktCapturing =
+      gpu().command() != nullptr && gpu().command()->getPktCapturingState();
+  auto constBuf = isGraphPktCapturing
+      ? gpu().command()->getGraphKernArg(count * paramSize, kCBAlignment, dev().index())
+      : gpu().allocKernArg(count * paramSize, kCBAlignment);
   memcpy(constBuf, paramArray, (count * paramSize));
 
   setArgument(kernels_[blitType], 0, sizeof(cl_mem), constBuf, 0, nullptr, kDirectVa);
