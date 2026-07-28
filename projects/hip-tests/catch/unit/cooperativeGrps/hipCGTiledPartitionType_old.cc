@@ -74,12 +74,10 @@ __global__ void kernel_cg_group_partition_static(int* result, bool is_global_mem
     workspace = shared_mem;
   }
 
-  int input, output_sum, expected_output;
+  int input, output_sum;
 
   // input to reduction, for each thread, is its' rank in the group
   input = thread_block_CG_ty.thread_rank();
-
-  expected_output = (thread_block_CG_ty.size() - 1) * thread_block_CG_ty.size() / 2;
 
   output_sum = reduction_kernel(thread_block_CG_ty, workspace, input);
 
