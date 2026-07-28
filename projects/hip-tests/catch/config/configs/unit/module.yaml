@@ -324,6 +324,7 @@ module:
     tags: [function]
   Unit_hipExtModuleLaunchKernel_AnyOrder:
     <<: *level_2
+    # FFM does not co-schedule same-queue any-order dispatches. AMD-GFX-Modeling/ffm#4608.
     disabled: [gfx1260, gfx1310, gfx1370]
     tags: [launch]
   Unit_hipModuleLoadDataEx_Negative_Image_Is_An_Empty_String:

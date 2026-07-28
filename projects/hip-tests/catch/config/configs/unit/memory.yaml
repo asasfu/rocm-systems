@@ -3018,6 +3018,11 @@ memory:
     tags: [alloc]
   Unit_hipMemGetDefaultMemPool_Functional:
     <<: *level_2
+    # FFM sim lacks the mempool VA-mapping (gem_va) and dma_buf handlers, so the
+    # pool alloc + device use segfaults. Fixed by AMD-GFX-Modeling/hsakmt-sim#44
+    # and #45 (tracked in ffm#4509 / ffm#4512); re-enable once the FFM package's
+    # hsakmt-sim submodule is bumped to include them.
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [alloc]
   Unit_hipMemGetDefaultMemPool_Multidevice:
     <<: *level_2
