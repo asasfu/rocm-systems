@@ -278,12 +278,16 @@ if(HIP_PLATFORM MATCHES "amd")
                   COMMENT "Compiling copyKernelGenericTargetCompressed.code")
   add_custom_target(copyKernelGenericTargetCompressed_code DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/copyKernelGenericTargetCompressed.code)
 
-  add_custom_target(anyOrderLaunch.code
-                    COMMAND ${CMAKE_HIP_COMPILER} -mcode-object-version=5 --cuda-device-only ${OFFLOAD_ARCH_LIST}
-                    -x hip ${CMAKE_CURRENT_SOURCE_DIR}/anyOrderLaunch.cc
-                    -o ${CMAKE_CURRENT_BINARY_DIR}/../../unit/module/anyOrderLaunch.code
-                    -I${CMAKE_CURRENT_SOURCE_DIR}/../../include ${HIP_PATH_OPT})
-  #target_link_libraries(copyKernelGenericTargetCompressed.code hip::host hip::device)
+  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/anyOrderLaunch.code
+                  COMMAND ${CMAKE_HIP_COMPILER} ${HIP_DEVICE_BUILD_FLAGS_NO_ARCH} ${OFFLOAD_ARCH_LIST} -mcode-object-version=5 --cuda-device-only
+                  -x hip ${CMAKE_CURRENT_SOURCE_DIR}/anyOrderLaunch.cc
+                  -o ${CMAKE_CURRENT_BINARY_DIR}/anyOrderLaunch.code
+                  -I${HIP_INCLUDE_DIR} ${HIP_PATH_OPT}
+                  -I${CMAKE_CURRENT_SOURCE_DIR}/../../include
+                  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/anyOrderLaunch.cc
+                  COMMENT "Compiling anyOrderLaunch.code")
+  add_custom_target(anyOrderLaunch_code DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/anyOrderLaunch.code)
+
   set_property(GLOBAL APPEND PROPERTY G_INSTALL_CUSTOM_TARGETS
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernel.code
   ${CMAKE_CURRENT_BINARY_DIR}/copyKernel.s
@@ -417,8 +421,9 @@ if(HIP_PLATFORM MATCHES "amd")
   add_dependencies(ModuleTest copyKernelCompressed_code)
   add_dependencies(ModuleTest copyKernelGenericTarget_code)
   add_dependencies(ModuleTest copyKernelGenericTargetCompressed_code)
+  add_dependencies(ModuleTest anyOrderLaunch_code)
 
-  add_dependencies(build_tests anyOrderLaunch.code)
+  add_dependencies(build_tests anyOrderLaunch_code)
   if(UNIX)
     add_dependencies(ModuleTest copiousArgKernel_code copiousArgKernel0_code copiousArgKernel1_code copiousArgKernel2_code
 copiousArgKernel3_code copiousArgKernel16_code copiousArgKernel17_code)

@@ -264,8 +264,6 @@ release(uint, DEBUG_CLR_MAX_BATCH_SIZE, 1000,                                 \
         "Forces the callback to clean-up CPU submission queue")               \
 release(bool, DEBUG_CLR_SYSMEM_POOL, false,                                   \
         "Use sysmem pool implementation in runtime for amd commands")         \
-release(bool, DEBUG_CLR_KERNARG_HDP_FLUSH_WA, false,                          \
-        "Toggle kernel arg copy workaround")                                  \
 release(uint, DEBUG_HIP_DYNAMIC_QUEUES, 1,                                    \
         "Dynamic queue management: 0=off, 1=Depth heuristic,"                 \
         " 2=1 + dedicated null-stream queue")                                 \
@@ -281,8 +279,6 @@ release(uint, DEBUG_CLR_BATCH_CPU_SYNC_SIZE, 16,                              \
         "Forces the minimum batch size for CPU sync")                         \
 release(bool, DEBUG_CLR_DISABLE_IMAGE, false,                                 \
         "1 = Disable Image support for ROC path")                             \
-release(bool, DEBUG_CLR_ENABLE_PREFETCH_METADATA, true,                       \
-        "Enable metadata prefetch for some Aql packets")                      \
 release(cstring, HIP_HRR_CAPTURE_OUTPUT, "",                                  \
         "Set to a directory path to enable HRR capture; archive written there") \
 release(bool, HIP_HRR_DEBUG_ARGS, false,                                      \
@@ -292,6 +288,14 @@ release(uint, DEBUG_CLR_DOORBELL_SKIP, 16,                                    \
         "Number of consecutive dispatches that may skip the doorbell flush.") \
 release(bool, DEBUG_CLR_DISABLE_FALLBACK, false,                              \
         "Disables certain fallback paths")                                    \
+release(bool, DEBUG_CLR_DIRECT_DOORBELL, false,                               \
+        "Write the hardware doorbell directly from CLR")                      \
+release(uint, DEBUG_CLR_AQL_DEV_QUEUE, 0,                                     \
+        "Device-memory AQL ring buffer for supported asics "                  \
+        "(1=enabled, 0=force system mem (default))")                          \
+release(uint, DEBUG_CLR_USE_MOVDIR64B, 1,                                     \
+        "Use MOVDIR64B full-packet writes for AQL + metadata rings"           \
+        "(1=enabled (default), 0=non-temporal store path)")                   \
 release(bool, HIP_DISABLE_EXT_PACKET, false,                                  \
         "Disable extended packet support even if the device supports it")
 

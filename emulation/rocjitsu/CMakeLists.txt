@@ -21,7 +21,7 @@ unset(_RJ_ROCM_PATH_EXPLICIT)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(rj_default_compiler)
 
-project(rocm_jit_suite VERSION 0.2.0)
+project(rocm_jit_suite VERSION 0.3.0)
 
 include(rj_version)
 
@@ -270,6 +270,7 @@ target_link_libraries(
         rocjitsu_analysis
         rocjitsu_code
         rocjitsu_isa
+        rocjitsu_isa_registry
         rocjitsu_isa_cdna1
         rocjitsu_isa_cdna2
         rocjitsu_isa_cdna3
@@ -348,6 +349,10 @@ install(
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    install(
+        TARGETS rocjitsu_gfx1250_b0_to_a0
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
     install(TARGETS rocjitsu_bin RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 

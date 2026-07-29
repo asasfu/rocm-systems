@@ -581,6 +581,12 @@ memory:
     tags: [multigpu, P1]
     # Note: Windows disabled
     disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
+  Unit_hipManagedMultiGpuVaConsistency_MultiDevice:
+    <<: *level_2
+    tags: [alloc, multigpu]
+  Unit_hipManagedMultiGpuVaConsistency_HostAllocNoDivergence:
+    <<: *level_2
+    tags: [alloc, multigpu]
   Unit_hipMemset_Negative_InvalidPtr:
     <<: *level_2
     tags: [memset, P1]
@@ -1857,6 +1863,7 @@ memory:
   Unit_hipMemcpyAsync_H2H_H2D_D2H_H2PinMem:
     <<: *level_2
     tags: [P1]
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_hipMemcpyAsync_hipMultiMemcpyMultiThread:
     <<: *level_2
     tags: [P1]
@@ -3003,6 +3010,23 @@ memory:
   Unit_hipMemPoolExportToShareableHandle_multiproc_child:
     <<: *level_2
     disabled: [gfx1260, gfx1310, gfx1370, amd_linux, amd_windows, amd_wsl, nvidia_linux, nvidia_windows]
+  Unit_hipMemGetDefaultMemPool_Negative:
+    <<: *level_2
+    tags: [alloc]
+  Unit_hipMemGetDefaultMemPool_Basic:
+    <<: *level_2
+    tags: [alloc]
+  Unit_hipMemGetDefaultMemPool_Functional:
+    <<: *level_2
+    # FFM sim lacks the mempool VA-mapping (gem_va) and dma_buf handlers, so the
+    # pool alloc + device use segfaults. Fixed by AMD-GFX-Modeling/hsakmt-sim#44
+    # and #45 (tracked in ffm#4509 / ffm#4512); re-enable once the FFM package's
+    # hsakmt-sim submodule is bumped to include them.
+    disabled: [gfx1260, gfx1310, gfx1370]
+    tags: [alloc]
+  Unit_hipMemGetDefaultMemPool_Multidevice:
+    <<: *level_2
+    tags: [alloc, multigpu]
   Unit_hipDrvMemcpy3DAsync_ExtentValidation:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -3170,10 +3194,6 @@ memory:
   Unit_hipMemcpy3D_multiDevice_Basic_Size_Test:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
-
-  Unit_hipMemcpyAsync_H2H-H2D-D2H-H2PinMem:
-    <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
 
   Unit_hipMemcpyAsync_KernelLaunch:
     <<: *level_2

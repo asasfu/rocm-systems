@@ -243,6 +243,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       device/TestOp128.cpp
       device/GinDeviceTests.cpp
       device/GinAnvilIpcDevice_test.cpp
+      DeviceApiTests.cpp
       common/main_fixtures.cpp
       common/EnvVars.cpp
       common/ProcessIsolatedTestRunner.cpp
@@ -335,6 +336,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
     set(TEST_FIXTURE_DEBUG_SOURCE_FILES
       AllocTests.cpp
       ParamTests.cpp
+      ParameterApiTests.cpp
       ArgCheckTests.cpp
       BootstrapBidirTests.cpp
       DdaAlltoAllThresholdTests.cpp
