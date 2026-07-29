@@ -1253,6 +1253,13 @@ int KFDNode::get_total_memory(uint64_t* total) {
   }
   *total = 0;
 
+  // mem_banks topology is fixed for the life of the node, so compute the sum
+  // once and reuse it; this runs on every VRAM-total query (e.g. amd-smi monitor).
+  if (total_memory_ != 0) {
+    *total = total_memory_;
+    return 0;
+  }
+
   std::string f_path = kKFDNodesPathRoot;
   f_path += "/";
   f_path += std::to_string(node_indx_);
@@ -1294,7 +1301,7 @@ int KFDNode::get_total_memory(uint64_t* total) {
       if (line.substr(0, size_in_bytes_property.length()) == size_in_bytes_property) {
         auto bytes = line.substr(size_in_bytes_property.length());
         try {
-          *total += std::stol(bytes);
+          *total += std::stoull(bytes);
           break;
         } catch (...) {
           dentry = readdir(kfd_node_dir);
@@ -1312,6 +1319,7 @@ int KFDNode::get_total_memory(uint64_t* total) {
     perror(err_str.c_str());
     return 1;
   }
+  total_memory_ = *total;
   return 0;
 }
 
