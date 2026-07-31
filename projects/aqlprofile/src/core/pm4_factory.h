@@ -225,6 +225,7 @@ class Pm4Factory {
 
   virtual int GetAccumLowID() const { throw HSA_STATUS_ERROR_INVALID_ARGUMENT; };
   virtual int GetAccumHiID() const { throw HSA_STATUS_ERROR_INVALID_ARGUMENT; };
+  virtual int GetSQGAccumID() const { throw HSA_STATUS_ERROR_INVALID_ARGUMENT; };
 
  protected:
   explicit Pm4Factory(const BlockInfoMap& map)

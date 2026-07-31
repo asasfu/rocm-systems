@@ -40,6 +40,9 @@ class Gfx13Factory : public Pm4Factory {
     Init(agent_info);
   }
   bool IsGFX13() const override { return true; }
+  virtual int GetAccumLowID() const override { return 1; };
+  virtual int GetAccumHiID() const override { return 1; };
+  virtual int GetSQGAccumID() const override { return 13; };
 
  protected:
   void ConstructBuilders(const AgentInfo* agent_info);
