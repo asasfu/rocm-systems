@@ -2,7 +2,6 @@
 library:
   Unit_library_negative:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [module]
   Unit_hip_library_load_co:
     <<: *level_2

@@ -1060,7 +1060,7 @@ memory:
     tags: [memset]
   Unit_hipMemsetD2D8Async_UnEvenRowsCols:
     <<: *level_2
-    disabled: [amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_wsl]
     tags: [memset]
   Unit_hipMemsetD2D8Async_NegTsts:
     <<: *level_2
@@ -1167,15 +1167,12 @@ memory:
     tags: [query]
   Unit_hipPointerGetAttributes_Basic:
     <<: *level_2
-    disabled: [gfx1260]
     tags: [query, P0]
   Unit_hipPointerGetAttributes_ClusterAlloc:
     <<: *level_2
-    disabled: [gfx1260]
     tags: [query, P1]
   Unit_hipPointerGetAttributes_TinyClusterAlloc:
     <<: *level_2
-    disabled: [gfx1260]
     tags: [query, P1]
   Unit_hipPointerGetAttributes_MultiThread:
     <<: *level_2
@@ -1262,23 +1259,15 @@ memory:
     <<: *level_2
     tags: [alloc, P1, image]
   Unit_hipMemcpyDeviceToDeviceNoCU_SingleStream:
-    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyDeviceToDeviceNoCU_WithCU_NoCU_Comb_SingleStrm:
-    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyDeviceToDeviceNoCU_NoCU_MulStrm:
-    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipMemcpyDeviceToDeviceNoCU_Memcpy_Kernel_InParallel:
-    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [transfer, P1]
   Unit_hipGetProcAddress_MemoryApisMallocFree:
@@ -1299,8 +1288,6 @@ memory:
     <<: *level_2
     tags: [P1]
   Unit_hipGetProcAddress_MemoryApisMemCopyWithStreams:
-    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [P1]
   Unit_hipGetProcAddress_MemoryApisMemset:
@@ -1381,7 +1368,6 @@ memory:
     tags: [transfer, P1]
   Unit_hipPtrGetAttribute_Simple:
     <<: *level_2
-    disabled: [gfx1260]
     tags: [query, P1]
   Unit_hipMemPoolApi_Basic:
     # FFM functional model: pending VMM/mempool/graph fixes (AMD-GFX-Modeling/hsakmt-sim#44, #45)
@@ -2004,7 +1990,7 @@ memory:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
     # Huge memory usage, no point enabling it with ASAN
-    disabled: [amd_windows, amd_wsl, asan, gfx1260]
+    disabled: [amd_windows, amd_wsl, asan]
     tags: [alloc, P0]
   Unit_hipMalloc_Positive_APU_LargeAllocSpill:
     <<: *level_2
@@ -2367,7 +2353,7 @@ memory:
   Unit_hipMemGetInfo_FreeLessThanTotal:
     <<: *level_2
     # Disabled on NPI HW — see PR #939
-    disabled: [gfx1260, gfx1310, gfx1370, amd_linux]
+    disabled: [amd_linux]
     tags: [query, P0]
   Unit_hipFreeImplicitSyncDev:
     <<: *level_2

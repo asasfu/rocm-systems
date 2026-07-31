@@ -97,7 +97,6 @@ cooperativeGrps:
     tags: [cooperative, groups]
   Unit_hipCGGridGroupType_Barrier:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [cooperative, groups]
   Unit_hipCGThreadBlockTileType:
     <<: *level_2
