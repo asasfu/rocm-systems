@@ -30,7 +30,6 @@ graph:
     tags: [dependency]
   Unit_hipGraphAddEventRecordNode_Functional_Simple:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddEventRecordNode_Functional_WithoutFlags:
     <<: *level_2
@@ -476,7 +475,6 @@ graph:
     tags: [dependency]
   Unit_hipGraphRemoveDependencies_Positive_ChangeComputeFunc:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [dependency]
   Unit_hipGraphRemoveDependencies_Positive_Parameters:
     <<: *level_2
@@ -623,7 +621,6 @@ graph:
     tags: [exec, image]
   Unit_hipStreamBeginCapture_Positive_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamBeginCapture_Negative_Parameters:
     <<: *level_2
@@ -700,8 +697,6 @@ graph:
     <<: *level_2
     tags: [capture]
   Unit_hipGraphAddMemcpyNode1D_Functional:
-    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [node]
   Unit_hipGraphAddMemcpyNode1D_Negative:
@@ -828,24 +823,20 @@ graph:
     tags: [query]
   Unit_hipGraphUserObj_Int_float_Objects:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [userobj]
   Unit_hipGraphUserObj_HostRegister:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [userobj]
   Unit_hipGraphUserObj_Struct_Class_Ojects:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [userobj]
   Unit_hipGraphUserObj_ClonedGraph:
     <<: *level_2
     # Test Unit_hipGraphUserObj_ClonedGraph disabled due to SWDEV-483112
-    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl]
     tags: [userobj]
   Unit_hipGraphUserObj_ManualGraph:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [userobj]
   Unit_hipGraphExecBatchMemOpNodeSetParams_NegativeTsts:
     <<: *level_2
@@ -1231,7 +1222,6 @@ graph:
     tags: [exec]
   Unit_hipStreamGetCaptureInfo_v2_Positive_Functional:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [capture]
   Unit_hipStreamGetCaptureInfo_v2_Positive_UniqueID:
     <<: *level_2
@@ -1290,9 +1280,7 @@ graph:
     <<: *level_2
     # Hangs on Windows (PAL), hitting CI timeout. https://github.com/ROCm/rocm-systems/issues/7148
     # Uses a calibrated ~1e9-iteration GPU spin (~500ms on HW) to expose a
-    # cross-stream race; under the FFM functional model that spin takes ~21 min
-    # and dominates CI time (~57% of the hip-tests run), so disable on the FFM archs.
-    disabled: [amd_windows, amd_wsl, gfx1250, gfx1260, gfx1310, gfx1370]
+    disabled: [amd_windows, amd_wsl]
     tags: [capture]
   Unit_hipLaunchHostFunc_BlitDtoHHostCallbackVisibility:
     <<: *level_2
@@ -1377,13 +1365,9 @@ graph:
     disabled: [amd_wsl]
     tags: [lifecycle]
   Unit_hipGraphClone_hipGraphMemcpyNodeSetParamsFromSymbol_exec:
-    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [lifecycle]
   Unit_hipGraphClone_hipGraphMemcpyNodeSetParamsToSymbol_exec:
-    # FFM gfx1260/1310/1370: requires SDMA SYNC_COPY_LINEAR wait-bit fix (AMD-GFX-Modeling/ffm#4511)
-    disabled: [gfx1260, gfx1310, gfx1370]
     <<: *level_2
     tags: [lifecycle]
   Unit_hipGraphClone_Test_hipGraphMemsetNodeSetParams_exec:
@@ -1403,7 +1387,6 @@ graph:
     tags: [lifecycle]
   Unit_hipGraphClone_address_change_in_loop:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [lifecycle]
   Unit_hipGraphClone_address_change_in_thread:
     <<: *level_2
@@ -1535,7 +1518,6 @@ graph:
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecMemsetNodeSetParams:
     <<: *level_2
-    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipGraph_PerfCheck_hipGraphExecChildGraphNodeSetParams:
     <<: *level_2
@@ -1647,8 +1629,6 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Instanciate_Graph_Again:
     <<: *level_2
-    # hangs on gfx1310 and is unstable on the other FFM archs; disable on FFM archs.
-    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_Free_Alloc_Memory_Again:
     <<: *level_2
@@ -1658,7 +1638,6 @@ graph:
     tags: [node]
   Unit_hipGraphAddMemAllocNode_Negative_With_Cloneed_Graph:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddMemFreeNode_Negative_Params:
     <<: *level_2
@@ -1754,7 +1733,6 @@ graph:
     tags: [node, image]
   Unit_hipGraphAddNodeTypeEventRecord_Positive_Basic:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddNodeTypeEventWait_Positive_Basic:
     <<: *level_2
@@ -1762,7 +1740,6 @@ graph:
   Unit_hipGraphAddNodeTypeMemAlloc_Positive_Basic:
     <<: *level_2
     # test hangs on gfx1260, gfx1310 and gfx1370
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [node]
   Unit_hipGraphAddNode_Negative_Parameters:
     <<: *level_2
@@ -1824,7 +1801,6 @@ graph:
     tags: [node]
   Unit_hipGraph_SimpleGraphWithKernel_kernel_arg_prefetch:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [exec]
   Unit_hipEventQuery_GlobalCapture_DefaultMode_NormalEvent: *level_2
   Unit_hipEventQuery_GlobalCapture_DefaultMode_CapturedEvent: *level_2

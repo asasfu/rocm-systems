@@ -289,7 +289,6 @@ rtc:
     tags: [link]
   Unit_hiprtc_fp8_simple:
     <<: *level_2
-    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [compile]
   Unit_hiprtc_spirv_compilation:
     <<: *level_2
