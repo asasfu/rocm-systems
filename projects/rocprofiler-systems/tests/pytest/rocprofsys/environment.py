@@ -249,6 +249,7 @@ def base_python_environment(config: "RocprofsysConfig") -> dict[str, str]:
     """Framework default environment for Python test execution."""
     return {
         **COMMON_BASE_DEFAULT_VARS,
+        **OMP_DEFAULT_VARS,
         "ROCPROFSYS_TRACE": "ON",
         "ROCPROFSYS_PROFILE": "ON",
         "ROCPROFSYS_USE_SAMPLING": "OFF",
@@ -268,6 +269,7 @@ def base_causal_environment() -> dict[str, str]:
     """Framework default environment for causal profiling test execution."""
     return {
         **COMMON_BASE_DEFAULT_VARS,
+        **OMP_DEFAULT_VARS,
         "ROCPROFSYS_THREAD_POOL_SIZE": "0",
         "ROCPROFSYS_VERBOSE": "1",
         "ROCPROFSYS_LOG_LEVEL": "info",
