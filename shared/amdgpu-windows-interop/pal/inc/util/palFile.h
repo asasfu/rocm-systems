@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palFile.h
@@ -38,6 +15,7 @@
 // stl
 #include <chrono>
 #include <cstdio>
+
 
 #if defined(_WIN32)
 /// Macro for wide string literal concatenation.
@@ -93,9 +71,15 @@ public:
     struct Stat
     {
         uint64                                size;  // Size of the file in bytes.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 922
+        uint64                                ctime; // Time of creation of the file (not valid on FAT).
+        uint64                                atime; // Time of last access to the file (not valid on FAT).
+        uint64                                mtime; // Time of last modification to the file.
+#else
         std::chrono::system_clock::time_point ctime; // Time of creation of the file (not valid on FAT).
         std::chrono::system_clock::time_point atime; // Time of last access to the file (not valid on FAT).
         std::chrono::system_clock::time_point mtime; // Time of last modification to the file.
+#endif
         uint32                                nlink; // Number of hard links (always 1 on FAT on Windows).
         uint32                                mode;  // Bitmask for the file-mode information.
         uint32                                dev;   // Drive number of the disk containing the file.
@@ -216,6 +200,7 @@ public:
     ///
     /// @param  offset      Number of bytes to offset
     void Rseek(size_t offset) { Seek(-static_cast<int64>(offset), SeekPosition::End); }
+
 
     /// Sets the file position to the end of the file.
     void FastForward() { Rseek(0); }

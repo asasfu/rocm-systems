@@ -29,6 +29,7 @@
 #include "gfx10wave.h"
 #include "gfx11/gfx11wave.h"
 #include "gfx12/gfx12wave.h"
+#include "gfx13/gfx13wave.h"
 #include "mi400/mi400token.h"
 #include "mi400/mi400wave.h"
 #include "segment.hpp"
@@ -158,7 +159,7 @@ void RDNASQTParser::sqtt_simd_analysis(CppReturnInfo& info, TokenGenerator& _gen
                     DEBUGPRINT(header);
                     target_sa_wgp = get_sa_wgp(header.DSA, header.DWGP);
                     target_simd = header.DSIMD;
-                    derate = header.trans2;
+                    std::tie(dprate, derate) = mi400::get_double_rate(token.contents);
                 }
                 else
                 {
@@ -190,8 +191,12 @@ void RDNASQTParser::sqtt_simd_analysis(CppReturnInfo& info, TokenGenerator& _gen
 
                 constexpr uint64_t CTX_BEGIN = 66;
                 constexpr uint64_t CTX_END = 90;
+                constexpr uint64_t WAVEGROUP_BEGIN = 70;
+                constexpr uint64_t WAVEGROUP_END   = 73;
 
-                if (start.count >= CTX_BEGIN && start.count < CTX_END)
+                bool is_tt5_wavegrp = tt_version >= 5 && start.count >= WAVEGROUP_BEGIN && start.count <= WAVEGROUP_END;
+
+                if (start.count >= CTX_BEGIN && start.count < CTX_END && !is_tt5_wavegrp)
                 {
                     // We are in context save or restore
                     constexpr uint64_t ctx_save_array = 0b0000110011;
@@ -369,12 +374,17 @@ void RDNASQTParser::sqtt_simd_analysis(CppReturnInfo& info, TokenGenerator& _gen
                 inst_type_common inst;
                 auto mapped = mapped_inst_t{WaveInstCategory::NONE, 0};
 
-                if (tt_version >= 5)
+                if (tt_version == 6)
+                {
+                    inst = mi400::inst_type{.raw = token.contents}.get();
+                    mapped = gfx13::map_to_common_type(inst.inst, dprate, derate);
+                }
+                else if (tt_version >= 5)
                 {
                     inst = mi400::inst_type{.raw = token.contents}.get();
                     try
                     {
-                        mapped = mi400::map_to_common_type(inst.inst, derate);
+                        mapped = mi400::map_to_common_type(inst.inst, dprate, derate);
                     }
                     catch (std::exception&)
                     {
@@ -491,7 +501,6 @@ void RDNASQTParser::sqtt_simd_analysis(CppReturnInfo& info, TokenGenerator& _gen
                 DEBUGPRINT(reg);
 
                 if (reg.CS) csregister.UpdateRegCS(reg);
-
                 // gfx10 gets userdata in reg.cs
                 if (!reg.CS || tt_version <= 2)
                 {
@@ -600,6 +609,14 @@ void RDNASQTParser::sqtt_simd_analysis(CppReturnInfo& info, TokenGenerator& _gen
                 shaderdata.emplace_back(shader);
                 if (shaderdata.size() >= MAX_ACCUM_RECORDS) stitch.sendShaderdata(shaderdata);
 
+                break;
+            }
+            case RdnaType::EXEC_POPCOUNT1:
+            {
+                break;
+            }
+            case RdnaType::EXEC_POPCOUNT3:
+            {
                 break;
             }
             default:

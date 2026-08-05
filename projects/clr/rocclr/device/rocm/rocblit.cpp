@@ -615,6 +615,25 @@ inline bool DmaBlitManager::rocrCopyBuffer(address dst, hsa_agent_t& dstAgent, c
 
 
 // ================================================================================================
+// FFM/DTIF marks plain device allocations (hipMalloc) as HostMemoryDirectAccess, so the
+// owning agent cached at creation time is the CPU agent. The SDMA copy paths need GPU
+// agents to select an engine, so restore them for plain device memory. True host memory
+// (MEMORY_KIND_HOST) and IPC/VMM-resolved agents are left intact.
+static inline void restoreDtifDeviceAgents(const Memory& srcMem, const Memory& dstMem,
+                                           hsa_agent_t cpuAgent, hsa_agent_t backendDevice,
+                                           hsa_agent_t& srcAgent, hsa_agent_t& dstAgent) {
+  if (!HSA_ENABLE_DTIF_FAST_COPY) {
+    return;
+  }
+  if (srcMem.getKind() == Memory::MEMORY_KIND_NORMAL && srcAgent.handle == cpuAgent.handle) {
+    srcAgent = backendDevice;
+  }
+  if (dstMem.getKind() == Memory::MEMORY_KIND_NORMAL && dstAgent.handle == cpuAgent.handle) {
+    dstAgent = backendDevice;
+  }
+}
+
+// ================================================================================================
 bool DmaBlitManager::hsaCopy(const Memory& srcMemory, const Memory& dstMemory,
                              const amd::Coord3D& srcOrigin, const amd::Coord3D& dstOrigin,
                              const amd::Coord3D& size, amd::CopyMetadata& copyMetadata) const {
@@ -630,6 +649,8 @@ bool DmaBlitManager::hsaCopy(const Memory& srcMemory, const Memory& dstMemory,
   // memory, so no per-copy pointer_info query is needed.
   hsa_agent_t srcAgent = srcMemory.getOwningAgent();
   hsa_agent_t dstAgent = dstMemory.getOwningAgent();
+  restoreDtifDeviceAgents(srcMemory, dstMemory, dev().getCpuAgent(), dev().getBackendDevice(),
+                          srcAgent, dstAgent);
 
   // Blocking D2H copies need a wait anyways so better wait here
   // than having to wait on the device for dependent signals for SDMA which is slow
@@ -670,6 +691,7 @@ bool DmaBlitManager::hsaCopyBatch(const std::vector<amd::BatchCopyOp>& copyOps,
     // Owning agents are cached at memory creation time.
     hsa_agent_t srcAgent = srcMem.getOwningAgent();
     hsa_agent_t dstAgent = dstMem.getOwningAgent();
+    restoreDtifDeviceAgents(srcMem, dstMem, cpuAgent, backendDevice, srcAgent, dstAgent);
 
     // Normalize agents to ensure the calling device's SDMA engines are used,
     // matching the rocrCopyBuffer agent selection logic.

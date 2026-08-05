@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palPipeline.h
@@ -56,9 +33,16 @@ struct KernelArgument;
 
 namespace Pal
 {
+#if PAL_WORK_GRAPHS_SUPPORT
+class IGraphLayout;
+struct GraphicsNodeStateBlock;
+struct GraphicsPipelineCreateInfo;
+#endif
 struct GpuMemSubAllocInfo;
 enum class PrimitiveTopology : uint8;
-class ICodeObject;
+#if PAL_BUILD_VIDEO
+enum class VideoDecodeType : uint32;
+#endif
 
 /// PAL's public shader-stage enumeration is defined by the Pipeline ABI.
 using ShaderType = Util::Abi::ApiShaderType;
@@ -238,23 +222,17 @@ union PipelineCreateFlags
 #else
         uint32 reserved971           :  1; ///< Reserved for future use.
 #endif
-#if PAL_BUILD_CODE_OBJECT_INTERFACE
-        uint32 disableCodeObjectReferencing : 1; ///< Indicates that this pipeline will not manage the reference
-                                                 ///  counter for the codeObjects.
-                                                 ///  It's the client's responsibility to ensure the codeObjects stay
-                                                 ///  alive during pipeline creation and execution.
-                                                 ///  This is useful for clients who want to manage the lifetime of the
-                                                 ///  code objects separately from the pipelines.
-        uint32 reserved              : 29; ///< Reserved for future use.
-#else
         uint32 reserved              : 30; ///< Reserved for future use.
-#endif
     };
     uint32 u32All;                         ///< Flags packed as 32-bit uint.
 };
 
 /// Constant definining the max number of view instance count that is supported.
+#if PAL_CLIENT_DX11
+constexpr uint32 MaxViewInstanceCount = 32;
+#else
 constexpr uint32 MaxViewInstanceCount = 6;
+#endif
 
 /// Specifies graphic pipeline view instancing state.
 struct ViewInstancingDescriptor
@@ -356,15 +334,10 @@ struct ComputePipelineCreateInfo
 {
     PipelineCreateFlags  flags;                ///< Flags controlling pipeline creation.
 
-#if PAL_BUILD_CODE_OBJECT_INTERFACE
-    ICodeObject*         pCodeObject;          ///< Pointer to Pipeline ELF binary implementing the Pipeline ABI
-                                               ///  interface, obtained via IDevice::LoadCodeObject().
-                                               ///  The Pipeline ELF contains pre-compiled shaders,
-                                               ///  register values, and additional metadata.
-#endif
     const void*          pPipelineBinary;      ///< Pointer to Pipeline ELF binary implementing the Pipeline ABI
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
+                                               //#  SEE: pal\doc\design\palPipelineAbiSpec.docx for more information.
     size_t               pipelineBinarySize;   ///< Size of Pipeline ELF binary in bytes.
     GetContentsCallback* pGetContents;         ///< Callback to get ELF contents; can be nullptr if client never
                                                ///  provides an archive with empty members.
@@ -398,6 +371,11 @@ struct ComputePipelineCreateInfo
     const char* pKernelName; ///< When create pipeline with hsa ELF binary of multiple kernels, need to set one
                              ///  kernel to create the pipeline. null means only one kernel in ELF binary.
 
+#if PAL_WORK_GRAPHS_SUPPORT && PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 918
+    /// Array of GraphicsPipelineCreateInfo structs for draw node pipelines within a work graph archive pipeline.
+    /// The order of the array is the same as the order of draw node pipeline in SCPC pipeline create info.
+    Util::Span<const GraphicsPipelineCreateInfo* const> graphicsPipelineCreateInfos;
+#endif
 };
 
 /// Specifies information about the viewport behavior of an assembled graphics pipeline.  Part of the input
@@ -449,6 +427,9 @@ struct RasterizerState
     uint8         cullDistMask;           ///< Mask of which cullDistance exports to leave enabled.
     uint8         clipDistMask;           ///< Mask of which clipDistance exports to leave enabled.
     bool          dx10DiamondTestDisable; ///< Disable DX10 diamond test during line rasterization.
+#if PAL_BUILD_LIGHT_SHAFT_OPT
+    bool          disableZpp;             ///< Disable ZPP optimization for this pipeline.
+#endif
     EdgeRuleMode  edgeRule;
 };
 
@@ -478,19 +459,14 @@ struct GraphicsPipelineCreateInfo
 {
     PipelineCreateFlags flags;                 ///< Flags controlling pipeline creation.
 
-#if PAL_BUILD_CODE_OBJECT_INTERFACE
-    Util::Span<ICodeObject*> codeObjects;      ///< Pointer(s) to Pipeline ELF binary or binaries implementing the
-                                               ///  Pipeline ABI interface, obtained via IDevice::LoadCodeObject().
-                                               ///  The Pipeline ELF contains pre-compiled shaders,
-                                               ///  register values, and additional metadata.
-#endif
     const void*         pPipelineBinary;       ///< Pointer to Pipeline ELF binary implementing the Pipeline ABI
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
+                                               //#  SEE: pal\doc\design\palPipelineAbiSpec.docx for more information.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
     GetContentsCallback*   pGetContents;       ///< Callback to get ELF contents; can be nullptr if client never
                                                ///  provides an archive with empty members.
-    const IShaderLibrary** ppShaderLibraries;  ///< An array of graphics @ref IShaderLibrary object. codeObjects
+    const IShaderLibrary** ppShaderLibraries;  ///< An array of graphics @ref IShaderLibrary object. pPipelineBinary
                                                ///  and ppShaderLibraries can't be valid at the same time.
                                                ///  If the client does not know whether the pipeline is complete,
                                                ///  it can add the shader library for a "dummy partial pipeline" to
@@ -651,6 +627,15 @@ struct PipelineInfo
     /// waves, resulting in an active wave count that is < numWavesPerSimd.
     uint32 availableThreadsPerWg;
 
+#if PAL_WORK_GRAPHS_SUPPORT
+    /// Pointer to and size in bytes of the graph layout data, comprising:
+    /// - a GraphLayoutHeader struct;
+    /// - multiple GraphLayoutActionBase subclass structs;
+    /// - a terminating GraphLayoutActionBase whose action field is End (0) and size is 0;
+    /// - 0-terminated strings referred to in the entries above using an offset from the start of the data.
+    const void* pGraphLayout;
+    size_t      graphLayoutSize;
+#endif
 };
 
 /// Used to represent API level shader stage.
@@ -735,6 +720,13 @@ public:
     /// @returns Property structure describing this pipeline.
     virtual const PipelineInfo& GetInfo() const = 0;
 
+#if PAL_BUILD_SHADER_DBG
+    /// Returns hwShaderDbgMask of the pipeline used for shader debug library usage
+    ///
+    /// @returns Property uint32 describing this pipeline.
+    virtual uint32 GetHwShaderDbgMask() const = 0;
+#endif
+
     /// Returns a list of GPU memory allocations used by this pipeline.
     ///
     /// @param [in,out] pNumEntries    Input value specifies the available size in pAllocInfoList; output value
@@ -797,7 +789,6 @@ public:
         ShaderStats* pShaderStats,
         bool         getDisassemblySize) const = 0;
 
-    /// @deprecated  Please use the equivalent GetShaderCode() provided by the compiler interface instead.
     /// Obtains the compiled shader ISA code for the shader stage specified.
     ///
     /// @param [in]  shaderType The shader stage for which the shader cache entry is requested.
@@ -918,6 +909,26 @@ public:
     ///
     /// @returns The array of underlying shader libraries.
     virtual Util::Span<const IShaderLibrary* const> GetLibraries() const { return {}; }
+
+#if PAL_WORK_GRAPHS_SUPPORT
+    /// Get (create if necessary) the IGraphLayout object built from graph layout information in the ELFs
+    /// in the pipeline. If the pipeline is not a new path workgraphs pipeline, return error.
+    ///
+    /// @param [out] ppGraphLayout  The IGraphLayout object (owned by the IPipeline)
+    /// @param stateBlocks          Array of graphics state blocks for the draw pipelines in the graph, in
+    ///                             the same order as the draw pipelines were given to SCPC CreatePipeline()
+    virtual Result GetGraphLayout(
+        IGraphLayout** ppGraphLayout
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 918
+        ,
+        Util::Span<Pal::GraphicsNodeStateBlock*> stateBlocks = {}
+#endif
+        )
+    {
+        *ppGraphLayout = nullptr;
+        return Result::ErrorUnavailable;
+    }
+#endif // PAL_WORK_GRAPHS_SUPPORT
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

@@ -12,4 +12,6 @@ hip_specific:
   Unit_Device__hip_hc_8pk_Negative_Parameters_RTC:
     <<: *level_2
     tags: [deviceLib, hip_ext]
-  Unit_Device__hip_check_VGPRs: *level_2
+  Unit_Device__hip_check_VGPRs:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]

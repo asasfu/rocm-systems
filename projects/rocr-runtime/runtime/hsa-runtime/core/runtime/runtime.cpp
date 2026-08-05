@@ -50,6 +50,7 @@
 #if defined(__linux__)
 #include <link.h>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <amdgpu_drm.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -737,6 +738,10 @@ hsa_status_t Runtime::GetPreferredEngine(core::Agent* dst_agent, core::Agent* sr
                                          uint32_t* recommended_ids_mask) {
   const bool src_gpu = (src_agent->device_type() == core::Agent::DeviceType::kAmdGpuDevice);
   core::Agent* copy_agent = (src_gpu) ? src_agent : dst_agent;
+
+  if (dst_agent == src_agent) {
+    return HSA_STATUS_ERROR_INVALID_AGENT;
+  }
 
   return copy_agent->DmaPreferredEngine(*dst_agent, *src_agent, recommended_ids_mask);
 }

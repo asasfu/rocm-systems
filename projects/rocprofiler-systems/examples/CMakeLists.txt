@@ -96,7 +96,6 @@ set(ROCPROFSYS_EXAMPLE_DIRS
     hipfile
     roctx
     thread-limit
-    transferBench
     hpc
     shmem
     scratch-memory

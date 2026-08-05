@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -40,11 +17,6 @@ namespace DevDriver
         public:
             explicit LockGuard(T &lock) : m_lock(lock) { lock.Lock(); }
             ~LockGuard() { m_lock.Unlock(); }
-
-            LockGuard(LockGuard&&) = delete;
-            LockGuard(const LockGuard&) = delete;
-            LockGuard& operator=(LockGuard&&) = delete;
-            LockGuard& operator=(const LockGuard&) = delete;
         private:
             T &m_lock;
         };
@@ -110,13 +82,9 @@ namespace DevDriver
         /// Determines if a value is a power of two.
         ///
         /// @returns True if it is a power of two, false otherwise.
-        template<typename T>
-        inline constexpr bool IsPowerOfTwo(T value)
+        inline constexpr bool IsPowerOfTwo(uint64 value)
         {
-#if !defined(_MSC_VER)
-            static_assert(std::is_integral<T>::value, "IsPowerOfTwo requires an integral type");
-#endif
-            return (value > 0) ? ((value & (value - 1)) == 0) : false;
+            return (value == 0) ? false : ((value & (value - 1)) == 0);
         }
 
         /// Rounds the specified uint 'value' up to the nearest value meeting the specified 'alignment'.  Only power of 2
@@ -168,7 +136,7 @@ namespace DevDriver
         template<typename T>
         inline constexpr T ConstPow2Pad(T value)  ///< Value to pad.
         {
-            return IsPowerOfTwo(value) ? value : _ConstPow2Pad(value, static_cast<T>(1));
+            return (IsPowerOfTwo(value)) ? value : _ConstPow2Pad(value, (T)1);
         }
 
         static_assert(ConstPow2Pad(512) == 512, "ConstPow2Pad failure");

@@ -1,31 +1,9 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palFormat.h
  * @brief Common include for the Platform Abstraction Library (PAL) interface.  Defines format types.
+# Also used in SCPC.
  ***********************************************************************************************************************
  */
 
@@ -75,11 +53,11 @@ namespace Pal
 /// ratio between the luma and chroma data.
 enum class ChNumFormat : Util::uint32
 {
-    Undefined                = 0x0,  ///< Used in situations where no format is needed, like raw memory views, or to
-                                     ///  indicate no color/depth target will be attached when creating a graphics
-                                     ///  pipeline.
-    X1_Unorm                 = 0x1,  ///< _Untested._
-    X1_Uscaled               = 0x2,  ///< _Untested._
+    Undefined                = 0x0,     ///< Used in situations where no format is needed, like raw memory views, or to
+                                        ///  indicate no color/depth target will be attached when creating a graphics
+                                        ///  pipeline.
+    X1_Unorm                 = 0x1,     ///< _Untested._
+    X1_Uscaled               = 0x2,     ///< _Untested._
     X4Y4_Unorm               = 0x3,
     X4Y4_Uscaled             = 0x4,
     L4A4_Unorm               = 0x5,
@@ -116,9 +94,9 @@ enum class ChNumFormat : Util::uint32
     X8Y8Z8W8_Uint            = 0x24,
     X8Y8Z8W8_Sint            = 0x25,
     X8Y8Z8W8_Srgb            = 0x26,
-    U8V8_Snorm_L8W8_Unorm    = 0x27, ///< Mixed signed/unsigned format. Valid Image and Color-Target View formats
-                                     ///  are X8Y8Z8W8_Snorm (to target U8V8_Snorm) and X8Y8Z8W8_Unorm (to target
-                                     ///  L8W8_Unorm).
+    U8V8_Snorm_L8W8_Unorm    = 0x27,    ///< Mixed signed/unsigned format. Valid Image and Color-Target View formats
+                                        ///  are X8Y8Z8W8_Snorm (to target U8V8_Snorm) and X8Y8Z8W8_Unorm (to target
+                                        ///  L8W8_Unorm).
     X10Y11Z11_Float          = 0x28,
     X11Y11Z10_Float          = 0x29,
     X10Y10Z10W2_Unorm        = 0x2A,
@@ -127,13 +105,13 @@ enum class ChNumFormat : Util::uint32
     X10Y10Z10W2_Sscaled      = 0x2D,
     X10Y10Z10W2_Uint         = 0x2E,
     X10Y10Z10W2_Sint         = 0x2F,
-    X10Y10Z10W2Bias_Unorm    = 0x30, ///< A four-component, 32-bit 2.8-biased fixed-point format that supports 10
-                                     ///  bits for each color channel and 2-bit alpha. A shader must be aware of
-                                     ///  *Bias* and must perform its own bias and scale on any data that is read
-                                     ///  from or written.
-    U10V10W10_Snorm_A2_Unorm = 0X31, ///< Mixed signed/unsigned format. Valid Image and Color-Target View formats
-                                     ///  are X10Y10Z10W2_Snorm (to target U10V10W10_Snorm) and X10Y10Z10W2_Unorm
-                                     ///  (to target A2_Unorm).
+    X10Y10Z10W2Bias_Unorm    = 0x30,    ///< A four-component, 32-bit 2.8-biased fixed-point format that supports 10
+                                        ///  bits for each color channel and 2-bit alpha. A shader must be aware of
+                                        ///  *Bias* and must perform its own bias and scale on any data that is read
+                                        ///  from or written.
+    U10V10W10_Snorm_A2_Unorm = 0X31,    ///< Mixed signed/unsigned format. Valid Image and Color-Target View formats
+                                        ///  are X10Y10Z10W2_Snorm (to target U10V10W10_Snorm) and X10Y10Z10W2_Unorm
+                                        ///  (to target A2_Unorm).
     X16_Unorm                = 0x32,
     X16_Snorm                = 0x33,
     X16_Uscaled              = 0x34,
@@ -170,225 +148,237 @@ enum class ChNumFormat : Util::uint32
     X32Y32Z32W32_Float       = 0x53,
     D16_Unorm_S8_Uint        = 0x54,
     D32_Float_S8_Uint        = 0x55,
-    X9Y9Z9E5_Float           = 0x56, ///< Three partial-precision floating-point numbers encoded into a single 32-bit
-                                     ///  value all sharing the same 5-bit exponent (variant of s10e5, which is sign
-                                     ///  bit, 10-bit mantissa, and 5-bit biased (15) exponent). There is no sign
-                                     ///  bit, and there is a shared 5-bit biased (15) exponent and a 9-bit mantissa
-                                     ///  for each channelShared exponent format.
-    Bc1_Unorm                = 0x57, ///< BC1 compressed texture format.
-    Bc1_Srgb                 = 0x58, ///< BC1 compressed texture format.
-    Bc2_Unorm                = 0x59, ///< BC2 compressed texture format.
-    Bc2_Srgb                 = 0x5A, ///< BC2 compressed texture format.
-    Bc3_Unorm                = 0x5B, ///< BC3 compressed texture format.
-    Bc3_Srgb                 = 0x5C, ///< BC3 compressed texture format.
-    Bc4_Unorm                = 0x5D, ///< BC4 compressed texture format.
-    Bc4_Snorm                = 0x5E, ///< BC4 compressed texture format.
-    Bc5_Unorm                = 0x5F, ///< BC5 compressed texture format.
-    Bc5_Snorm                = 0x60, ///< BC5 compressed texture format.
-    Bc6_Ufloat               = 0x61, ///< BC6 unsigned compressed texture format.
-    Bc6_Sfloat               = 0x62, ///< BC6 signed compressed texture format.
-    Bc7_Unorm                = 0x63, ///< BC7 compressed texture format.
-    Bc7_Srgb                 = 0x64, ///< BC7 compressed texture format.
-    Etc2X8Y8Z8_Unorm         = 0x65,
-    Etc2X8Y8Z8_Srgb          = 0x66,
-    Etc2X8Y8Z8W1_Unorm       = 0x67,
-    Etc2X8Y8Z8W1_Srgb        = 0x68,
-    Etc2X8Y8Z8W8_Unorm       = 0x69,
-    Etc2X8Y8Z8W8_Srgb        = 0x6A,
-    Etc2X11_Unorm            = 0x6B,
-    Etc2X11_Snorm            = 0x6C,
-    Etc2X11Y11_Unorm         = 0x6D,
-    Etc2X11Y11_Snorm         = 0x6E,
-    AstcLdr4x4_Unorm         = 0x6F,
-    AstcLdr4x4_Srgb          = 0x70,
-    AstcLdr5x4_Unorm         = 0x71,
-    AstcLdr5x4_Srgb          = 0x72,
-    AstcLdr5x5_Unorm         = 0x73,
-    AstcLdr5x5_Srgb          = 0x74,
-    AstcLdr6x5_Unorm         = 0x75,
-    AstcLdr6x5_Srgb          = 0x76,
-    AstcLdr6x6_Unorm         = 0x77,
-    AstcLdr6x6_Srgb          = 0x78,
-    AstcLdr8x5_Unorm         = 0x79,
-    AstcLdr8x5_Srgb          = 0x7A,
-    AstcLdr8x6_Unorm         = 0x7B,
-    AstcLdr8x6_Srgb          = 0x7C,
-    AstcLdr8x8_Unorm         = 0x7D,
-    AstcLdr8x8_Srgb          = 0x7E,
-    AstcLdr10x5_Unorm        = 0x7F,
-    AstcLdr10x5_Srgb         = 0x80,
-    AstcLdr10x6_Unorm        = 0x81,
-    AstcLdr10x6_Srgb         = 0x82,
-    AstcLdr10x8_Unorm        = 0x83,
-    AstcLdr10x8_Srgb         = 0x84,
-    AstcLdr10x10_Unorm       = 0x85,
-    AstcLdr10x10_Srgb        = 0x86,
-    AstcLdr12x10_Unorm       = 0x87,
-    AstcLdr12x10_Srgb        = 0x88,
-    AstcLdr12x12_Unorm       = 0x89,
-    AstcLdr12x12_Srgb        = 0x8A,
-    AstcHdr4x4_Float         = 0x8B,
-    AstcHdr5x4_Float         = 0x8C,
-    AstcHdr5x5_Float         = 0x8D,
-    AstcHdr6x5_Float         = 0x8E,
-    AstcHdr6x6_Float         = 0x8F,
-    AstcHdr8x5_Float         = 0x90,
-    AstcHdr8x6_Float         = 0x91,
-    AstcHdr8x8_Float         = 0x92,
-    AstcHdr10x5_Float        = 0x93,
-    AstcHdr10x6_Float        = 0x94,
-    AstcHdr10x8_Float        = 0x95,
-    AstcHdr10x10_Float       = 0x96,
-    AstcHdr12x10_Float       = 0x97,
-    AstcHdr12x12_Float       = 0x98,
-    X8Y8_Z8Y8_Unorm          = 0x99, ///< _Untested._
-    X8Y8_Z8Y8_Uscaled        = 0x9A, ///< _Untested._
-    Y8X8_Y8Z8_Unorm          = 0x9B, ///< _Untested._
-    Y8X8_Y8Z8_Uscaled        = 0x9C, ///< _Untested._
-    AYUV                     = 0x9D, ///< YUV 4:4:4 packed format.  Valid Image and Color-Target view formats are
-                                     ///  { X8Y8Z8W8, Unorm } and { X8Y8Z8W8, Uint }.  Each view fully maps the
-                                     ///  entire YUV subresource, with the V,U,Y,A channels mapped to the X,Y,Z,W
-                                     ///  channels respectively.  Additionally, Image views can use the { X32, Uint }
-                                     ///  format where all four channels are packed into a single uint32.
-    UYVY                     = 0x9E, ///< YUV 4:2:2 packed format.  The Image data is subsampled such that each 32bit
-                                     ///  element contains two Y samples and one U and V sample.  Valid Image view
-                                     ///  formats are { X8Y8Z8W8, Unorm } and { X8Y8Z8W8, Uint }.  Each view fully
-                                     ///  maps the entire YUV subresource, with the X,Y,Z,W channels mapped to the
-                                     ///  U0,Y0,V0,Y1 channels respectively. Additionally, Image views can use the
-                                     ///  { X32, Uint } format where all four channels are packed into a single
-                                     ///  uint32. Image views can also use the { X8Y8_Z8Y8, Unorm } format to access
-                                     ///  these as well. In this case, the width of the Image view would appear to be
-                                     ///  twice as wide as it normally does, and the X0,Y0,Z0,Y1 channels map to the
-                                     ///  U0,Y0,V0,Y1 channels respectively.
-    VYUY                     = 0x9F, ///< YUV 4:2:2 packed format.  The image data is encoded just like the
-                                     ///  @ref ChNumFormat::UYVY format, except with a different channel ordering.
-                                     ///  Image views with X8Y8Z8W8 channel formats map the X,Y,Z,W channels to the
-                                     ///  V0,Y0,U0,Y1 channels respectively. Image views with the X8Y8_Z8Y8 channel
-                                     ///  format map the X0,Y0,Z0,Y1 channels to the V0,Y0,U0,Y1 channels
-                                     ///  respectively.
-    YUY2                     = 0xA0, ///< YUV 4:2:2 packed format.  The image data is encoded just like the
-                                     ///  @ref ChNumFormat::UYVY format, except with a different channel ordering.
-                                     ///  X8Y8Z8W8 Image view formats map the X,Y,Z,W channels to the Y0,U0,Y1,V0
-                                     ///  channels respectively. Image views can use the { Y8X8_Y8Z8, Unorm } format
-                                     ///  where the Y0,X0,Y1,Z0 channels are mapped to the Y0,U0,Y1,V0 channels.
-    YVY2                     = 0xA1, ///< YUV 4:2:2 packed format.  The image data is encoded just like the
-                                     ///  @ref ChNumFormat::YUY2 format, except with a different channel ordering.
-                                     ///  X8Y8Z8W8 Image view formats map the X,Y,Z,W channels to the Y0,V0,Y1,U0
-                                     ///  channels respectively. Image views can use the { Y8X8_Y8Z8, Unorm } format
-                                     ///  where the Y0,X0,Y1,Z0 channels are mapped to the Y0,V0,Y1,U0 channels.
-    YV12                     = 0xA2, ///< YVU 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y
-                                     ///  plane is first, containg a uint8 per sample.  Next is the V plane and the U
-                                     ///  plane, both of which have a uint8 per sample.  Valid Image view formats are
-                                     ///  { X8, Unorm } and { X8, Uint }.  Each view only has access to one of the Y,
-                                     ///  V, or U planes.
-    NV11                     = 0xA3, ///< YUV 4:1:1 planar format, with 8 bits per luma and chroma sample.  The Y
-                                     ///  plane is first, containing a uint8 per sample.  Next is a UV plane which
-                                     ///  has interleaved U and V samples, each stored as a uint8.  Valid Image and
-                                     ///  Color-Target view formats are { X8, Unorm }, { X8, Uint }, { X8Y8, Unorm }
-                                     ///  and { X8Y8, Uint }.  When using an X8 channel format for the View, the view
-                                     ///  only has access to the Y plane.  When using X8Y8, the view only has access
-                                     ///  to the UV plane.
-    NV12                     = 0xA4, ///< YUV 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y
-                                     ///  plane is first, containing a uint8 per sample.  Next is a UV plane which
-                                     ///  has interleaved U and V samples, each stored as a uint8.  Valid Image and
-                                     ///  Color-Target view formats are { X8, Unorm }, { X8, Uint }, { X8Y8, Unorm }
-                                     ///  and { X8Y8, Uint }.  When using an X8 channel format for the View, the view
-                                     ///  only has access to the Y plane.  When using X8Y8, the view only has access
-                                     ///  to the UV plane.
-    NV21                     = 0xA5, ///< YUV 4:2:0 planar format, with 8 bits per luma and chroma sample.  This is
-                                     ///  identical to @ref ChNumFormat::NV12, except that the second plane swaps the
-                                     ///  ordering of the U and V samples. Image views behave just like with
-                                     ///  @ref ChNumFormat::NV12.
-    P016                     = 0xA6, ///< YUV 4:2:0 planar format, with 16 bits per luma and chroma sample.  The
-                                     ///  plane ordering is identical to @ref ChNumFormat::NV12.  Instead of uint8
-                                     ///  samples, this format uses 8.8 fixed point sample encoding.  Image views
-                                     ///  behave just like with @ref ChNumFormat::NV12, except R16 channel formats
-                                     ///  are used for the Y plane, and X16Y16 channel formats are used for the UV
-                                     ///  plane.
-    P010                     = 0xA7, ///< YUV 4:2:0 planar format, with 10 bits per luma and chroma sample.  This is
-                                     ///  identical to @ref ChNumFormat::P016, except that the lowest 6 bits of each
-                                     ///  luma and chroma sample are ignored. This allows the source data to be
-                                     ///  interpreted as either P016 or P010 interchangably.
-    P210                     = 0xA8, ///< YUV 4:2:2 planar format, with 10 bits per luma and chroma sample. This is
-                                     ///  similar to @ref ChNumFormat::P010, except that the UV planes are sub-sampled
-                                     ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
-                                     ///  ends up having the same number of lines as the Y plane.
-    X8_MM_Unorm              = 0xA9, ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
-                                     ///  surfaces. Such as the Y plane or any plane in YV12.
-    X8_MM_Uint               = 0xAA, ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
-                                     ///  surfaces. Such as the Y plane or any plane in YV12.
-    X8Y8_MM_Unorm            = 0xAB, ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
-                                     ///  surfaces.
-    X8Y8_MM_Uint             = 0xAC, ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
-                                     ///  surfaces.
-    X16_MM10_Unorm           = 0xAD, ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
-                                     ///  surfaces (10-bit). Such as the Y plane or any plane in YV12.
-    X16_MM10_Uint            = 0xAE, ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
-                                     ///  surfaces (10-bit). Such as the Y plane or any plane in YV12.
-    X16Y16_MM10_Unorm        = 0xAF, ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
-                                     ///  surfaces (10-bit).
-    X16Y16_MM10_Uint         = 0xB0, ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
-                                     ///  surfaces (10-bit).
-    P208                     = 0xB1, ///< YUV 4:2:2 planar format, with 8 bits per luma and chroma sample. This is
-                                     ///  similar to @ref ChNumFormat::NV12, except that the UV planes are sub-sampled
-                                     ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
-                                     ///  ends up having the same number of lines as the Y plane. This format is
-                                     ///  sometimes referred to as NV16.
-    X16_MM12_Unorm           = 0xB2, ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
-                                     ///  surfaces (12-bit).
-    X16_MM12_Uint            = 0xB3, ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
-                                     ///  surfaces (12-bit).
-    X16Y16_MM12_Unorm        = 0xB4, ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
-                                     ///  surfaces (12-bit).
-    X16Y16_MM12_Uint         = 0xB5, ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
-                                     ///  surfaces (12-bit).
-    P012                     = 0xB6, ///< YUV 4:2:0 planar format, with 12 bits per luma and chroma sample.  This is
-                                     ///  identical to @ref ChNumFormat::P010, except that the lowest 4 bits of each
-                                     ///  luma and chroma sample are ignored.
-    P212                     = 0xB7, ///< YUV 4:2:2 planar format, with 12 bits per luma and chroma sample.  This is
-                                     ///  identical to @ref ChNumFormat::P210, except that the lowest 4 bits of each
-                                     ///  luma and chroma sample are ignored.
-    P412                     = 0xB8, ///< YUV 4:4:4 planar format, with 12 bits per luma and chroma sample. It consists
-                                     ///  of a Y-plane followed by an interleaved UV plane.
-    X10Y10Z10W2_Float        = 0xB9, ///< RGBA format with three 10-bit floats (6e4) and a 2-bit unorm as alpha.
-    Y216                     = 0xBA, ///< YUV 4:2:2 packed, with 16 bits per luma or chroma sample. No alpha.
-    Y210                     = 0xBB, ///< YUV 4:2:2 packed, with 10 bits per luma or chroma sample. No alpha.
-                                     ///  Same memory layout as @ref ChNumFormat::Y216.
-                                     ///  The lowest 6 bits of each sample are ignored.
-    Y416                     = 0xBC, ///< YUV 4:4:4 packed, with 16 bits per luma or chroma sample.
-    Y410                     = 0xBD, ///< YUV 4:4:4 packed, with 10 bits per luma or chroma sample and 2 bits for alpha.
+    X9Y9Z9E5_Float           = 0x56,    ///< Three partial-precision floating-point numbers encoded into a single 32-bit
+                                        ///  value all sharing the same 5-bit exponent (variant of s10e5, which is sign
+                                        ///  bit, 10-bit mantissa, and 5-bit biased (15) exponent). There is no sign
+                                        ///  bit, and there is a shared 5-bit biased (15) exponent and a 9-bit mantissa
+                                        ///  for each channelShared exponent format.
+    Bc1_Unorm                = 0x57,    ///< BC1 compressed texture format.
+    Bc1_Srgb                 = 0x58,    ///< BC1 compressed texture format.
+    Bc2_Unorm                = 0x59,    ///< BC2 compressed texture format.
+    Bc2_Srgb                 = 0x5A,    ///< BC2 compressed texture format.
+    Bc3_Unorm                = 0x5B,    ///< BC3 compressed texture format.
+    Bc3_Srgb                 = 0x5C,    ///< BC3 compressed texture format.
+    Bc4_Unorm                = 0x5D,    ///< BC4 compressed texture format.
+    Bc4_Snorm                = 0x5E,    ///< BC4 compressed texture format.
+    Bc5_Unorm                = 0x5F,    ///< BC5 compressed texture format.
+    Bc5_Snorm                = 0x60,    ///< BC5 compressed texture format.
+    Bc6_Ufloat               = 0x61,    ///< BC6 unsigned compressed texture format.
+    Bc6_Sfloat               = 0x62,    ///< BC6 signed compressed texture format.
+    Bc7_Unorm                = 0x63,    ///< BC7 compressed texture format.
+    Bc7_Srgb                 = 0x64,    ///< BC7 compressed texture format.
+    Etc2X8Y8Z8_Unorm         = 0x65,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8_Srgb          = 0x66,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8W1_Unorm       = 0x67,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8W1_Srgb        = 0x68,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8W8_Unorm       = 0x69,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X8Y8Z8W8_Srgb        = 0x6A,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X11_Unorm            = 0x6B,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X11_Snorm            = 0x6C,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X11Y11_Unorm         = 0x6D,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    Etc2X11Y11_Snorm         = 0x6E,    //#< _Untested._ [ETC Formats](http://tinyurl.com/qznv7od)
+    AstcLdr4x4_Unorm         = 0x6F,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr4x4_Srgb          = 0x70,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr5x4_Unorm         = 0x71,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr5x4_Srgb          = 0x72,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr5x5_Unorm         = 0x73,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr5x5_Srgb          = 0x74,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr6x5_Unorm         = 0x75,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr6x5_Srgb          = 0x76,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr6x6_Unorm         = 0x77,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr6x6_Srgb          = 0x78,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x5_Unorm         = 0x79,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x5_Srgb          = 0x7A,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x6_Unorm         = 0x7B,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x6_Srgb          = 0x7C,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x8_Unorm         = 0x7D,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr8x8_Srgb          = 0x7E,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x5_Unorm        = 0x7F,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x5_Srgb         = 0x80,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x6_Unorm        = 0x81,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x6_Srgb         = 0x82,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x8_Unorm        = 0x83,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x8_Srgb         = 0x84,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x10_Unorm       = 0x85,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr10x10_Srgb        = 0x86,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr12x10_Unorm       = 0x87,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr12x10_Srgb        = 0x88,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr12x12_Unorm       = 0x89,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcLdr12x12_Srgb        = 0x8A,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr4x4_Float         = 0x8B,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr5x4_Float         = 0x8C,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr5x5_Float         = 0x8D,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr6x5_Float         = 0x8E,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr6x6_Float         = 0x8F,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr8x5_Float         = 0x90,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr8x6_Float         = 0x91,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr8x8_Float         = 0x92,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr10x5_Float        = 0x93,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr10x6_Float        = 0x94,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr10x8_Float        = 0x95,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr10x10_Float       = 0x96,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr12x10_Float       = 0x97,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    AstcHdr12x12_Float       = 0x98,    //#< _Untested._ [ASTC Formats](http://tinyurl.com/oysygeq)
+    X8Y8_Z8Y8_Unorm          = 0x99,    ///< _Untested._
+    X8Y8_Z8Y8_Uscaled        = 0x9A,    ///< _Untested._
+    Y8X8_Y8Z8_Unorm          = 0x9B,    ///< _Untested._
+    Y8X8_Y8Z8_Uscaled        = 0x9C,    ///< _Untested._
+    AYUV                     = 0x9D,    ///< YUV 4:4:4 packed format.  Valid Image and Color-Target view formats are
+                                        ///  { X8Y8Z8W8, Unorm } and { X8Y8Z8W8, Uint }.  Each view fully maps the
+                                        ///  entire YUV subresource, with the V,U,Y,A channels mapped to the X,Y,Z,W
+                                        ///  channels respectively.  Additionally, Image views can use the { X32, Uint }
+                                        ///  format where all four channels are packed into a single uint32.
+    UYVY                     = 0x9E,    ///< YUV 4:2:2 packed format.  The Image data is subsampled such that each 32bit
+                                        ///  element contains two Y samples and one U and V sample.  Valid Image view
+                                        ///  formats are { X8Y8Z8W8, Unorm } and { X8Y8Z8W8, Uint }.  Each view fully
+                                        ///  maps the entire YUV subresource, with the X,Y,Z,W channels mapped to the
+                                        ///  U0,Y0,V0,Y1 channels respectively. Additionally, Image views can use the
+                                        ///  { X32, Uint } format where all four channels are packed into a single
+                                        ///  uint32. Image views can also use the { X8Y8_Z8Y8, Unorm } format to access
+                                        ///  these as well. In this case, the width of the Image view would appear to be
+                                        ///  twice as wide as it normally does, and the X0,Y0,Z0,Y1 channels map to the
+                                        ///  U0,Y0,V0,Y1 channels respectively.
+    VYUY                     = 0x9F,    ///< YUV 4:2:2 packed format.  The image data is encoded just like the
+                                        ///  @ref ChNumFormat::UYVY format, except with a different channel ordering.
+                                        ///  Image views with X8Y8Z8W8 channel formats map the X,Y,Z,W channels to the
+                                        ///  V0,Y0,U0,Y1 channels respectively. Image views with the X8Y8_Z8Y8 channel
+                                        ///  format map the X0,Y0,Z0,Y1 channels to the V0,Y0,U0,Y1 channels
+                                        ///  respectively.
+    YUY2                     = 0xA0,    ///< YUV 4:2:2 packed format.  The image data is encoded just like the
+                                        ///  @ref ChNumFormat::UYVY format, except with a different channel ordering.
+                                        ///  X8Y8Z8W8 Image view formats map the X,Y,Z,W channels to the Y0,U0,Y1,V0
+                                        ///  channels respectively. Image views can use the { Y8X8_Y8Z8, Unorm } format
+                                        ///  where the Y0,X0,Y1,Z0 channels are mapped to the Y0,U0,Y1,V0 channels.
+    YVY2                     = 0xA1,    ///< YUV 4:2:2 packed format.  The image data is encoded just like the
+                                        ///  @ref ChNumFormat::YUY2 format, except with a different channel ordering.
+                                        ///  X8Y8Z8W8 Image view formats map the X,Y,Z,W channels to the Y0,V0,Y1,U0
+                                        ///  channels respectively. Image views can use the { Y8X8_Y8Z8, Unorm } format
+                                        ///  where the Y0,X0,Y1,Z0 channels are mapped to the Y0,V0,Y1,U0 channels.
+    YV12                     = 0xA2,    ///< YVU 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y
+                                        ///  plane is first, containg a uint8 per sample.  Next is the V plane and the U
+                                        ///  plane, both of which have a uint8 per sample.  Valid Image view formats are
+                                        ///  { X8, Unorm } and { X8, Uint }.  Each view only has access to one of the Y,
+                                        ///  V, or U planes.
+    NV11                     = 0xA3,    ///< YUV 4:1:1 planar format, with 8 bits per luma and chroma sample.  The Y
+                                        ///  plane is first, containing a uint8 per sample.  Next is a UV plane which
+                                        ///  has interleaved U and V samples, each stored as a uint8.  Valid Image and
+                                        ///  Color-Target view formats are { X8, Unorm }, { X8, Uint }, { X8Y8, Unorm }
+                                        ///  and { X8Y8, Uint }.  When using an X8 channel format for the View, the view
+                                        ///  only has access to the Y plane.  When using X8Y8, the view only has access
+                                        ///  to the UV plane.
+    NV12                     = 0xA4,    ///< YUV 4:2:0 planar format, with 8 bits per luma and chroma sample.  The Y
+                                        ///  plane is first, containing a uint8 per sample.  Next is a UV plane which
+                                        ///  has interleaved U and V samples, each stored as a uint8.  Valid Image and
+                                        ///  Color-Target view formats are { X8, Unorm }, { X8, Uint }, { X8Y8, Unorm }
+                                        ///  and { X8Y8, Uint }.  When using an X8 channel format for the View, the view
+                                        ///  only has access to the Y plane.  When using X8Y8, the view only has access
+                                        ///  to the UV plane.
+    NV21                     = 0xA5,    ///< YUV 4:2:0 planar format, with 8 bits per luma and chroma sample.  This is
+                                        ///  identical to @ref ChNumFormat::NV12, except that the second plane swaps the
+                                        ///  ordering of the U and V samples. Image views behave just like with
+                                        ///  @ref ChNumFormat::NV12.
+    P016                     = 0xA6,    ///< YUV 4:2:0 planar format, with 16 bits per luma and chroma sample.  The
+                                        ///  plane ordering is identical to @ref ChNumFormat::NV12.  Instead of uint8
+                                        ///  samples, this format uses 8.8 fixed point sample encoding.  Image views
+                                        ///  behave just like with @ref ChNumFormat::NV12, except R16 channel formats
+                                        ///  are used for the Y plane, and X16Y16 channel formats are used for the UV
+                                        ///  plane.
+    P010                     = 0xA7,    ///< YUV 4:2:0 planar format, with 10 bits per luma and chroma sample.  This is
+                                        ///  identical to @ref ChNumFormat::P016, except that the lowest 6 bits of each
+                                        ///  luma and chroma sample are ignored. This allows the source data to be
+                                        ///  interpreted as either P016 or P010 interchangably.
+    P210                     = 0xA8,    ///< YUV 4:2:2 planar format, with 10 bits per luma and chroma sample. This is
+                                        ///  similar to @ref ChNumFormat::P010, except that the UV planes are sub-sampled
+                                        ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
+                                        ///  ends up having the same number of lines as the Y plane.
+    X8_MM_Unorm              = 0xA9,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces. Such as the Y plane or any plane in YV12.
+    X8_MM_Uint               = 0xAA,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces. Such as the Y plane or any plane in YV12.
+    X8Y8_MM_Unorm            = 0xAB,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces.
+    X8Y8_MM_Uint             = 0xAC,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces.
+    X16_MM10_Unorm           = 0xAD,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces (10-bit). Such as the Y plane or any plane in YV12.
+    X16_MM10_Uint            = 0xAE,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces (10-bit). Such as the Y plane or any plane in YV12.
+    X16Y16_MM10_Unorm        = 0xAF,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces (10-bit).
+    X16Y16_MM10_Uint         = 0xB0,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces (10-bit).
+    P208                     = 0xB1,    ///< YUV 4:2:2 planar format, with 8 bits per luma and chroma sample. This is
+                                        ///  similar to @ref ChNumFormat::NV12, except that the UV planes are sub-sampled
+                                        ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
+                                        ///  ends up having the same number of lines as the Y plane. This format is
+                                        ///  sometimes referred to as NV16.
+    X16_MM12_Unorm           = 0xB2,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces (12-bit).
+    X16_MM12_Uint            = 0xB3,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces (12-bit).
+    X16Y16_MM12_Unorm        = 0xB4,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces (12-bit).
+    X16Y16_MM12_Uint         = 0xB5,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces (12-bit).
+    P012                     = 0xB6,    ///< YUV 4:2:0 planar format, with 12 bits per luma and chroma sample.  This is
+                                        ///  identical to @ref ChNumFormat::P010, except that the lowest 4 bits of each
+                                        ///  luma and chroma sample are ignored.
+    P212                     = 0xB7,    ///< YUV 4:2:2 planar format, with 12 bits per luma and chroma sample.  This is
+                                        ///  identical to @ref ChNumFormat::P210, except that the lowest 4 bits of each
+                                        ///  luma and chroma sample are ignored.
+    P412                     = 0xB8,    ///< YUV 4:4:4 planar format, with 12 bits per luma and chroma sample. It consists
+                                        ///  of a Y-plane followed by an interleaved UV plane.
+    X10Y10Z10W2_Float        = 0xB9,    ///< RGBA format with three 10-bit floats (6e4) and a 2-bit unorm as alpha.
+    Y216                     = 0xBA,    ///< YUV 4:2:2 packed, with 16 bits per luma or chroma sample. No alpha.
+    Y210                     = 0xBB,    ///< YUV 4:2:2 packed, with 10 bits per luma or chroma sample. No alpha.
+                                        ///  Same memory layout as @ref ChNumFormat::Y216.
+                                        ///  The lowest 6 bits of each sample are ignored.
+    Y416                     = 0xBC,    ///< YUV 4:4:4 packed, with 16 bits per luma or chroma sample.
+    Y410                     = 0xBD,    ///< YUV 4:4:4 packed, with 10 bits per luma or chroma sample and 2 bits for alpha.
+#if PAL_BUILD_GFX13
+    X24_Unorm                = 0xBE,
+#else
     _ReservedBE              = 0xBE,
-    P216                     = 0xBF, ///< YUV 4:2:2 planar format, with 16 bits per luma and chroma sample. It consists
-                                     ///  of a Y-plane followed by interleaved UV plane.
-    YUV_420P10               = 0xC0, ///< YUV 4:2:0 tri-planar format, with 10 bits per luma and chroma sample.
-    YUV_422P10               = 0xC1, ///< YUV 4:2:2 tri-planar format, with 10 bits per luma and chroma sample.
-    YUV_444P10               = 0xC2, ///< YUV 4:4:4 tri-planar format, with 10 bits per luma and chroma sample.
-    YUV_420P12               = 0xC3, ///< YUV 4:2:0 tri-planar format, with 12 bits per luma and chroma sample.
-    YUV_422P12               = 0xC4, ///< YUV 4:2:2 tri-planar format, with 12 bits per luma and chroma sample.
-    YUV_444P12               = 0xC5, ///< YUV 4:4:4 tri-planar format, with 12 bits per luma and chroma sample.
-    YUV_420P16               = 0xC6, ///< YUV 4:2:0 tri-planar format, with 16 bits per luma and chroma sample.
-    YUV_422P16               = 0xC7, ///< YUV 4:2:2 tri-planar format, with 16 bits per luma and chroma sample.
-    YUV_444P16               = 0xC8, ///< YUV 4:4:4 tri-planar format, with 16 bits per luma and chroma sample.
-    YV16                     = 0xC9, ///< YVU 4:2:2 tri-planar format, with 8 bits per luma and chroma sample. This
-                                     ///  is similar to @ref ChNumFormat::YV12, except chroma is not subsampled in
-                                     ///  vertical direction.
-    YV24                     = 0xCA, ///< YVU 4:4:4 tri-planar format, with 8 bits per luma and chroma sample. This
-                                     ///  is similar to @ref ChNumFormat::YV12, except chroma is not subsampled.
-    NV24                     = 0xCB, ///< YUV 4:4:4 bi-planar format, with 8 bits per luma and chroma sample. This
-                                     ///  is similar to @ref ChNumFormat::NV12, except chroma is not subsampled.
-                                     ///  This format is sometimes referred to as P408.
-    P410                     = 0xCC, ///< YUV 4:4:4 planar format, with 10 bits per luma and chroma sample. It consists
-                                     ///  of a Y-plane followed by interleaved UV plane.
-    P416                     = 0xCD, ///< YUV 4:4:4 planar format, with 16 bits per luma and chroma sample. It consists
-                                     ///  of a Y-plane followed by interleaved UV plane.
-    X16Y16Z16W16_MM10_Unorm  = 0xCE, ///< A four component format with 16 bits of storage per component. Lowest 6 bits
-                                     ///  of each component are ignored.
-    X16Y16Z16W16_MM10_Uint   = 0xCF, ///< A four component format with 16 bits of storage per component. Lowest 6 bits
-                                     ///  of each component are ignored.
-    X16Y16Z16W16_MM12_Unorm  = 0xD0, ///< A four component format with 16 bits of storage per component. Lowest 4 bits
-                                     ///  of each component are ignored.
-    X16Y16Z16W16_MM12_Uint   = 0xD1, ///< A four component format with 16 bits of storage per component. Lowest 4 bits
-                                     ///  of each component are ignored.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 923
+    P216                     = 0xBF,    ///< YUV 4:2:2 planar format, with 16 bits per luma and chroma sample. It consists
+                                        ///  of a Y-plane followed by interleaved UV plane.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 924
+    YUV_420P10               = 0xC0,    ///< YUV 4:2:0 tri-planar format, with 10 bits per luma and chroma sample.
+    YUV_422P10               = 0xC1,    ///< YUV 4:2:2 tri-planar format, with 10 bits per luma and chroma sample.
+    YUV_444P10               = 0xC2,    ///< YUV 4:4:4 tri-planar format, with 10 bits per luma and chroma sample.
+    YUV_420P12               = 0xC3,    ///< YUV 4:2:0 tri-planar format, with 12 bits per luma and chroma sample.
+    YUV_422P12               = 0xC4,    ///< YUV 4:2:2 tri-planar format, with 12 bits per luma and chroma sample.
+    YUV_444P12               = 0xC5,    ///< YUV 4:4:4 tri-planar format, with 12 bits per luma and chroma sample.
+    YUV_420P16               = 0xC6,    ///< YUV 4:2:0 tri-planar format, with 16 bits per luma and chroma sample.
+    YUV_422P16               = 0xC7,    ///< YUV 4:2:2 tri-planar format, with 16 bits per luma and chroma sample.
+    YUV_444P16               = 0xC8,    ///< YUV 4:4:4 tri-planar format, with 16 bits per luma and chroma sample.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 925
+    YV16                     = 0xC9,    ///< YVU 4:2:2 tri-planar format, with 8 bits per luma and chroma sample. This
+                                        ///  is similar to @ref ChNumFormat::YV12, except chroma is not subsampled in
+                                        ///  vertical direction.
+    YV24                     = 0xCA,    ///< YVU 4:4:4 tri-planar format, with 8 bits per luma and chroma sample. This
+                                        ///  is similar to @ref ChNumFormat::YV12, except chroma is not subsampled.
+    NV24                     = 0xCB,    ///< YUV 4:4:4 bi-planar format, with 8 bits per luma and chroma sample. This
+                                        ///  is similar to @ref ChNumFormat::NV12, except chroma is not subsampled.
+                                        ///  This format is sometimes referred to as P408.
+    P410                     = 0xCC,    ///< YUV 4:4:4 planar format, with 10 bits per luma and chroma sample. It consists
+                                        ///  of a Y-plane followed by interleaved UV plane.
+    P416                     = 0xCD,    ///< YUV 4:4:4 planar format, with 16 bits per luma and chroma sample. It consists
+                                        ///  of a Y-plane followed by interleaved UV plane.
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 929
+    X16Y16Z16W16_MM10_Unorm  = 0xCE,    ///< A four component format with 16 bits of storage per component. Lowest 6 bits of
+                                        ///  each component are ignored.
+    X16Y16Z16W16_MM10_Uint   = 0xCF,    ///< A four component format with 16 bits of storage per component. Lowest 6 bits of
+                                        ///  each component are ignored.
+    X16Y16Z16W16_MM12_Unorm  = 0xD0,    ///< A four component format with 16 bits of storage per component. Lowest 4 bits of
+                                        ///  each component are ignored.
+    X16Y16Z16W16_MM12_Uint   = 0xD1,    ///< A four component format with 16 bits of storage per component. Lowest 4 bits of
+                                        ///  each component are ignored.
+#endif
     Count,
 
 };

@@ -101,7 +101,7 @@ class Primitives<T, RedOp, Fan, Direct,
     // volatile is faster than acquire but not as correct. Make sure reduceCopy
     // loads data using volatile so it doesn't see stale data in L1.
     //
-    // To be revisited for correctness on gfx1250
+    // To be revisited for correctness on gfx12xx
 #if defined(__gfx950__)
     // NET no-GDR can publish host-staged payloads from the CPU proxy.
     // Acquire the tail before GPU workers consume the payload.
@@ -111,6 +111,7 @@ class Primitives<T, RedOp, Fan, Direct,
 #else
     return __atomic_load_n(ptr, __ATOMIC_RELAXED);
 #endif
+
   }
 
   template <int DirectRecv, int DirectSend, int Recv, int Send, int Src, int Dst>
@@ -188,8 +189,8 @@ class Primitives<T, RedOp, Fan, Direct,
   inline __device__ void postPeer(bool dataStored) {
     if (skip_fence) {
       __atomic_signal_fence(__ATOMIC_SEQ_CST);
-#if defined(__gfx1250__)
-      // To be revisited for correctness and performance on gfx1250
+#if defined(__gfx1250__) || defined(__gfx1260__)
+      // To be revisited for correctness and performance on gfx12xx
       barrier_generic(asm volatile("s_wait_loadcnt 0x0\n\ts_wait_storecnt 0x0"), nworkers, barrier_next, barriers);
 #else
       barrier_generic(asm volatile("s_waitcnt lgkmcnt(0) vmcnt(0)"), nworkers, barrier_next, barriers);

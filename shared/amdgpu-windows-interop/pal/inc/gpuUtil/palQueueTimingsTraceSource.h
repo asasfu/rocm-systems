@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 
 #pragma once
 
@@ -39,6 +16,18 @@ namespace Pal
 class Platform;
 }
 
+#if PAL_CLIENT_DX && _WIN32
+namespace DevDriver
+{
+class DevDriverServer;
+
+namespace ETWProtocol
+{
+class ETWClient;
+} // namespace ETWProtocol
+} // namespace DevDriver
+#endif // PAL_CLIENT_DX && _WIN32
+
 namespace GpuUtil
 {
 namespace TraceChunk
@@ -51,15 +40,14 @@ constexpr Pal::uint32 QueueInfoChunkVersion                = 1;
 /// Enum describing logical queue types
 enum class QueueType : Pal::uint8
 {
-    Unknown          = 0,
-    Universal        = 1,
-    Compute          = 2,
-    Dma              = 3,
-    Encode           = 4,
-    Decode           = 5,
-    Security         = 6,
-    VideoProcessor   = 7,
-    MotionEstimation = 8,
+    Unknown        = 0,
+    Universal      = 1,
+    Compute        = 2,
+    Dma            = 3,
+    Encode         = 4,
+    Decode         = 5,
+    Security       = 6,
+    VideoProcessor = 7
 };
 
 /// Enum describing hardware engine types
@@ -75,8 +63,7 @@ enum class HwEngineType : Pal::uint8
     HighPriorityUniversal = 7,
     HighPriorityGraphics  = 8,
     Security              = 9,
-    Vpe                   = 10,
-    MotionEstimation      = 11,
+    Vpe                   = 10
 };
 
 /// Structure describing a queue's properties
@@ -102,8 +89,7 @@ enum class QueueEventType : Pal::uint32
     CmdBufSubmit    = 0,
     SignalSemaphore = 1,
     WaitSemaphore   = 2,
-    Present         = 3,
-    Unknown         = 0xFF,
+    Present         = 3
 };
 
 /// Structure describing a queue-level timings event
@@ -197,8 +183,18 @@ public:
 
     virtual void OnTraceAccepted(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override;
     virtual void OnTraceBegin(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override { };
-    virtual void OnPostambleEnd(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override;
-    virtual void OnTraceEnd(Pal::uint32 gpuIndex, Pal::ICmdBuffer* pCmdBuf) override {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 939
+    virtual void OnPostambleEnd(
+        Pal::uint32      gpuIndex,
+        Pal::ICmdBuffer* pCmdBuf) override;
+    virtual void OnTraceEnd(
+        Pal::uint32      gpuIndex,
+        Pal::ICmdBuffer* pCmdBuf) override {};
+#else
+    virtual void OnTraceEnd(
+        Pal::uint32      gpuIndex,
+        Pal::ICmdBuffer* pCmdBuf) override;
+#endif
     virtual void OnTraceFinished() override;
 
     virtual const char* GetName() const override { return QueueTimingsTraceSourceName; }
@@ -224,6 +220,14 @@ private:
 
     Pal::uint32           m_traceGpuIndex;
 
+#if PAL_CLIENT_DX && _WIN32
+    Pal::Result InitEtwClient();
+    void CollectEtwEvents();
+    void CleanupEtwClient();
+
+    DevDriver::ETWProtocol::ETWClient* m_pEtwClient;       // ETW client handle used to collect GPU events
+    DevDriver::DevDriverServer*        m_pDevDriverServer; // DevDriver server handle
+#endif
 };
 
 } // namespace GpuUtil

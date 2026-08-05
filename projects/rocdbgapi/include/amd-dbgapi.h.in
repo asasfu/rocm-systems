@@ -288,9 +288,13 @@
  * - gfx1102 (Hotpink Bonefish)
  * - gfx1150
  * - gfx1151
+ * - gfx1170
+ * - gfx1171
+ * - gfx1172
  * - gfx1200
  * - gfx1201
  * - gfx1250
+ * - gfx1251
  *
  * The following generic AMD GPU architectures are supported:
  *

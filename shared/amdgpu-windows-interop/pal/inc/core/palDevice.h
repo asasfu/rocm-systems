@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palDevice.h
@@ -60,7 +37,6 @@ namespace Pal
 class IBorderColorPalette;
 class ICmdAllocator;
 class ICmdBuffer;
-class ICodeObject;
 class IColorBlendState;
 class IColorTargetView;
 class IDepthStencilState;
@@ -69,6 +45,9 @@ class IDevice;
 class IFence;
 class IGpuEvent;
 class IGpuMemory;
+#if PAL_WORK_GRAPHS_SUPPORT
+class IGraphLayout;
+#endif
 class IImage;
 class IIndirectCmdGenerator;
 class IMsaaState;
@@ -80,10 +59,23 @@ class IQueue;
 class IQueueSemaphore;
 class IShaderLibrary;
 class ISwapChain;
+#if PAL_BUILD_VIDEO
+class IVideoDecoder;
+class IVideoEncoder;
+class IMotionEstimator;
+#endif
+#if PAL_BUILD_SECURITY
+class ISecureProcessor;
+#endif
+#if PAL_BUILD_VPE
+class IVideoProcessor;
+#endif
+#if PAL_WORK_GRAPHS_SUPPORT
+class IWorkGraph;
+#endif
 struct BorderColorPaletteCreateInfo;
 struct CmdAllocatorCreateInfo;
 struct CmdBufferCreateInfo;
-struct CodeObjectCreateInfo;
 struct ColorBlendStateCreateInfo;
 struct ColorTargetViewCreateInfo;
 struct ComputePipelineCreateInfo;
@@ -97,12 +89,33 @@ struct GpuEventCreateInfo;
 struct GpuMemoryCreateInfo;
 struct GpuMemoryOpenInfo;
 struct GpuMemoryRef;
+#if PAL_WORK_GRAPHS_SUPPORT
+struct GraphLayoutCreateInfo;
+#endif
 struct GraphicsPipelineCreateInfo;
+#if PAL_BUILD_VIDEO
+struct VideoDecoderCreateInfo;
+struct VideoDecoderGpuMemInfo;
+struct VideoEncoderCreateInfo;
+struct MotionEstimatorCreateInfo;
+enum class MeOutputFormat : uint32;
+#endif
+#if PAL_BUILD_SECURITY
+struct SecureProcessorCreateInfo;
+struct SecureProcessorCmdInfo;
+#endif
+#if PAL_BUILD_VPE
+struct VideoProcessorCreateInfo;
+struct VideoProcessorFrameInfo;
+#endif
 struct ImageCreateInfo;
 struct IndirectCmdGeneratorCreateInfo;
 struct MsaaStateCreateInfo;
 struct MsaaQuadSamplePattern;
 struct PeerGpuMemoryOpenInfo;
+#if PAL_CLIENT_DX
+struct MultiDeviceGpuMemoryOpenInfo;
+#endif
 struct PeerImageOpenInfo;
 struct PerfExperimentCreateInfo;
 struct PinnedGpuMemoryCreateInfo;
@@ -118,6 +131,9 @@ struct SwapChainCreateInfo;
 struct SwapChainProperties;
 struct SvmGpuMemoryCreateInfo;
 struct GraphicPipelineViewInstancingInfo;
+#if PAL_WORK_GRAPHS_SUPPORT
+struct WorkGraphCreateInfo;
+#endif
 enum class WsiPlatform : uint32;
 enum class PipelineBindPoint : uint32;
 enum class VaRange : uint32;
@@ -175,7 +191,65 @@ enum class VcnIpLevel : uint32
 #ifndef None
     None     = _None, ///< The device does not have an VCNIP block, or its level cannot be determined
 #endif
+#if PAL_BUILD_VIDEO
+    VcnIp2   = 0x1,   ///< VCNIP 2.0 (Navi1x)
+#endif
+#if PAL_BUILD_VCN3
+    VcnIp3   = 0x2,   ///< VCNIP 3.0 (Navi2x)
+    VcnIp3_1 = 0x3,   ///< VCNIP 3.1 (Rembrandt, Raphael, Mendocino)
+#endif
+#if PAL_BUILD_VCN4
+    VcnIp4   = 0x4,   ///< VCNIP 4.0 (Navi3x)
+#endif
+#if PAL_BUILD_VCN5
+    VcnIp5   = 0x5,   ///< VCNIP 5.0 (Navi4x)
+    VcnIp5_3 = 0x6,   ///# VCNIP 5.3 (Medusa1)
+#endif
 };
+
+#if PAL_BUILD_BRIGHTON
+/// Specifies which BRIGHTON IP level this device has.
+enum class BrightonIpLevel : uint32
+{
+    _None    = 0x0,   ///< @internal The device does not have an BRIGHTONIP block, or its level cannot be determined
+
+    // Unfortunately for Linux clients, X.h includes a "#define None 0" macro.  Clients have their choice of either
+    // undefing None before including this header or using _None when dealing with PAL.
+#ifndef None
+    None     = _None, ///< The device does not have an VCNIP block, or its level cannot be determined
+#endif
+    BrightonIp3_0 = 0x1,   //# BRIGHTONIP 3.0 (AlphaTrion1, AtLite3)
+};
+#endif
+
+#if PAL_BUILD_VPE
+/// Specifies which VPE IP level this device has.
+enum class VpeIpLevel : uint32
+{
+    _None = 0x0,   ///< @internal The device does not have an VPEIP block, or its level cannot be determined
+
+    // Unfortunately for Linux clients, X.h includes a "#define None 0" macro.  Clients have their choice of either
+    // undefing None before including this header or using _None when dealing with PAL.
+#ifndef None
+    None     = _None, ///< The device does not have an VPEIP block, or its level cannot be determined
+#endif
+
+    VpeIp1,    //# VPE v1 (Strix)
+#if PAL_BUILD_VPE11
+    VpeIp1_1,  //# VPE v1.1 (Strix Halo)
+#endif
+#if PAL_BUILD_VPE20
+    VpeIp2_0,  //# VPE v2.0 (Medusa)
+#endif
+#if PAL_BUILD_VPE22
+    VpeIp2_2,  //# VPE v2.0 (Gainsborough)
+#endif
+#if PAL_BUILD_VPE30
+    VpeIp3_0,  //# VPE v3.0 (Magnus)
+#endif
+
+};
+#endif
 
 /// Specifies which PSP IP level this device has.
 enum class PspIpLevel : uint32
@@ -184,7 +258,7 @@ enum class PspIpLevel : uint32
 #ifndef None
     None     = _None, ///< The device does not have an PSPIP block, or its level cannot be determined
 #endif
-    PspIp10  = 0x1,
+    PspIp10  = 0x1,   //# PSP10
 };
 
 /// Specified video decode type
@@ -274,6 +348,16 @@ enum TexFetchMetaDataCaps : uint32
     TexFetchMetaDataCapsAllowZ16 = 0x00000040,
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
+/// Catalyst AI setting enums
+enum CatalystAiSettings : uint32
+{
+    CatalystAiDisable = 0,
+    CatalystAiEnable = 1,
+    CatalystAiMaximum = 2,
+};
+#endif
+
 /// Texture Filter optimization enum values
 enum TextureFilterOptimizationSettings : uint32
 {
@@ -319,6 +403,9 @@ enum InternalSettingScope : uint32
     PublicCatalystKey  = 0x3,
     PrivatePalGfx9Key  = 0x4,
     PrivatePalGfx12Key = 0x5,
+#if PAL_BUILD_GFX13
+    PrivatePalGfx13Key = 0x6,
+#endif
     PublicPalFile      = 0x9,
     RootDriverKey      = 0xa,
 };
@@ -337,8 +424,14 @@ enum RsFeatureType : uint32
     RsFeatureTypeTurboSync = (1u << 0),
     RsFeatureTypeChill     = (1u << 1),
     RsFeatureTypeDelag     = (1u << 2),
+#if PAL_BUILD_RIS
+    RsFeatureTypeRis       = (1u << 3),
+#endif
     RsFeatureTypeBoost     = (1u << 4),
     RsFeatureTypeProVsr    = (1u << 5),
+#if PAL_BUILD_RT_BOOST
+    RsFeatureTypeRtBoost   = (1u << 6),
+#endif
 };
 
 /// Output structure containing information about the requested RsFeatureType (singular).
@@ -386,6 +479,22 @@ union RsFeatureInfo
         uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to ProVsr.
     } proVsr;
 
+#if PAL_BUILD_RIS
+    /// Global Radeon Image Sharpening settings.
+    struct
+    {
+        bool  enabled;   ///< Specifies whether RIS is enabled globally.
+        float sharpness; ///< Specifies the global RIS sharpness factor (value from 0.0 - 1.0).
+    } ris;
+#endif
+
+#if PAL_BUILD_RT_BOOST
+    /// Global Ray Tracing Boost settings.
+    struct
+    {
+        bool enabled;    ///< Specifies whether rtBoost is enabled globally.
+    } rtBoost;
+#endif
 };
 
 /// High-dynamic range (HDR) surface display modes.  Used to indicate the HDR display standard for a particular swap
@@ -487,6 +596,11 @@ struct PalPublicSettings
     /// Whether to use graphics or compute for performing fast clears on depth stencil views.
     FastDepthStencilClearMode fastDepthStencilClearMode;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
+    /// Forces all serialized loads (LoadPipeline or LoadCompoundState) to fail.
+    bool forceLoadObjectFailure;
+#endif
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 956
     /// Controls the distribution mode for tessellation, which affects how patches are processed by different VGT
     /// units. 0: None - No distribution across VGTs (legacy mode). 1: Default - Optimal settings are chosen depending
@@ -510,14 +624,34 @@ struct PalPublicSettings
     /// functionalities on gfx/compute engines.
     bool disableResourceProcessingManager;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
+    /// Controls app detect and image quality altering optimizations exposed by CCC.
+    uint32 catalystAI;
+#endif
+
     /// Controls texture filtering optimizations exposed by CCC.
     uint32 textureOptLevel;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
+    /// Disables SC initialization. It can be enabled only if a PAL client won't use SC for shader compilation and
+    /// provide direct ISA binaries(usually AQL path).
+    bool disableScManager;
+#endif
 
     /// Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)
     char renderedByString[MaxMiscStrLen];
 
     /// Debug information that the client or tester might want reported.
     char miscellaneousDebugString[MaxMiscStrLen];
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
+    /// Allows SC to make optimizations at the expense of IEEE compliance.
+    bool allowNonIeeeOperations;
+
+    /// Controls whether shaders should execute one atomic instruction per wave for UAV append/consume operations.
+    /// If false, one atomic will be executed per thread.
+    bool appendBufPerWaveAtomic;
+#endif
 
     /// Bitmask of cases where texture compatible meta data will be used Single-sample color surface: 0x00000001 MSAA
     /// color surface: 0x00000002 FMask data: 0x00000004 Single-sample depth surface: 0x00000008 MSAA depth surface:
@@ -593,6 +727,19 @@ struct PalPublicSettings
     /// use the KMD-reported limit.
     gpusize largePageMinSizeForSizeAlignmentInBytes;
 
+#if PAL_BUILD_RIS
+    /// Controls whether driver builtin Contrast-Adaptive Sharpening postprocess (Radeon Image Sharpening) is enabled.
+    /// This should be overridden to disabled for apps which have integrated the CAS shader into their engine and thus
+    /// don't need the driver to do it.
+    FeatureOverride radeonImageSharpening;
+    bool enableRadeonImageSharpening;
+#endif
+
+#if PAL_BUILD_RT_BOOST
+    /// Controls whether driver builtin rtBoost is enabled.
+    FeatureOverride rtBoost;
+#endif
+
     /// Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of pagefaulting.
     /// Used to workaround incorrect app behavior.
     bool zeroUnboundDescDebugSrd;
@@ -603,6 +750,14 @@ struct PalPublicSettings
 
     bool depthClampBasedOnZExport;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 928
+    /// Force the PreColorTarget to an earlier PreRasterization point if used as a wait point. This is to prevent a
+    /// write-after-read hazard for a corner case: shader exports from distinct packers are not ordered. Advancing
+    /// wait point from PreColorTarget to PostPrefetch could cause over-sync due to extra  VS/PS_PARTIAL_FLUSH
+    /// inserted. It is default to false, but client drivers may choose to app-detect to enable if see corruption.
+    bool forceWaitPointPreColorToPostPrefetch;
+#endif
+
     /// Allows the client to disable debug overlay visual confirm after DebugOverlay::Platform is created when the
     /// panel setting DebugOverlayEnabled is globally set but a certain application might need to turn off visual
     /// confirm to make the screen not too noisy.
@@ -610,6 +765,7 @@ struct PalPublicSettings
 
     bool enableExecuteIndirectPacket;
 
+    //# Only being added for App Detect for Guardians of the Galaxy which is seeing hangs with this path.
     /// Offers flexibility to the client to choose Graphics vs Compute engine for Indirect Command Generation
     /// (Shader path) based on performance and other factors. The default is false since we have seen perf gains using
     /// the ACE.
@@ -733,7 +889,13 @@ struct PalPublicSettings
     ///       thoroughly tested and is not guaranteed to be safe!
     uint32 tileSummarizerTimeout;
 
-#if PAL_KMT_BUILD
+#if PAL_BUILD_GFX13
+    /// Force attributes to be exported to PC through SX. When false, attributes will be exported through memory
+    /// i.e. the ATM mode.
+    bool attributeThroughExport;
+#endif
+
+#if PAL_KMT_BUILD || PAL_CLIENT_DX
     /// If client sets it to false, native fence will be disabled in OS wide no matter OS or hardware supports
     /// native fence or not.
     bool enableNativeFence;
@@ -751,10 +913,6 @@ struct PalPublicSettings
     /// have all metadata up to date if this flag is set. Otherwise if false, there will be decompress operation
     /// when transition from other compressed state to LayoutResolveDst.
     bool allowCompressedResolveDstLayout;
-
-    /// Disables VM page fault reporting to OS. This public setting is needed to give UMDs control
-    /// of page fault reporting and app-specific workarounds.
-    bool disableVmPageFaultReporting;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -779,19 +937,27 @@ struct SwizzleEquation
 /// Specifies the hardware features supported for PRT (sparse images).
 enum PrtFeatureFlags : uint32
 {
-    PrtFeatureBuffer            = 0x00000001, ///< Supports sparse buffers
-    PrtFeatureImage2D           = 0x00000002, ///< Supports sparse 2D images
-    PrtFeatureImage3D           = 0x00000004, ///< Supports sparse 3D images
-    PrtFeatureImageMultisampled = 0x00000008, ///< Supports sparse multisampled images
-    PrtFeatureImageDepthStencil = 0x00000010, ///< Supports sparse depth/stencil images
-    PrtFeatureShaderStatus      = 0x00000020, ///< Supports residency status in shader instructions
-    PrtFeatureShaderLodClamp    = 0x00000040, ///< Supports LOD clamping in shader instructions
-    PrtFeatureUnalignedMipSize  = 0x00000080, ///< Supports non-miptail levels with dimensions that aren't multiples of
-                                              ///  the tile size as long as they are at least as large as a single tile
-    PrtFeaturePerSliceMipTail   = 0x00000100, ///< Supports per-slice miptail (slice-major order)
-    PrtFeatureTileAliasing      = 0x00000200, ///< Supports aliasing tiles (without metadata)
-    PrtFeatureStrictNull        = 0x00000400, ///< Whether reads of unmapped tiles always return zero
-    PrtFeaturePrtPlus           = 0x00000800, ///< Supports residency maps
+    PrtFeatureBuffer                = 0x00000001,   ///< Indicates support for sparse buffers
+    PrtFeatureImage2D               = 0x00000002,   ///< Indicates support for sparse 2D images
+    PrtFeatureImage3D               = 0x00000004,   ///< Indicates support for sparse 3D images
+    PrtFeatureImageMultisampled     = 0x00000008,   ///< Indicates support for sparse multisampled images
+    PrtFeatureImageDepthStencil     = 0x00000010,   ///< Indicates support for sparse depth/stencil images
+    PrtFeatureShaderStatus          = 0x00000020,   ///< Indicates support for residency status in shader instructions
+    PrtFeatureShaderLodClamp        = 0x00000040,   ///< Indicates support for LOD clamping in shader instructions
+    PrtFeatureUnalignedMipSize      = 0x00000080,   ///< Indicates support for non-miptail levels with dimensions that
+                                                    ///  aren't integer multiples of the tile size as long as they are
+                                                    ///  at least as large as a single tile
+    PrtFeaturePerSliceMipTail       = 0x00000100,   ///< Indicates support for per-slice miptail (slice-major order)
+
+    PrtFeatureTileAliasing          = 0x00000200,   ///< Indicates support for aliasing tiles (without metadata)
+    PrtFeatureStrictNull            = 0x00000400,   ///< Indicates whether reads of unmapped tiles always return zero
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
+    PrtFeatureNonStandardImage3D    = 0x00000800,   ///< Indicates support for sparse 3D images restricted to
+                                                    ///  non-standard tile shapes that match the tile mode block depth
+    PrtFeaturePrtPlus               = 0x00001000,   ///< Indicates that this image supports use of residency maps.
+#else
+    PrtFeaturePrtPlus               = 0x00000800,   ///< Indicates that this image supports use of residency maps.
+#endif
 };
 
 /// Describe the settings' scope accessible by clients.
@@ -802,6 +968,439 @@ enum class SettingScope
     File,     ///< For settings that are only read from a file
     Root,     ///< For settings under HKR
 };
+
+#if PAL_BUILD_VIDEO
+constexpr uint32 VideoEncodeMaxNumInputFormats = 1;
+/// defines Motion Estimator  block size types
+enum  class MeBlockSizeType : uint32
+{
+    BlkNone,      ///< No ME support
+    Blk4x4,       ///< 4x4  pixels per block
+    Blk8x8,       ///< 8x8 pixels per block
+    Blk16x16,     ///< 16x16 pixels per block
+    Blk32x32,     ///< 32x32 pixels per block
+    Blk64x64,     ///< 64x64 pixels per block
+    Count
+};
+
+/// defines Motion Estimator precision types
+enum class MePrecisionType : uint32
+{
+    PreNone,     ///< No ME support
+    PreQuarter,  ///< Quater pixel
+    PreHalf,     ///< Half pixel
+    PreFull,     ///< Full  pixel
+    Count
+};
+
+/// defines size range structures for Motion Estimation Operations
+struct MeSizeRange
+{
+    uint32 maxWidth;    ///< Max width in pixel
+    uint32 maxHeight;   ///< Max height in pixel
+    uint32 minWidth;    ///< Min width in pixel
+    uint32 minHeight;   ///< Min height in pixel
+};
+
+/// IP specific Motion Estimator properties
+struct MeProperties
+{
+    /// ME block size supported.
+    MeBlockSizeType blockSizeMode;
+    /// Max ME resolution supported.
+    MeSizeRange sizeRange;
+    /// ME precision mode supported.
+    MePrecisionType precisionMode;
+    /// Min align for the output MotionVector buffer offset.
+    gpusize minMotionVectorBufferOffsetAlignment;
+    /// Min align for the output MotionVector buffer size.
+    gpusize minMotionVectorBufferSizeAlignment;
+    /// Mask of available output formats
+    uint32 outputFormat;
+};
+
+/// Max Combinations possible with MeBlockSizeType and MePrecisionType to calculate the array size in VcnIpProperties
+constexpr uint32 MePropertiesMaxCombinations = uint32(MeBlockSizeType::Count) * uint32(MePrecisionType::Count);
+
+/// DRM mode
+enum class DrmMode : uint32
+{
+    NotSupported  = 0x0,    ///< Drm not supported
+    Transcription = 0x1,    ///< Drm transcription supported
+    NativeCenc    = 0x2,    ///< Drm Native CENC supported
+    Count
+};
+
+/// Maximum number of supported Video instance
+constexpr uint32 MaxAvailableVideoInstances = 4;
+
+/// Vcn per instance info with codec capabilities
+struct VcnInstanceInfo
+{
+    bool isDecodeCodecSupported[static_cast<uint32>(VideoDecodeType::Count)];
+    bool isEncodeCodecSupported[static_cast<uint32>(VideoEncodeCodec::Count)];
+};
+
+/// VCN IP specific device properties
+struct VcnIpProperties
+{
+    uint32   vcnDrvVersion;                                           ///< The current VCN firmware version.
+    bool     decodeMode[static_cast<uint32>(VideoDecodeType::Count)]; ///< Video decode type supported.
+    Extent2d maxExtent[static_cast<uint32>(VideoDecodeType::Count)];  ///< Max decode resolution supported.
+    bool     dithering[static_cast<uint32>(VideoDecodeType::Count)];  ///< Dithering support for Video decode type
+    uint32   maxStreamCount;                                          ///< Max stream allowed.
+    uint32   maxScaleFactor;                                          ///< Max down scale factor supported.
+    uint32   minDecodeMemoryClock;                                    ///< Min memory clock required for decode.
+    uint32   minDecodeSocClock;                                       ///< Min system clock required for decode.
+    uint32   minEncodeMemoryClock;                                    ///< Min memory clock required for encode.
+    uint32   minEncodeSocClock;                                       ///< Min system clock required for encode.
+    uint32   minDpbPitchAignment;                                     ///< Min pitch alignment for dpb.
+    uint32   minJpegDecodeMemoryClock;                                ///< Min memory clock required for jpeg decode.
+    uint32   minJpegDecodeSocClock;                                   ///< Min system clock required for jpeg decode.
+    uint32   jpegDecodeVaOffsetShiftInGb;                             ///< Jpeg decode VA offset shift in GB.
+    union
+    {
+        struct
+        {
+            uint32 supportUnlimitedSession       :  1;       ///< Support separate software context buffer address
+            uint32 support2To1DownScaler         :  1;       ///< Hardware 2:1 downscaler support
+            uint32 supportArbDownScaler          :  1;       ///< Hardware arbitrary downscaler support
+            uint32 supportIndependentDpb         :  1;       ///< Hardware independent DPB support
+            uint32 supportBankPipeSwizzle        :  1;       ///< Hardware can do bank/pipe swizzle for tile mode
+            uint32 supportDynamicFeedbackBuffer  :  1;       ///< dynamic feedback buffer support
+            uint32 supportDfbProfiling           :  1;       ///< VCN profiling data group 1
+            uint32 supportDfbProfiling2          :  1;       ///< VCN profiling data group 2
+            uint32 supportMotionEstimation       :  1;       ///< Support Motion Estimation
+            uint32 supportEncodeProtectedSession :  1;       ///< Support Protected resource on encode
+            uint32 supportLumaHistogram          :  1;       ///< Support Luma Histogram on decode
+            uint32 supportArrayOfTextures        :  1;       ///< Support Dynamic DPB tier 2 for AOT
+            uint32 supportWriteCombiner          :  1;       ///< Support Write Combiner
+            uint32 supportCtxBufNotInTmz         :  1;       ///< Support context buffer not in TMZ
+            uint32 supportUnifiedDecodeTarget    :  1;       ///< Support Unified decode target
+            uint32 mustFallBackToTier2Av1_12bit  :  1;       ///< Due to a HW issue, Tier2 must be used for AV1 12bit
+            uint32 supportUcodecSdbPacking       :  1;       ///< Support new Sdb Packing
+            uint32 reserved                      : 15;       ///< Reserved for future use.
+        };
+        uint32 u32All;                                  ///< Flags packed as 32-bit uint.
+    } flags;                                            ///< Device IP property flags.
+
+    gpusize     encodeSurfaceAlignment;                 ///< Surface alignment requirement.
+    bool        supportedEncodeCodecs[static_cast<uint32>(VideoEncodeCodec::Count)];  ///< Video encode codec supported.
+    uint32      defaultEncInstance[static_cast<uint32>(VideoEncodeCodec::Count)];     ///< default instance for each encode codec
+    uint32      numSupportedEncodeCodecs;               ///< Number of video encode codecs supported.
+    uint32      numSupportedDecodeCodecs;               ///< Number of video decode codecs supported.
+    /// Minimum alignment of the width/height of the encoded video
+    Extent2d    minFrameSizeAlignment[static_cast<uint32>(VideoEncodeCodec::Count)];
+    /// Minimum width and height of the encoded video
+    Extent2d    minFrameSize[static_cast<uint32>(VideoEncodeCodec::Count)];
+    /// Maximum width and height of the encoded video
+    Extent2d    maxFrameSize[static_cast<uint32>(VideoEncodeCodec::Count)];
+    /// Maximum number of feedbacks supported per video encoder
+    uint32      maxVideoEncoderFeedbacks[static_cast<uint32>(VideoEncodeCodec::Count)];
+    /// Minimum alignment for the output bitstream buffer offset
+    gpusize     minBitstreamBufferOffsetAlignment[static_cast<uint32>(VideoEncodeCodec::Count)];
+    /// Minimum alignment for the output bitstream buffer size
+    gpusize     minBitstreamBufferSizeAlignment[static_cast<uint32>(VideoEncodeCodec::Count)];
+    /// Video encode input formats supported.
+    ChNumFormat supportedInputFormats[static_cast<uint32>(VideoEncodeCodec::Count)][VideoEncodeMaxNumInputFormats];
+    /// Number of video encode input formats supported.
+    uint32      numSupportedInputFormats[static_cast<uint32>(VideoEncodeCodec::Count)];
+
+    /// Maximum H264 throughput in MBs per second
+    uint32      maxEncodeMbThroughput;
+    /// Maximum H265 throughput in CTBs per second
+    uint32      maxEncodeCtbThroughput;
+    MeProperties meProperties[MePropertiesMaxCombinations]; ///< Motion Estimator properties.
+    /// Assigns preferred heap type.
+    GpuHeap     preferredHeap[3];
+    /// Suppoted DRM mode for each codec.
+    DrmMode     drmMode[static_cast<uint32>(VideoDecodeType::Count)];
+
+    /// Information for each VCN instance
+    VcnInstanceInfo vcnInstanceProperties[MaxAvailableVideoInstances];
+
+    /// Bitstream padding size required for CBC1/CBCS
+    uint32      bitstreamPaddingSizeCbc1Cbcs;
+};
+
+/// Maximum number of supported queues within one Video instance
+constexpr uint32 MaxAvailableVideoQueue = 5;
+
+/// defines Video Hardware Queue Type
+enum class VideoHwQueueType : uint32
+{
+    VideoQueueInvalid              = 0x0,  ///< Invalid Queue Type
+    VideoQueueEncodeGeneralPurpose = 0x1,  ///< Encode General Purpose Queue
+    VideoQueueEncodeLowLatency     = 0x2,  ///< Encode Low Latency Queue
+    VideoQueueEncodeRealTime       = 0x3,  ///< Encode Real Time Queue
+    VideoQueueDecode               = 0x4,  ///< Decode Queue
+    VideoQueueUnified              = 0x5,  ///< Unified Queue
+    VideoQueueUnifiedHiPri         = 0x6   ///< Unified Hight Priority Queue
+};
+
+/// VCN Video Instance properties
+struct VideoInstanceInfo
+{
+    uint32 hwMajorVersion; ///< The current Video hardware major version.
+    uint32 hwMinorVersion; ///< The current Video hardware minor version.
+    uint32 hwRevision;     ///< The current Video hardware revision (HWVariantType)
+    uint32 hwExtraInfo;    ///< extra info related to Video hardware.
+    uint32 fwVersion;      ///< The current Video firmware version.
+    uint32 fwExtraInfo;    ///< extra info related to Video firmware version.
+    uint32 numEngines;     ///< Total number of Video engines within the instance.
+
+    struct
+    {
+        VideoHwQueueType videoHwQueueType;     ///< Video hardware queue type.
+        uint32           engineIndex;          ///< Engine index associated with the Video hardware queue
+    } videoQueueInfo[MaxAvailableVideoQueue];  ///< List all Video hardware queue within the instance
+
+    struct
+    {
+        union
+        {
+            struct
+            {
+                uint32 forceDisabled        :  1;   ///< codec (e.g H264, HEVC, AV1, etc) is disabled (1) or not (0)
+                uint32 resolutionLimited    :  1;   ///< encode frame size limitation is enabled (1) or not (0)
+                uint32 reserved             : 30;
+            };
+            uint32 u32All;
+        };
+        uint32 encodeLimitDimensionPixels;    ///< encode frame dimension (width or height) size limit in pixels
+        uint32 encodeLimitFramePixels;        ///< encode frame (width * height) size limit in pixels
+    } encodeCodecPolicy[uint32(VideoEncodeCodec::Count)];
+
+    struct
+    {
+        uint32 vClkMaxInMHz; ///< Maximum VClk frequency, in megahertz.
+        uint32 dClkMaxInMHz; ///< Maximum DClk frequency, in megahertz.
+    } maxClocksInfo;
+
+    struct
+    {
+        uint32 resolutionLimited;           ///< decode frame size limitation is enabled (1) or not (0)
+        uint32 decodeLimitDimensionPixels;  ///< decode frame dimension (width or height) size limit in pixels
+        uint32 decodeLimitFramePixels;      ///< decode frame (width * height) size limit in pixels
+    } decodeCodecPolicy[uint32(VideoDecodeType::Count)];
+};
+#endif
+
+#if PAL_BUILD_SECURITY
+/// Secure Processor IP specific device properties
+struct SecurityIpProperties
+{
+    uint32   minMemoryClock;    ///< Min memory clock in 10Khz
+    uint32   minSocClock;       ///< Min system clock in 10Khz
+    gpusize  bufferAlignment;   ///< Memory alignment requirement
+    bool     initKernelSupport; ///< Init Kernel command support
+    bool     playreadySupport;  ///< PlayReady HWDRM support
+    bool     hmpSupport;        ///< HMP HWDRM support
+    bool     riscVSupport;      ///< RiscV support
+    bool     sec3Support;       ///< SEC3 support
+};
+#endif
+
+#if PAL_BUILD_VPE
+/// VPE IP specific device settings
+struct VpeMmSettings
+{
+    struct
+    {
+        bool vpeCmInBypass             : 1;
+        bool vpeVpcnvcBypass           : 1;
+        bool vpeMpcBypass              : 1;
+        bool vpeIdentity3dlut          : 1;
+        bool vpeSce3dlut               : 1;
+        bool vpeDisableReuseBit        : 1;
+        bool vpeBgColorfillOnly        : 1;
+        bool vpeAssertWhenNotSupport   : 1;
+        bool vpeOgamBypass             : 1;
+        bool vpeGamcorBypass           : 1;
+        bool vpeBlndGamBypass          : 1;
+        bool vpeBypassDppGamutRemap    : 1;
+        bool vpeBypassPostCsc          : 1;
+        bool vpeBypassPerPixelAlpha    : 1;
+        bool vpeDppCrcCtrl             : 1;
+        bool vpeOppPipeCrcCtrl         : 1;
+        bool vpeMpcCrcCtrl             : 1;
+        bool vpeDisableLutCaching      : 1;
+        bool vpeDisablePerformanceMode : 1;
+#if PAL_BUILD_VPE20
+        bool vpeDisable3DLutFl         : 1;
+#endif
+#if PAL_BUILD_VPE30
+        bool vpeEnableChromaUpsampler  : 1;
+        bool vpePreferLinearScaling    : 1;
+#endif
+    };
+
+    uint32  vpeBgBitDepth;
+    uint32  vpeMemLowPowerEnableOptions;
+    uint32  vpeVisualConfirm;
+};
+
+/// The maximum number of available VPE instances
+constexpr uint32 MaxAvailableVpeInstances = 4;
+
+/// Holds hardware version information for a single VPE instance
+struct VpeInstanceInfo
+{
+    /// The major version of the VPE hardware
+    uint32 hwMajorVersion;
+    /// The minor version of the VPE hardware
+    uint32 hwMinorVersion;
+    /// The hardware revision of the VPE hardware
+    uint32 hwRevision;
+};
+
+/// VPE look-up tables capabilites
+struct VpeLutCaps
+{
+    union
+    {
+        uint32 u32All;
+        struct
+        {
+            uint32 shaperDmaData       : 1;  ///< DMA data support
+            uint32 shaperDmaConfig     : 1;  ///< DMA configuration support
+            uint32 shaperNonMonotonic  : 1;  ///< Non-monotonic LUT support
+            uint32 lut3dDataDim9       : 1;  ///< Support for 9x9x9 3D LUT
+            uint32 lut3dDataDim17      : 1;  ///< Support for 17x17x17 3D LUT
+            uint32 lut3dDataDim33      : 1;  ///< Support for 33x33x33 3D LUT
+            uint32 lut3dDmaDim9        : 1;  ///< DMA support for 9x9x9 3D LUT
+            uint32 lut3dDmaDim17       : 1;  ///< DMA support for 17x17x17 3D LUT
+            uint32 lut3dDmaDim33       : 1;  ///< DMA support for 33x33x33 3D LUT
+            uint32 lutCompound         : 1;  ///< Support for LUT compound
+            uint32 lut3dYuvBlendLinear : 1;  ///< Support for linear blending of 3D LUT YUV output
+            uint32 reserved            : 21; ///< Reserved for future use.
+        };
+    } supports;
+
+    uint16 shaperDataAlignment;     ///< Data alignment in bytes
+    uint16 shaperConfigAlignment;   ///< Configuration alignment in bytes
+    uint16 shaperConfigPadding;     ///< Configuration padding in bytes
+    uint16 shaperDataSize;          ///< Data size in bytes
+    uint16 shaperConfigSize;        ///< Configuration size in bytes
+    uint16 shaperDataPtsPerChannel; ///< Number of data points per channel
+    uint16 lut3dAlignment;          ///< 3D LUT alignment in bytes
+};
+
+union VpeFormatSupport
+{
+    uint32 u32All;
+    struct
+    {
+        uint32 argbPacked32b : 1;
+        uint32 nv12          : 1;
+        uint32 fp16          : 1;
+        uint32 p010          : 1;
+        uint32 p016          : 1;
+        uint32 ayuv          : 1;
+        uint32 yuy2          : 1;
+        uint32 y210          : 1;
+        uint32 y216          : 1;
+        uint32 p210          : 1;
+        uint32 p216          : 1;
+        uint32 rgb8Planar    : 1;
+        uint32 rgb16Planar   : 1;
+        uint32 yuv8Planar    : 1;
+        uint32 yuv16Planar   : 1;
+        uint32 fp16Planar    : 1;
+        uint32 rgbe          : 1;
+        uint32 reserved      : 15;
+    };
+};
+
+/// VPE IP Capabilites
+struct VpeIpCapabilities
+{
+    VpeLutCaps lutCaps;
+    VpeFormatSupport inputFormat;
+    VpeFormatSupport outputFormat;
+
+    union
+    {
+        uint32 u32All;
+        struct
+        {
+            uint32 displayInput          : 1;
+            uint32 centralizedInput      : 1;
+            uint32 displayOutput         : 1;
+            uint32 centralizedOutput     : 1;
+            uint32 reserved              : 28;
+        };
+    } dcc;
+
+    struct {
+        uint32 min;  ///< iSharp min level
+        uint32 max;  ///< iSharp max level
+        uint32 step; ///< iSharp level steps
+    } iSharpLevel;
+
+
+    union
+    {
+        uint32 u32All;
+        struct
+        {
+            uint32 easf           : 1;  ///< Edge adaptive scaling function support
+            uint32 histogram      : 1;  ///< Histogram support
+            uint32 alphaBlending  : 1;  ///< Alpha blending support
+            uint32 rotation       : 1;  ///< Rotation support
+            uint32 hMirror        : 1;  ///< Horizontal mirror support
+            uint32 vMirror        : 1;  ///< Vertical mirror support
+            uint32 frod           : 1;  ///< FROD support
+            uint32 iSharp         : 1;  ///< Image Sharpener support
+            uint32 yuvLinearBlend : 1;  ///< YUV linear blending support
+            uint32 reserved       : 25;
+        };
+    } features;
+
+#if PAL_BUILD_VPE30
+    struct
+    {
+        bool          outCtrlSupport;          ///< Output control support
+        bool          programmableCoefficient; ///< Programmable coefficient support
+        uint32        numSupportedTaps;        ///< Number of tap choices
+        const uint32* pSupportedTaps;          ///< Pointer to array of supported taps for user to choose from
+    } frod;
+
+#endif
+    union
+    {
+        uint32 u32All;
+        struct
+        {
+            uint32 opaque       : 1;
+            uint32 bgColor      : 1;
+            uint32 destination  : 1;
+            uint32 sourceStream : 1;
+            uint32 reserved     : 28;
+        };
+    } alphaFill;
+
+};
+
+/// VPE IP specific device properties
+struct VpeIpProperties
+{
+    uint32  vpeDrvVersion;      ///< The current VPE firmware version.
+    GpuHeap preferredHeap[3];   ///< Assigns preferred heap type.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 944
+    //VPE Hw versions (will be deprecated)
+    uint32  hwMajorVersion;     ///< The current VPE hardware major version.
+    uint32  hwMinorVersion;     ///< The current VPE hardware minor version.
+    uint32  hwRevision;         ///< The current VPE hardware revision (HWVariantType)
+#endif
+    VpeInstanceInfo instanceInfo[MaxAvailableVpeInstances]; ///< Information for each VPE instance
+    VpeIpCapabilities capabilities;        ///< VPE capabilities
+    VpeMmSettings vpeMmSettings;           ///< VPE settings
+    uint32        numInstances;            ///< Number of physical VPE instance.
+    bool          collaborationMode;       ///< Enable multiple VPE instance to collaborate together.
+};
+#endif
 
 /// Big Software (BigSW) Release information structure
 /// Software release management uses this version # to control a rollout of big SW features together.
@@ -878,6 +1477,8 @@ enum MsaaFlags : uint16
 #endif
 
 /// Supported RTIP version enumeration
+//# For descriptions of the RT IP levels, please see:
+//# //gfxip/gfx11/doc/architecture/system/RayTracing/RayTracingIPV2.0Spec.docx
 enum class RayTracingIpLevel : uint32
 {
     _None   = 0x0,   ///< The device does not have an RayTracing Ip Level
@@ -887,11 +1488,135 @@ enum class RayTracingIpLevel : uint32
     RtIp1_0 = 0x1,   ///< First Implementation of HW RT
     RtIp1_1 = 0x2,   ///< Added computation of triangle barycentrics into HW
     RtIp2_0 = 0x3,   ///< Added more Hardware RayTracing features, such as BoxSort, PointerFlag, etc
+                     ///# details can be found in //gfxip/gfx10/doc/architecture/ResourceSampler.xlsx
     RtIp3_0 = 0x4,   ///< Added high precision box node, HW instance node, dual intersect ray, BVH8 intersect ray,
                      ///  LDS stack push 8 pop 1, and LDS stack push 8 pop 2
     RtIp3_1 = 0x5,   ///< Added improved bvh footprints (change to node pointer, 128 Byte primitive structure format,
                      ///  128 Byte Quantized box node, obb support, wide sort)
+#if PAL_BUILD_GFX13
+    RtIp5_0 = 0x6,   ///< Added 128-byte BVH4x4 macro nodes and RTS instructions.
+    RtIp5_3 = 0x7,   ///< Instance node changes, configurable internal node.
+#endif
 };
+
+#if PAL_WORK_GRAPHS_SUPPORT
+/// Supported GPU Work Graphs Feature level.
+enum class WorkGraphsFeatureLevel : uint32
+{
+    _None = 0,
+#ifndef None
+    None = _None,   ///< The device does not support GPU Work Graphs at all.
+#endif
+    WorkGraphs1_0,  ///< 1st version of GPU Work Graphs, supports graphs containing only compute shaders.
+    WorkGraphs2_0,  ///< 2nd version of GPU Work Graphs, adds support for graphics pipeline nodes.
+};
+
+/// Which version of the GPU Work Graphs Scheduler the GPU is running.
+enum class WorkGraphScheduler : uint32
+{
+    _None = 0,
+#ifndef None
+    None = _None,   ///< The device does not support GPU Work Graphs at all.
+#endif
+    V1 = 1,         ///< Scheduler V1
+    V2,             ///< Scheduler V2
+};
+#endif
+
+/// The version of a particular hardware IP in a specific ASIC.
+///
+/// @note The fields are purposefully ordered such that the uint32() operator compiles to a single "MOV" instruction
+///       on little-endian platforms.
+struct IpTriple
+{
+    uint32 stepping : 16; ///< Stepping value
+    uint32 minor    : 8;  ///< Minor revision value
+    uint32 major    : 8;  ///< Major revision value
+
+    /// We define a custom constructor solely to avoid using designated initializers, which force us to declare const
+    /// IpTriples in field order, which is too confusing. For example: IpTriple{.stepping = 1, .minor = 5, .major = 11}
+    ///
+    /// Note that C++'s arcane rules cause "IpTriple{11, 5, 1}" to call this constructor with major = 11. minor = 5,
+    /// and stepping = 1. So if you see code that looks like classic aggregate initialization, you don't need to worry
+    /// that it might actually be setting the values backwards.
+    constexpr IpTriple(uint32 major, uint32 minor, uint32 stepping) : stepping{stepping}, minor{minor}, major{major} {}
+
+    /// And this custom zeroing constructor guarantees that "IpTriple{}" still zeros all fields.
+    constexpr IpTriple() : IpTriple(0, 0, 0) {}
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 982
+    /// These constructors only exist for backcompat, where clients are using partial aggregate initialization.
+    /// This is typically done where they're using IpTriple to express a GfxIpLevel which is a misuse of IpTriple.
+    /// The new IpLevel struct declared below should be used instead going forwards.
+    constexpr IpTriple(uint32 major, uint32 minor) : IpTriple(major, minor, 0) {}
+    constexpr IpTriple(uint32 major) : IpTriple(major, 0, 0) {}
+#endif
+
+    /// This conversion is designed such that logically higher version numbers will always convert into higher values.
+    /// For example, this should evaluate to true: uint32(IpTriple(12, 0, 1)) > uint32(IpTriple(11, 5, 0))
+    ///
+    /// @returns A single uint32 which uniquely represents this IpTriple.
+    constexpr operator uint32() const { return stepping | (minor << 16) | (major << 24); }
+};
+
+/// The version of a particular hardware IP across a group of ASICs which only differ by stepping values.
+///
+/// @note The fields are purposefully ordered such that the uint32() operator compiles to a single "MOV" instruction
+///       on little-endian platforms. The @ref reserved field is required to make comparisons between IpLevel and
+///       @ref IpTriple as trivial as possible.
+struct IpLevel
+{
+    uint32 reserved : 16; ///< Reserved. Must *always* be set to zero!
+    uint32 minor    : 8;  ///< Minor revision value
+    uint32 major    : 8;  ///< Major revision value
+
+    /// We define a custom constructor solely to avoid using designated initializers, which force us to declare const
+    /// IpLevels in field order, which is too confusing. For example: IpLevel{.minor = 5, .major = 11}
+    ///
+    /// Note that C++'s arcane rules cause "IpLevel{11, 5}" to call this constructor with major = 11. minor = 5. So if
+    /// you see code that looks like classic aggregate initialization, you don't need to worry that it might actually
+    /// be setting the values backwards.
+    constexpr IpLevel(uint32 major, uint32 minor) : reserved{0}, minor{minor}, major{major} {}
+
+    /// And this custom zeroing constructor guarantees that "IpLevel{}" still zeros all fields.
+    constexpr IpLevel() : IpLevel(0, 0) {}
+
+    /// This conversion is designed such that logically higher version numbers will always convert into higher values.
+    /// For example, this should evaluate to true: uint32(IpLevel(12, 0)) > uint32(IpLevel(11, 5)).
+    ///
+    /// @returns A single uint32 which uniquely represents this IpLevel.
+    constexpr operator uint32() const { return reserved | (minor << 16) | (major << 24); }
+};
+
+///@{
+/// Some convenient "IpTriple <> IpLevel" comparison overloads. These are specifically intended for cases like
+/// "if (triple >= IpLevel(11, 5))" where we have a dynamic IpTriple that we want to test against hard-coded levels.
+///
+/// The definitions of both structs' integer conversions were designed such that these operators should compile to
+/// the minimal number of instructions; at most one ALU and a CMP + SET pair. If the @ref level parameter is a
+/// compile-time constant the ALU should be eliminated from all inequalities.
+///
+/// @param [in] triple  The left IpTriple in the comparison.
+/// @param [in] level   The right IpLevel in the comparison.
+///
+/// @returns True if the comparison is satisfied.
+constexpr bool operator<(IpTriple triple, IpLevel level)  { return uint32(triple) <  uint32(level); }
+constexpr bool operator>=(IpTriple triple, IpLevel level) { return uint32(triple) >= uint32(level); }
+constexpr bool operator>(IpTriple triple, IpLevel level)  { return uint32(triple) >  (uint32(level) | 0xFFFFu); }
+constexpr bool operator<=(IpTriple triple, IpLevel level) { return uint32(triple) <= (uint32(level) | 0xFFFFu); }
+constexpr bool operator==(IpTriple triple, IpLevel level) { return (uint32(triple) & ~0xFFFFu) == uint32(level); }
+constexpr bool operator!=(IpTriple triple, IpLevel level) { return (uint32(triple) & ~0xFFFFu) != uint32(level); }
+constexpr bool operator<(IpLevel level, IpTriple triple)  { return triple > level; }
+constexpr bool operator>=(IpLevel level, IpTriple triple) { return triple <= level; }
+constexpr bool operator>(IpLevel level, IpTriple triple)  { return triple < level; }
+constexpr bool operator<=(IpLevel level, IpTriple triple) { return triple >= level; }
+constexpr bool operator==(IpLevel level, IpTriple triple) { return triple == level; }
+constexpr bool operator!=(IpLevel level, IpTriple triple) { return triple != level; }
+///@}
+
+// The comparisons above only work if both structs are perfectly arranged in a uint32.
+static_assert(sizeof(IpTriple) == sizeof(uint32));
+static_assert(sizeof(IpLevel)  == sizeof(uint32));
 
 /// Reports various properties of a particular IDevice to the client.  @see IDevice::GetProperties.
 struct DeviceProperties
@@ -905,13 +1630,17 @@ struct DeviceProperties
     GpuType    gpuType;                      ///< Type of GPU (discrete vs. integrated)
     uint16     gpuPerformanceCapacity;       ///< Portion of GPU assigned in virtualized system (SRIOV)
                                              ///< 0-65535, 0 invalid (not virtualized), 1 min, 65535 max
-    IpTriple   gfxTriple;                    ///< Full GFX IP level (major.minor.stepping) of this GPU
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 989
     GfxIpLevel gfxLevel;                     ///< IP level of this GPU's GFX block
-    uint32     gfxStepping;                  ///< Stepping level of this GPU's GFX block
-#endif
     VcnIpLevel vcnLevel;                     ///< IP level of this GPU's VCN block
+#if PAL_BUILD_BRIGHTON
+    BrightonIpLevel brightonLevel;           ///< IP level of this GPU's BRIGHTON block
+#endif
     PspIpLevel pspLevel;                     ///< IP level of this GPU's PSP block
+#if PAL_BUILD_VPE
+    VpeIpLevel vpeLevel;                     ///< IP level of this GPU's VPE block
+#endif
+    uint32     gfxStepping;                  ///< Stepping level of this GPU's GFX block
+    IpTriple   gfxTriple;                    ///< Full GFX IP level (major.minor.step) of this GPU
     char       gpuName[MaxDeviceName];       ///< Null terminated string identifying the GPU.
     uint32     gpuIndex;                     ///< Device's index in a linked adapter chain.
     uint32     deviceIndex;                  ///< Device's index in the Platform enumeration.
@@ -991,11 +1720,8 @@ struct DeviceProperties
                 /// This engine supports clear or copy with MSAA depth-stencil destination
                 uint32 supportsClearCopyMsaaDsDst      :  1;
 
-                /// Engine supports gpu fences. @see QueueSemaphoreCreateInfo::flags.gpuFence.
-                uint32 supportsGpuFence                :  1;
-
                 /// Reserved for future use.
-                uint32 reserved                        : 16;
+                uint32 reserved                        : 17;
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< Engines property flags.
@@ -1015,9 +1741,7 @@ struct DeviceProperties
                     uint32 supportsMultiQueue       :  1;
                     uint32 hwsEnabled               :  1;
                     uint32 isHighPriority           :  1;
-                    uint32 umsSupported             :  1;  ///< Indicates user-mode submission support on this
-                                                           /// engine instance
-                    uint32 reserved                 : 26;  ///< Reserved for future use.
+                    uint32 reserved                 : 27;  ///< Reserved for future use.
                 };
                 uint32 u32All;                        ///< Flags packed as 32-bit uint.
             } flags;                                  ///< Capabilities property flags.
@@ -1073,12 +1797,24 @@ struct DeviceProperties
                 /// presents even if the supportedDirectPresentModes flags below indicate no support for direct
                 /// presents; instead swap chain PresentMode support is queried via GetSwapChainInfo.
                 uint32 supportsSwapChainPresents   :  1;
-                uint32 placeholder0                :  1;
+#if PAL_CLIENT_DX
+                /// Indicates whether or not the queue supports CmdPresent()
+                uint32 supportsCmdPresent          :  1;
+#else
+                uint32 reserved744                 :  1;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 927
+                /// Set if the queue supports additional split barrier feature on top of basic acquire/release
+                /// interface support. This provides CmdAcquire() and CmdRelease() to implement split barriers.
+                uint32 supportSplitReleaseAcquire  :  1;
+#else
+                uint32 reserved927                 :  1;
+#endif
                 /// Indicates that the client should use highPriorityQueues, but this is not mandatory, client can
                 /// decide whether to use highPriorityQueues or not.
                 uint32 highPriorityQueuesPreferred :  1;
                 /// Reserved for future use.
-                uint32 reserved                    : 29;
+                uint32 reserved                    : 28;
             };
             uint32 u32All;                    ///< Flags packed as 32-bit uint.
         } flags;                              ///< Queue property flags.
@@ -1179,7 +1915,6 @@ struct DeviceProperties
         gpusize busAddressableMemSize;      ///< SDI/DirectGMA GPU aperture size set in CCC
         gpusize maxLocalMemSize;            ///< Total VRAM available on the GPU (Local + Invisible heap sizes).
         LocalMemoryType localMemoryType;    ///< Type of local memory used by the GPU.
-        uint32  prtSafeVaMaskBit;           ///< Bit to use for address fixups with a PRT-safe mirror. Disabled if 0.
         gpusize maxCaptureReplaySize;       ///< Total virtual GPU available for Capture/Replay
         gpusize barSize;                    ///< Total VRAM which can be accessed by the CPU.
 
@@ -1281,7 +2016,7 @@ struct DeviceProperties
         uint32 maxGsTotalOutputComponents;  ///< Maximum number of GS output components totally.
         uint32 maxGsInvocations;            ///< Maximum number of GS prim instances, corresponding to geometry shader
                                             ///  invocation in glsl.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 984
+#if PAL_INTERFACE_MAJOR_VERSION >= 984
         uint32 max3dDispatchInterleaveProductGfx;    // Maximum product of the 3 dispatch interleave dimensions for GFX
         uint32 max3dDispatchInterleaveProductAce;    // Maximum product of the 3 dispatch interleave dimensions for ACE
 #else
@@ -1292,6 +2027,25 @@ struct DeviceProperties
 
         uint32                  cpUcodeVersion;   ///< Command processor feature version.
         uint32                  pfpUcodeVersion;  ///< Command processor, graphics prefetch firmware version.
+
+#if PAL_WORK_GRAPHS_SUPPORT
+        WorkGraphsFeatureLevel workGraphsLevel;           ///< Supported GPU Work Graphs feature level.
+        WorkGraphScheduler     workGraphScheduler;        ///< GPU Work Graphs scheduler version used on this device.
+
+        uint32 maxWorkGraphOutputRecordOutput;            ///< Max output records per workgroup for GPU work graphs.
+        uint32 maxWorkGraphOutputRecordOutputThreadLaunch;///< Max output records per invocation for GPU work graphs,
+                                                          ///  for thread-launch modes.
+        uint32 maxWorkGraphOutputSize;                    ///< Max per-workgroup output data for GPU work graphs.
+                                                          ///< This includes any overhead allocated for tracking cross-
+                                                          ///< group sharing metadata, which is 4 bytes per output node.
+        uint32 maxWorkGraphOutputSizeThreadLaunch;        ///< Max per-invocation output data for GPU work graphs, for
+                                                          ///  thread-launch nodes.
+        uint32 maxWorkGraphShaderOutputNodes;             ///< Max number of total output nodes.
+        uint32 maxWorkGraphShaderOutputNodesThreadLaunch; ///< Max number of total output nodes for thread-launch nodes.
+        uint32 workGraphDispatchAddressAlignment;         ///< Min alignment for any data used for input payloads in a
+                                                          ///< call to CmdDispatchGraph.
+        uint32 maxWorkGraphDepth;                         ///< Longest node chain in a graph.
+#endif
 
         union
         {
@@ -1382,9 +2136,14 @@ struct DeviceProperties
                 uint64 supportFloat8                      :  1; ///< HW supports float 8-bit instructions.
                 uint64 supportInt4                        :  1; ///< HW supports integer 4-bit instructions.
                 uint64 supportCooperativeMatrix2          :  1; ///< HW supports Gfx12 extension cooperative matrix.
-                uint64 placeholder14                      :  3;
+#if PAL_BUILD_GFX13
+                uint64 supportCooperativeMatrix3          :  1; ///< HW supports Gfx13 extension cooperative matrix.
+                uint64 supportRobustIndexModeFetches      :  1; ///< HW supports byte-level buffer checks in index mode.
+#else
+                uint64 placeholder14                      :  2;
+#endif
                 uint64 supportEiIncConst                  :  1;
-                uint64 reserved                           :  60; ///< Reserved for future use.
+                uint64 reserved                           :  61; ///< Reserved for future use.
             };
             uint64 u64All[2];           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1435,7 +2194,11 @@ struct DeviceProperties
                 {
                     uint32 eccProtectedGprs                    :  1; ///< Whether or not the GPU has ECC protection
                                                                      ///< on its VGPR's
+#if PAL_CLOSED_SOURCE
+                    uint32 override1024VgprsWithGranularity16  :  1; ///< Override for VGPR count and granularity
+#else
                     uint32 placeholder0                        :  1;
+#endif
                     uint32 reserved                            : 30; ///< Reserved for future use.
                 };
                 uint32     u32All;                ///< Flags packed as a 32-bit unsigned integer.
@@ -1498,6 +2261,18 @@ struct DeviceProperties
 
     } gfxipProperties;
 
+#if PAL_BUILD_VIDEO
+    VcnIpProperties   vcnipProperties;                                      ///< VCN IP properties.
+    uint32            numVideoInstances;                                    ///< number of active Video instance
+    VideoInstanceInfo videoInstanceProperties[MaxAvailableVideoInstances];  ///< Video instance properties.
+#endif
+#if PAL_BUILD_SECURITY
+    SecurityIpProperties securityIpProperties;                              ///< Security IP properties.
+#endif
+#if PAL_BUILD_VPE
+    VpeIpProperties   vpeipProperties;                                      ///< VPE IP properties.
+#endif
+
     struct
     {
         union
@@ -1531,13 +2306,12 @@ struct DeviceProperties
 #endif
                 uint32 forceAlignmentSupported    :  1; ///< If PalPublicSettings::hardwareBufferAlignmentMode
                                                         ///  has any effect.
-                uint32 haltOnAccessSupported      :  1; ///< KMD supports per-page halt-on-access memory tracking.
-                uint32 reserved                   : 17; ///< Reserved for future use.
+                uint32 reserved                   : 18; ///< Reserved for future use.
             };
             uint32 u32All;                              ///< Flags packed as 32-bit uint.
         } flags;                                        ///< OS-specific property flags.
 
-#if (PAL_KMT_BUILD)
+#if (PAL_KMT_BUILD || PAL_CLIENT_DX)
         int32  luidHighPart;        ///< High 32 bits of the LUID (locally unique identifier) for this device.
         uint32 luidLowPart;         ///< Low 32 bits of the LUID (locally unique identifier) for this device.
         bool   supportNtHandle;     ///< Support export/import resource with NT handle.
@@ -1576,9 +2350,8 @@ struct DeviceProperties
         bool   supportArbitaryPrtMapUnmap;  ///< Support arbitary prt map unmap operation.
 #endif
 
-        uint32                     umdFpsCapFrameRate;    ///< The frame rate of the UMD FPS CAP for Radeon FRTC feature
-        uint32                     customFpsCapFrameRate; ///< For OEM build to cap specific apps FPS on APU's
-        VirtualDisplayCapabilities virtualDisplayCaps;    ///< Capabilities of virtual display, it's provided by KMD
+        uint32                     umdFpsCapFrameRate;   ///< The frame rate of the UMD FPS CAP
+        VirtualDisplayCapabilities virtualDisplayCaps;   ///< Capabilities of virtual display, it's provided by KMD
 
         union
         {
@@ -1688,6 +2461,7 @@ union FullScreenFrameMetadataControlFlags
                                                ///  synchronize the flip of frame N (postFrameTimerSubmission == TRUE)
                                                ///  or N+1 (postFrameTimerSubmission == FALSE).
                                                ///  It's only valid when timerNodeSubmission is also set.
+                                               //# SEE: DVR1 2 - DDN.docx for details.
         uint32 useHp3dForDwm             :  1; ///< KMD Informs (DX11) UMD to use HP3D for DWM or not (Output only).
         uint32 expandDcc                 :  1; ///< KMD notifies UMD to expand DCC (Output only).
         uint32 enableTurboSyncForDwm     :  1; ///< Indicates DWM should turn on TurboSync(Output only).
@@ -1787,24 +2561,35 @@ struct GpuCompatibilityInfo
     {
         struct
         {
-            uint32 gpuFeatures           :  1; ///< The devices have an exact feature match: same internal tiling,
-                                               ///  same pipeline binary data, etc.
-            uint32 iqMatch               :  1; ///< Devices produce images with same precision.
-            uint32 peerTransferWrite     :  1; ///< Peer-to-peer transfers write are supported.
-                                               ///  See IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
-            uint32 peerTransferRead      :  1; ///< Peer-to-peer transfers based on xmgi are supported.
-                                               ///  See IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
-            uint32 sharedMemory          :  1; ///< Devices can share memory objects with IDevice::OpenSharedMemory().
-            uint32 sharedSync            :  1; ///< Devices can share queue semaphores with
-                                               ///  IDevice::OpenSharedQueueSemaphore().
-            uint32 peerEncode            :  1; ///< Whether encoding HW can access FB memory of remote GPU in chain.
-            uint32 peerDecode            :  1; ///< Whether decoding HW can access FB memory of remote GPU in chain.
-            uint32 peerTransferProtected :  1; ///< Whether protected content can be transferred over P2P.
-            uint32 crossGpuCoherency     :  1; ///< Whether remote FB memory can be accessed without a cache flush.
-            uint32 reserved              : 22; ///< Reserved for future use.
+            uint32 gpuFeatures         :  1;  ///< The devices have an exact feature match: same internal tiling, same
+                                              ///  pipeline binary data, etc.
+            uint32 iqMatch             :  1;  ///< Devices produce images with same precision.
+            uint32 peerTransferWrite   :  1;  ///< Peer-to-peer transfers write are supported.  See
+                                              ///  IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
+            uint32 peerTransferRead    :  1;  ///< Peer-to-peer transfers based on xmgi are supported.
+                                              ///  See IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
+            uint32 sharedMemory        :  1;  ///< Devices can share memory objects with.  IDevice::OpenSharedMemory().
+            uint32 sharedSync          :  1;  ///< Devices can share queue semaphores with
+                                              ///  IDevice::OpenSharedQueueSemaphore().
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
+            uint32 shareThisGpuScreen  :  1;  ///< Either device can present to this device.  Means that the device
+                                              ///  indicated by the otherDevice param in
+                                              ///  IDevice::GetMultiGpuCompatibility() can present to the device the
+                                              ///  method was called on.
+            uint32 shareOtherGpuScreen :  1;  ///< Either device can present to the other device.  Means that the
+                                              ///  device IDevice::GetMultiGpuCompatibility() was called on can present
+                                              ///  to the GPU indicated by the otherGpu param.
+#else
+            uint32 reserved1           :  2;
+#endif
+            uint32 peerEncode          :  1;  ///< whether encoding HW can access FB memory of remote GPU in chain
+            uint32 peerDecode          :  1;  ///< whether decoding HW can access FB memory of remote GPU in chain
+            uint32 peerTransferProtected : 1; ///< whether protected content can be transferred over P2P
+            uint32 crossGpuCoherency   :  1;  ///< whether remote FB memory can be accessed without need for cache flush
+            uint32 reserved            : 20;  ///< Reserved for future use.
         };
-        uint32 u32All;                         ///< Flags packed as 32-bit uint.
-    } flags;                                   ///< GPU compatibility flags.
+        uint32 u32All;                        ///< Flags packed as 32-bit uint.
+    } flags;                                  ///< GPU compatibility flags.
 };
 
 /// Reports properties of a GPU memory heap.
@@ -2509,19 +3294,31 @@ enum class WorkstationStereoMode : uint32
 /// a particular mode.
 struct GetPrimaryInfoOutput
 {
-    uint32     tilingCaps;          ///< Tiling caps supported by this primary surface.
-    StereoMode stereoMode;          ///< Stereo mode supported by this primary surface.
-    uint32     mallCursorCacheSize; ///< Size of the mall cursor cache in bytes
-
+    uint32          tilingCaps;                ///< Tiling caps supported by this primary surface.
+    StereoMode      stereoMode;                ///< Stereo mode supported by this primary surface.
+    uint32          mallCursorCacheSize;       ///< Size of the mall cursor cache in bytes
     union
     {
         struct
         {
-            uint32 isFreeSyncEnabled            :  1; ///< MGPU flag: this primary surface supports freesync.
-            uint32 hwRotationPortraitMode       :  1; ///< Single-GPU flag: Hint to the client that they should use
-                                                      ///  rotated tiling mode.
-            uint32 displaySupportsNonLocalHeap  :  1; ///< Single-GPU flag: This primary supports non-local heap.
-            uint32  reserved                    : 29; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
+            /// MGPU flag: this primary surface supports DVO HW compositing mode.
+            uint32 dvoHwMode                    :  1;
+            /// MGPU flag: this primary surface supports XDMA HW compositing mode.
+            uint32 xdmaHwMode                   :  1;
+            /// MGPU flag: this primary surface supports client doing SW compositing mode.
+            uint32 swMode                       :  1;
+#else
+            uint32 reserved1                    :  3;
+#endif
+            /// MGPU flag: this primary surface supports freesync.
+            uint32 isFreeSyncEnabled            :  1;
+            /// Single-GPU flag: gives hint to the client that they should use rotated tiling mode.
+            uint32 hwRotationPortraitMode       :  1;
+            /// Single-GPU flag: this primary surface supports non local heap.
+            uint32 displaySupportsNonLocalHeap  :  1;
+            /// Reserved for future use.
+            uint32  reserved                    : 26;
         };
         uint32 u32All;  ///< Flags packed as 32-bit uint.
     } flags;            ///< get primary surface support info output flags.
@@ -2559,6 +3356,48 @@ struct SetClockModeInput
 {
     DeviceClockMode clockMode; ///< Used to specify the clock mode for the device.
 };
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
+/// Specifies primary surface MGPU compositing mode.
+enum MgpuMode : uint32
+{
+    MgpuModeOff  = 0,  ///< MGPU compositing mode off, the client does not do SW compositing at all, e.g. AFR disabled.
+    MgpuModeSw   = 1,  ///< MGPU SW compositing mode, the client handle the SW compositing.
+    MgpuModeDvo  = 2,  ///< MGPU DVO HW compositing mode
+    MgpuModeXdma = 3,  ///< MGPU XDMA HW compositing mode
+    MgpuModeCount
+};
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 943
+/// Specifies input arguments for IDevice::SetMgpuMode(). A client set a particular MGPU compositing mode and whether
+/// frame pacing is enabled for a display.
+struct SetMgpuModeInput
+{
+    uint32      vidPnSrcId;             ///< Video present source id.
+    MgpuMode    mgpuMode;               ///< Primary surface MGPU compositing mode.
+    bool        isFramePacingEnabled;   ///< True if frame pacing enabled. If so, the client creates a timer queue
+                                        ///  to delay the present, and the delay value is calculated by KMD.
+};
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
+constexpr uint32 XdmaMaxDevices = 8;    ///< Maximum number of Devices for XDMA compositing.
+
+/// Specifies XDMA cache buffer info for each gpu.
+struct XdmaBufferInfo
+{
+    uint32 bufferSize;      ///< XDMA cache buffer size of each device
+    uint32 startAlignment;  ///< XDMA cache buffer start alignment of each device
+};
+
+/// Specifies output arguments for IDevice::GetXdmaInfo(), returning the XDMA cache buffer information of each GPU for
+/// a display.
+struct GetXdmaInfoOutput
+{
+    XdmaBufferInfo  xdmaBufferInfo[XdmaMaxDevices]; ///< Output XDMA cache buffer info
+};
+#endif
 
 /// Specifies flipping status flags on a specific VidPnSource. It's Windows specific.
 union FlipStatusFlags
@@ -2951,7 +3790,7 @@ union RegisterEventOutputInfo
         uint32  eventId;
     } earlyPresent;
 };
-#endif
+#endif // defined(_WIN32)
 
 /// Contains the page fault status of the GPU.
 struct PageFaultStatus
@@ -3083,7 +3922,57 @@ public:
     virtual Result UnregisterEvent(
         const UnregisterEventInfo& input) = 0;
 
+#if PAL_BUILD_SECURITY
+    /// Read an HMP license from the operating system specific source (e.g. registry).
+    ///
+    /// @param [in,out] pValue   Buffer to copy data into from stored os source. Must be non-null.
+    /// @param [in]     bufferSz Size of binary buffer (pValue).
+    ///
+    /// @returns Success if the license is copied into the binary buffer (pValue) from the stored os location.
+    ///          Otherwise, one of the following errors may be returned:
+    ///          + ErrorInvalidValue if the license could not be copied properly (this is known to be caused by both
+    ///            trying to read a non-existing value, and if the binary buffer size (bufferSz) is not large enough),
+    ///          + ErrorIncompatibleDevice if the device doesn't currently support this feature.
+    virtual Result ReadHmpLicense(
+        void*  pValue,
+        size_t bufferSz) const = 0;
+
+    /// Writes an HMP license to an operating system specific source (e.g. registry).
+    ///
+    /// @param [in,out] pValue   Buffer whose data will be copied to os source license location. Must be non-null.
+    /// @param [in]     bufferSz Size of binary buffer (pValue).
+    ///
+    /// @returns Success if the license is stored into the operating system specific source.  Otherwise, one of the
+    ///          following errors may be returned:
+    ///          + ErrorOutOfMemory if there is not enough memory avaiable to copy the binary buffer (pValue) before
+    ///            storing,
+    ///          + ErrorIncompatibleDevice if the device doesn't currently support this feature.
+    virtual Result WriteHmpLicense(
+        const void* pValue,
+        size_t      bufferSz) const = 0;
 #endif
+#endif
+
+#if PAL_CLIENT_DX
+    /// Associates the given DX runtime device handle and callbacks with this device. This must be called once before
+    /// CommitSettingsAndInit().
+    ///
+    /// @note This function is only available for DX builds.
+    ///
+    /// @param [in]  hDxRtDevice       DX runtime handle for this device.
+    /// @param [in]  pDxRtKmCallbacks  DX runtime kernel mode callbacks.
+    /// @param [in]  pDxRtUmCallbacks  DX runtime user mode callbacks. (Only DX11/12 clients must provide this.)
+    /// @param [in]  pDxgiCallbacks    DXGI runtime user mode callbacs. (Only DX11 clients must provide this.)
+    ///
+    /// @returns Success if the arguments were successfully associated with the device.
+    ///          + ErrorInvalidValue if hDxDevice is invalid.
+    virtual Result SetDxRuntimeData(
+        DxRuntimeHandle hDxRtDevice,
+        const void*     pDxRtKmCallbacks,
+        const void*     pDxRtUmCallbacks,
+        const void*     pDxgiCallbacks) = 0;
+
+#endif // #if PAL_CLIENT_DX
 
     /// Indicates that the client has finished overriding public settings so the settings struct can be finalized and
     /// any late-stage initialization can be done. This method must be called before @ref IDevice::Finalize() can be
@@ -3254,6 +4143,14 @@ public:
         const GpuMemoryRef* pGpuMemoryRefs,
         IQueue*             pQueue,
         uint32              flags
+#if PAL_CLIENT_DX
+        ,
+        DxRuntimeHandle     hPagingQueue = nullptr, ///< [in]  Optional DX12 only: Paging queue handle passed in by the
+                                                    ///        application to be used for residency operations.
+        uint64*             pPagingFence = nullptr  ///< [out] Optional DX12/11 only: Paging fence returned by the OS for
+                                                    ///        residency operations performed on the provided memory
+                                                    ///        list.
+#endif
         ) = 0;
 
     /// Removes a list of per-device memory object references that have previously been added via
@@ -3275,6 +4172,11 @@ public:
         uint32            gpuMemoryCount,
         IGpuMemory*const* ppGpuMemory,
         IQueue*           pQueue
+#if PAL_CLIENT_DX
+        ,
+        gpusize*          pNumBytesToTrim = nullptr   ///< [out] Optional WDDM only: NumBytesToTrim returned by evict
+                                                      ///        callback will be filled into this field.
+#endif
         ) = 0;
 
     /// Queries the Device for the total amount of referenced GPU memory for each heap type.  These totals include all
@@ -3378,6 +4280,37 @@ public:
     virtual Result SetStaticVmidMode(
         bool enable) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 943
+    /// Set up MGPU compositing mode of a display provided by client.
+    ///
+    /// This function should not be called by clients that rely on PAL for compositor management.  Basically, if your
+    /// client uses the IScreen's interface to take full screen exclusive mode, then don't call this.
+    ///
+    /// @param [in] setMgpuModeInput        Set MGPU compositing mode input arguments.
+    ///
+    /// @returns Success if the MGPU compositing mode were successfully set.
+    //# The KMD is incapable of setting up HW compositing mode now, so we return a silent success if this gets called.
+    inline Result SetMgpuMode(
+        const SetMgpuModeInput& setMgpuModeInput) const { return Result::Success; }
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
+    /// Get XDMA cache buffer information of each GPU based upon video present source ID provided by client.
+    ///
+    /// This function should not be called by clients that rely on PAL for compositor management.  Basically, if your
+    /// client uses the IScreen's interface to take full screen exclusive mode, then don't call this.
+    ///
+    /// @param [in]     vidPnSrcId              Video present source id.
+    /// @param [in]     gpuMemory               Primary surface GPU memory.
+    /// @param [in,out] pGetXdmaInfoOutput      Set XDMA cache buffer info output arguments.
+    ///
+    /// @returns Success if the XDMA cache buffer information were successfully queried.
+    inline Result GetXdmaInfo(
+        uint32              vidPnSrcId,
+        const IGpuMemory&   gpuMemory,
+        GetXdmaInfoOutput*  pGetXdmaInfoOutput) const { return Result::ErrorUnavailable; }
+#endif
+
     /// Polls current fullscreen frame metadata controls on given vidPnSourceId, including extended data.
     ///
     /// The function is used by clients that support frame metadata through KMD-UMD shared memory.
@@ -3417,6 +4350,49 @@ public:
         uint32           vidPnSrcId,
         FlipStatusFlags* pFlipFlags,
         bool*            pIsFlipOwner) const = 0;
+
+#if PAL_CLIENT_DX
+    /// Offer a list of resources or allocations provided by client. pResources and ppGpuMemList can't be valid
+    /// at the same time. Allocation offerring is supposed to be based on either pResources or ppGpuMemList.
+    ///
+    /// @param [in] pResources     An array of Direct3D runtime handles to resources to offer.
+    /// @param [in] ppGpuMemList   An array of GPU memory references.
+    /// @param [in] gpuMemCount    The number of items in the pResources or ppGpuMemList members,
+    ///                            whichever is not NULL.
+    /// @param [in] priority       The priority, of type D3DDDI_OFFER_PRIORITY, with which to offer
+    ///                            the allocations for reuse.
+    /// @param [in] allowDecommit  A boolean value to specify if allocations are allowed to decommit.
+    ///
+    /// @returns Success if the provided resources/allocations were successfully offered.
+    virtual Result OfferAllocations(
+        const DxRuntimeHandle* pResources,
+        IGpuMemory*const*      ppGpuMemList,
+        uint32                 gpuMemCount,
+        uint8                  priority,
+        bool                   allowDecommit) = 0;
+
+    /// Reclaim a list of resources or allocations provided by client. pResources and ppGpuMemList can't be valid
+    /// at the same time. Allocation reclaiming is supposed to be based on either pResources or ppGpuMemList.
+    ///
+    /// @param [in]  pResources     An array of Direct3D runtime handles to resources to reclaim.
+    /// @param [in]  ppGpuMemList   An array of GPU memory references.
+    /// @param [in]  gpuMemCount    The number of items in the pResources or ppGpuMemList members,
+    ///                             whichever is not NULL.
+    /// @param [out] pResults       An array of ReclaimResult indicating the reclaim result for each resource or
+    ///                             allocation.
+    /// @param [out] pFenceValue    WDDM only: The paging fence to synchronize against before submitting work to the
+    ///                             GPU which references any of the resources or allocations in the provided arrays.
+    /// @param [in]  hPagingQueue   WDDM only: Paging queue passed in by client to be used for reclaiming
+    ///
+    /// @returns Success if the provided resources/allocations were successfully reclaimed.
+    virtual Result ReclaimAllocations(
+        const DxRuntimeHandle* pResources,
+        IGpuMemory*const*      ppGpuMemList,
+        uint32                 gpuMemCount,
+        ReclaimResult*         pResults,
+        uint64*                pFenceValue,
+        DxRuntimeHandle        hPagingQueue) = 0;
+#endif
 
     /// Resets the specified set of fences.
     ///
@@ -3918,6 +4894,39 @@ public:
         const PeerGpuMemoryOpenInfo& openInfo,
         void*                        pPlacementAddr,
         IGpuMemory**                 ppGpuMemory) = 0;
+
+#if PAL_CLIENT_DX
+    /// Determines the amount of system memory required for the multi device GPU memory object. An allocation
+    /// of this amount of memory must be provided in the pPlacementAddr parameter of OpenMultiDeviceGpuMemory().
+    ///
+    /// @param [in]  openInfo Specifies a handle to the GPU memory object that has the multi device allocations.
+    /// @param [out] pResult  The validation result if pResult is non-null. This argument can be null to avoid the
+    ///                       additional validation.
+    ///
+    /// @returns Size, in bytes, of system memory required for opening a multi device IGpuMemory object with the
+    ///          specified properties.  A return value of 0 indicates the openInfo was invalid.
+    virtual size_t GetMultiDeviceGpuMemorySize(
+        const MultiDeviceGpuMemoryOpenInfo& openInfo,
+        Result*                             pResult) const = 0;
+
+    /// Opens a multi device GPU memory object backed by the allocation that is created when the original GPU memory
+    /// object is created using the same single AllocateCb call.
+    ///
+    /// @param [in]  openInfo       Specifies a handle to the GPU memory object that has the multi device allocations.
+    /// @param [in]  pPlacementAddr Pointer to the location where PAL should construct this object.  There must be as
+    ///                             much size available here as reported by calling GetMultiDeviceGpuMemorySize() with
+    ///                             the same params.
+    /// @param [out] ppGpuMemory    Constructed GPU memory object.  When successful, the returned address will be the
+    ///                             same as specified in pPlacementAddr.
+    ///
+    /// @returns Success if the memory was successfully opened for the multi device memory object.  Otherwise, one of
+    ///          the following errors may be returned:
+    ///          + ErrorInvalidPointer if pPlacementAddr, ppGpuMemory, or openInfo.pOriginalMem is null.
+    virtual Result OpenMultiDeviceGpuMemory(
+        const MultiDeviceGpuMemoryOpenInfo& openInfo,
+        void*                               pPlacementAddr,
+        IGpuMemory**                        ppGpuMemory) = 0;
+#endif
 
     /// Determines the amount of system memory required for an image object.  An allocation of this amount of memory
     /// must be provided in the pPlacementAddr parameter of CreateImage().
@@ -4526,26 +5535,170 @@ public:
         void*                               pPlacementAddr,
         IBorderColorPalette**               ppPalette) const = 0;
 
-    /// Creates an @ref ICodeObject instance with the requested properties.
-    /// This may return a (partially) already-existing instance if de-duplication was requested.
+#if PAL_BUILD_VIDEO
+    /// Determines the amount of system memory required for a video decoder object.  An allocation of this amount of
+    /// memory must be provided in the pPlacementAddr parameter of CreateVideoDecoder().
     ///
-    /// The user must explicitly upload the code object after obtaining the ICodeObject instance - this gives the user
-    /// the opportunity to inspect the ELF binary data before it potentially gets freed upon upload.
+    /// @param [in]  createInfo Video decoder properties.
+    /// @param [out] pResult    The validation result if pResult is non-null. This argument can be null to avoid the
+    ///                         additional validation.
     ///
-    /// CodeObjects can then be used when creating Pipelines or ShaderLibraries.  The user is responsible for only
-    /// passing CodeObjects into the correct context.
+    /// @returns Size, in bytes, of system memory required for an IVideoDecoder object with the specified properties.
+    ///          A return value of 0 indicates the createInfo was invalid.
+    virtual size_t GetVideoDecoderSize(
+        const VideoDecoderCreateInfo& createInfo,
+        Result*                       pResult) const = 0;
+
+    /// Creates a @ref IVideoDecoder with the requested properties.
     ///
-    /// @param [in]     createInfo     Code object properties, including de-duplication and lifetime flags.
-    /// @param [out]    ppCodeObject   The returned code object instance, which may be an already-existing instance.
+    /// @param [in]  createInfo     Video decoder properties.
+    /// @param [in]  pPlacementAddr Address of the video decoder.
+    /// @param [out] ppDecoder      Initialized video decoder object.
     ///
-    /// @returns Success if the code object was successfully created.  Otherwise, one of the following errors may be
-    ///          returned:
-    ///          + ErrorInvalidPointer if ppCodeObject is null.
-    ///          + ErrorUnsupportedShaderIlVersion if an incorrect shader type is used in any shader stage.
-    ///          + ErrorOutOfMemory if memory allocation fails.
-    virtual Result LoadCodeObject(
-        const CodeObjectCreateInfo& createInfo,
-        ICodeObject**               ppCodeObject) = 0;
+    /// @returns Success if the video decoder was successfully created. Errors where appropriate.
+    virtual Result CreateVideoDecoder(
+        const VideoDecoderCreateInfo& createInfo,
+        void*                         pPlacementAddr,
+        IVideoDecoder**               ppDecoder) = 0;
+
+    /// Determines the amount of system memory required for a video decoder heap.
+    ///
+    /// @param [in]  decoderMemInfo Video decoder gpu memory properties.
+    /// @param [out] pGpuMemReqs Required properties of GPU memory to be bound to this object.  Includes properties
+    ///                           like size, alignment, and allowed heaps.
+    ///
+    /// @returns Success if the video decoder was successfully created. Errors where appropriate.
+    virtual Result GetVideoDecoderGpuMemorySize(
+        const VideoDecoderGpuMemInfo& decoderMemInfo,
+        GpuMemoryRequirements*        pGpuMemReqs) const = 0;
+
+    /// Initialize a video decoder heap.
+    ///
+    /// @param [in] pGpuMem GPU memory allocation object holding the video decoder heap.
+    /// @param [in] offset Offset in bytes into pGpuMemory where the video decoder heap data begins.
+    ///
+    /// @returns Success if the video decoder was successfully initialized. Errors where appropriate.
+    virtual Result InitializeVideoDecoderGpuMemory(
+        const VideoDecoderGpuMemInfo&   decoderMemInfo,
+        IGpuMemory*                     pGpuMem,
+        gpusize                         offset) = 0;
+
+    /// Determines the amount of system memory required for a video encoder object.  An allocation of this amount of
+    /// memory must be provided in the pPlacementAddr parameter of CreateVideoEncoder().
+    ///
+    /// @param [in]  createInfo Video encoder properties.
+    /// @param [out] pResult    The validation result if pResult is non-null. This argument can be null to avoid the
+    ///                         additional validation.
+    ///
+    /// @returns Size, in bytes, of system memory required for an IVideoEncoder object with the specified properties.
+    ///          A return value of 0 indicates the createInfo was invalid.
+    virtual size_t GetVideoEncoderSize(
+        const VideoEncoderCreateInfo& createInfo,
+        Result*                       pResult) const = 0;
+
+    /// Creates a @ref IVideoEncoder object with the requested properties.
+    ///
+    /// @param [in]  createInfo     Video encoder properties.
+    /// @param [in]  pPlacementAddr Address of the video encoder.
+    /// @param [out] ppEncoder      Initialized video encoder object.
+    ///
+    /// @returns Success if the video encoder was successfully created. Errors where appropriate.
+    virtual Result CreateVideoEncoder(
+        const VideoEncoderCreateInfo& createInfo,
+        void*                         pPlacementAddr,
+        IVideoEncoder**               ppEncoder) = 0;
+
+    /// Determines the amount of system memory required for a motion estimator object.  An allocation of this amount of
+    /// memory must be provided in the pPlacementAddr parameter of CreateVideoDecoder().
+    ///
+    /// @param [in]  createInfo motion estimator properties.
+    /// @param [out] pResult    The validation result if pResult is non-null. This argument can be null to avoid the
+    ///                         additional validation.
+    ///
+    /// @returns Size, in bytes, of system memory required for an IVideoDecoder object with the specified properties.
+    ///          A return value of 0 indicates the createInfo was invalid.
+    virtual size_t GetMotionEstimatorSize(
+        const MotionEstimatorCreateInfo& createInfo,
+        Result*                          pResult) const = 0;
+
+    /// Creates a @ref IMotionEstimator with the requested properties.
+    ///
+    /// @param [in]  createInfo     motion estimator properties.
+    /// @param [in]  pPlacementAddr Address of the motion estimator.
+    /// @param [out] ppDecoder      Initialized motion estimator object.
+    ///
+    /// @returns Success if the motion estimator was successfully created. Errors where appropriate.
+    virtual Result CreateMotionEstimator(
+        const MotionEstimatorCreateInfo& createInfo,
+        void*                            pPlacementAddr,
+        IMotionEstimator**               ppMotionEstimator) = 0;
+
+    /// Query Video Bandwidth from KMD
+    ///
+    /// @param [in]  engineType   EngineType of multimedia HW
+    /// @param [in]  engineIdx    EngineIndex of the multimedia HW
+    /// @param [out] pOutput      Video bandwidth output info
+    ///
+    /// @returns Success if Query bandwidth succeeds. Errors where appropriate.
+    virtual Result QueryVideoBandwidth(
+        EngineType          engineType,
+        uint32              engineIdx,
+        VideoBandwidthInfo* pOutput) = 0;
+
+#endif
+#if PAL_BUILD_SECURITY
+    /// Determines the amount of system memory required for a secure processor object.  An allocation of this amount of
+    /// memory must be provided in the pPlacementAddr parameter of CreateSecureProcessor().
+    ///
+    /// @param [in]  createInfo secure processor properties.
+    /// @param [out] pResult    The validation result if pResult is non-null. This argument can be null to avoid the
+    ///                         additional validation.
+    ///
+    /// @returns Size, in bytes, of system memory required for an ISecureProcessor object with the specified properties.
+    ///          A return value of 0 indicates the createInfo was invalid.
+    virtual size_t GetSecureProcessorSize(
+        const SecureProcessorCreateInfo& createInfo,
+        Result*                          pResult) const = 0;
+
+    /// Creates a @ref ISecureProcessor with the requested properties.
+    ///
+    /// @param [in]  createInfo        secure processor properties.
+    /// @param [in]  pPlacementAddr    Address of the secure processor.
+    /// @param [out] ppSecureProcessor Initialized secure processor object.
+    ///
+    /// @returns Success if the secure processor was successfully created. Errors where appropriate.
+    virtual Result CreateSecureProcessor(
+        const SecureProcessorCreateInfo& createInfo,
+        void*                            pPlacementAddr,
+        ISecureProcessor**               ppSecureProcessor) = 0;
+#endif
+
+#if PAL_BUILD_VPE
+    /// Determines the amount of system memory required for a video processor object.  An allocation of this amount of
+    /// memory must be provided in the pPlacementAddr parameter of CreateVideoProcessor().
+    ///
+    /// @param [in]  createInfo Video processor properties.
+    /// @param [out] pResult    The validation result if pResult is non-null. This argument can be null to avoid the
+    ///                         additional validation.
+    ///
+    /// @returns Size, in bytes, of system memory required for an IVideoProcessor object with the specified properties.
+    ///          A return value of 0 indicates the createInfo was invalid.
+    virtual size_t GetVideoProcessorSize(
+        const VideoProcessorCreateInfo& createInfo,
+        Result*                         pResult) const = 0;
+
+    /// Creates a @ref IVideoProcessor with the requested properties.
+    ///
+    /// @param [in]  createInfo     Video processor properties.
+    /// @param [in]  pPlacementAddr Address of the video processor.
+    /// @param [out] ppProcessor    Initialized video processor object.
+    ///
+    /// @returns Success if the video processor was successfully created. Errors where appropriate.
+    virtual Result CreateVideoProcessor(
+        const VideoProcessorCreateInfo& createInfo,
+        void*                           pPlacementAddr,
+        IVideoProcessor**               ppProcessor) = 0;
+#endif
 
     /// Determines the amount of system memory required for a compute pipeline object.  An allocation of this amount of
     /// memory must be provided in the pPlacementAddr parameter of CreateComputePipeline().
@@ -4672,6 +5825,71 @@ public:
         const GraphicsPipelineCreateInfo& createInfo,
         void*                             pPlacementAddr,
         IPipeline**                       ppPipeline) = 0;
+
+#if PAL_WORK_GRAPHS_SUPPORT
+    /// Determines the amount of system memory required for a @ref IGraphLayout object.  An allocation of this amount of
+    /// memory must be provided in the pPlacementAddr parameter of CreateGraphLayout().
+    ///
+    /// @param [in]  createInfo  Graph layout properties.
+    /// @param [out] pResult     The validation result if pResult is non-null.  This argument can be null to prevent
+    ///                          additional validation checks.
+    ///
+    /// @returns  Size, in bytes, of system memory required for an IGraphLayout object with the specified properties.
+    ///           A return value of 0 indicates the createInfo was invalid.
+    virtual size_t GetGraphLayoutSize(
+        const GraphLayoutCreateInfo& createInfo,
+        Result*                      pResult) const = 0;
+
+    /// Creates an @ref IGraphLayout object with the requested properties.
+    ///
+    /// @param [in]  createInfo      Graph layout properties.
+    /// @param [in]  pPlacementAddr  Pointer to the location where PAL should construct this object.  There must be as
+    ///                              much size available here as reported by calling @ref GetGraphLayoutSize with the
+    ///                              same createInfo parameter.
+    /// @param [out] ppGraphLayout   Constructed graph layout object.  When successful, the returned address will be the
+    ///                              same as specified in pPlacementAddr.
+    ///
+    /// @returns  Success if the object was successfully created.  Otherwise, one of the following errors may be
+    ///           returned:
+    ///          + ErrorInvalidPointer if:
+    ///              - pPlacementAddr or ppGraphLayout is null.
+    virtual Result CreateGraphLayout(
+        const GraphLayoutCreateInfo& createInfo,
+        void*                        pPlacementAddr,
+        IGraphLayout**               ppGraphLayout) = 0;
+
+    /// Determines the amount of system memory required for an @ref IWorkGraph object.  An allocation of this amount of
+    /// memory must be provided in the pPlacementAddr parameter of CreateWorkGraph().
+    ///
+    /// @param [in]  createInfo  Work graph properties.
+    /// @param [out] pResult     The validation result if pResult is non-null.  This argument can be null to prevent
+    ///                          additional validation checks.
+    ///
+    /// @returns  Size, in bytes, of system memory required for an IWorkGraph object with the specified properties.
+    ///           A return value of 0 indicates the createInfo was invalid.
+    virtual size_t GetWorkGraphSize(
+        const WorkGraphCreateInfo& createInfo,
+        Result*                    pResult) const = 0;
+
+    /// Creates an @ref IWorkGraph object with the requested properties.
+    ///
+    /// @param [in]  createInfo      Work graph pipeline properties.
+    /// @param [in]  pPlacementAddr  Pointer to the location where PAL should construct this object.  There must be
+    ///                              as much size available here as reported by calling @ref GetWorkGraphSize with the
+    ///                              same createInfo parameter.
+    /// @param [out] ppPipeline      Constructed pipeline object.  When successful, the returned address will be the
+    ///                              same as specified in pPlacementAddr.
+    ///
+    /// @returns  Success if the object was successfully created.  Otherwise, one of the following errors may be
+    ///           returned:
+    ///          + ErrorInvalidPointer if:
+    ///              - pPlacementAddr or ppGraphLayout is null.
+    ///          + Other errors returnable by @ref IGraphLayout::Finalize if that call didn't succeed.
+    virtual Result CreateWorkGraph(
+        const WorkGraphCreateInfo& createInfo,
+        void*                      pPlacementAddr,
+        IWorkGraph**               ppWorkGraph) = 0;
+#endif
 
     /// Determines the amount of system memory required for a MSAA state object.  An allocation of this amount of memory
     /// must be provided in the pPlacementAddr parameter of CreateMsaaState().
@@ -5210,6 +6428,59 @@ public:
         void*                      pPlacementAddr,
         ISwapChain**               ppSwapChain) = 0;
 
+#if PAL_BUILD_ANDROID
+    /// Reports the required gralloc usage flags based on the specified image format and usage flags.
+    /// Gralloc usage flags affect the properties of swap chain images allocated by SurfaceFlinger,
+    /// and may need to be adjusted for compatibility with our Vulkan implementation.
+    /// This function is called before the swap chain is created and gives an opportunity for PAL to
+    /// specify flags that will ensure compatibility/performance.
+    ///
+    /// @param [in]  format           Format and channel swizzle for colorImage
+    /// @param [in]  imageUsage       Image usage flags converted from VkSwapchainCreateInfoKHR
+    ///                               swap chain creation parameters.
+    /// @param [out] pGrallocUsage    Constructed gralloc usage flags.
+    ///
+    /// @returns Success if the format and imageUsage flags were successfully converted to gralloc usage flags.
+    ///          Otherwise, one of the following errors may be returned:
+    ///          + ErrorInvalidValue if an unexpected convert error occurs.
+    virtual Result GetSwapchainGrallocUsage(
+        SwizzledFormat  format,
+        ImageUsageFlags imageUsage,
+        int*            pGrallocUsage) = 0;
+
+    /// Imports the state of an externally-signaled native fence into an existing Pal::IQueueSemaphore and/or
+    /// Pal::IFence object.  Both objects become signaled when the underlying native fence signals.
+    /// This function is called during vkAcquireNextImageWSI to allow synchronization between the OS compositor
+    /// (who signals a native fence) and the application (who waits on a VkFence or VkSemaphore).
+    /// If nativeFenceFd is -1, it is as if the native fence was already signalled, image can be used immediately.
+    ///
+    /// @param [in]     nativeFenceFd    Externally-signaled native fence, needs to be closed by client.
+    /// @param [in,out] pPalSemaphore    Optional.  If non-null, the external native fence will be imported into
+    ///                                  pPalSemaphore.
+    /// @param [in,out] pPalFence        Optional.  If non-null, the external native fence will be imported into
+    ///                                  pPalFence.
+    ///
+    /// @returns Success if the external native fence imported successful.  Otherwise, one of the following errors may
+    ///          be returned:
+    ///          + ErrorInvalidValue if an unexpected conversion error occurs.
+    virtual Result AssociateNativeFence(
+        int              nativeFenceFd,
+        uint64           syncFdSignalValue,
+        IQueueSemaphore* pPalSemaphore,
+        IFence*          pPalFence) = 0;
+
+    /// Import the buffer used by surfaceFlinger from file descriptor
+    ///
+    /// @param [in] fd         File descriptor
+    ///
+    /// @param [out] handle    The handle generated by kernel for the file descriptor
+    ///
+    /// @returns Success if the event was successfully reconstructed, otherwise an appropriate error code.
+    virtual Result ImportSurfaceFlingerBufferFromFd(
+        uint32  fd,
+        uint64* pHandle) const = 0;
+#endif
+
     /// Sets a power profile for this device.
     ///
     /// @param [in]      profile A profile is a pre-defined configuration indicates how KMD/PPLib is notified to work,
@@ -5266,6 +6537,7 @@ public:
         uint32*                     pConnectorCount,
         DisplayConnectorProperties* pConnectors) = 0;
 
+#if PAL_CLIENT_OCL
     /// Queries the dispatch kernel source code
     ///
     /// @returns Returns the source code for the kernel dispatch function used in
@@ -5273,6 +6545,7 @@ public:
     ///
     /// @note This function is to support OpenCL AQL submissions.
     virtual const char* GetDispatchKernelSource() const = 0;
+#endif
 
     /// @}
 
@@ -5383,6 +6656,10 @@ public:
     /// If Delag has updated, call IPlatform::QueryRawApplicationProfile() with client = User3D to get the enabled
     /// state, and additionally call GetRsFeatureGlobalSettings() to get the Delag hotkey.
     ///
+    //# If RIS has updated, call IPlatform::QueryRawApplicationProfile() with client = User3D for per-app RIS setting
+    //# overrides; if that returns Unsupported, then fall back to device-wide RIS settings read via
+    //# GetRsFeatureGlobalSettings().  The app blacklist obtained by calling IPlatform::QueryRawApplicationProfile()
+    //# with client = Ris should be checked against before attempting to poll or apply RIS settings.
     ///
     /// @param [in]  rsFeatures          Bitmask of RsFeatureType value(s) to query.  Use UINT_MAX to poll all.
     /// @param [out] pRsFeaturesChanged  Bitmask of queried RsFeatureTypes that have changed since last polling.
@@ -5511,6 +6788,20 @@ public:
         char* pBuffer,
         size_t bufferLength) const = 0;
 
+#if PAL_CLIENT_DX
+    /// Gets the active HDR display mode for the given swap chain image format and display.
+    /// In addition to the given format, this may also be based on the screen's currently active colorspace and
+    /// transfer function configuration.
+    ///
+    /// @param [in] hDisplay  OS handle to the display that will be presented to.
+    /// @param [in] format    Swap chain image format to test.
+    ///
+    /// @returns Sdr if the given format + screen colorspace do not support HDR, other HdrDisplayMode values otherwise.
+    virtual HdrDisplayMode GetFormatHdrMode(
+        OsDisplayHandle hDisplay,
+        SwizzledFormat  format) const = 0;
+#endif
+
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.
     ///
@@ -5529,6 +6820,23 @@ public:
     {
         m_pClientData = pClientData;
     }
+
+#if PAL_BUILD_INFINITY_STORAGE
+    /// Notify the KMD to track an allocation as a storage destination.
+    ///
+    /// @param [in] pGpuMemory      A pointer to the IGpuMemory of the allocation.
+    /// @param [in] pMappedCpuVa    non-null CPU virtual address mapping
+    ///
+    /// @returns Result for error handling.
+    virtual Result InfinityStorageRegisterDestinationMemory(IGpuMemory* pGpuMemory, void* pMappedCpuVa) = 0;
+
+    /// Notify the KMD that an allocation no longer needs to be tracked as a storage destination.
+    ///
+    /// @param [in]     pGpuMemory  A pointer to the IGpuMemory of the allocation.
+    ///
+    /// @returns Result for error handling.
+    virtual Result InfinityStorageUnregisterDestinationMemory(IGpuMemory* pGpuMemory) = 0;
+#endif
 
 #if defined(__unix__)
     /// Gets the modifier list and modifier count according to image format.

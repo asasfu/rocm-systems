@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palStringUtil.h
@@ -39,6 +16,25 @@
 
 namespace Util
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 919
+/// Returns the length of a wchar_t based string.
+///
+/// @param [in]  wide string to query
+///
+/// @returns The length of the given string in wide characters
+extern size_t PalWcslen(
+    const wchar_t* pWideStr);
+
+/// Performs a reverse string find of wide character wc.
+///
+/// @param [in]  wide string to scan
+/// @param [in]  wide character to find
+///
+/// @returns The matching character at the end of the string or nullptr if not found.
+extern wchar_t* PalWcsrchr(
+    wchar_t *pStr,
+    wchar_t wc);
+#endif
 
 /// When the -fshort-char compiler option is specified, wchar_t is 16 bits, but mbstowcs still treats the dest
 /// as 32 bit so we provide our own implementation.

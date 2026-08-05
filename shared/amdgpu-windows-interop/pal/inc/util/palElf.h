@@ -1,32 +1,12 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palElf.h
  * @brief Standard ELF Structures, Enums, and Constants.
  * Based off of http://man7.org/linux/man-pages/man5/elf.5.html
+ * @cond PAL_CLOSED_SOURCE
+ * and https://www.uclibc.org/docs/elf-64-gen.pdf Version 1.5 Draft 2
+ * @endcond
  ***********************************************************************************************************************
  */
 
@@ -88,6 +68,7 @@ constexpr uint8  ElfVersion       = 1;             ///< Identification version
 
 /// The File header describes the ELF file. It is located at the beginning of the ELF file and is
 /// used to locate other parts of the ELF. This struct is known as Elf64_Ehdr in the spec.
+//# SEE: Section 3 in https://www.uclibc.org/docs/elf-64-gen.pdf
 struct FileHeader
 {
     union
@@ -127,6 +108,7 @@ struct FileHeader
 };
 
 /// The Section header describes a section.  This struct is known as Elf64_Shdr in the spec.
+//# SEE: Section 4 in https://www.uclibc.org/docs/elf-64-gen.pdf
 struct SectionHeader
 {
     uint32 sh_name;      ///< Offset, in bytes, to the section name, relative to the start of the
@@ -152,9 +134,11 @@ struct SectionHeader
 // symbol table entries refer to strings in a string table with an index relative to the beginning
 // of the string table. The first byte in a string table is defined to be null, so that the index 0
 // always refers to a null or nonexistent name.
+//# SEE: Section 5 in https://www.uclibc.org/docs/elf-64-gen.pdf
 
 /// The section data of a symbol section contains a symbol table. This is an entry in that table.
 /// This struct is known as Elf64_Sym in the spec.
+//# SEE: Section 6 in https://www.uclibc.org/docs/elf-64-gen.pdf
 struct SymbolTableEntry
 {
     uint32 st_name;  ///< Offset, in bytes, to the symbol name, relative to the start of the symbol
@@ -185,6 +169,7 @@ struct SymbolTableEntry
 /// Sections of type Rel contain a relocation table.  This is an entry in that table. The addend
 /// part of the relocation is obtained from the original value of the word being relocated.
 /// This struct is known as Elf64_Rel in the spec.
+//# SEE: Section 7 in https://www.uclibc.org/docs/elf-64-gen.pdf
 struct RelTableEntry
 {
     uint64 r_offset; ///< Indicates the location at which the relocation should be applied. For a
@@ -207,6 +192,7 @@ struct RelTableEntry
 /// Sections of type Rela contain a relocation table. This is an entry in that table. The Rela type
 /// provides an explicit field for a full-width addend.
 /// This struct is known as Elf64_Rela in the spec.
+//# SEE: Section 7 in https://www.uclibc.org/docs/elf-64-gen.pdf
 struct RelaTableEntry
 {
     uint64 r_offset; ///< \copydoc Rel.r_offset
@@ -225,6 +211,7 @@ struct RelaTableEntry
 
 /// In executable and shared object files, sections are grouped into segments for loading. The
 /// program header describes one of these segments. This struct is known as Elf64_Phdr in the spec.
+//# SEE: Section 8 in https://www.uclibc.org/docs/elf-64-gen.pdf
 struct ProgramHeader
 {
     uint32 p_type;   ///< Identifies the type of segment. See SegmentType.
@@ -246,6 +233,7 @@ struct ProgramHeader
 /// The desc field contains the contents of the note, followed by padding as necessary to ensure
 /// 8-byte alignment for the next note entry. The format and interpretation of the note contents are
 /// determined solely by the name and type fields, and are unspecified by the ELF standard.
+//# SEE: Section 9  in https://www.uclibc.org/docs/elf-64-gen.pdf
 struct NoteTableEntryHeader
 {
     uint32 n_namesz; ///< Identifies the length, in bytes, of the name field.
@@ -257,6 +245,7 @@ struct NoteTableEntryHeader
 /// Sections of type Dyn contain a dynamic table. This is an entry in that
 /// table. Refer to Section 11 of the spec for efficient dynamic table access
 /// using a hash table. This struct is known as Elf64_Dyn in the spec.
+//# SEE: Section 10 in https://www.uclibc.org/docs/elf-64-gen.pdf
 struct DynamicTableEntry
 {
     uint64 d_tag;     ///< Identifies the type of dynamic table entry. The type determines the

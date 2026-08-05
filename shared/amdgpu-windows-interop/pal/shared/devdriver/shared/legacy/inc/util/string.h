@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -187,6 +164,8 @@ inline uint8 HexDigitToValue(char c)
 {
     // We use a switch case here to get the point across
     // gcc9, clang8, and MSVC all turn this into a lookup table indexing with c (sometimes subtracting from it first)
+    //# There's some potential for speedup here. See issue #205
+
 
     switch (c)
     {
@@ -195,7 +174,7 @@ inline uint8 HexDigitToValue(char c)
         case '1': case '2': case '3':
         case '4': case '5': case '6':
         case '7': case '8': case '9':
-                                    return static_cast<uint8>(c - '0');
+                                    return c - '0';
 
         case 'a': case 'A':         return 0xa;
         case 'b': case 'B':         return 0xb;
@@ -247,6 +226,46 @@ inline uint8 HexDigitToValue(char c)
 // such as Json.
 //
 // Returns the number of bytes written out through `pBytesOut`.
-size_t DecodeFromHexString(const char* pStrBuff, size_t strLength, void* pBytesOut, size_t numBytes);
+inline size_t DecodeFromHexString(const char* pStrBuff, size_t strLength, void* pBytesOut, size_t numBytes)
+{
+    uint8* pBytes = static_cast<uint8*>(pBytesOut);
+
+    // Byte offset that we've written into pBytes
+    size_t bytesProcessed = 0;
+
+    // Note: Only even-length hex strings are supported
+    if ((strLength % 2 == 0) && (pBytes != nullptr) && (numBytes != 0) && (pStrBuff != nullptr) && (strLength != 0))
+    {
+        size_t byteIdx = 0;
+
+        // Process two characters (one byte) per iteration.
+        // This loop is bounded on two sizes: the string buffer and the byte buffer
+        for (size_t strIdx = 0;
+            ((strIdx + 1) < strLength) && (byteIdx < numBytes);
+            strIdx += 2, byteIdx += 1)
+        {
+            const uint8 hi = HexDigitToValue(pStrBuff[strIdx + 0]); // High nibble first
+            const uint8 lo = HexDigitToValue(pStrBuff[strIdx + 1]); // Low nibble
+
+            if ((lo != 0xff) && (hi != 0xff))
+            {
+                pBytes[byteIdx] = (hi << 4) | lo;
+                bytesProcessed += 1;
+            }
+            else
+            {
+                // Non-hex digit encountered, this is a parsing error.
+                // This log statement is compiled out, but may be useful for debugging something funny.
+                DD_PRINT(LogLevel::Never,
+                    "[DecodeFromHexString] Expected hex digits ([0-9a-fA-F]), but found \"%c%c\"",
+                    pStrBuff[strIdx + 0],
+                    pStrBuff[strIdx + 1]);
+                break;
+            }
+        }
+    }
+
+    return bytesProcessed;
+}
 
 } // namespace DevDriver

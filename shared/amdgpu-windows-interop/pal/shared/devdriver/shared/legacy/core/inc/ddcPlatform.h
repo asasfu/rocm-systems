@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -146,11 +123,7 @@ typedef void (*ThreadFunction)(void* pThreadParameter);
 #endif
 
 // TODO: remove this and make kDebugLogLevel DD_STATIC_CONST when we use a version of visual studio that supports it
-#if !defined(DD_OPT_LOG_LEVEL_SET)
-    #define DD_OPT_LOG_LEVEL_SET 0
-#endif
-
-#if DD_OPT_LOG_LEVEL_SET
+#ifdef DD_OPT_LOG_LEVEL
     #define DD_OPT_LOG_LEVEL_VALUE static_cast<LogLevel>(DD_OPT_LOG_LEVEL)
 #else
     #if defined(NDEBUG)
@@ -178,7 +151,7 @@ typedef void (*ThreadFunction)(void* pThreadParameter);
 // This allows us to enforce bool arguments to DD_ASSERT() macros
 namespace DevDriver
 {
-    void check_expr_is_bool(bool);
+    inline void check_expr_is_bool(bool) {}
 
     template <typename T>
     void check_expr_is_bool(const T&) = delete;
@@ -415,19 +388,12 @@ void FreeMemory(void* pMemory);
 class AtomicLock
 {
 public:
-    AtomicLock();
-    ~AtomicLock();
+    AtomicLock() : m_lock(0) {};
+    ~AtomicLock() {};
     void Lock();
     bool TryLock();
     void Unlock();
-    bool IsLocked();
-
-private:
-    AtomicLock(AtomicLock&&) = delete;
-    AtomicLock(const AtomicLock&) = delete;
-    AtomicLock& operator=(AtomicLock&&) = delete;
-    AtomicLock& operator=(const AtomicLock&) = delete;
-
+    bool IsLocked() { return (m_lock != 0); };
 private:
     Atomic m_lock;
 };
@@ -497,7 +463,14 @@ private:
     static ThreadReturnType DD_APIENTRY ThreadShim(void* pShimParam);
 
     // Reset our object to a default state
-    void Reset();
+    void Reset()
+    {
+        pFnFunction = nullptr;
+        pParameter  = nullptr;
+        hThread     = kInvalidThreadHandle;
+
+        onExit.Clear();
+    }
 
     // Set the thread name to a hard-coded string.
     // The thread name passed to this function must be no larger than kThreadNameMaxLength including the NULL byte.
@@ -514,13 +487,18 @@ class Random
 {
 public:
     // Algorithm Constants
+    //# For reference to what these constants are look up common parameters in a linear congruential generator
+    //# These constants are set to the values for POSIX [nl]rand48[_r]
     static constexpr uint64 kModulus    = (uint64(1) << 48);
     static constexpr uint64 kMultiplier = 0X5DEECE66Dull;
     static constexpr uint16 kIncrement  = 0xB;
 
     Random();
-    Random(uint64 seed);
-    ~Random();
+    Random(uint64 seed)
+    {
+        Reseed(seed);
+    }
+    ~Random() {}
 
     uint32 Generate();
     void Reseed(uint64 seed);
@@ -537,16 +515,20 @@ private:
 class Library
 {
 public:
-    Library();
-    ~Library();
+    Library() : m_hLib(nullptr) { }
+    ~Library() { Close(); }
 
     Result Load(const char* pLibraryName);
 
     void Close();
 
-    bool IsLoaded() const;
+    bool IsLoaded() const { return (m_hLib != nullptr); }
 
-    void Swap(Library* pLibrary);
+    void Swap(Library* pLibrary)
+    {
+        m_hLib = pLibrary->m_hLib;
+        pLibrary->m_hLib = nullptr;
+    }
 
     // Retrieve a function address from the dynamic library object. Returns true if successful, false otherwise.
     template <typename Func_t>
@@ -695,46 +677,143 @@ inline void LogString([[maybe_unused]] const char *format, [[maybe_unused]] Ts&&
 
 // Increments a const pointer by numBytes by first casting it to a const uint8*.
 DD_NODISCARD
-const void* VoidPtrInc(
+constexpr const void* VoidPtrInc(
     const void* pPtr,
-    size_t      numBytes);
+    size_t      numBytes)
+{
+    return (static_cast<const uint8*>(pPtr) + numBytes);
+}
 
 // Increments a pointer by numBytes by first casting it to a uint8*.
 DD_NODISCARD
-void* VoidPtrInc(
+constexpr void* VoidPtrInc(
     void*  pPtr,
-    size_t numBytes);
+    size_t numBytes)
+{
+    return (static_cast<uint8*>(pPtr) + numBytes);
+}
 
 // Decrements a const pointer by numBytes by first casting it to a const uint8*.
 DD_NODISCARD
-const void* VoidPtrDec(
+constexpr const void* VoidPtrDec(
     const void* pPtr,
-    size_t      numBytes);
+    size_t      numBytes)
+{
+    return (static_cast<const uint8*>(pPtr) - numBytes);
+}
 
 // Decrements a pointer by numBytes by first casting it to a uint8*.
 DD_NODISCARD
-void* VoidPtrDec(
+constexpr void* VoidPtrDec(
     void*  pPtr,
-    size_t numBytes);
+    size_t numBytes)
+{
+    return (static_cast<uint8*>(pPtr) - numBytes);
+}
 
 /// Convert a `DevDriver::Result` into a human recognizable string.
-const char* ResultToString(Result result);
+static inline const char* ResultToString(Result result)
+{
+    switch (result)
+    {
+        //// Generic Result Code  ////
+        case Result::Success:            return "Success";
+        case Result::Error:              return "Error";
+        case Result::NotReady:           return "NotReady";
+        case Result::VersionMismatch:    return "VersionMismatch";
+        case Result::Unavailable:        return "Unavailable";
+        case Result::Rejected:           return "Rejected";
+        case Result::EndOfStream:        return "EndOfStream";
+        case Result::Aborted:            return "Aborted";
+        case Result::InsufficientMemory: return "InsufficientMemory";
+        case Result::InvalidParameter:   return "InvalidParameter";
+        case Result::InvalidClientId:    return "InvalidClientId";
+        case Result::ConnectionExists:   return "ConnectionExists";
+        case Result::FileNotFound:       return "FileNotFound";
+        case Result::FunctionNotFound:   return "FunctionNotFound";
+        case Result::InterfaceNotFound:  return "InterfaceNotFound";
+        case Result::EntryExists:        return "EntryExists";
+        case Result::FileAccessError:    return "FileAccessError";
+        case Result::FileIoError:        return "FileIoError";
+        case Result::LimitReached:       return "LimitReached";
+        case Result::MemoryOverLimit:    return "MemoryOverLimit";
+
+        //// URI PROTOCOL  ////
+        case Result::UriServiceRegistrationError:  return "UriServiceRegistrationError";
+        case Result::UriStringParseError:          return "UriStringParseError";
+        case Result::UriInvalidParameters:         return "UriInvalidParameters";
+        case Result::UriInvalidPostDataBlock:      return "UriInvalidPostDataBlock";
+        case Result::UriInvalidPostDataSize:       return "UriInvalidPostDataSize";
+        case Result::UriFailedToAcquirePostBlock:  return "UriFailedToAcquirePostBlock";
+        case Result::UriFailedToOpenResponseBlock: return "UriFailedToOpenResponseBlock";
+        case Result::UriRequestFailed:             return "UriRequestFailed";
+        case Result::UriPendingRequestError:       return "UriPendingRequestError";
+        case Result::UriInvalidChar:               return "UriInvalidChar";
+        case Result::UriInvalidJson:               return "UriInvalidJson";
+
+        //// Settings URI Service  ////
+        case Result::SettingsUriInvalidComponent:        return "SettingsUriInvalidComponent";
+        case Result::SettingsUriInvalidSettingName:      return "SettingsUriInvalidSettingName";
+        case Result::SettingsUriInvalidSettingValue:     return "SettingsUriInvalidSettingValue";
+        case Result::SettingsUriInvalidSettingValueSize: return "SettingsUriInvalidSettingValueSize";
+
+        //// Info URI Service ////
+        case Result::InfoUriSourceNameInvalid:       return "InfoUriSourceNameInvalid";
+        case Result::InfoUriSourceCallbackInvalid:   return "InfoUriSourceCallbackInvalid";
+        case Result::InfoUriSourceAlreadyRegistered: return "InfoUriSourceAlreadyRegistered";
+        case Result::InfoUriSourceWriteFailed:       return "InfoUriSourceWriteFailed";
+
+        //// Settings Service  ////
+        case Result::SettingsInvalidComponent:        return "SettingsInvalidComponent";
+        case Result::SettingsInvalidSettingName:      return "SettingsInvalidSettingName";
+        case Result::SettingsInvalidSettingValue:     return "SettingsInvalidSettingValue";
+        case Result::SettingsInsufficientValueSize:   return "SettingsInsufficientValueSize";
+        case Result::SettingsInvalidSettingValueSize: return "SettingsInvalidSettingValueSize";
+    }
+
+    DD_PRINT(LogLevel::Warn, "Result code %u is not handled", static_cast<uint32>(result));
+    return "Unrecognized DevDriver::Result";
+}
 
 // Helper function for converting bool values into Result enums
 // Useful for cases where Results and bools are interleaved in logic
-Result BoolToResult(bool value);
+static inline Result BoolToResult(bool value)
+{
+    return (value ? Result::Success : Result::Error);
+}
 
 // Use this macro to mark Result values that have not been or cannot be handled correctly.
 #define DD_UNHANDLED_RESULT(x) DevDriver::MarkUnhandledResultImpl((x), DD_STRINGIFY(x), DD_FILE, __LINE__, __func__)
 
 // Implementation for DD_UNHANDLED_RESULT.
 // This is a specialized assert that should be used through the macro, and not called directly.
-// This is implemented in ddcPlatform.cpp.
-void MarkUnhandledResultImpl(
+// This is implemented in ddPlatform.h, so that it has access to DD_ASSERT.
+static inline void MarkUnhandledResultImpl(
     Result      result,
     const char* pExpr,
     const char* pFile,
     int         lineNumber,
-    const char* pFunc);
+    const char* pFunc)
+{
+#if defined(DD_OPT_ASSERTS_ENABLE)
+    if (result != Result::Success)
+    {
+        DD_PRINT(DevDriver::LogLevel::Error,
+            "%s (%d): Unchecked Result in %s: \"%s\" == \"%s\" (0x%X)\n",
+            pFile,
+            lineNumber,
+            pFunc,
+            pExpr,
+            ResultToString(result),
+            result);
+    }
+#else
+    DD_UNUSED(result);
+    DD_UNUSED(pExpr);
+    DD_UNUSED(pFile);
+    DD_UNUSED(lineNumber);
+    DD_UNUSED(pFunc);
+#endif
+}
 
 } // DevDriver

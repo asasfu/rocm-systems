@@ -2,5 +2,5 @@
     autostage = true
     remote = storage
 ['remote "storage"']
-    url = s3://therock-dvc/rocm-systems
-    allow_anonymous_login = true
+    url = s3://therock-npi-dvc/rocm-systems
+    allow_anonymous_login = false

@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palSysUtil.h
@@ -52,6 +29,12 @@
 #include <winerror.h>
 typedef void* HANDLE;
 #elif defined(__unix__)
+#if PAL_CLIENT_DX
+#ifndef _HRESULT_DEFINED
+typedef signed int HRESULT;
+#define _HRESULT_DEFINED
+#endif
+#endif
 #define PAL_HAS_CPUID (__i386__ || __x86_64__)
 #if PAL_HAS_CPUID
 #include <cpuid.h>
@@ -286,7 +269,7 @@ inline Result ConvertErrno(
     return result;
 }
 
-#if defined(_WIN32)
+#if defined(_WIN32) || PAL_CLIENT_DX
 /// Helper function to convert Pal::Result to HRESULT
 ///
 /// @param result Pal::Result to convert
@@ -398,6 +381,7 @@ extern ProcessIntegrityLevel GetProcessIntegrityLevel();
 /// @returns whether the current process is in an App Container
 extern bool IsProcessInAppContainer();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 921
 /// Tests whether the passed handle is valid or not.
 /// A handle could be either nullptr or INVALID_HANDLE_VALUE.
 /// INVALID_HANDLE_VALUE is the proper value to set a handle to when you intend to error out.
@@ -412,6 +396,7 @@ constexpr bool IsValidHandle(HANDLE handle)
 #endif
 }
 #endif
+#endif // _WIN32
 
 /// Queries system information.
 ///
@@ -783,7 +768,7 @@ inline void CpuId(
 #error "Not implemented for the current platform"
 #endif
 }
-#endif
+#endif // PAL_HAS_CPUID
 
 /// Play beep sound. Currently function implemented only for WIN platform.
 ///

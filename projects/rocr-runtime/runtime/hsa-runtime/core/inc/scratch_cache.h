@@ -103,6 +103,7 @@ class ScratchCache {
     size_t main_size_per_thread;    // Populated into SRD
     uint32_t main_lanes_per_wave;   // Populated into SRD
     uint32_t main_waves_per_group;  // Used during waves reduction
+    uint32_t wavegroup_scratch_scale;  // Waves per wavegroup (1 for non-wavegroup)
     void* main_queue_base;
     ptrdiff_t main_queue_process_offset;
     ScratchCache::ref_t main_scratch_node;

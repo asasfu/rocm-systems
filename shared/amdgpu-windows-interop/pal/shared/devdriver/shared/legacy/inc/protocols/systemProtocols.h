@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All Rights Reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) 2021-2026 Advanced Micro Devices, Inc. All rights reserved. */
 
 #pragma once
 
@@ -154,9 +131,21 @@ namespace DevDriver
             {} // payload
         };
 
-        bool IsOutOfBandMessage(const MessageBuffer &message);
+        inline bool IsOutOfBandMessage(const MessageBuffer &message)
+        {
+            // an out of band message is denoted by both the dstClientId and srcClientId
+            // being initialized to kBroadcastClientId.
+            static_assert(kBroadcastClientId == 0, "Error, kBroadcastClientId is non-zero. IsOutOfBandMessage needs to be fixed");
+            return ((message.header.dstClientId | message.header.srcClientId) == kBroadcastClientId);
+        }
 
-        bool IsValidOutOfBandMessage(const MessageBuffer &message);
+        inline bool IsValidOutOfBandMessage(const MessageBuffer &message)
+        {
+            // an out of band message is only valid if the sequence field is initialized with the correct version
+            // and the protocolId is equal to the receiving client's Protocol::ClientManagement value
+            return ((message.header.sequence == kMessageVersion) &
+                    (message.header.protocolId == Protocol::ClientManagement));
+        }
 
         DD_NETWORK_STRUCT(ConnectRequestPayload, 4)
         {

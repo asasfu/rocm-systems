@@ -92,7 +92,7 @@ if (HIP_PLATFORM MATCHES "amd")
 )
 endif()
 
-set(gfx90a_AND_ABOVE_TARGETS gfx90a gfx942 gfx950)
+set(gfx90a_AND_ABOVE_TARGETS gfx90a gfx940 gfx941 gfx942 gfx1300)
 function(CheckRejectedArchs OFFLOAD_ARCH_STR_LOCAL)
   set(ARCH_CHECK -1 PARENT_SCOPE)
   string(REGEX MATCHALL "--offload-arch=gfx[0-9a-z]+" OFFLOAD_ARCH_LIST ${OFFLOAD_ARCH_STR_LOCAL})

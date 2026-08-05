@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  pal.h
@@ -35,7 +12,7 @@
 #include "palSysUtil.h"
 
 // Forward declarations of global types (must be done outside of Pal namespace).
-#if (PAL_KMT_BUILD) && !defined(__unix__)
+#if (PAL_KMT_BUILD || PAL_CLIENT_DX) && !defined(__unix__)
 struct HMONITOR__;
 struct HWND__;
 #endif
@@ -67,14 +44,22 @@ typedef HMONITOR__* OsDisplayHandle;  ///< OsDisplayHandle corresponds to an HMO
 typedef HWND__*     OsWindowHandle;   ///< OsWindowHandle corresponds to an HWND on Windows.
 typedef void*       OsExternalHandle; ///< OsExternalHandle corresponds to a generic HANDLE on Windows
 
+#if PAL_CLIENT_DX
+typedef void*   OsVideoSessionHandle;   ///< OsVideoSessionHandle corresponds to a video session handle on DX Windows.
+#else
 typedef uint32  OsVideoSessionHandle;   ///< OsVideoSessionHandle corresponds to a video session handle on Vulkan.
+#endif
 
 constexpr OsWindowHandle NullWindowHandle = nullptr; ///< Value representing a null or invalid window handle.
 #elif defined(__unix__)
 
 typedef void*   OsDisplayHandle;        ///< The Display Handle for Linux except X11 platform
 typedef uint32  OsExternalHandle;       ///< OsExternalHandle corresponds to a generic handle on linux
+#if PAL_CLIENT_DX
+typedef void*   OsVideoSessionHandle;   ///< OsVideoSessionHandle corresponds to a video session
+#else
 typedef uint32  OsVideoSessionHandle;   ///< OsVideoSessionHandle corresponds to a video session handle on linux.
+#endif
 
 /// OsWindowHandle corresponds to a window on X-Windows or surface on Wayland.
 union OsWindowHandle
@@ -93,6 +78,11 @@ inline bool operator!=(const Pal::OsWindowHandle& lhs, const Pal::OsWindowHandle
 #error "Unsupported OS platform detected!"
 #endif
 
+#if PAL_CLIENT_DX
+typedef void*  DxRuntimeHandle; ///< Corresponds to any of the runtime handle types (e.g., D3D12DDI_HRTRESOURCE).
+typedef uint32 DxKmtHandle;     ///< Corresponds to a D3DKMT_HANDLE.
+typedef void*  DxContextHandle; ///< Corresponds to context handle types (e.g., HCONTEXT)
+#endif
 #if PAL_CLIENT_EXAMPLE
 typedef void*  AddrHandle;      ///< Corresponds to an ADDR_HANDLE.
 #endif
@@ -103,6 +93,9 @@ constexpr uint32 InvalidVidPnSourceId     = ~0u; ///< In cases where PAL cannot 
 constexpr uint32 MaxVertexBuffers         = 32;  ///< Maximum number of vertex buffers per pipeline.
 constexpr uint32 MaxColorTargets          = 8;   ///< Maximum number of color targets.
 constexpr uint32 MaxStreamOutTargets      = 4;   ///< Maximum number of stream output target buffers.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
+constexpr uint32 MaxDescriptorSets        = 2;   ///< Maximum number of descriptor sets.
+#endif
 constexpr uint32 MaxMsaaRasterizerSamples = 16;  ///< Maximum number of MSAA samples supported by the rasterizer.
 constexpr uint32 MaxAvailableEngines      = 12;  ///< Maximum number of engines for a particular engine type.
 constexpr uint32 MaxNumPlanes             = 3;   ///< Maximum number of format planes.
@@ -126,6 +119,34 @@ enum EngineType : uint32
     /// Virtual engine that only supports inserting sleeps, used for implementing frame-pacing.
     EngineTypeTimer,
 
+#if PAL_BUILD_VIDEO
+    /// Corresponds to the VCN engine that can perform video decoding.
+    EngineTypeVcnDecode,
+
+    /// Corresponds to the VCN engine that can perform video encoding.
+    EngineTypeVcnEncode,
+
+    /// New EngineType for Jpeg Decode
+    EngineTypeVcnJpegDecode,
+
+    /// Corresponds to a VCN engine which can perform both video encode and decode queues
+    EngineTypeVcnUnified,
+#endif // PAL_BUILD_VIDEO
+
+#if PAL_BUILD_SECURITY
+    /// Corresponds to the PSP engine that can perform security processing
+    EngineTypePsp,
+#endif
+
+#if PAL_BUILD_INFINITY_STORAGE
+    EngineTypeInfinityStorage,
+#endif
+
+#if PAL_BUILD_VPE
+    /// Corresponds to the vidoe process engine (VPE)
+    EngineTypeVpe,
+#endif // PAL_BUILD_VPE
+
     /// Number of engine types.
     EngineTypeCount,
 };
@@ -148,6 +169,28 @@ enum QueueType : uint32
     /// This is a software-only queue.
     QueueTypeTimer,
 
+#if PAL_BUILD_VIDEO
+    /// Supports video encode.
+    QueueTypeVideoEncode,
+
+    /// Supports Video decode.
+    QueueTypeVideoDecode,
+#endif
+
+#if PAL_BUILD_SECURITY
+    /// Supports Security Processing.
+    QueueTypeSecurity,
+#endif
+
+#if PAL_BUILD_INFINITY_STORAGE
+    QueueTypeInfinityStorage,
+#endif
+
+#if PAL_BUILD_VPE
+    /// Corresponds to a VPE Queue
+    QueueTypeVideoProcessor,
+#endif // PAL_BUILD_VPE
+
     /// Number of queue types.
     QueueTypeCount,
 };
@@ -159,7 +202,20 @@ enum QueueTypeSupport : uint32
     SupportQueueTypeCompute     = (1 << static_cast<uint32>(QueueTypeCompute)),
     SupportQueueTypeDma         = (1 << static_cast<uint32>(QueueTypeDma)),
     SupportQueueTypeTimer       = (1 << static_cast<uint32>(QueueTypeTimer)),
+#if PAL_BUILD_VIDEO
+    SupportQueueTypeVideoEncode = (1 << static_cast<uint32>(QueueTypeVideoEncode)),
+    SupportQueueTypeVideoDecode = (1 << static_cast<uint32>(QueueTypeVideoDecode)),
+#endif
+#if PAL_BUILD_SECURITY
+    SupportQueueTypeSecurity    = (1 << static_cast<uint32>(QueueTypeSecurity)),
+#endif
 
+#if PAL_BUILD_INFINITY_STORAGE
+    SupportQueueTypeInfinityStorage = (1 << static_cast<uint32>(QueueTypeInfinityStorage)),
+#endif
+#if PAL_BUILD_VPE
+    SupportQueueTypeVideoProcessor = (1 << static_cast<uint32>(QueueTypeVideoProcessor)),
+#endif
 };
 
 // Many command buffers break down into multiple command streams targeting internal sub-engines. For example, Universal
@@ -308,6 +364,7 @@ constexpr bool operator==(const Extent3d& x, const Extent3d& y)
 
 constexpr bool operator!=(const Extent3d& x, const Extent3d& y) { return (x == y) == false; }
 
+
 /// Defines a signed width, height, and depth for a 3D image region. The dimensions could be pixels, blocks, or bytes
 /// depending on context, so be sure to check documentation for the PAL interface of interest to be sure you
 /// get it right.
@@ -362,6 +419,11 @@ struct PipelineHash
     uint64 stable;   ///< Lower 64-bits of hash.  "Stable" portion, suitable for e.g. shader replacement use cases.
     uint64 unique;   ///< Upper 64-bits of hash.  "Unique" portion, suitable for e.g. pipeline cache use cases.
 };
+
+#if PAL_WORK_GRAPHS_SUPPORT
+/// WorkGraphHash represents a concatenated pair of 64-bit hashes.
+using WorkGraphHash = PipelineHash;
+#endif
 
 /// Common shader pre and post compilation stats.
 struct CommonShaderStats
@@ -467,19 +529,32 @@ struct DirectCaptureInfo
 /// Specifies parameters for opening a shared GPU resource from a non-PAL device or non-local process.
 struct ExternalResourceOpenInfo
 {
+#if PAL_CLIENT_DX
+    const void*      pResourcePrivateData;      ///< Driver-internal data describing this GPU resource.
+    const void*      pAllocationPrivateData;    ///< Driver-internal data describing the backing GPU memory.
+    uint32           resourcePrivateDataSize;   ///< The size of pResourcePrivateData in bytes.
+    uint32           allocationPrivateDataSize; ///< The size of pAllocationPrivateData in bytes.
+    DxKmtHandle      hAllocation;               ///< The DX allocation handle for the local process.
+    DxRuntimeHandle  hDxRtResource;             ///< The DX runtime handle associated with this resource.
+#else
     OsExternalHandle hExternalResource;         ///< External GPU resource from another non-PAL device to open.
 #if defined(__unix__)
     HandleType       handleType;                ///< Type of the external GPU resource to be opened.
+#endif
 #endif
 
     union
     {
         struct
         {
+#if PAL_CLIENT_DX
+            uint32 placeholder        :  2; ///< These bits are ignored currently.
+#else
             uint32 ntHandle           :  1; ///< The provided hExternalResource is an NT handle instead of a default
                                             ///  KMT handle.
             uint32 androidHwBufHandle :  1; ///< The provided hExternalResource is android hardware buffer handle
                                             ///  instead of fd.
+#endif
             uint32 isDopp             :  1; ///< This is a Dopp texture, doppDesktopInfo is in use.
             uint32 isDirectCapture    :  1; ///< This is a Direct Capture resource, directCaptureInfo is in use.
             uint32 globalGpuVa        :  1; ///< The GPU virtual address must be visible to all devices.
@@ -590,8 +665,9 @@ constexpr LogCategoryMask LogCategoryMaskDisplay = (1 << static_cast<uint32>(Log
 enum GpuProfilerMode : uint32
 {
     GpuProfilerDisabled              = 0, ///< Gpu Profiler is disabled.
-    GpuProfilerModeTsCounters        = 1, ///< Timestamps and global counters are collected
-    GpuProfilerModeTrace             = 2, ///< Traces Spm (.csv) and/or Sqtt (.ttv)
+    GpuProfilerCounterAndTimingOnly  = 1, ///< Traces are disabled but perf counter and timing operations are enabled.
+    GpuProfilerTraceEnabledTtv       = 2, ///< Traces are output in format (.csv, .out) for Thread trace viewer.
+    GpuProfilerTraceEnabledRgp       = 3, ///< Trace data is output as .rgp file for Radeon Gpu Profiler.
 };
 
 // Defines the trigger keys for capturing the GPU profiler.
@@ -637,178 +713,226 @@ enum class TriState : uint8
     Count
 };
 
-/// @mainpage
-///
-/// Introduction
-/// ------------
-/// The Platform Abstraction Library (PAL) provides hardware and OS abstractions for Radeon (GCN+) user-mode 3D graphics
-/// drivers.  The level of abstraction is chosen to support performant driver implementations of several APIs while
-/// hiding the client from hardware and operating system details.
-///
-/// PAL client drivers will have no HW-specific code; their responsibility is to translate API/DDI commands into PAL
-/// commands as efficiently as possible.  This means that the client should be unaware of hardware registers, PM4
-/// commands, SP3 shaders, etc.  However, PAL is an abstraction of AMD hardware only, so many things in the PAL
-/// interface have an obvious correlation to hardware features.
-///
-/// PAL client drivers should have little OS-specific code.  PAL and its companion utility collection provide
-/// OS abstractions for almost everything a client might need, but there are some cases where this is unavoidable:
-///
-/// + Handling dynamic library infrastructure.  I.e., the client has to implement DllMain() on Windows, etc.
-/// + OS-specific APIs or extensions.  DX may have Windows-specific functionality in the core API, and Vulkan may
-///   export certain OS-specific features as extensions (like for presenting contents to the screen).
-/// + Single OS clients (e.g., DX) may choose to make OS-specific calls directly simply out of convenience with no down
-///   side.
-///
-/// PAL is a _source deliverable_.  Clients will periodically promote PAL's source from stg/pal into their own tree and
-/// build a static pal.lib as part of their build process.  This process matches what is done for other shared
-/// components in our driver stack such as SC, AddrLib, and VAM.
-///
-/// The following diagram illustrates the software stack when running a 3D application with a PAL-based UMD.  Non-AMD
-/// components are in gray, UMD client code is blue, AMD static libs linked into the UMD are green, and the AMD KMD
-/// is in red.
-///
-/// @image html swStack.png
-///
-/// PAL is a relatively _thick_ abstraction layer, typically accounting for the majority of code (excluding SC) in any
-/// particular UMD built on PAL.  The level of abstraction tends to be higher in areas where client APIs are similar,
-/// and lower (closer to hardware) in areas where client APIs diverge significantly.  The overall philosophy is to share
-/// as much code as possible without impacting client driver performance.  Our committed goal is that CPU-limited
-/// performance should be within 5% of what a native solution could achieve, and GPU-limited performance should be
-/// within 2%.
-///
-/// PAL uses a C++ interface.  The public interface is defined in .../pal/inc, and client must _only_ include headers
-/// from that directory.  The interface is spread over many header files - typically one per class - in order to clarify
-/// dependencies and reduce build times.  There are two sub-directories in .../pal/inc:
-///
-/// + <b>.../pal/inc/core</b>    - Defines the PAL Core (see @ref Overview).
-/// + <b>.../pal/inc/gpuUtil</b> - Defines the PAL GPU Utility Collection (see @ref GpuUtilOverview).
-/// + <b>.../pal/inc/util</b>    - Defines the PAL Utility Collection (see @ref UtilOverview).
-///
-/// Need More Info?
-/// ---------------
-/// We are committed to making this documentation thorough and useful, so please notify us if you find an area that
-/// could use some work.
-///
-///
-/// @copydoc VersionHistory
-///
-/// Next: @ref Build
+/// Defines the modes that the GPU Profiling layer can be enabled with.
+/**
+ ***********************************************************************************************************************
+ * @mainpage
+ *
+ * Introduction
+ * ------------
+ * The Platform Abstraction Library (PAL) provides hardware and OS abstractions for Radeon (GCN+) user-mode 3D graphics
+ * drivers.  The level of abstraction is chosen to support performant driver implementations of several APIs while
+ * hiding the client from hardware and operating system details.
+ *
+ * PAL client drivers will have no HW-specific code; their responsibility is to translate API/DDI commands into PAL
+ * commands as efficiently as possible.  This means that the client should be unaware of hardware registers, PM4
+ * commands, SP3 shaders, etc.  However, PAL is an abstraction of AMD hardware only, so many things in the PAL interface
+ * have an obvious correlation to hardware features.
+ *
+ * PAL client drivers should have little OS-specific code.  PAL and its companion utility collection provide
+ * OS abstractions for almost everything a client might need, but there are some cases where this is unavoidable:
+ *
+ * + Handling dynamic library infrastructure.  I.e., the client has to implement DllMain() on Windows, etc.
+ * + OS-specific APIs or extensions.  DX may have Windows-specific functionality in the core API, and Vulkan may
+ *   export certain OS-specific features as extensions (like for presenting contents to the screen).
+ * + Single OS clients (e.g., DX) may choose to make OS-specific calls directly simply out of convenience with no down
+ *   side.
+ *
+ * @cond PAL_CLOSED_SOURCE
+ *
+ * PAL is a _source deliverable_.  Clients will periodically promote PAL's source from //depot/stg/pal_prm into their
+ * own tree and build a static pal.lib as part of their build process.  This process matches what is done for other
+ * shared components in our driver stack such as SC, AddrLib, and VAM.
+ *
+ * @endcond
+ *
+ * The following diagram illustrates the software stack when running a 3D application with a PAL-based UMD.  Non-AMD
+ * components are in gray, UMD client code is blue, AMD static libs linked into the UMD are green, and the AMD KMD
+ * is in red.
+ *
+ * @image html swStack.png
+ *
+ * PAL is a relatively _thick_ abstraction layer, typically accounting for the majority of code (excluding SC) in any
+ * particular UMD built on PAL.  The level of abstraction tends to be higher in areas where client APIs are similar,
+ * and lower (closer to hardware) in areas where client APIs diverge significantly.  The overall philosophy is to share
+ * as much code as possible without impacting client driver performance.  Our committed goal is that CPU-limited
+ * performance should be within 5% of what a native solution could achieve, and GPU-limited performance should be within
+ * 2%.
+ *
+ * PAL uses a C++ interface.  The public interface is defined in .../pal/inc, and client must _only_ include headers
+ * from that directory.  The interface is spread over many header files - typically one per class - in order to clarify
+ * dependencies and reduce build times.  There are two sub-directories in .../pal/inc:
+ *
+ * + <b>.../pal/inc/core</b>    - Defines the PAL Core (see @ref Overview).
+ * + <b>.../pal/inc/gpuUtil</b> - Defines the PAL GPU Utility Collection (see @ref GpuUtilOverview).
+ * + <b>.../pal/inc/util</b>    - Defines the PAL Utility Collection (see @ref UtilOverview).
+ *
+ * @cond PAL_CLOSED_SOURCE
+ *
+ * Interface Usage Example App
+ * ---------------------------
+ * As a supplement to this documentation, PalCube is a sample application that uses the PAL interface directly to render
+ * a spinning cube.  This sample might help to clarify how to use PAL where documentation is lacking, or serve as a
+ * model for boot-strapping a new driver/engine/app built on PAL.
+ *
+ * .../pal/doc/interface/example/
+ *
+ * Assuming you are setup to build a PAL-based driver already (have an up-to-date DK, etc.) then you can build the app
+ * with the normal driver targets:
+ *
+ * + make -j 8 wNow64a.dbg.quiet (64-bit debug)
+ * + make -j 8 wNow.rel.quiet (32-bit release)
+ * + Etc.
+ *
+ * @image html palCube.png
+ *
+ * _While it has been a faithful companion, your PalCube cannot accompany you through the rest of your driver
+ * development. If it could talk - and the PAL team takes this opportunity to remind you that it cannot - it would tell
+ * you to go on without it, because it would rather die in a fire than become a burden to you._
+ *
+ * Need More Info?
+ * ---------------
+ * We are committed to making this documentation thorough and useful, so please notify us if you find an area that could
+ * use some work.
+ *
+ * If you find a bug or want to request a feature, please file a ticket in our JIRA database:
+ * http://ontrack-internal.amd.com/issues/?filter=27213
+ *
+ * @endcond
+ *
+ * @copydoc VersionHistory
+ *
+ * Next: @ref Build
+ ***********************************************************************************************************************
+ */
 
-/// @page Overview PAL Core Overview
-///
-/// PAL's core interface is defined in the @ref Pal namespace, and defines an object-oriented model for interacting with
-/// the GPU and OS.  The interface closely resembles the Vulkan and DX12 APIs.  Some common features of these
-/// APIs that are central to the PAL interface:
-///
-/// - All shader stages, and some additional "shader adjacent" state, are glommed together into a monolithic pipeline
-///   object.
-/// - Explicit, free-threaded command buffer generation.
-/// - Support for multiple, asynchronous engines for executing GPU work (graphics, compute, DMA).
-/// - Explicit system and GPU memory management.
-/// - Flexible shader resource binding model.
-/// - Explicit management of stalls, cache flushes, and compression state changes.
-///
-/// However, as a common component supporting multiple APIs, the PAL interface tends to be lower level in places where
-/// client APIs diverge.
-///
-/// The PAL library has a number of configuration settings available for the client to modify either programmatically
-/// or via external settings.  PAL also includes infrastructure for building/loading client-specific settings.
-/// See @ref Settings for a detailed description of this support.
-///
-/// The first step to interacting with the PAL core is creating an IPlatform object and enumerating IDevice objects
-/// representing GPUs attached to the system and, optionally, IScreen objects representing displays attached to the
-/// system.  See @ref LibInit for a detailed description.
-///
-/// Clients have a lot of control over PAL's system memory allocations.  Most PAL objects require the client to provide
-/// system memory; the client first calls a GetSize() method and then passes a pointer to PAL on the actual create call.
-/// Further, when PAL needs to make an internal allocation, it will optionally call a client callback, which can be
-/// specified on platform creation.  This callback will specify a category for the allocation, which may imply an
-/// expected lifetime.
-///
-/// The following diagram illustrates the relationship of some key PAL interfaces and how they interact to render a
-/// typical frame in a modern game.  Below that is a listing of all of PAL's interface classes, and a very brief
-/// description of their purpose.  Follow the link for each interface to see detailed reference documentation.
-///
-/// @image html scheduling.png
-///
-/// - __OS Abstractions__
-///   + _IPlatform_: Root-level object created by clients that interact with PAL.  Mostly responsible for enumerating
-///                  devices and screens attached to the system and returning any system-wide properties.<br><br>
-///   + _IDevice_: Configurable context for querying properties of a particular GPU and interacting with it.  Acts as a
-///                factory for almost all other PAL objects.<br><br>
-///   + _IQueue_: A device has one or more _engines_ which are able to issue certain types of work. Tahiti, for example,
-///               has 1 universal engine (supports graphics, compute, or copy commands), 2 compute engines (support
-///               compute or copy commands), and 2 DMA engines (support only copy commands).  An IQueue object is a
-///               context for submitting work on a particular engine.  This mainly takes the form of submitting command
-///               buffers and presenting images to the screen.  Work performed in a queue will be started in order, but
-///               work executed on different queues (even if the queues reference the same engine) is not guaranteed
-///               to be ordered without explicit synchronization.<br><br>
-///   + _IQueueSemaphore_: Queue semaphores can be signaled and waited on from an IQueue in order to control execution
-///                        order between queues.<br><br>
-///   + _IFence_: Used for coarse-grain CPU/GPU synchronization.  Fences can be signalled from the GPU as part of a
-///               command buffer submission on a queue, then waited on from the CPU.<br><br>
-///   + _IGpuMemory_: Represents a GPU-accessible memory allocation.  Can either be virtual (only VA allocation which
-///                   must be explicitly mapped via an IQueue operation) or physical.  Residency of physical allocations
-///                   must be managed by the client either globally for a device (IDevice::AddGpuMemoryReferences) or by
-///                   specifying allocations referenced by command buffers at submit.<br><br>
-///   + _ICmdAllocator_: GPU memory allocation pool used for backing an ICmdBuffer.  The client is free to create one
-///                      allocator per device, or one per thread to remove thread contention.<br><br>
-///   + _IScreen_: Represents a display attached to the system.  Mostly used for managing full-screen flip
-///                presents.<br><br>
-///   + _IPrivateScreen_: Represents a display that is not otherwise visible to the OS, typically a VR head mounted
-///                       display.<br><br>
-/// - __Hardware IP Abstractions__
-///    + __All IP__
-///      - _ICmdBuffer_: Clients build command buffers to execute the desired work on the GPU, and submit them on a
-///                      corresponding queue.  Different types of work can be executed depending on the _queueType_ of
-///                      the command buffer (graphics work, compute work, DMA work).<br><br>
-///      - _IImage_: Images are a 1D, 2D, or 3D collection of pixels (i.e., _texture_) that can be accessed by the
-///                  GPU in various ways: texture sampling, BLT source/destination, UAV, etc.<br><br>
-///    + __GFXIP-only__
-///      - _IShader_: Container for shader byte code used as an input to pipeline creation.  No compilation occurs
-///                   until an IPipeline is created.  Currently, AMDIL is the only supported input language.<br><br>
-///      - _IPipeline_: Comprised of all shader stages (CS for compute, VS/HS/DS/GS/PS for graphics), resource mappings
-///                     describing how user data entries are to be used by the shaders, and some other fixed-function
-///                     state like depth/color formats, blend enable, MSAA enable, etc.<br><br>
-///      - _IColorTargetView_: IImage view allowing the image to be bound as a color target (RTV).<br><br>
-///      - _IDepthStencilView_: IImage view allowing the image to be bound as a depth/stencil target (DSV).<br><br>
-///      - _IGpuEvent_: Used for fine-grained (intra-command buffer) synchronization between the CPU and GPU.  GPU
-///                     events can be set/reset from either the CPU or GPU and waited on from either.<br><br>
-///      - _IQueryPool_: Collection of query slots for tracking occlusion or pipeline stats query results.<br><br>
-///      - __Dynamic State Objects__: _IColorBlendState_, _IDepthStencilState_, _IMsaaState_, _IScissorState_,
-///                                   and _IViewportState_ define logical collections of related fixed function graphics
-///                                   state, similar to DX11.<br><br>
-///      - _IPerfExperiment_: Used for gathering performance counter and thread trace data.<br><br>
-///      - _IBorderColorPalette_: Provides a collection of indexable colors for use by samplers that clamp to an
-///                               arbitrary border color.<br><br>
-/// - __Common Base Classes__
-///   + _IDestroyable_: Defines a _Destroy()_ method for the PAL interface.  Calling _Destroy()_ will release any
-///                     internally allocated resources for the object, but the client is still responsible for freeing
-///                     the system memory provided for the object.<br><br>
-///   + _IGpuMemoryBindable_: Defines a set of methods for binding GPU memory to the object.  Interfaces that inherit
-///                           _IGpuMemoryBindable_ require GPU memory in order to be used by the GPU.  The client
-///                           must query the requirements (e.g., alignment, size, heaps) and allocate/bind GPU memory
-///                           for the object.  _IGpuMemoryBindable_ inherits from _IDestroyable_.<br><br>
-///
-/// Several helper methods are available for dealing with image formats in the @ref Formats namespace.
-///
-/// Most graphics/compute work is defined by first binding a set of states then issuing a draw or dispatch command to
-/// kick off the work.  The complete set of graphics states available in PAL is illustrated below; compute is a subset
-/// of this that only includes the pipeline, user data entries, and border color palette.
-///
-/// @image html stateBreakdown.jpg
-///
-/// Most of these correspond directly to a PAL interface object above, and these items are bound by calling a
-/// corresponding _CmdBind...()_ method in the ICmdBuffer interface.  The states marked in yellow and orange, however,
-/// are _immediate_ states for which there is no object, you just specify the required state values in the corresponding
-/// _CmdSet...()_ method in the ICmdBuffer interface.
-///
-/// User data entries are the way that input resources are specified for the pipeline on an upcoming draw/dispatch.
-/// This mapping is complicated, and is described fully in @ref ResourceBinding.
-///
-/// A final complication worth noting is that PAL provides no implicit surface synchronization.  The client is
-/// responsible for explicitly inserting barriers to resolve data hazards, flush/invalidate caches, and ensure images
-/// are in the proper compression state.  For more detail, see ICmdBuffer::CmdReleaseThenAcquire, CmdRelease,
-/// CmdAcquire, CmdReleaseEvent, CmdAcquireEvent and AcquireReleaseInfo.
+/**
+ ***********************************************************************************************************************
+ * @page Overview PAL Core Overview
+ *
+ * ### Introduction
+ * PAL's core interface is defined in the @ref Pal namespace, and defines an object-oriented model for interacting with
+ * the GPU and OS.  The interface closely resembles the Vulkan and DX12 APIs.  Some common features of these
+ * APIs that are central to the PAL interface:
+ *
+ * - All shader stages, and some additional "shader adjacent" state, are glommed together into a monolithic pipeline
+ *   object.
+ * - Explicit, free-threaded command buffer generation.
+ * - Support for multiple, asynchronous engines for executing GPU work (graphics, compute, DMA).
+ * - Explicit system and GPU memory management.
+ * - Flexible shader resource binding model.
+ * - Explicit management of stalls, cache flushes, and compression state changes.
+ *
+ * However, as a common component supporting multiple APIs, the PAL interface tends to be lower level in places where
+ * client APIs diverge.
+ *
+ * ### Settings
+ * The PAL library has a number of configuration settings available for the client to modify either programmatically
+ * or via external settings.  PAL also includes infrastructure for building/loading client-specific settings.
+ * See @ref Settings for a detailed description of this support.
+ *
+ * ### Initialization
+ * The first step to interacting with the PAL core is creating an IPlatform object and enumerating IDevice objects
+ * representing GPUs attached to the system and, optionally, IScreen objects representing displays attached to the
+ * system.  See @ref LibInit for a detailed description.
+ *
+ * ### System Memory Allocation
+ * Clients have a lot of control over PAL's system memory allocations.  Most PAL objects require the client to provide
+ * system memory; the client first calls a GetSize() method and then passes a pointer to PAL on the actual create call.
+ * Further, when PAL needs to make an internal allocation, it will optionally call a client callback, which can be
+ * specified on platform creation.  This callback will specify a category for the allocation, which may imply an
+ * expected lifetime.
+ *
+ * ### Interface Classes
+ * The following diagram illustrates the relationship of some key PAL interfaces and how they interact to render a
+ * typical frame in a modern game.  Below that is a listing of all of PAL's interface classes, and a very brief
+ * description of their purpose.  Follow the link for each interface to see detailed reference documentation.
+ *
+ * @image html scheduling.png
+ *
+ * - __OS Abstractions__
+ *   + _IPlatform_: Root-level object created by clients that interact with PAL.  Mostly responsible for enumerating
+ *                  devices and screens attached to the system and returning any system-wide properties.<br><br>
+ *   + _IDevice_: Configurable context for querying properties of a particular GPU and interacting with it.  Acts as a
+ *                factory for almost all other PAL objects.<br><br>
+ *   + _IQueue_: A device has one or more _engines_ which are able to issue certain types of work.  Tahiti, for example,
+ *               has 1 universal engine (supports graphics, compute, or copy commands), 2 compute engines (support
+ *               compute or copy commands), and 2 DMA engines (support only copy commands).  An IQueue object is a
+ *               context for submitting work on a particular engine.  This mainly takes the form of submitting command
+ *               buffers and presenting images to the screen.  Work performed in a queue will be started in order, but
+ *               work executed on different queues (even if the queues reference the same engine) is not guaranteed
+ *               to be ordered without explicit synchronization.<br><br>
+ *   + _IQueueSemaphore_: Queue semaphores can be signaled and waited on from an IQueue in order to control execution
+ *                        order between queues.<br><br>
+ *   + _IFence_: Used for coarse-grain CPU/GPU synchronization.  Fences can be signalled from the GPU as part of a
+ *               command buffer submission on a queue, then waited on from the CPU.<br><br>
+ *   + _IGpuMemory_: Represents a GPU-accessible memory allocation.  Can either be virtual (only VA allocation which
+ *                   must be explicitly mapped via an IQueue operation) or physical.  Residency of physical allocations
+ *                   must be managed by the client either globally for a device (IDevice::AddGpuMemoryReferences) or by
+ *                   specifying allocations referenced by command buffers at submit.<br><br>
+ *   + _ICmdAllocator_: GPU memory allocation pool used for backing an ICmdBuffer.  The client is free to create one
+ *                      allocator per device, or one per thread to remove thread contention.<br><br>
+ *   + _IScreen_: Represents a display attached to the system.  Mostly used for managing full-screen flip
+ *                presents.<br><br>
+ *   + _IPrivateScreen_: Represents a display that is not otherwise visible to the OS, typically a VR head mounted
+ *                       display.<br><br>
+ * - __Hardware IP Abstractions__
+ *    + __All IP__
+ *      - _ICmdBuffer_: Clients build command buffers to execute the desired work on the GPU, and submit them on a
+ *                      corresponding queue.  Different types of work can be executed depending on the _queueType_ of
+ *                      the command buffer (graphics work, compute work, DMA work).<br><br>
+ *      - _IImage_: Images are a 1D, 2D, or 3D collection of pixels (i.e., _texture_) that can be accessed by the
+ *                  GPU in various ways: texture sampling, BLT source/destination, UAV, etc.<br><br>
+ *    + __GFXIP-only__
+ *      - _IShader_: Container for shader byte code used as an input to pipeline creation.  No compilation occurs
+ *                   until an IPipeline is created.  Currently, AMDIL is the only supported input language.<br><br>
+ *      - _IPipeline_: Comprised of all shader stages (CS for compute, VS/HS/DS/GS/PS for graphics), resource mappings
+ *                     describing how user data entries are to be used by the shaders, and some other fixed-function
+ *                     state like depth/color formats, blend enable, MSAA enable, etc.<br><br>
+ *      - _IColorTargetView_: IImage view allowing the image to be bound as a color target (i.e., RTV.).<br><br>
+ *      - _IDepthStencilView_: IImage view allowing the image to be bound as a depth/stencil target (i.e., DSV).<br><br>
+ *      - _IGpuEvent_: Used for fine-grained (intra-command buffer) synchronization between the CPU and GPU.  GPU
+ *                     events can be set/reset from either the CPU or GPU and waited on from either.<br><br>
+ *      - _IQueryPool_: Collection of query slots for tracking occlusion or pipeline stats query results.<br><br>
+ *      - __Dynamic State Objects__: _IColorBlendState_, _IDepthStencilState_, _IMsaaState_, _IScissorState_,
+ *                                   and _IViewportState_ define logical collections of related fixed function graphics
+ *                                   state, similar to DX11.<br><br>
+ *      - _IPerfExperiment_: Used for gathering performance counter and thread trace data.<br><br>
+ *      - _IBorderColorPalette_: Provides a collection of indexable colors for use by samplers that clamp to an
+ *                               arbitrary border color.<br><br>
+ * - __Common Base Classes__
+ *   + _IDestroyable_: Defines a _Destroy()_ method for the PAL interface.  Calling _Destroy()_ will release any
+ *                     internally allocated resources for the object, but the client is still responsible for freeing
+ *                     the system memory provided for the object.<br><br>
+ *   + _IGpuMemoryBindable_: Defines a set of methods for binding GPU memory to the object.  Interfaces that inherit
+ *                           _IGpuMemoryBindable_ require GPU memory in order to be used by the GPU.  The client
+ *                           must query the requirements (e.g., alignment, size, heaps) and allocate/bind GPU memory
+ *                           for the object.  _IGpuMemoryBindable_ inherits from _IDestroyable_.<br><br>
+ *
+ * ### %Format Info
+ * Several helper methods are available for dealing with image formats in the @ref Formats namespace.
+ *
+ * ### Graphics/Compute Execution Model
+ * Most graphics/compute work is defined by first binding a set of states then issuing a draw or dispatch command to
+ * kick off the work.  The complete set of graphics states available in PAL is illustrated below; compute is a subset
+ * of this that only includes the pipeline, user data entries, and border color palette.
+ *
+ * @image html stateBreakdown.jpg
+ *
+ * Most of these correspond directly to a PAL interface object above, and these items are bound by calling a
+ * corresponding _CmdBind...()_ method in the ICmdBuffer interface.  The states marked in yellow and orange, however,
+ * are _immediate_ states for which there is no object, you just specify the required state values in the corresponding
+ * _CmdSet...()_ method in the ICmdBuffer interface.
+ *
+ * User data entries are the way that input resources are specified for the pipeline on an upcoming draw/dispatch.  This
+ * mapping is complicated, and is described fully in @ref ResourceBinding.
+ *
+ * A final complication worth noting is that PAL provides no implicit surface synchronization.  The client is
+ * responsible for explicitly inserting barriers to resolve data hazards, flush/invalidate caches, and ensure images
+ * are in the proper compression state.  For more detail, see ICmdBuffer::CmdReleaseThenAcquire, CmdRelease, CmdAcquire,
+ * CmdReleaseEvent, CmdAcquireEvent and AcquireReleaseInfo.
+ *
+ ***********************************************************************************************************************
+ */
 
 } // Pal

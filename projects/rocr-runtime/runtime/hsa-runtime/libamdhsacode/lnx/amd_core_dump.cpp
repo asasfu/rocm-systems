@@ -64,6 +64,7 @@
 #include "hsakmt/linux/kfd_ioctl.h"
 #include "core/inc/amd_gpu_agent.h"
 #include "core/inc/amd_aql_queue.h"
+#include "core/inc/runtime.h"
 
 #ifdef __FreeBSD__
 #include <pthread_np.h>
