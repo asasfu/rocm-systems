@@ -286,7 +286,7 @@ static void initHipCtx(hipCtx_t* pcontext) {
 #define HIP_TEST_DRIVER_INIT()
 #endif
 
-#if defined(__gfx1250__) || defined(__gfx1251__) || defined(__gfx1260__) || defined (__gfx13__)
+#if defined(__gfx1250__) || defined(__gfx1251__) || defined(__gfx1260__) || defined (__GFX13__)
 // Everytime we use __cluster_dims__ in the tests, we need to wrap the symbol definition with an
 // ifdef checking support. That attributed is defined when there is cluster compiler support for the
 // target. When not defined, the compiler would give an error if the attribute is used.
