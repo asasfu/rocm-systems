@@ -113,6 +113,12 @@ hrr:
     <<: *level_2
     tags: [capture, mempool, playback, roundtrip]
   Unit_HRR_DeviceMemPoolRoundtrip:
+    # FFM gfx1260: mempool-VA use-after-free segfault in the FFM model during a
+    # kernel store into a stream-ordered pool allocation. Fixed by FFM model PR
+    # AMD-GFX-Modeling/ffm#4518, but the gfx1260 FFM pin (arcadia 20260729)
+    # predates it. Passes on gfx13 and on arcadia FFM >= build 416; re-enable
+    # once the gfx1260 ffm_pkg_url is bumped past the fix.
+    disabled: [gfx1260]
     <<: *level_2
     tags: [capture, mempool, playback, roundtrip]
   Unit_HRR_ExtMallocRoundtrip:
