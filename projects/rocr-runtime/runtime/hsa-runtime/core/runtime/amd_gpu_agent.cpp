@@ -207,7 +207,9 @@ GpuAgent::GpuAgent(HSAuint32 node, const HsaNodeProperties& node_props, bool xna
     supported_isas_.push_back(core::IsaRegistry::GetIsa(supported_isas_[0]->GetIsaGeneric()));
   }
 
-  if (supported_isas_[0]->GetMajorVersion() == 12 && supported_isas_[0]->GetMinorVersion() >= 5) {
+  const uint32_t isa_major = supported_isas_[0]->GetMajorVersion();
+  const uint32_t isa_minor = supported_isas_[0]->GetMinorVersion();
+  if ((isa_major == 12 && isa_minor >= 5) || isa_major >= 13) {
     extended_aql_dispatch_supported_ = true;
     workgroup_clusters_supported_ = true;
   }
