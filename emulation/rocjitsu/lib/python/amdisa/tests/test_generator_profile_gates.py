@@ -4009,15 +4009,17 @@ def test_gfx1250_generated_vop3_add_f16_applies_dpp(
 
     vop3_encoding_ctor = _generated_constructor_body(encodings_cpp, 'Vop3')
     vop3_validation = vop3_base
-    assert 'inst_.src0 == amdgpu::SRC_DPP' in vop3_encoding_ctor
-    assert 'amdgpu::dpp::is_src_dpp8(inst_.src0)' in vop3_encoding_ctor
+    assert 'has_encoded_dpp()' in vop3_encoding_ctor
+    assert 'has_encoded_dpp8()' in vop3_encoding_ctor
     assert 'DPP and literal operands cannot be combined' in vop3_validation
+    assert 'inst_.src0 == amdgpu::SRC_DPP' in vop3_validation
     assert 'size_ += sizeof(MachineInst);' in vop3_encoding_ctor
     assert 'std::memcpy(raw_words_.data(), inst, size_);' in vop3_encoding_ctor
     assert 'raw_encoding_ = raw_words_.data();' in vop3_encoding_ctor
 
     decode = _generated_decode_body(vop3_alu, 'VAddF16Vop3')
-    assert 'Result validation = Vop3::validate_encoding(' in decode
+    assert 'Result validation =' in decode
+    assert 'Vop3::validate_encoding(' in decode
     assert decode.index('validate_encoding(') < decode.index('validation.failed()')
     assert decode.index('validation.failed()') < decode.index('std::make_unique')
 
@@ -4071,9 +4073,12 @@ def test_generated_dpp8_disassembly_uses_encoding_state(
             assert class_match is not None
             assert 'owned_mnemonic_' not in class_match.group()
         assert 'dpp8_mnemonic' not in generated_cpp
-        assert re.search(r'\? "v_add_f16_dpp"\s*: "v_add_f16_e32"', generated_cpp)
+        assert 'void Vop1::append_mnemonic(std::string &out) const' in encodings_cpp
+        assert 'has_encoded_dpp() || has_encoded_dpp8()' in encodings_cpp
+        assert 'out += "_dpp";' in encodings_cpp
         if arch not in ('rdna1', 'rdna2'):
-            assert re.search(r'"v_rcp_f16_e64_dpp"\s*: "v_rcp_f16"', generated_cpp)
+            assert 'void Vop3::append_mnemonic(std::string &out) const' in encodings_cpp
+            assert 'out += "_e64_dpp";' in encodings_cpp
 
 
 def test_gfx1250_generated_vop3_rejects_literal64_selectors(
@@ -4185,6 +4190,130 @@ def test_gfx1250_compact_literal_policy_precedes_extension_sizing(
     assert fmamk_f64.index('validation.failed()') < fmamk_f64.index('std::make_unique')
     fmamk_f32 = _generated_decode_body(vop2, 'VFmamkF32Vop2')
     assert 'LiteralSupport::Literal32' in fmamk_f32
+
+
+def test_generated_dpp_disassembly_uses_encoding_state(
+    amdgpu_generated_root: Path,
+) -> None:
+    for arch in ('cdna1', 'cdna2', 'cdna3', 'cdna4'):
+        generated_root = amdgpu_generated_root / arch
+        encodings_cpp = (generated_root / 'encodings.cpp').read_text()
+        assert 'void Vop1::append_mnemonic(std::string &out) const' in encodings_cpp
+        assert 'mnemonic_.ends_with("_e32")' in encodings_cpp
+        assert 'out += "_dpp";' in encodings_cpp
+        assert 'append_dpp16_disassembly' in encodings_cpp
+        assert 'dpp_bound_ctrl_, dpp_fi_, false,' in encodings_cpp
+        assert 'amdgpu::dpp::DppCtrlDialect::Gfx9' in encodings_cpp
+
+    for arch in ('rdna1', 'rdna2', 'rdna3', 'rdna3_5', 'rdna4', 'gfx1250'):
+        generated_root = amdgpu_generated_root / _generated_dir_name(arch)
+        encodings_cpp = (generated_root / 'encodings.cpp').read_text()
+        assert 'void Vop1::append_mnemonic(std::string &out) const' in encodings_cpp
+        assert 'mnemonic_.ends_with("_e32")' in encodings_cpp
+        assert 'out += "_dpp";' in encodings_cpp
+        assert 'append_dpp16_disassembly' in encodings_cpp
+        assert 'dpp_bound_ctrl_, dpp_fi_, true,' in encodings_cpp
+        assert 'amdgpu::dpp::DppCtrlDialect::Gfx10Plus' in encodings_cpp
+        assert 'append_dpp8_disassembly' in encodings_cpp
+
+
+@pytest.mark.parametrize('arch', ['cdna4', 'rdna4', 'gfx1250'])
+def test_generated_vop3p_disassembly_uses_encoding_state(
+    amdgpu_generated_root: Path,
+    arch: str,
+) -> None:
+    encodings_cpp = (
+        amdgpu_generated_root / _generated_dir_name(arch) / 'encodings.cpp'
+    ).read_text()
+    start = encodings_cpp.index('void Vop3p::build_modifiers')
+    vop3p_modifiers = encodings_cpp[start : start + 1000]
+    assert 'append_vop3p_disassembly' in vop3p_modifiers
+    assert 'vop3p_encoded_source_count()' in vop3p_modifiers
+    assert 'inst_.op' in vop3p_modifiers
+    if arch == 'gfx1250':
+        assert 'inst->opsel_hi | (inst->opsel_hi_2 << 2)' in vop3p_modifiers
+
+
+def test_cdna3_accumulator_moves_omit_packed_source_modifiers(
+    amdgpu_generated_root: Path,
+) -> None:
+    encodings_cpp = (amdgpu_generated_root / 'cdna3' / 'encodings.cpp').read_text()
+    start = encodings_cpp.index('void Vop3p::build_modifiers')
+    vop3p_modifiers = encodings_cpp[start : start + 1000]
+    assert 'omits_vop3p_source_modifiers() ? 0 :' in vop3p_modifiers
+
+    profile = CdnaProfile()
+    assert profile.vop3p_source_modifier_omissions == frozenset(
+        {'V_ACCVGPR_READ', 'V_ACCVGPR_WRITE'}
+    )
+
+
+@pytest.mark.parametrize('arch', ['cdna4', 'rdna4'])
+def test_generated_vop3_disassembly_uses_encoding_state(
+    amdgpu_generated_root: Path,
+    arch: str,
+) -> None:
+    encodings_cpp = (amdgpu_generated_root / arch / 'encodings.cpp').read_text()
+    start = encodings_cpp.index('void Vop3::build_modifiers')
+    vop3_modifiers = encodings_cpp[start : start + 1000]
+    assert 'append_vop3_disassembly' in vop3_modifiers
+    assert 'vop3_encoded_source_count()' in vop3_modifiers
+    assert 'displays_vop3_op_sel()' in vop3_modifiers
+    assert 'mnemonic_' not in vop3_modifiers
+    assert 'void Vop3::append_src_operand' in encodings_cpp
+    assert 'append_vop3_operand' in encodings_cpp
+    if arch == 'rdna4':
+        assert 'const bool half_width = modifier_index >= 0 && true &&' in encodings_cpp
+
+
+@pytest.mark.parametrize('arch', ['cdna4', 'rdna4', 'gfx1250'])
+def test_generated_vop3_sdst_disassembly_uses_encoding_state(
+    amdgpu_generated_root: Path,
+    arch: str,
+) -> None:
+    encodings_cpp = (
+        amdgpu_generated_root / _generated_dir_name(arch) / 'encodings.cpp'
+    ).read_text()
+    start = encodings_cpp.index('void Vop3SdstEnc::build_modifiers')
+    modifiers = encodings_cpp[start : start + 1000]
+    assert 'append_vop3_disassembly' in modifiers
+    assert 'vop3_encoded_source_count()' in modifiers
+    assert 'void Vop3SdstEnc::append_src_operand' in encodings_cpp
+
+
+@pytest.mark.parametrize('arch', ['rdna4', 'gfx1250'])
+def test_gfx12_generated_cache_policy_disassembly(
+    amdgpu_generated_root: Path,
+    arch: str,
+) -> None:
+    generated_root = amdgpu_generated_root / _generated_dir_name(arch)
+    encodings = (generated_root / 'encodings.cpp').read_text()
+    assert '#include "rocjitsu/isa/arch/amdgpu/shared/gfx12_cache_flags.h"' in encodings
+    assert 'amdgpu::Gfx12TemporalHintKind::Atomic' in encodings
+    assert 'amdgpu::Gfx12TemporalHintKind::Store' in encodings
+    assert (
+        'amdgpu::append_gfx12_cache_policy(out, inst->th, inst->scope, hint_kind);'
+        in encodings
+    )
+    start = encodings.index('void Vbuffer::build_modifiers')
+    vbuffer_modifiers = encodings[start : encodings.index('\n\n', start)]
+    assert vbuffer_modifiers.index('if (inst->offen)') < vbuffer_modifiers.index(
+        'if (inst->idxen)'
+    )
+    assert vbuffer_modifiers.index('if (inst->idxen)') < vbuffer_modifiers.index(
+        'if (inst->ioffset)'
+    )
+    assert vbuffer_modifiers.index('if (inst->ioffset)') < vbuffer_modifiers.index(
+        'amdgpu::append_gfx12_cache_policy'
+    )
+    assert vbuffer_modifiers.index(
+        'amdgpu::append_gfx12_cache_policy'
+    ) < vbuffer_modifiers.index('if (inst->nv)')
+    if arch == 'rdna4':
+        for class_name in ('Vimage', 'Vsample'):
+            start = encodings.index(f'void {class_name}::build_modifiers')
+            body = encodings[start : encodings.index('\n\n', start)]
+            assert 'append_gfx12_cache_policy' in body
 
 
 def test_generated_sdwa_uses_shared_source_staging(
@@ -4319,11 +4448,11 @@ def test_generated_dpp_encodings_own_extension_words(
             class_name,
         )
         if class_name in ('Vop3', 'Vop3p', 'Vop3SdstEnc'):
-            assert 'inst_.src0 == amdgpu::SRC_DPP' in constructor, (
+            assert 'has_encoded_dpp()' in constructor, (
                 arch,
                 class_name,
             )
-            assert 'amdgpu::dpp::is_src_dpp8(inst_.src0)' in constructor, (
+            assert 'has_encoded_dpp8()' in constructor, (
                 arch,
                 class_name,
             )
@@ -4500,7 +4629,6 @@ def test_generated_dpp_legality_checks_are_coalesced(
     assert 'DPP is not supported' not in generated_cpp
 
     cases = (
-        ('rdna4', 'vop1.cpp', 'VNopVop1'),
         ('rdna4', 'vop3.cpp', 'VMulLoU32Vop3'),
         ('rdna3', 'vopc.cpp', 'VCmpEqF64Vopc'),
         ('cdna1', 'vop1.cpp', 'VCvtI32F64Vop1'),
@@ -4511,6 +4639,9 @@ def test_generated_dpp_legality_checks_are_coalesced(
         decode_body = _generated_decode_body(source, class_name)
         assert decode_body.count('does not support DPP') == 1, class_name
         assert 'does not support DPP' not in constructor, class_name
+
+    vop1 = (amdgpu_generated_root / 'rdna4' / 'vop1.cpp').read_text()
+    assert 'does not support DPP' not in _generated_decode_body(vop1, 'VNopVop1')
 
 
 def test_generated_optional_includes_have_direct_uses(amdgpu_generated_root: Path):
@@ -5120,7 +5251,6 @@ def test_generated_rdna4_rejects_opcode_illegal_dpp(
 ):
     rdna4 = amdgpu_generated_root / 'rdna4'
     cases = (
-        ('vop1.cpp', 'VNopVop1', 'does not support DPP'),
         ('vop1.cpp', 'VCvtF64I32Vop1', 'does not support DPP'),
         ('vop3.cpp', 'VMulLoU32Vop3', 'does not support DPP'),
         ('vopc.cpp', 'VCmpEqF64Vopc', 'does not support DPP'),
@@ -5134,6 +5264,10 @@ def test_generated_rdna4_rejects_opcode_illegal_dpp(
         assert 'emit_error.emit()' in decode_body, class_name
         assert 'util::InvalidInst' not in constructor, class_name
 
+    vop1 = (rdna4 / 'vop1.cpp').read_text()
+    v_nop_decode = _generated_decode_body(vop1, 'VNopVop1')
+    assert 'does not support DPP' not in v_nop_decode
+
     fma_mix = (rdna4 / 'vop3p.cpp').read_text()
     legal_constructor = _generated_constructor_body(fma_mix, 'VFmaMixF32Vop3p')
     legal_decode = _generated_decode_body(fma_mix, 'VFmaMixF32Vop3p')
@@ -5143,14 +5277,10 @@ def test_generated_rdna4_rejects_opcode_illegal_dpp(
     assert 'reserved DPP control' in legal_decode
 
 
-@pytest.mark.parametrize(
-    ('arch', 'opsel_hi_2_field'),
-    [('rdna4', 'opsel_hi_2'), ('gfx1250', 'opsel_hi_2')],
-)
-def test_generated_modern_rdna_validates_dpp_opsel_alignment(
+@pytest.mark.parametrize('arch', ['rdna4', 'gfx1250'])
+def test_generated_modern_rdna_allows_independent_dpp_opsel(
     amdgpu_generated_root: Path,
     arch: str,
-    opsel_hi_2_field: str,
 ):
     arch_root = amdgpu_generated_root / _generated_dir_name(arch)
     vop3_filename = 'vop3_alu.cpp' if arch == 'gfx1250' else 'vop3.cpp'
@@ -5160,15 +5290,11 @@ def test_generated_modern_rdna_validates_dpp_opsel_alignment(
         else (arch_root / vop3_filename).read_text()
     )
     vop3_decode = _generated_decode_body(vop3, 'VAddF16Vop3')
-    assert 'DPP requires matching OPSEL halves' in vop3_decode
-    assert 'op->opsel != 0 && op->opsel != 0xB' in vop3_decode
+    assert 'DPP requires matching OPSEL halves' not in vop3_decode
 
     vop3p = (arch_root / 'vop3p.cpp').read_text()
     vop3p_decode = _generated_decode_body(vop3p, 'VFmaMixF32Vop3p')
-    assert 'DPP requires low/low and high/high OPSEL' in vop3p_decode
-    assert 'op->opsel != 0 || opsel_hi != 0x7' in vop3p_decode
-    assert f'op->{opsel_hi_2_field}' in vop3p_decode
-    assert 'reinterpret_cast<const uint32_t *>(inst)[0] >> 14' not in vop3p_decode
+    assert 'DPP requires low/low and high/high OPSEL' not in vop3p_decode
 
 
 @pytest.mark.parametrize(
@@ -5239,17 +5365,23 @@ def test_all_generated_valu_models_match_dpp_profile_rules(
                 # general decoder-validation work, not DPP execution semantics.
                 continue
 
+            src0 = next(
+                (
+                    op
+                    for op in inst.operands
+                    if op.is_input and not op.fieldless and op.name == 'src0'
+                ),
+                None,
+            )
+            has_src0 = src0 is not None
+            if not has_src0:
+                assert 'does not support DPP' not in decode_body, inst.fmt_name
+                continue
+
             if rule is DppOpcodeRule.FORBID:
                 assert 'does not support DPP' in decode_body, inst.fmt_name
                 assert 'does not support DPP' not in constructor, inst.fmt_name
                 checked += 1
-                continue
-
-            has_src0 = any(
-                op.is_input and not op.fieldless and op.name == 'src0'
-                for op in inst.operands
-            )
-            if not has_src0:
                 continue
 
             if not supports_dpp16 and not supports_dpp8:
@@ -5264,6 +5396,14 @@ def test_all_generated_valu_models_match_dpp_profile_rules(
                 checked += 1
                 continue
 
+            packed_dpp_source = generator._operand_uses_packed_16bit_source(
+                dpp_encoding, src0
+            )
+            if packed_dpp_source and supports_dpp16:
+                assert 'static_cast<unsigned short>(dp->vsrc0)' in constructor
+            if packed_dpp_source and supports_dpp8:
+                assert 'static_cast<unsigned short>(dp8->vsrc0)' in constructor
+
             if rule is DppOpcodeRule.ROW_SELECT_ONLY:
                 assert 'only DPP row-select controls' in decode_body, inst.fmt_name
                 assert 'ROW_SELECT_BASE' in decode_body, inst.fmt_name
@@ -5277,7 +5417,18 @@ def test_all_generated_valu_models_match_dpp_profile_rules(
                     assert (
                         f'reinterpret_cast<const {dpp16_struct}' in constructor
                     ), inst.fmt_name
-                    assert 'dpp_ctrl_is_valid' in decode_body, inst.fmt_name
+                    capabilities = ', '.join(
+                        'true' if supported else 'false'
+                        for supported in (
+                            generator.isa_spec.profile.dpp_supports_wave_controls,
+                            generator.isa_spec.profile.dpp_supports_row_broadcast_controls,
+                            generator.isa_spec.profile.dpp_supports_row_xmask,
+                        )
+                    )
+                    assert (
+                        f'dpp_ctrl_is_valid(dp->dpp_ctrl, {capabilities})'
+                        in decode_body
+                    ), inst.fmt_name
                 if supports_dpp8:
                     assert (
                         f'reinterpret_cast<const {dpp8_struct}' in constructor
@@ -5928,8 +6079,8 @@ def test_gfx1250_scaled_wmma_skips_vop3p_extension_decode(
     assert not constructor_suffix.strip()
     for extension_step in (
         'has_encoded_literal32()',
-        'inst_.src0 == amdgpu::SRC_DPP',
-        'amdgpu::dpp::is_src_dpp8(inst_.src0)',
+        'has_encoded_dpp()',
+        'has_encoded_dpp8()',
         'std::memcpy(raw_words_.data(), inst, size_)',
         'raw_encoding_ = raw_words_.data()',
     ):
