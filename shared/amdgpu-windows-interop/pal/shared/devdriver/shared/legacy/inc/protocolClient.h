@@ -25,7 +25,7 @@ namespace DevDriver
 
         virtual bool QueryConnectionStatus() = 0;
     protected:
-        IProtocolClient() {}
+        IProtocolClient() = default;
     };
 
 } // DevDriver

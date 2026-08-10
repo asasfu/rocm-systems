@@ -381,7 +381,6 @@ extern ProcessIntegrityLevel GetProcessIntegrityLevel();
 /// @returns whether the current process is in an App Container
 extern bool IsProcessInAppContainer();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 921
 /// Tests whether the passed handle is valid or not.
 /// A handle could be either nullptr or INVALID_HANDLE_VALUE.
 /// INVALID_HANDLE_VALUE is the proper value to set a handle to when you intend to error out.
@@ -395,7 +394,6 @@ constexpr bool IsValidHandle(HANDLE handle)
     return (handle != nullptr) && (handle != HANDLE(size_t(-1)));
 #endif
 }
-#endif
 #endif // _WIN32
 
 /// Queries system information.
