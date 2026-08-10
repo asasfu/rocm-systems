@@ -172,7 +172,12 @@ struct BarrierOperations
             uint16 waitOnTs                       : 1;  ///< Wait on an timestamp event (EOP or EOS) at the ME.
                                                         ///  Which event is not necesarily specified here, though any
                                                         ///  that are specified here would be waited on.
-            uint16 reserved                       : 7;  ///< Reserved for future use.
+#if PAL_BUILD_GFX13
+            uint16 syncGcrClear                   : 1;  ///< Issue dummy GCR_CLEAR to wait on any prior GCR clears
+#else
+            uint16 reserved1                      : 1;
+#endif
+            uint16 reserved                       : 6;  ///< Reserved for future use.
         };
 
         uint16 u16All;  ///< Unsigned integer containing all the values.

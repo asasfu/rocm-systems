@@ -2,4 +2,4 @@
 
 #pragma once
 
-#include "../core/inc/ddcDefs.h"
+#include <ddcDefs.h>

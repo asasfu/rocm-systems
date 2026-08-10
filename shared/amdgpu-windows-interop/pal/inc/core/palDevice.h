@@ -37,6 +37,7 @@ namespace Pal
 class IBorderColorPalette;
 class ICmdAllocator;
 class ICmdBuffer;
+class ICodeObject;
 class IColorBlendState;
 class IColorTargetView;
 class IDepthStencilState;
@@ -76,6 +77,7 @@ class IWorkGraph;
 struct BorderColorPaletteCreateInfo;
 struct CmdAllocatorCreateInfo;
 struct CmdBufferCreateInfo;
+struct CodeObjectCreateInfo;
 struct ColorBlendStateCreateInfo;
 struct ColorTargetViewCreateInfo;
 struct ComputePipelineCreateInfo;
@@ -220,7 +222,7 @@ enum class BrightonIpLevel : uint32
 #endif
     BrightonIp3_0 = 0x1,   //# BRIGHTONIP 3.0 (AlphaTrion1, AtLite3)
 };
-#endif
+#endif // PAL_BUILD_BRIGHTON
 
 #if PAL_BUILD_VPE
 /// Specifies which VPE IP level this device has.
@@ -347,16 +349,6 @@ enum TexFetchMetaDataCaps : uint32
     TexFetchMetaDataCapsAllowStencil = 0x00000020,
     TexFetchMetaDataCapsAllowZ16 = 0x00000040,
 };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
-/// Catalyst AI setting enums
-enum CatalystAiSettings : uint32
-{
-    CatalystAiDisable = 0,
-    CatalystAiEnable = 1,
-    CatalystAiMaximum = 2,
-};
-#endif
 
 /// Texture Filter optimization enum values
 enum TextureFilterOptimizationSettings : uint32
@@ -596,11 +588,6 @@ struct PalPublicSettings
     /// Whether to use graphics or compute for performing fast clears on depth stencil views.
     FastDepthStencilClearMode fastDepthStencilClearMode;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
-    /// Forces all serialized loads (LoadPipeline or LoadCompoundState) to fail.
-    bool forceLoadObjectFailure;
-#endif
-
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 956
     /// Controls the distribution mode for tessellation, which affects how patches are processed by different VGT
     /// units. 0: None - No distribution across VGTs (legacy mode). 1: Default - Optimal settings are chosen depending
@@ -624,34 +611,14 @@ struct PalPublicSettings
     /// functionalities on gfx/compute engines.
     bool disableResourceProcessingManager;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
-    /// Controls app detect and image quality altering optimizations exposed by CCC.
-    uint32 catalystAI;
-#endif
-
     /// Controls texture filtering optimizations exposed by CCC.
     uint32 textureOptLevel;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
-    /// Disables SC initialization. It can be enabled only if a PAL client won't use SC for shader compilation and
-    /// provide direct ISA binaries(usually AQL path).
-    bool disableScManager;
-#endif
 
     /// Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)
     char renderedByString[MaxMiscStrLen];
 
     /// Debug information that the client or tester might want reported.
     char miscellaneousDebugString[MaxMiscStrLen];
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
-    /// Allows SC to make optimizations at the expense of IEEE compliance.
-    bool allowNonIeeeOperations;
-
-    /// Controls whether shaders should execute one atomic instruction per wave for UAV append/consume operations.
-    /// If false, one atomic will be executed per thread.
-    bool appendBufPerWaveAtomic;
-#endif
 
     /// Bitmask of cases where texture compatible meta data will be used Single-sample color surface: 0x00000001 MSAA
     /// color surface: 0x00000002 FMask data: 0x00000004 Single-sample depth surface: 0x00000008 MSAA depth surface:
@@ -749,14 +716,6 @@ struct PalPublicSettings
     GpuHeap pipelinePreferredHeap;
 
     bool depthClampBasedOnZExport;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 928
-    /// Force the PreColorTarget to an earlier PreRasterization point if used as a wait point. This is to prevent a
-    /// write-after-read hazard for a corner case: shader exports from distinct packers are not ordered. Advancing
-    /// wait point from PreColorTarget to PostPrefetch could cause over-sync due to extra  VS/PS_PARTIAL_FLUSH
-    /// inserted. It is default to false, but client drivers may choose to app-detect to enable if see corruption.
-    bool forceWaitPointPreColorToPostPrefetch;
-#endif
 
     /// Allows the client to disable debug overlay visual confirm after DebugOverlay::Platform is created when the
     /// panel setting DebugOverlayEnabled is globally set but a certain application might need to turn off visual
@@ -913,6 +872,10 @@ struct PalPublicSettings
     /// have all metadata up to date if this flag is set. Otherwise if false, there will be decompress operation
     /// when transition from other compressed state to LayoutResolveDst.
     bool allowCompressedResolveDstLayout;
+
+    /// Disables VM page fault reporting to OS. This public setting is needed to give UMDs control
+    /// of page fault reporting and app-specific workarounds.
+    bool disableVmPageFaultReporting;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -937,27 +900,19 @@ struct SwizzleEquation
 /// Specifies the hardware features supported for PRT (sparse images).
 enum PrtFeatureFlags : uint32
 {
-    PrtFeatureBuffer                = 0x00000001,   ///< Indicates support for sparse buffers
-    PrtFeatureImage2D               = 0x00000002,   ///< Indicates support for sparse 2D images
-    PrtFeatureImage3D               = 0x00000004,   ///< Indicates support for sparse 3D images
-    PrtFeatureImageMultisampled     = 0x00000008,   ///< Indicates support for sparse multisampled images
-    PrtFeatureImageDepthStencil     = 0x00000010,   ///< Indicates support for sparse depth/stencil images
-    PrtFeatureShaderStatus          = 0x00000020,   ///< Indicates support for residency status in shader instructions
-    PrtFeatureShaderLodClamp        = 0x00000040,   ///< Indicates support for LOD clamping in shader instructions
-    PrtFeatureUnalignedMipSize      = 0x00000080,   ///< Indicates support for non-miptail levels with dimensions that
-                                                    ///  aren't integer multiples of the tile size as long as they are
-                                                    ///  at least as large as a single tile
-    PrtFeaturePerSliceMipTail       = 0x00000100,   ///< Indicates support for per-slice miptail (slice-major order)
-
-    PrtFeatureTileAliasing          = 0x00000200,   ///< Indicates support for aliasing tiles (without metadata)
-    PrtFeatureStrictNull            = 0x00000400,   ///< Indicates whether reads of unmapped tiles always return zero
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 936
-    PrtFeatureNonStandardImage3D    = 0x00000800,   ///< Indicates support for sparse 3D images restricted to
-                                                    ///  non-standard tile shapes that match the tile mode block depth
-    PrtFeaturePrtPlus               = 0x00001000,   ///< Indicates that this image supports use of residency maps.
-#else
-    PrtFeaturePrtPlus               = 0x00000800,   ///< Indicates that this image supports use of residency maps.
-#endif
+    PrtFeatureBuffer            = 0x00000001, ///< Supports sparse buffers
+    PrtFeatureImage2D           = 0x00000002, ///< Supports sparse 2D images
+    PrtFeatureImage3D           = 0x00000004, ///< Supports sparse 3D images
+    PrtFeatureImageMultisampled = 0x00000008, ///< Supports sparse multisampled images
+    PrtFeatureImageDepthStencil = 0x00000010, ///< Supports sparse depth/stencil images
+    PrtFeatureShaderStatus      = 0x00000020, ///< Supports residency status in shader instructions
+    PrtFeatureShaderLodClamp    = 0x00000040, ///< Supports LOD clamping in shader instructions
+    PrtFeatureUnalignedMipSize  = 0x00000080, ///< Supports non-miptail levels with dimensions that aren't multiples of
+                                              ///  the tile size as long as they are at least as large as a single tile
+    PrtFeaturePerSliceMipTail   = 0x00000100, ///< Supports per-slice miptail (slice-major order)
+    PrtFeatureTileAliasing      = 0x00000200, ///< Supports aliasing tiles (without metadata)
+    PrtFeatureStrictNull        = 0x00000400, ///< Whether reads of unmapped tiles always return zero
+    PrtFeaturePrtPlus           = 0x00000800, ///< Supports residency maps
 };
 
 /// Describe the settings' scope accessible by clients.
@@ -1292,6 +1247,7 @@ union VpeFormatSupport
     struct
     {
         uint32 argbPacked32b : 1;
+        uint32 argbPacked64b : 1;
         uint32 nv12          : 1;
         uint32 fp16          : 1;
         uint32 p010          : 1;
@@ -1300,15 +1256,23 @@ union VpeFormatSupport
         uint32 yuy2          : 1;
         uint32 y210          : 1;
         uint32 y216          : 1;
+        uint32 y416          : 1;
+        uint32 y410          : 1;
+        uint32 p208          : 1;
         uint32 p210          : 1;
         uint32 p216          : 1;
+        uint32 r8            : 1;
+        uint32 r16           : 1;
         uint32 rgb8Planar    : 1;
         uint32 rgb16Planar   : 1;
         uint32 yuv8Planar    : 1;
         uint32 yuv16Planar   : 1;
         uint32 fp16Planar    : 1;
         uint32 rgbe          : 1;
-        uint32 reserved      : 15;
+        uint32 rgb111110Fix  : 1;
+        uint32 rgb111110Float : 1;
+
+        uint32 reserved      : 7;
     };
 };
 
@@ -1385,20 +1349,15 @@ struct VpeIpCapabilities
 /// VPE IP specific device properties
 struct VpeIpProperties
 {
-    uint32  vpeDrvVersion;      ///< The current VPE firmware version.
-    GpuHeap preferredHeap[3];   ///< Assigns preferred heap type.
+    uint32            vpeDrvVersion;     ///< The current VPE firmware version.
+    GpuHeap           preferredHeap[3];  ///< Assigns preferred heap type.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 944
-    //VPE Hw versions (will be deprecated)
-    uint32  hwMajorVersion;     ///< The current VPE hardware major version.
-    uint32  hwMinorVersion;     ///< The current VPE hardware minor version.
-    uint32  hwRevision;         ///< The current VPE hardware revision (HWVariantType)
-#endif
-    VpeInstanceInfo instanceInfo[MaxAvailableVpeInstances]; ///< Information for each VPE instance
-    VpeIpCapabilities capabilities;        ///< VPE capabilities
-    VpeMmSettings vpeMmSettings;           ///< VPE settings
-    uint32        numInstances;            ///< Number of physical VPE instance.
-    bool          collaborationMode;       ///< Enable multiple VPE instance to collaborate together.
+    VpeInstanceInfo   instanceInfo[MaxAvailableVpeInstances]; ///< Information for each VPE instance
+
+    VpeIpCapabilities capabilities;      ///< VPE capabilities
+    VpeMmSettings     vpeMmSettings;     ///< VPE settings
+    uint32            numInstances;      ///< Number of physical VPE instance.
+    bool              collaborationMode; ///< Enable multiple VPE instance to collaborate together.
 };
 #endif
 
@@ -1520,103 +1479,9 @@ enum class WorkGraphScheduler : uint32
 #endif
     V1 = 1,         ///< Scheduler V1
     V2,             ///< Scheduler V2
+    V3,             ///< Scheduler V3
 };
 #endif
-
-/// The version of a particular hardware IP in a specific ASIC.
-///
-/// @note The fields are purposefully ordered such that the uint32() operator compiles to a single "MOV" instruction
-///       on little-endian platforms.
-struct IpTriple
-{
-    uint32 stepping : 16; ///< Stepping value
-    uint32 minor    : 8;  ///< Minor revision value
-    uint32 major    : 8;  ///< Major revision value
-
-    /// We define a custom constructor solely to avoid using designated initializers, which force us to declare const
-    /// IpTriples in field order, which is too confusing. For example: IpTriple{.stepping = 1, .minor = 5, .major = 11}
-    ///
-    /// Note that C++'s arcane rules cause "IpTriple{11, 5, 1}" to call this constructor with major = 11. minor = 5,
-    /// and stepping = 1. So if you see code that looks like classic aggregate initialization, you don't need to worry
-    /// that it might actually be setting the values backwards.
-    constexpr IpTriple(uint32 major, uint32 minor, uint32 stepping) : stepping{stepping}, minor{minor}, major{major} {}
-
-    /// And this custom zeroing constructor guarantees that "IpTriple{}" still zeros all fields.
-    constexpr IpTriple() : IpTriple(0, 0, 0) {}
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 982
-    /// These constructors only exist for backcompat, where clients are using partial aggregate initialization.
-    /// This is typically done where they're using IpTriple to express a GfxIpLevel which is a misuse of IpTriple.
-    /// The new IpLevel struct declared below should be used instead going forwards.
-    constexpr IpTriple(uint32 major, uint32 minor) : IpTriple(major, minor, 0) {}
-    constexpr IpTriple(uint32 major) : IpTriple(major, 0, 0) {}
-#endif
-
-    /// This conversion is designed such that logically higher version numbers will always convert into higher values.
-    /// For example, this should evaluate to true: uint32(IpTriple(12, 0, 1)) > uint32(IpTriple(11, 5, 0))
-    ///
-    /// @returns A single uint32 which uniquely represents this IpTriple.
-    constexpr operator uint32() const { return stepping | (minor << 16) | (major << 24); }
-};
-
-/// The version of a particular hardware IP across a group of ASICs which only differ by stepping values.
-///
-/// @note The fields are purposefully ordered such that the uint32() operator compiles to a single "MOV" instruction
-///       on little-endian platforms. The @ref reserved field is required to make comparisons between IpLevel and
-///       @ref IpTriple as trivial as possible.
-struct IpLevel
-{
-    uint32 reserved : 16; ///< Reserved. Must *always* be set to zero!
-    uint32 minor    : 8;  ///< Minor revision value
-    uint32 major    : 8;  ///< Major revision value
-
-    /// We define a custom constructor solely to avoid using designated initializers, which force us to declare const
-    /// IpLevels in field order, which is too confusing. For example: IpLevel{.minor = 5, .major = 11}
-    ///
-    /// Note that C++'s arcane rules cause "IpLevel{11, 5}" to call this constructor with major = 11. minor = 5. So if
-    /// you see code that looks like classic aggregate initialization, you don't need to worry that it might actually
-    /// be setting the values backwards.
-    constexpr IpLevel(uint32 major, uint32 minor) : reserved{0}, minor{minor}, major{major} {}
-
-    /// And this custom zeroing constructor guarantees that "IpLevel{}" still zeros all fields.
-    constexpr IpLevel() : IpLevel(0, 0) {}
-
-    /// This conversion is designed such that logically higher version numbers will always convert into higher values.
-    /// For example, this should evaluate to true: uint32(IpLevel(12, 0)) > uint32(IpLevel(11, 5)).
-    ///
-    /// @returns A single uint32 which uniquely represents this IpLevel.
-    constexpr operator uint32() const { return reserved | (minor << 16) | (major << 24); }
-};
-
-///@{
-/// Some convenient "IpTriple <> IpLevel" comparison overloads. These are specifically intended for cases like
-/// "if (triple >= IpLevel(11, 5))" where we have a dynamic IpTriple that we want to test against hard-coded levels.
-///
-/// The definitions of both structs' integer conversions were designed such that these operators should compile to
-/// the minimal number of instructions; at most one ALU and a CMP + SET pair. If the @ref level parameter is a
-/// compile-time constant the ALU should be eliminated from all inequalities.
-///
-/// @param [in] triple  The left IpTriple in the comparison.
-/// @param [in] level   The right IpLevel in the comparison.
-///
-/// @returns True if the comparison is satisfied.
-constexpr bool operator<(IpTriple triple, IpLevel level)  { return uint32(triple) <  uint32(level); }
-constexpr bool operator>=(IpTriple triple, IpLevel level) { return uint32(triple) >= uint32(level); }
-constexpr bool operator>(IpTriple triple, IpLevel level)  { return uint32(triple) >  (uint32(level) | 0xFFFFu); }
-constexpr bool operator<=(IpTriple triple, IpLevel level) { return uint32(triple) <= (uint32(level) | 0xFFFFu); }
-constexpr bool operator==(IpTriple triple, IpLevel level) { return (uint32(triple) & ~0xFFFFu) == uint32(level); }
-constexpr bool operator!=(IpTriple triple, IpLevel level) { return (uint32(triple) & ~0xFFFFu) != uint32(level); }
-constexpr bool operator<(IpLevel level, IpTriple triple)  { return triple > level; }
-constexpr bool operator>=(IpLevel level, IpTriple triple) { return triple <= level; }
-constexpr bool operator>(IpLevel level, IpTriple triple)  { return triple < level; }
-constexpr bool operator<=(IpLevel level, IpTriple triple) { return triple >= level; }
-constexpr bool operator==(IpLevel level, IpTriple triple) { return triple == level; }
-constexpr bool operator!=(IpLevel level, IpTriple triple) { return triple != level; }
-///@}
-
-// The comparisons above only work if both structs are perfectly arranged in a uint32.
-static_assert(sizeof(IpTriple) == sizeof(uint32));
-static_assert(sizeof(IpLevel)  == sizeof(uint32));
 
 /// Reports various properties of a particular IDevice to the client.  @see IDevice::GetProperties.
 struct DeviceProperties
@@ -1630,17 +1495,19 @@ struct DeviceProperties
     GpuType    gpuType;                      ///< Type of GPU (discrete vs. integrated)
     uint16     gpuPerformanceCapacity;       ///< Portion of GPU assigned in virtualized system (SRIOV)
                                              ///< 0-65535, 0 invalid (not virtualized), 1 min, 65535 max
+    IpTriple   gfxTriple;                    ///< Full GFX IP level (major.minor.stepping) of this GPU
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 989
     GfxIpLevel gfxLevel;                     ///< IP level of this GPU's GFX block
+    uint32     gfxStepping;                  ///< Stepping level of this GPU's GFX block
+#endif
     VcnIpLevel vcnLevel;                     ///< IP level of this GPU's VCN block
 #if PAL_BUILD_BRIGHTON
     BrightonIpLevel brightonLevel;           ///< IP level of this GPU's BRIGHTON block
-#endif
+#endif // PAL_BUILD_BRIGHTON
     PspIpLevel pspLevel;                     ///< IP level of this GPU's PSP block
 #if PAL_BUILD_VPE
     VpeIpLevel vpeLevel;                     ///< IP level of this GPU's VPE block
 #endif
-    uint32     gfxStepping;                  ///< Stepping level of this GPU's GFX block
-    IpTriple   gfxTriple;                    ///< Full GFX IP level (major.minor.step) of this GPU
     char       gpuName[MaxDeviceName];       ///< Null terminated string identifying the GPU.
     uint32     gpuIndex;                     ///< Device's index in a linked adapter chain.
     uint32     deviceIndex;                  ///< Device's index in the Platform enumeration.
@@ -1720,8 +1587,11 @@ struct DeviceProperties
                 /// This engine supports clear or copy with MSAA depth-stencil destination
                 uint32 supportsClearCopyMsaaDsDst      :  1;
 
+                /// Engine supports gpu fences. @see QueueSemaphoreCreateInfo::flags.gpuFence.
+                uint32 supportsGpuFence                :  1;
+
                 /// Reserved for future use.
-                uint32 reserved                        : 17;
+                uint32 reserved                        : 16;
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< Engines property flags.
@@ -1741,7 +1611,9 @@ struct DeviceProperties
                     uint32 supportsMultiQueue       :  1;
                     uint32 hwsEnabled               :  1;
                     uint32 isHighPriority           :  1;
-                    uint32 reserved                 : 27;  ///< Reserved for future use.
+                    uint32 umsSupported             :  1;  ///< Indicates user-mode submission support on this
+                                                           /// engine instance
+                    uint32 reserved                 : 26;  ///< Reserved for future use.
                 };
                 uint32 u32All;                        ///< Flags packed as 32-bit uint.
             } flags;                                  ///< Capabilities property flags.
@@ -1801,20 +1673,13 @@ struct DeviceProperties
                 /// Indicates whether or not the queue supports CmdPresent()
                 uint32 supportsCmdPresent          :  1;
 #else
-                uint32 reserved744                 :  1;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 927
-                /// Set if the queue supports additional split barrier feature on top of basic acquire/release
-                /// interface support. This provides CmdAcquire() and CmdRelease() to implement split barriers.
-                uint32 supportSplitReleaseAcquire  :  1;
-#else
-                uint32 reserved927                 :  1;
+                uint32 placeholder0                :  1;
 #endif
                 /// Indicates that the client should use highPriorityQueues, but this is not mandatory, client can
                 /// decide whether to use highPriorityQueues or not.
                 uint32 highPriorityQueuesPreferred :  1;
                 /// Reserved for future use.
-                uint32 reserved                    : 28;
+                uint32 reserved                    : 29;
             };
             uint32 u32All;                    ///< Flags packed as 32-bit uint.
         } flags;                              ///< Queue property flags.
@@ -1915,6 +1780,7 @@ struct DeviceProperties
         gpusize busAddressableMemSize;      ///< SDI/DirectGMA GPU aperture size set in CCC
         gpusize maxLocalMemSize;            ///< Total VRAM available on the GPU (Local + Invisible heap sizes).
         LocalMemoryType localMemoryType;    ///< Type of local memory used by the GPU.
+        uint32  prtSafeVaMaskBit;           ///< Bit to use for address fixups with a PRT-safe mirror. Disabled if 0.
         gpusize maxCaptureReplaySize;       ///< Total virtual GPU available for Capture/Replay
         gpusize barSize;                    ///< Total VRAM which can be accessed by the CPU.
 
@@ -2016,7 +1882,7 @@ struct DeviceProperties
         uint32 maxGsTotalOutputComponents;  ///< Maximum number of GS output components totally.
         uint32 maxGsInvocations;            ///< Maximum number of GS prim instances, corresponding to geometry shader
                                             ///  invocation in glsl.
-#if PAL_INTERFACE_MAJOR_VERSION >= 984
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 984
         uint32 max3dDispatchInterleaveProductGfx;    // Maximum product of the 3 dispatch interleave dimensions for GFX
         uint32 max3dDispatchInterleaveProductAce;    // Maximum product of the 3 dispatch interleave dimensions for ACE
 #else
@@ -2139,11 +2005,12 @@ struct DeviceProperties
 #if PAL_BUILD_GFX13
                 uint64 supportCooperativeMatrix3          :  1; ///< HW supports Gfx13 extension cooperative matrix.
                 uint64 supportRobustIndexModeFetches      :  1; ///< HW supports byte-level buffer checks in index mode.
+                uint64 supportRtsTMin                     :  1; ///< RTS HW has complete TMin support.
 #else
-                uint64 placeholder14                      :  2;
+                uint64 placeholder14                      :  3;
 #endif
                 uint64 supportEiIncConst                  :  1;
-                uint64 reserved                           :  61; ///< Reserved for future use.
+                uint64 reserved                           :  60; ///< Reserved for future use.
             };
             uint64 u64All[2];           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -2306,7 +2173,8 @@ struct DeviceProperties
 #endif
                 uint32 forceAlignmentSupported    :  1; ///< If PalPublicSettings::hardwareBufferAlignmentMode
                                                         ///  has any effect.
-                uint32 reserved                   : 18; ///< Reserved for future use.
+                uint32 haltOnAccessSupported      :  1; ///< KMD supports per-page halt-on-access memory tracking.
+                uint32 reserved                   : 17; ///< Reserved for future use.
             };
             uint32 u32All;                              ///< Flags packed as 32-bit uint.
         } flags;                                        ///< OS-specific property flags.
@@ -2350,8 +2218,9 @@ struct DeviceProperties
         bool   supportArbitaryPrtMapUnmap;  ///< Support arbitary prt map unmap operation.
 #endif
 
-        uint32                     umdFpsCapFrameRate;   ///< The frame rate of the UMD FPS CAP
-        VirtualDisplayCapabilities virtualDisplayCaps;   ///< Capabilities of virtual display, it's provided by KMD
+        uint32                     umdFpsCapFrameRate;    ///< The frame rate of the UMD FPS CAP for Radeon FRTC feature
+        uint32                     customFpsCapFrameRate; ///< For OEM build to cap specific apps FPS on APU's
+        VirtualDisplayCapabilities virtualDisplayCaps;    ///< Capabilities of virtual display, it's provided by KMD
 
         union
         {
@@ -2561,35 +2430,24 @@ struct GpuCompatibilityInfo
     {
         struct
         {
-            uint32 gpuFeatures         :  1;  ///< The devices have an exact feature match: same internal tiling, same
-                                              ///  pipeline binary data, etc.
-            uint32 iqMatch             :  1;  ///< Devices produce images with same precision.
-            uint32 peerTransferWrite   :  1;  ///< Peer-to-peer transfers write are supported.  See
-                                              ///  IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
-            uint32 peerTransferRead    :  1;  ///< Peer-to-peer transfers based on xmgi are supported.
-                                              ///  See IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
-            uint32 sharedMemory        :  1;  ///< Devices can share memory objects with.  IDevice::OpenSharedMemory().
-            uint32 sharedSync          :  1;  ///< Devices can share queue semaphores with
-                                              ///  IDevice::OpenSharedQueueSemaphore().
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
-            uint32 shareThisGpuScreen  :  1;  ///< Either device can present to this device.  Means that the device
-                                              ///  indicated by the otherDevice param in
-                                              ///  IDevice::GetMultiGpuCompatibility() can present to the device the
-                                              ///  method was called on.
-            uint32 shareOtherGpuScreen :  1;  ///< Either device can present to the other device.  Means that the
-                                              ///  device IDevice::GetMultiGpuCompatibility() was called on can present
-                                              ///  to the GPU indicated by the otherGpu param.
-#else
-            uint32 reserved1           :  2;
-#endif
-            uint32 peerEncode          :  1;  ///< whether encoding HW can access FB memory of remote GPU in chain
-            uint32 peerDecode          :  1;  ///< whether decoding HW can access FB memory of remote GPU in chain
-            uint32 peerTransferProtected : 1; ///< whether protected content can be transferred over P2P
-            uint32 crossGpuCoherency   :  1;  ///< whether remote FB memory can be accessed without need for cache flush
-            uint32 reserved            : 20;  ///< Reserved for future use.
+            uint32 gpuFeatures           :  1; ///< The devices have an exact feature match: same internal tiling,
+                                               ///  same pipeline binary data, etc.
+            uint32 iqMatch               :  1; ///< Devices produce images with same precision.
+            uint32 peerTransferWrite     :  1; ///< Peer-to-peer transfers write are supported.
+                                               ///  See IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
+            uint32 peerTransferRead      :  1; ///< Peer-to-peer transfers based on xmgi are supported.
+                                               ///  See IDevice::OpenPeerMemory() and IDevice::OpenPeerImage().
+            uint32 sharedMemory          :  1; ///< Devices can share memory objects with IDevice::OpenSharedMemory().
+            uint32 sharedSync            :  1; ///< Devices can share queue semaphores with
+                                               ///  IDevice::OpenSharedQueueSemaphore().
+            uint32 peerEncode            :  1; ///< Whether encoding HW can access FB memory of remote GPU in chain.
+            uint32 peerDecode            :  1; ///< Whether decoding HW can access FB memory of remote GPU in chain.
+            uint32 peerTransferProtected :  1; ///< Whether protected content can be transferred over P2P.
+            uint32 crossGpuCoherency     :  1; ///< Whether remote FB memory can be accessed without a cache flush.
+            uint32 reserved              : 22; ///< Reserved for future use.
         };
-        uint32 u32All;                        ///< Flags packed as 32-bit uint.
-    } flags;                                  ///< GPU compatibility flags.
+        uint32 u32All;                         ///< Flags packed as 32-bit uint.
+    } flags;                                   ///< GPU compatibility flags.
 };
 
 /// Reports properties of a GPU memory heap.
@@ -3294,31 +3152,19 @@ enum class WorkstationStereoMode : uint32
 /// a particular mode.
 struct GetPrimaryInfoOutput
 {
-    uint32          tilingCaps;                ///< Tiling caps supported by this primary surface.
-    StereoMode      stereoMode;                ///< Stereo mode supported by this primary surface.
-    uint32          mallCursorCacheSize;       ///< Size of the mall cursor cache in bytes
+    uint32     tilingCaps;          ///< Tiling caps supported by this primary surface.
+    StereoMode stereoMode;          ///< Stereo mode supported by this primary surface.
+    uint32     mallCursorCacheSize; ///< Size of the mall cursor cache in bytes
+
     union
     {
         struct
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
-            /// MGPU flag: this primary surface supports DVO HW compositing mode.
-            uint32 dvoHwMode                    :  1;
-            /// MGPU flag: this primary surface supports XDMA HW compositing mode.
-            uint32 xdmaHwMode                   :  1;
-            /// MGPU flag: this primary surface supports client doing SW compositing mode.
-            uint32 swMode                       :  1;
-#else
-            uint32 reserved1                    :  3;
-#endif
-            /// MGPU flag: this primary surface supports freesync.
-            uint32 isFreeSyncEnabled            :  1;
-            /// Single-GPU flag: gives hint to the client that they should use rotated tiling mode.
-            uint32 hwRotationPortraitMode       :  1;
-            /// Single-GPU flag: this primary surface supports non local heap.
-            uint32 displaySupportsNonLocalHeap  :  1;
-            /// Reserved for future use.
-            uint32  reserved                    : 26;
+            uint32 isFreeSyncEnabled            :  1; ///< MGPU flag: this primary surface supports freesync.
+            uint32 hwRotationPortraitMode       :  1; ///< Single-GPU flag: Hint to the client that they should use
+                                                      ///  rotated tiling mode.
+            uint32 displaySupportsNonLocalHeap  :  1; ///< Single-GPU flag: This primary supports non-local heap.
+            uint32  reserved                    : 29; ///< Reserved for future use.
         };
         uint32 u32All;  ///< Flags packed as 32-bit uint.
     } flags;            ///< get primary surface support info output flags.
@@ -3356,48 +3202,6 @@ struct SetClockModeInput
 {
     DeviceClockMode clockMode; ///< Used to specify the clock mode for the device.
 };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
-/// Specifies primary surface MGPU compositing mode.
-enum MgpuMode : uint32
-{
-    MgpuModeOff  = 0,  ///< MGPU compositing mode off, the client does not do SW compositing at all, e.g. AFR disabled.
-    MgpuModeSw   = 1,  ///< MGPU SW compositing mode, the client handle the SW compositing.
-    MgpuModeDvo  = 2,  ///< MGPU DVO HW compositing mode
-    MgpuModeXdma = 3,  ///< MGPU XDMA HW compositing mode
-    MgpuModeCount
-};
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 943
-/// Specifies input arguments for IDevice::SetMgpuMode(). A client set a particular MGPU compositing mode and whether
-/// frame pacing is enabled for a display.
-struct SetMgpuModeInput
-{
-    uint32      vidPnSrcId;             ///< Video present source id.
-    MgpuMode    mgpuMode;               ///< Primary surface MGPU compositing mode.
-    bool        isFramePacingEnabled;   ///< True if frame pacing enabled. If so, the client creates a timer queue
-                                        ///  to delay the present, and the delay value is calculated by KMD.
-};
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
-constexpr uint32 XdmaMaxDevices = 8;    ///< Maximum number of Devices for XDMA compositing.
-
-/// Specifies XDMA cache buffer info for each gpu.
-struct XdmaBufferInfo
-{
-    uint32 bufferSize;      ///< XDMA cache buffer size of each device
-    uint32 startAlignment;  ///< XDMA cache buffer start alignment of each device
-};
-
-/// Specifies output arguments for IDevice::GetXdmaInfo(), returning the XDMA cache buffer information of each GPU for
-/// a display.
-struct GetXdmaInfoOutput
-{
-    XdmaBufferInfo  xdmaBufferInfo[XdmaMaxDevices]; ///< Output XDMA cache buffer info
-};
-#endif
 
 /// Specifies flipping status flags on a specific VidPnSource. It's Windows specific.
 union FlipStatusFlags
@@ -4279,37 +4083,6 @@ public:
     /// @returns Success if the static VMID acquire/release request was successful.
     virtual Result SetStaticVmidMode(
         bool enable) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 943
-    /// Set up MGPU compositing mode of a display provided by client.
-    ///
-    /// This function should not be called by clients that rely on PAL for compositor management.  Basically, if your
-    /// client uses the IScreen's interface to take full screen exclusive mode, then don't call this.
-    ///
-    /// @param [in] setMgpuModeInput        Set MGPU compositing mode input arguments.
-    ///
-    /// @returns Success if the MGPU compositing mode were successfully set.
-    //# The KMD is incapable of setting up HW compositing mode now, so we return a silent success if this gets called.
-    inline Result SetMgpuMode(
-        const SetMgpuModeInput& setMgpuModeInput) const { return Result::Success; }
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 948
-    /// Get XDMA cache buffer information of each GPU based upon video present source ID provided by client.
-    ///
-    /// This function should not be called by clients that rely on PAL for compositor management.  Basically, if your
-    /// client uses the IScreen's interface to take full screen exclusive mode, then don't call this.
-    ///
-    /// @param [in]     vidPnSrcId              Video present source id.
-    /// @param [in]     gpuMemory               Primary surface GPU memory.
-    /// @param [in,out] pGetXdmaInfoOutput      Set XDMA cache buffer info output arguments.
-    ///
-    /// @returns Success if the XDMA cache buffer information were successfully queried.
-    inline Result GetXdmaInfo(
-        uint32              vidPnSrcId,
-        const IGpuMemory&   gpuMemory,
-        GetXdmaInfoOutput*  pGetXdmaInfoOutput) const { return Result::ErrorUnavailable; }
-#endif
 
     /// Polls current fullscreen frame metadata controls on given vidPnSourceId, including extended data.
     ///
@@ -5699,6 +5472,27 @@ public:
         void*                           pPlacementAddr,
         IVideoProcessor**               ppProcessor) = 0;
 #endif
+
+    /// Creates an @ref ICodeObject instance with the requested properties.
+    /// This may return a (partially) already-existing instance if de-duplication was requested.
+    ///
+    /// The user must explicitly upload the code object after obtaining the ICodeObject instance - this gives the user
+    /// the opportunity to inspect the ELF binary data before it potentially gets freed upon upload.
+    ///
+    /// CodeObjects can then be used when creating Pipelines or ShaderLibraries.  The user is responsible for only
+    /// passing CodeObjects into the correct context.
+    ///
+    /// @param [in]     createInfo     Code object properties, including de-duplication and lifetime flags.
+    /// @param [out]    ppCodeObject   The returned code object instance, which may be an already-existing instance.
+    ///
+    /// @returns Success if the code object was successfully created.  Otherwise, one of the following errors may be
+    ///          returned:
+    ///          + ErrorInvalidPointer if ppCodeObject is null.
+    ///          + ErrorUnsupportedShaderIlVersion if an incorrect shader type is used in any shader stage.
+    ///          + ErrorOutOfMemory if memory allocation fails.
+    virtual Result LoadCodeObject(
+        const CodeObjectCreateInfo& createInfo,
+        ICodeObject**               ppCodeObject) = 0;
 
     /// Determines the amount of system memory required for a compute pipeline object.  An allocation of this amount of
     /// memory must be provided in the pPlacementAddr parameter of CreateComputePipeline().
