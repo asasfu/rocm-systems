@@ -99,9 +99,7 @@ enum class GraphLayoutAction : Util::uint16
     CreateNode,           ///< Create a node
     AddSuccessor,         ///< Add a successor to an existing node
     SetMaxRecursiveDepth, ///< Mark an edge as recursive
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 918
     CreateDrawNode,       ///< Create a draw node
-#endif
 };
 
 /// The base of all graph layout action structs.
@@ -142,11 +140,9 @@ struct GraphLayoutCreateNode : public GraphLayoutActionBase
     union
     {
         Util::uint32     symbol;          ///< ELF symbol name for the node's shader, as offset to string.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 918
         Util::uint32     pipelineIndex;   ///< For a draw node, index into the draw pipelines provided to SCPC, which
                                           ///  is the same as the index into the graphics state array passed by the
                                           ///  client into IPipeline::GetGraphLayout().
-#endif
     };
 
     /// Index used by the client to select which node(s) receive initial work payloads when dispatching a graph.  This may
@@ -184,7 +180,6 @@ struct GraphLayoutCreateNode : public GraphLayoutActionBase
         struct
         {
         } threadLaunchInfo;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 918
         /// Information for graphics nodes.
         struct
         {
@@ -193,7 +188,6 @@ struct GraphLayoutCreateNode : public GraphLayoutActionBase
             /// come from shader metadata.
             uint32 dispatchGridSize[3];
         } graphicsInfo;
-#endif
     };
 
     /// Each node can be associated with a unique local resource mapping index, which can vary between nodes even if

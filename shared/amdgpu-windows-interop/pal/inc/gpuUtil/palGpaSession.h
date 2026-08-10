@@ -323,10 +323,18 @@ struct PerfExperimentMemory
     size_t memorySize;  // Size of the memory allocated in pMemory.
 };
 
+/// Struct for storing information about shader object correlation.
+struct ShaderObjectCorrelationInfo
+{
+    Pal::uint64     apiShaderObjectHash; ///< Client-provided PSO hash.
+    Pal::ShaderType apiShaderType;       ///< Client-provided shader type.
+};
+
 /// Struct for supplying API-dependent information about pipelines.
 struct RegisterPipelineInfo
 {
-    Pal::uint64 apiPsoHash;  ///< Client-provided PSO hash.
+    Pal::uint64                             apiPsoHash;    ///< Client-provided PSO hash.
+    Util::Span<ShaderObjectCorrelationInfo> soCorrelation; ///< Whether to emit shader correlation.
 };
 
 /// Struct for supplying API-dependent information about libraries.
@@ -336,6 +344,12 @@ struct RegisterLibraryInfo
 #if PAL_WORK_GRAPHS_SUPPORT
     Pal::uint64 apiGraphHash; ///< Client-provided api graph hash.
 #endif
+};
+
+/// Struct for supplying API-dependent information about code objects.
+struct RegisterCodeObjectInfo
+{
+    Pal::uint64 apiHash;      ///< Client-provided api hash.
 };
 
 #if PAL_WORK_GRAPHS_SUPPORT
@@ -907,6 +921,25 @@ public:
     /// @returns Success if the library has been unregistered with GpaSession successfully.
     Pal::Result UnregisterElfBinary(const ElfBinaryInfo& elfBinaryInfo);
 
+#if PAL_BUILD_CODE_OBJECT_INTERFACE
+    /// Register code object with GpaSession for obtaining shader dumps and load events in the RGP file.
+    ///
+    /// @param [in] pCodeObject The PAL code object to be tracked.
+    /// @param [in] clientInfo  API-dependent information for this code object to also be recorded.
+    ///
+    /// @returns Success if the code object has been registered with GpaSession successfully.
+    ///          + AlreadyExists if a duplicate code object is provided.
+    Pal::Result RegisterCodeObject(const Pal::ICodeObject* pCodeObject, const RegisterCodeObjectInfo& clientInfo);
+
+    /// Unregister code object with GpaSession for obtaining unload events in the RGP file.
+    /// This should be called immediately before destroying the PAL code object.
+    ///
+    /// @param [in] pCodeObject  The PAL code object to be tracked.
+    ///
+    /// @returns Success if the code object has been unregistered with GpaSession successfully.
+    Pal::Result UnregisterCodeObject(const Pal::ICodeObject* pCodeObject);
+#endif
+
     /// Given a Pal device, validate a list of perfcounters.
     ///
     /// @param [in] pDevice      a given device
@@ -969,6 +1002,14 @@ private:
         Pal::uint32         numDependencyRecords;
     };
 #endif
+
+    // Represents all information to be contained in one SqttSoCorrelationRecord
+    struct SoCorrelationRecord
+    {
+        Pal::uint64     apiPsoHash;          /// Hash of the API-level Pipeline State Object
+        Pal::uint64     apiShaderObjectHash; /// Hash of the API-level Shader Object
+        Pal::ShaderType apiShaderType;       /// Type of the shader
+    };
 
     // Registers a single (non-archive) pipeline with the GpaSession. Returns AlreadyExists on duplicate PAL pipeline.
     Pal::Result RegisterSinglePipeline(const Pal::IPipeline* pPipeline, const RegisterPipelineInfo& clientInfo);
@@ -1078,6 +1119,11 @@ private:
     // List of WorkGraph dependency records that were registered during a trace
     Util::Deque<SqttWorkGraphDependencyRecord, GpaAllocator>  m_curWorkGraphDependencyRecordsCache;
 #endif //PAL_WORK_GRAPHS_SUPPORT
+
+    // List of cached SO correlation records that will be copied to the final database at the end of a trace
+    Util::Deque<SoCorrelationRecord, GpaAllocator>  m_soCorrelationRecordsCache;
+    // List of SO correlation records that were registered during a trace
+    Util::Deque<SoCorrelationRecord, GpaAllocator>  m_curSoCorrelationRecords;
 
     Util::RWLock m_registerPipelineLock;
 
@@ -1252,6 +1298,10 @@ private:
 
 #if PAL_WORK_GRAPHS_SUPPORT
     Pal::Result AddCodeObjectLoadEvent(const Pal::IWorkGraph* pProgram, CodeObjectLoadEventType eventType);
+#endif
+
+#if PAL_BUILD_CODE_OBJECT_INTERFACE
+    Pal::Result AddCodeObjectLoadEvent(const Pal::ICodeObject* pCodeObject, CodeObjectLoadEventType eventType);
 #endif
 
     // Recycle used Gart rafts and put back to available pool
