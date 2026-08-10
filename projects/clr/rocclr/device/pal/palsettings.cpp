@@ -140,11 +140,13 @@ bool Settings::create(const Pal::DeviceProperties& palProp,
   amd::Os::getAppPathAndFileName(appName, appPathAndName);
 
   switch (palProp.revision) {
-#if PAL_BUILD_ALPHA_TRION1
-    case Pal::AsicRevision::AlphaTrion1:
+#if PAL_BUILD_AT_LITE3
+    case Pal::AsicRevision::AtLite3_A0:
+    case Pal::AsicRevision::AtLite3_B0:
 #endif
 #if PAL_BUILD_ALPHA_TRION2
-    case Pal::AsicRevision::AlphaTrion2:
+    case Pal::AsicRevision::AlphaTrion2_A0:
+    case Pal::AsicRevision::AlphaTrion2_B0:
 #endif
 /* #if PAL_BUILD_ALPHA_TRION3
     case Pal::AsicRevision::AT3:
