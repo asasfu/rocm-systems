@@ -125,25 +125,25 @@ get_clock_now(clockid_t clock_id) noexcept
 //--------------------------------------------------------------------------------------//
 
 stages::stages()
-: init{ [](const spec&) { return get_state() < State::Finalized; } }
+: init{ [](const spec&) { return state::process::get() < state::process::Finalized; } }
 , wait{ [](const spec& _spec) {
     sleep(std::min<std::uint64_t>(
         std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::duration<double>{ _spec.delay })
             .count()));
-    return get_state() < State::Finalized;
+    return state::process::get() < state::process::Finalized;
 } }
-, start{ [](const spec&) { return get_state() < State::Finalized; } }
+, start{ [](const spec&) { return state::process::get() < state::process::Finalized; } }
 , collect{ [](const spec& _spec) {
     sleep(std::min<std::uint64_t>(
         std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::duration<double>{ _spec.duration })
             .count()));
-    return get_state() < State::Finalized;
+    return state::process::get() < state::process::Finalized;
 } }
-, stop{ [](const spec&) { return get_state() < State::Finalized; } }
+, stop{ [](const spec&) { return state::process::get() < state::process::Finalized; } }
 {}
 
 //--------------------------------------------------------------------------------------//
@@ -249,7 +249,7 @@ spec::operator()(const stages& _stages) const
     auto _n = repeat;
     if(_n < 1) _n = std::numeric_limits<std::uint64_t>::max();
 
-    while(get_state() < State::Active)
+    while(state::process::get() < state::process::Active)
         sleep(std::chrono::nanoseconds{ std::chrono::microseconds{ 1 } }.count());
 
     for(std::uint64_t i = 0; i < _n; ++i)
@@ -338,25 +338,31 @@ get_trace_stages()
 {
     auto _v = stages{};
 
-    _v.init = [](const spec&) { return get_state() < State::Finalized; };
+    _v.init = [](const spec&) {
+        return state::process::get() < state::process::Finalized;
+    };
     _v.wait = [](const spec& _spec) {
         sleep(std::min<std::uint64_t>(
             std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::duration<double>{ _spec.delay })
                 .count()));
-        return get_state() < State::Finalized;
+        return state::process::get() < state::process::Finalized;
     };
-    _v.start   = [](const spec&) { return get_state() < State::Finalized; };
+    _v.start = [](const spec&) {
+        return state::process::get() < state::process::Finalized;
+    };
     _v.collect = [](const spec& _spec) {
         sleep(std::min<std::uint64_t>(
             std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::duration<double>{ _spec.duration })
                 .count()));
-        return get_state() < State::Finalized;
+        return state::process::get() < state::process::Finalized;
     };
-    _v.stop = [](const spec&) { return get_state() < State::Finalized; };
+    _v.stop = [](const spec&) {
+        return state::process::get() < state::process::Finalized;
+    };
 
     return _v;
 }
