@@ -240,10 +240,12 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_MaxDynamicSharedMemorySize_Not_S
 
   // Get the maximum settable value for this kernel
   // hipFuncGetAttribute returns availableLDSSize - localMemSize (accounts for WGP mode)
+  hipFunction_t func = nullptr;
+  HIP_CHECK(hipGetFuncBySymbol(&func, reinterpret_cast<const void*>(kernel)));
   int max_settable_value = 0;
   HIP_CHECK(hipFuncGetAttribute(&max_settable_value,
                                  HIP_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES,
-                                 reinterpret_cast<hipFunction_t>(kernel)));
+                                 func));
 
   // Set to a value that exceeds the maximum - guaranteed to be invalid
   int invalid_value = max_settable_value + 1;
@@ -276,10 +278,12 @@ HIP_TEST_CASE(Unit_hipFuncSetAttribute_Positive_PreferredSharedMemoryCarveout_No
 #endif
 
   // Check if the feature is supported by attempting to get the attribute
+  hipFunction_t func = nullptr;
+  HIP_CHECK(hipGetFuncBySymbol(&func, reinterpret_cast<const void*>(kernel)));
   int carveout_value = 0;
   hipError_t get_result = hipFuncGetAttribute(&carveout_value,
                                                HIP_FUNC_ATTRIBUTE_PREFERRED_SHARED_MEMORY_CARVEOUT,
-                                               reinterpret_cast<hipFunction_t>(kernel));
+                                               func);
   if (get_result != hipErrorNotSupported) {
     HIP_SKIP_TEST("This test requires hardware without groupMemCarveout support");
     return;
