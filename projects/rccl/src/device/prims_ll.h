@@ -7,6 +7,7 @@
  ************************************************************************/
 
 #include "rccl_ptr.h"
+#include </opt/rocm/include/rocprof-trace-decoder/rocprof_trace_decoder/cxx/markers.hpp>
 // UserRegMode is accepted only to match the Primitives primary template (which
 // carries it for LL128, see primitives.h/prims_ll128.h). The LL protocol path is
 // unchanged from the baseline and ignores it.
@@ -451,6 +452,8 @@ class Primitives<T, RedOp, Fan, Direct, ProtoLL, P2p, isNetOffload, Metadata, Pi
     nelem = nelem < 0 ? 0 : nelem;
     if (SEND) waitSend(divUp(nelem, EltPerLine) * sizeof(ncclLLFifoLine));
 
+    sqtt_marker_enter("PRIM_LL_DATA_PROCESS");
+
     nelem -= tid * EltPerLine;
     srcElts += tid * EltPerLine;
     dstElts += tid * EltPerLine;
@@ -509,6 +512,8 @@ class Primitives<T, RedOp, Fan, Direct, ProtoLL, P2p, isNetOffload, Metadata, Pi
       nelem -= eltPerTrip;
       offset += nthreads;
     }
+
+    sqtt_marker_exit("PRIM_LL_DATA_PROCESS");
 
     if (RECV) {
       for (int i = 0; i < MaxRecv; i++) incRecv(i);

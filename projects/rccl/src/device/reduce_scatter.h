@@ -8,6 +8,7 @@
 #include "device.h"
 #include "collectives.h"
 #include "primitives.h"
+#include </opt/rocm/include/rocprof-trace-decoder/rocprof_trace_decoder/cxx/markers.hpp>
 
 namespace {
 template <typename T, typename RedOp, typename Proto>
@@ -118,20 +119,26 @@ __device__ __attribute__((noinline)) void runRing(int tid, int nthreads, struct 
       dataOffset = gridOffset + elemOffset;
         /////////////// begin ReduceScatter steps ///////////////
         // step 0: push data to next GPU
+      sqtt_marker_enter("REDUCE_SCATTER_RING_SEND");
       rankDest = ringRanks[nranks - 1];
       offset = dataOffset + rankDest * count;
       prims.send(offset, nelem);
+      sqtt_marker_exit("REDUCE_SCATTER_RING_SEND");
         // k-2 steps: reduce and copy to next GPU
+      sqtt_marker_enter("REDUCE_SCATTER_RING_RECV_REDUCE_SEND");
       for (int j = 2; j < nranks; ++j) {
         rankDest = ringRanks[nranks - j];
         offset = dataOffset + rankDest * count;
         prims.recvReduceSend(offset, nelem);
       }
+      sqtt_marker_exit("REDUCE_SCATTER_RING_RECV_REDUCE_SEND");
 
         // step k-1: reduce this buffer and data, which will produce the final result
+      sqtt_marker_enter("REDUCE_SCATTER_RING_RECV_REDUCE_COPY");
       rankDest = ringRanks[0];
       offset = dataOffset + rankDest * count;
       prims.recvReduceCopy(offset, dataOffset, nelem, /*postOp=*/true);
+      sqtt_marker_exit("REDUCE_SCATTER_RING_RECV_REDUCE_COPY");
     }
   }
 }
