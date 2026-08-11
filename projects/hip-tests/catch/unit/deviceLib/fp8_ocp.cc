@@ -602,7 +602,7 @@ HIP_TEST_CASE(Unit_all_fp8_ocp_cvt) {
 
   for (size_t i = 0; i < final_res.size(); i++) {
     INFO("Checking: " << f_vals[i] << " for: " << (is_e4m3_ocp ? "e4m3_ocp" : "e5m2_ocp")
-                      << " original: " << (int)all_vals[i]
+                      << " index: " << i << " original: " << (int)all_vals[i]
                       << " convert back: " << (int)final_res[i]);
     float gpu_cvt_res = 0.0f, cpu_cvt_res = 0.0f;
     if (is_e4m3_ocp) {

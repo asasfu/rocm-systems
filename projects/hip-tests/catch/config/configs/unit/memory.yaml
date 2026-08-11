@@ -477,7 +477,10 @@ memory:
   Unit_hipHostRegister_DuplicateAndDisjoint:
     <<: *level_2
     tags: [alloc]
-  Unit_hipHostRegister_with_hipExtHostRegisterCoarseGrained:
+  Unit_hipHostRegister_with_coarse_grain:
+    <<: *level_2
+    tags: [alloc]
+  Unit_hipHostRegister_with_fine_grain:
     <<: *level_2
     tags: [alloc]
   Unit_hipHostRegister_Capture:
@@ -2120,9 +2123,8 @@ memory:
     tags: [alloc, P1, image]
   Unit_hipMalloc3DArray_Negative_Non2DTextureGather:
     <<: *level_2
-    tags: [P1]
     disabled: [gfx1260, gfx1310, gfx1370]
-    tags: [image]
+    tags: [P1, image]
   Unit_hipArray3DCreate_happy:
     <<: *level_2
     disabled: [gfx1310, gfx1370]
@@ -2738,9 +2740,8 @@ memory:
     tags: [alloc, P1]
   Unit_hipMallocMipmappedArray_Negative_Non2DTextureGather:
     <<: *level_2
-    tags: [P1]
     disabled: [gfx1260, gfx1310, gfx1370]
-    tags: [image]
+    tags: [P1, image]
   Unit_hipMallocMipmappedArray_Negative_NumLevels:
     <<: *level_2
     tags: [alloc, P1]

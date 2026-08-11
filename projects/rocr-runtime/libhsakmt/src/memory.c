@@ -545,7 +545,7 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMapMemoryToGPUNodesCtx(HsaKFDContext *ctx,
 						  void *MemoryAddress,
 						  HSAuint64 MemorySizeInBytes,
 						  HSAuint64 *AlternateVAGPU,
-						  HsaMemMapFlags MemMapFlags,
+						  HsaMemFlags MemFlags,
 						  HSAuint64 NumberOfNodes,
 						  HSAuint32 *NodeArray)
 {
@@ -882,12 +882,12 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtMapMemoryToGPUNodes(
 					  void *MemoryAddress,
 					  HSAuint64 MemorySizeInBytes,
 					  HSAuint64 *AlternateVAGPU,
-					  HsaMemMapFlags MemMapFlags,
+					  HsaMemFlags MemFlags,
 					  HSAuint64 NumberOfNodes,
 					  HSAuint32 *NodeArray)
 {
 	return hsaKmtMapMemoryToGPUNodesCtx(&hsakmt_primary_kfd_ctx, MemoryAddress,
-				MemorySizeInBytes, AlternateVAGPU, MemMapFlags, NumberOfNodes, NodeArray);
+				MemorySizeInBytes, AlternateVAGPU, MemFlags, NumberOfNodes, NodeArray);
 }
 
 HSAKMT_STATUS HSAKMTAPI hsaKmtUnmapMemoryToGPU(void *MemoryAddress)

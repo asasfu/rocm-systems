@@ -93,12 +93,14 @@ set(ROCPROFSYS_EXAMPLE_DIRS
     fork
     videodecode
     jpegdecode
+    hipfile
     roctx
     thread-limit
     hpc
     shmem
     scratch-memory
     sdma-test
+    rocshmem
     unified-memory
     minimal
 )
