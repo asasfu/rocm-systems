@@ -295,9 +295,9 @@ class SpawnProc {
  public:
   // captureStderr only takes effect when captureOutput is also true. It merges
   // the child's stderr into the captured output; leave it false for tests that
-  // compare stdout exactly, so unrelated stderr (e.g. the FFM model banner or
-  // other diagnostics) does not corrupt the comparison. Opt in for tests that
-  // assert on stderr content (e.g. AMD_LOG output).
+  // compare stdout exactly, so unrelated stderr (diagnostics or banners) does
+  // not corrupt the comparison. Opt in for tests that assert on stderr content
+  // (e.g. AMD_LOG output).
   SpawnProc(std::string exeName, bool captureOutput = false, bool captureStderr = false)
       : exeName_(std::move(exeName)), captureOutput_(captureOutput),
         captureStderr_(captureStderr) {

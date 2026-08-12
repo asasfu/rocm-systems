@@ -165,14 +165,13 @@ hipError_t hipFuncGetAttribute(int* value, hipFunction_attribute attrib, hipFunc
     HIP_RETURN(hipErrorInvalidValue);
   }
 
-  // Use the same GetDeviceKernel helper as hipFuncSetAttribute
-  device::Kernel* d_kernel;
-  hipError_t status = GetDeviceKernel(reinterpret_cast<const void*>(hfunc), &d_kernel);
-  if (hipSuccess != status) {
-    HIP_RETURN(status);
+  amd::Kernel* kernel = hip::asKernel(hfunc);
+  if (kernel == nullptr) {
+    HIP_RETURN(hipErrorInvalidResourceHandle);
   }
 
-  const device::Kernel::WorkGroupInfo* wrkGrpInfo = d_kernel->workGroupInfo();
+  const device::Kernel::WorkGroupInfo* wrkGrpInfo =
+      kernel->getDeviceKernel(*(hip::getCurrentDevice()->devices()[0]))->workGroupInfo();
   if (wrkGrpInfo == nullptr) {
     HIP_RETURN(hipErrorMissingConfiguration);
   }
