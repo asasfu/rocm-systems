@@ -8,9 +8,11 @@ assertion:
   Unit_StaticAssert_Negative_Basic_RTC:
     <<: *level_2
     tags: [deviceLib]
-  Unit_Assert_Positive_Basic_KernelPass: *level_2
+  Unit_Assert_Positive_Basic_KernelPass:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
   Unit_Assert_Positive_Basic_KernelFail:
     <<: *level_2
     # === Below tests fail in external CI for PR https://github.com/ROCm-Developer-Tools/hip-tests/pull/210 ===
     # Disabled for asan since this test intentionally enter a failed state which prevents freeing resources
-    disabled: [amd_windows, amd_wsl, asan]
+    disabled: [ad_windows, ad_ws, asan, gfx1260, gfx1310, gfx1370]

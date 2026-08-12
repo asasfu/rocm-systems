@@ -13,3 +13,5 @@ __global__ void kernel2();
 __global__ void kernel_42(int* val);
 
 __global__ void coop_kernel();
+
+__global__ void kernel_lds_64k(int* output);

@@ -32,7 +32,8 @@
 
 namespace mi400
 {
-mapped_inst_t map_to_common_type(int einst, int trans2);
+mapped_inst_t map_to_common_type(int einst, int dpmacc, int trans2);
+std::pair<int, int> get_double_rate(uint64_t contents);
 
 void handle_xnack_rewind(gfx10::wave_t& wave);
 } // namespace mi400

@@ -28,6 +28,14 @@
 
 #include <inttypes.h>
 #include <stdbool.h>
+#ifdef _WIN32
+#include <windows.h>
+#ifndef _NTDEF_
+typedef _Return_type_success_(return >= 0) LONG NTSTATUS;
+typedef NTSTATUS *PNTSTATUS;
+#endif
+#include <d3dkmthk.h>
+#endif // _WIN32
 
 // Changelog:
 //  1.0: Breaking ABI cleanup: remove unused entry points (create/destroy/
@@ -61,6 +69,7 @@ struct hsakmt_model_functions {
 	uint32_t version_major; // HSAKMT_MODEL_INTERFACE_VERSION_MAJOR
 	uint32_t version_minor; // HSAKMT_MODEL_INTERFACE_VERSION_MINOR
 
+#ifdef __linux__
 	// Create memfd for model use (v0.7+)
 	// FFM owns memfd creation and sizing logic
 	// Returns: File descriptor on success, -1 on error (errno set)
@@ -75,8 +84,60 @@ struct hsakmt_model_functions {
 	// NULL in v1.0 models — callers must degrade gracefully.
 	// Returns 0 on success, -1 on error (with errno set)
 	int (*handle_drm_call)(unsigned cmd, void *arg);
+#elif defined(_WIN32)
+#define EVAL(...) __VA_ARGS__
+#define HSAKMTSIM_D3DKMT_DO_ALL_EXCEPT_SHARE_OBJECTS(F) \
+	EVAL(F(D3DKMTCreateAllocation2, D3DKMT_CREATEALLOCATION* args)) \
+	EVAL(F(D3DKMTDestroyAllocation2, CONST D3DKMT_DESTROYALLOCATION2* args)) \
+	EVAL(F(D3DKMTMapGpuVirtualAddress, D3DDDI_MAPGPUVIRTUALADDRESS* args)) \
+	EVAL(F(D3DKMTReserveGpuVirtualAddress, D3DDDI_RESERVEGPUVIRTUALADDRESS* args)) \
+	EVAL(F(D3DKMTFreeGpuVirtualAddress, CONST D3DKMT_FREEGPUVIRTUALADDRESS* args)) \
+	EVAL(F(D3DKMTCreateDevice, D3DKMT_CREATEDEVICE* args)) \
+	EVAL(F(D3DKMTDestroyDevice, CONST D3DKMT_DESTROYDEVICE* args)) \
+	EVAL(F(D3DKMTEnumAdapters2, CONST D3DKMT_ENUMADAPTERS2* args)) \
+	EVAL(F(D3DKMTQueryAdapterInfo, CONST D3DKMT_QUERYADAPTERINFO* args)) \
+	EVAL(F(D3DKMTCreateContextVirtual, D3DKMT_CREATECONTEXTVIRTUAL* args)) \
+	EVAL(F(D3DKMTDestroyContext, CONST D3DKMT_DESTROYCONTEXT* args)) \
+	EVAL(F(D3DKMTSubmitCommand, CONST D3DKMT_SUBMITCOMMAND* args)) \
+	EVAL(F(D3DKMTCreateSynchronizationObject2, D3DKMT_CREATESYNCHRONIZATIONOBJECT2* args)) \
+	EVAL(F(D3DKMTDestroySynchronizationObject, CONST D3DKMT_DESTROYSYNCHRONIZATIONOBJECT* args)) \
+	EVAL(F(D3DKMTQueryStatistics, CONST D3DKMT_QUERYSTATISTICS* args)) \
+	EVAL(F(D3DKMTEscape, CONST D3DKMT_ESCAPE* args)) \
+	EVAL(F(D3DKMTLock2, D3DKMT_LOCK2* args)) \
+	EVAL(F(D3DKMTUnlock2, CONST D3DKMT_UNLOCK2* args)) \
+	EVAL(F(D3DKMTCreatePagingQueue, D3DKMT_CREATEPAGINGQUEUE* args)) \
+	EVAL(F(D3DKMTDestroyPagingQueue, D3DDDI_DESTROYPAGINGQUEUE* args)) \
+	EVAL(F(D3DKMTWaitForSynchronizationObjectFromGpu, CONST D3DKMT_WAITFORSYNCHRONIZATIONOBJECTFROMGPU* args)) \
+	EVAL(F(D3DKMTSignalSynchronizationObjectFromGpu, CONST D3DKMT_SIGNALSYNCHRONIZATIONOBJECTFROMGPU* args)) \
+	EVAL(F(D3DKMTWaitForSynchronizationObjectFromCpu, CONST D3DKMT_WAITFORSYNCHRONIZATIONOBJECTFROMCPU* args)) \
+	EVAL(F(D3DKMTQueryClockCalibration, D3DKMT_QUERYCLOCKCALIBRATION* args)) \
+	EVAL(F(D3DKMTMakeResident, D3DDDI_MAKERESIDENT* args)) \
+	EVAL(F(D3DKMTEvict, D3DKMT_EVICT* args)) \
+	EVAL(F(D3DKMTQueryResourceInfoFromNtHandle, D3DKMT_QUERYRESOURCEINFOFROMNTHANDLE* args)) \
+	EVAL(F(D3DKMTOpenResourceFromNtHandle, D3DKMT_OPENRESOURCEFROMNTHANDLE* args)) \
+	EVAL(F(D3DKMTCreateHwQueue, D3DKMT_CREATEHWQUEUE* args)) \
+	EVAL(F(D3DKMTDestroyHwQueue, CONST D3DKMT_DESTROYHWQUEUE* args)) \
+	EVAL(F(D3DKMTSubmitCommandToHwQueue, CONST D3DKMT_SUBMITCOMMANDTOHWQUEUE* args)) \
+	EVAL(F(D3DKMTEnumAdapters3, D3DKMT_ENUMADAPTERS3* args)) \
+	EVAL(F(D3DKMTQueryResourceInfo, D3DKMT_QUERYRESOURCEINFO* args)) \
+	EVAL(F(D3DKMTOpenResource, D3DKMT_OPENRESOURCE* args))
+#define HSAKMTSIM_D3DKMT_DO(F) \
+	HSAKMTSIM_D3DKMT_DO_ALL_EXCEPT_SHARE_OBJECTS(F) \
+	EVAL(F(D3DKMTShareObjects, \
+		UINT					cObjects, \
+		CONST D3DKMT_HANDLE*	hObjects, \
+		OBJECT_ATTRIBUTES*		pObjectAttributes, \
+		DWORD					dwDesiredAccess, \
+		HANDLE*					phSharedNtHandle))
+
+#define DECLARE_MEMBER_FUNCTION(name, ...) \
+	NTSTATUS(*name)(__VA_ARGS__);
+HSAKMTSIM_D3DKMT_DO(DECLARE_MEMBER_FUNCTION)
+#undef DECLARE_MEMBER_FUNCTION
+#endif // _WIN32
 };
 
+#ifdef __linux__
 // Commands for handle_drm_call (v1.1+)
 enum hsakmt_drm_cmd {
 	// BO operations
@@ -127,6 +188,7 @@ struct hsakmt_drm_device_deinitialize_args { void *dev; };
 struct hsakmt_drm_device_get_fd_args       { void *dev; int *fd_out; };
 struct hsakmt_drm_get_marketing_name_args  { void *dev; const char **name_out; };
 struct hsakmt_drm_query_gpu_info_args      { void *dev; void *info_out; }; // amdgpu_gpu_info*
+#endif // __linux__
 
 // Type of a shared library export called `get_hsakmt_model_functions`.
 typedef const struct hsakmt_model_functions *(*get_hsakmt_model_functions_t)(void);

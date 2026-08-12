@@ -22,10 +22,6 @@ bool Kernel::postLoad() {
   kernargSegmentAlignment_ = amd::alignUp(std::max(kernargSegmentAlignment_, 128u),
                                           device().info().globalMemCacheLineSize_);
 
-  // Set the workgroup information for the kernel
-  workGroupInfo_.availableLDSSize_ = device().info().localMemSizePerCU_;
-  assert(workGroupInfo_.availableLDSSize_ > 0);
-
   // Get the kernel code handle
   hsa_status_t hsaStatus;
   hsa_executable_symbol_t symbol;

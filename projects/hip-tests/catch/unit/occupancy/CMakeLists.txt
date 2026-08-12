@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 # Common Tests - Test independent of all platforms
-set(TARGETS_SUPPORTING_CLUSTERS gfx1250 gfx1251)
+set(TARGETS_SUPPORTING_CLUSTERS gfx1250 gfx1251 gfx1260)
+set(TARGETS_SUPPORTING_WAVEGROUPS gfx1260 gfx1310 gfx1370)
 set(CLUSTERS_SUPPORTED -1)
+set(WAVEGROUPS_SUPPORTED -1)
 
 function(CheckRejectedArchs OFFLOAD_ARCH_STR_LOCAL)
   string(REGEX MATCHALL "--offload-arch=gfx[0-9a-z]+" OFFLOAD_ARCH_LIST ${OFFLOAD_ARCH_STR_LOCAL})
@@ -13,6 +15,9 @@ function(CheckRejectedArchs OFFLOAD_ARCH_STR_LOCAL)
 	if (CMAKE_MATCH_COUNT EQUAL 1)
 	  if (CMAKE_MATCH_1 IN_LIST TARGETS_SUPPORTING_CLUSTERS)
 		set(CLUSTERS_SUPPORTED 1 PARENT_SCOPE)
+	  endif()         # CMAKE_MATCH_1
+	  if (CMAKE_MATCH_1 IN_LIST TARGETS_SUPPORTING_WAVEGROUPS)
+		set(WAVEGROUPS_SUPPORTED 1 PARENT_SCOPE)
 	  endif()         # CMAKE_MATCH_1
 	endif()        # CMAKE_MATCH_COUNT
   endforeach()   # OFFLOAD_ARCH_LIST
@@ -31,6 +36,8 @@ set(TEST_SRC
 )
 
 if(HIP_PLATFORM MATCHES "amd")
+  list(APPEND TEST_SRC hipOccupancyDeviceVGPRValidation.cc)
+
   if (DEFINED OFFLOAD_ARCH_STR)
     CheckRejectedArchs(${OFFLOAD_ARCH_STR})
   elseif(DEFINED $ENV{HCC_AMDGPU_TARGET})
@@ -46,6 +53,17 @@ if(HIP_PLATFORM MATCHES "amd")
       )
   else()
     message(STATUS "No cluster support; clusters tests were not added")
+  endif()
+
+  if(WAVEGROUPS_SUPPORTED EQUAL 1)
+    message(STATUS "Adding wavegroup tests")
+    set(TEST_SRC
+      ${TEST_SRC}
+      hipOccupancyWavegroup.cc
+      )
+    add_definitions(-DWAVEGROUP_SUPPORT)
+  else()
+    message(STATUS "No wavegroup support; wavegroup tests were not added")
   endif()
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/simple_kernel.code

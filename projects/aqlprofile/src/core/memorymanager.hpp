@@ -38,7 +38,8 @@
 #include "pm4/trace_config.h"
 
 struct EventRequest : public aqlprofile_pmc_event_t {
-  bool bInternal;
+  bool bInternal{false};
+  bool bShouldBeLast{false};
 
   auto GetOrder() const -> auto{
     uint64_t idx = bInternal ? 0 : 1;
@@ -47,6 +48,7 @@ struct EventRequest : public aqlprofile_pmc_event_t {
 
     uint64_t blk = block_index;
     blk |= uint64_t(block_name) << 32;
+    blk |= uint64_t(bShouldBeLast) << 63;
 
     return std::pair<uint64_t, uint64_t>{blk, idx};
   }

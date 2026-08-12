@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palBuddyAllocator.h
@@ -125,6 +102,7 @@ public:
         gpusize size,
         gpusize alignment);
 
+
     /// Checks if @ref ClaimGpuMemory can actually claim memory, can be used to find the best fit pool.  This function
     /// does NOT acquire a lock on the structures ClaimGpuMemory uses, and does NOT claim or allocate the memory.
     ///
@@ -153,6 +131,7 @@ private:
     static constexpr gpusize KvalToSize(uint32 kVal) { return (1ull << kVal); }
 
     static uint32 SizeToKval(gpusize size) { return Log2(size); }
+
 
     Allocator* const    m_pAllocator;
 
@@ -194,6 +173,7 @@ private:
     bool    IsOffsetFree(gpusize offset, uint32 kval);
     Result  RemoveOffsetFromFreeSet(gpusize offset, uint32 kval);
     Result  RemoveOffsetFromUsedMap(gpusize offset);
+
 
     PAL_DISALLOW_COPY_AND_ASSIGN(BuddyAllocator);
     PAL_DISALLOW_DEFAULT_CTOR(BuddyAllocator);

@@ -1,0 +1,8 @@
+---
+wavegroup:
+  Unit_hipWavegroup_LaunchValidation:
+    <<: *level_2
+    tags: [P1]
+  Unit_hipWavegroup_LaunchValidation_PerDimension:
+    <<: *level_2
+    tags: [P1]

@@ -30,18 +30,41 @@ std::mutex MemoryManager::managers_map_mutex;
 void CounterMemoryManager::CopyEvents(const aqlprofile_pmc_event_t* _events, size_t count) {
   events.reserve(count + 4);
   int num_flag_metrics = 0;
+  int num_sp_events = 0;
+  int num_sq_events = 0;
   for (size_t i = 0; i < count; i++) {
     events.push_back(EventRequest{_events[i], false});
-    num_flag_metrics += _events[i].flags.raw != 0;
+    // This logic is specific to SQ accumulate. Exclude SPM and other blocks' flags.
+    bool bIsSq = _events[i].block_name == HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ;
+    bool bIsSQG = _events[i].block_name == static_cast<int>(AQLPROFILE_BLOCK_NAME_SQG);
+    bool bIsAccum = _events[i].flags.sq_flags.accum != 0;
+
+    if (bIsAccum && bIsSq) events.back().bShouldBeLast = true;
+
+    num_flag_metrics += bIsAccum && (bIsSq || bIsSQG);
+    num_sq_events += bIsSq && !bIsAccum;
+    num_sp_events += _events[i].block_name == static_cast<int>(AQLPROFILE_BLOCK_NAME_SP);
   }
 
   if (!num_flag_metrics) return;
 
-  std::sort(events.begin(), events.end());
+  EventRequest dummySqEvent{}; // Event select = 0 for not counting
+  dummySqEvent.bInternal = true; // Do not send to profiler.
+  dummySqEvent.block_name = HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ;
+
+  // Sorting will put these as the first SQ events, pushing back the level counters.
+  // This will make accumulate always be after all SP events in the register programming.
+  int extra_dummy_sq = num_sp_events - num_sq_events - 1;
+  for (int i=0; i<extra_dummy_sq; i++) events.push_back(dummySqEvent);
+
+  std::stable_sort(events.begin(), events.end());
 
   std::vector<EventRequest> acc_requests;
   for (auto it = events.begin(); it != events.end(); it++) {
-    if (!it->flags.raw) continue;
+    bool IsSq = it->block_name == HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ;
+    bool IsSQG = it->block_name == static_cast<int>(AQLPROFILE_BLOCK_NAME_SQG);
+
+    if (it->flags.sq_flags.accum == 0 || !(IsSq || IsSQG)) continue;
 
     if (it != events.begin()) {
       auto prev = std::prev(it);
@@ -57,5 +80,5 @@ void CounterMemoryManager::CopyEvents(const aqlprofile_pmc_event_t* _events, siz
   if (!acc_requests.size()) return;
 
   events.insert(events.end(), acc_requests.begin(), acc_requests.end());
-  std::sort(events.begin(), events.end());
+  std::stable_sort(events.begin(), events.end());
 }

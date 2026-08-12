@@ -392,7 +392,6 @@ hsaKmtCreateQueueV2(
     HsaQueueResource*   QueueResource                     //OUT
     );
 
-
 /**
   Updates a queue
 */

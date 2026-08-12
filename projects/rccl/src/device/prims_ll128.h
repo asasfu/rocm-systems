@@ -125,7 +125,7 @@ class Primitives<T, RedOp, Fan, Direct, ProtoLL128, P2p, isNetOffload, Metadata,
     if (sendConnTailPtr) {
       if (skip_fence) {
         __atomic_signal_fence(__ATOMIC_SEQ_CST);
-#if defined(__gfx1250__)
+#if defined(__gfx1250__) || defined(__gfx1260__)
         // To be revisited for correctness and performance on gfx1250
         asm volatile("s_wait_loadcnt 0x0\n\ts_wait_storecnt 0x0");
 #else

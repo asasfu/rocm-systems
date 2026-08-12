@@ -657,4 +657,3 @@ class gfx12_cntx_prim {
 }  // namespace gfxip
 
 #endif  // _GFX12_PRIMITIVES_H_
-

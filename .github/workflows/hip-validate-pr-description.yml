@@ -11,7 +11,8 @@ on:
 
 jobs:
   validate-pr-description:
-    runs-on: ubuntu-latest
+    runs-on: 
+      group: "AMD-ROCm-Internal-large-runners"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

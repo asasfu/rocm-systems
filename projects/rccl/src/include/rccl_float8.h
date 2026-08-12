@@ -39,8 +39,11 @@ typedef struct {
 } rccl_bfloat8;
 
 // __cplusplus < 201103L || (!defined(__HIP_PLATFORM_AMD__) && !defined(__HIPCC__))
-#elif HIP_VERSION >= 60300000 && (!__HIP_DEVICE_COMPILE__ || defined(__gfx942__) || defined(__gfx950__) || \
-                                  defined(__gfx1200__) || defined(__gfx1201__) || defined(__gfx1250__))
+#elif HIP_VERSION >= 60300000 && \
+      (!__HIP_DEVICE_COMPILE__ || \
+       defined(__gfx942__) || defined(__gfx950__) || \
+       defined(__gfx1200__) || defined(__gfx1201__) || defined(__gfx1250__) || \
+       defined(__gfx1260__))
 
 #include <hip/hip_fp8.h>
 

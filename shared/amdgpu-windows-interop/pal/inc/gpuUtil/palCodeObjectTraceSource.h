@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 
 #pragma once
 
@@ -124,6 +101,8 @@ struct CodeObjectCorrelation
 };
 
 /// Identifies shader types inside RDF chunks
+///# Should match the struct defined here:
+///# https://github.com/AMD-Radeon-Driver/rdf/blob/master/docs/internal/chunkFormats/codeObjectChunkSpec.md
 enum class ApiShaderType : Pal::uint32
 {
     Compute  = 0, ///< API compute shader
@@ -191,6 +170,16 @@ public:
     Pal::Result RegisterElfBinary(const ElfBinaryInfo& elfBinaryInfo);
     Pal::Result UnregisterElfBinary(const ElfBinaryInfo& elfBinaryInfo);
 
+#if PAL_WORK_GRAPHS_SUPPORT
+    Pal::Result RegisterProgram(
+        Pal::IWorkGraph*         pProgram,
+        const Pal::IGraphLayout* pGraphLayout,
+        RegisterProgramInfo      programInfo);
+    Pal::Result UnregisterProgram(Pal::IWorkGraph* pProgram);
+    Pal::Result RegisterProgramLibrary(const Pal::IShaderLibrary* pLibrary, const RegisterLibraryInfo& clientInfo);
+#endif
+
+
     // ==== Base Class Overrides =================================================================================== //
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < COMPRESSION_ARG_VERSION
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override { }
@@ -222,6 +211,11 @@ private:
     Pal::Result AddCodeObjectLoadEvent(
         const Pal::IPipeline*               pPipeline,
         TraceChunk::CodeObjectLoadEventType eventType);
+#if PAL_WORK_GRAPHS_SUPPORT
+    Pal::Result AddCodeObjectLoadEvent(
+        const Pal::IWorkGraph*              pWorkGraph,
+        TraceChunk::CodeObjectLoadEventType eventType);
+#endif
     Pal::Result AddCodeObjectLoadEvent(
         const ElfBinaryInfo&                elfBinaryInfo,
         TraceChunk::CodeObjectLoadEventType eventType);
@@ -253,6 +247,10 @@ private:
     Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredApiHashes;
     Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredPipelines;
     Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredCoHashes;
+#if PAL_WORK_GRAPHS_SUPPORT
+    Util::RWLock                                                        m_registerProgramLock;
+    Util::HashSet<Pal::uint64, Pal::IPlatform, Util::JenkinsHashFunc>   m_registeredGraphApiHashes;
+#endif
 
 };
 
