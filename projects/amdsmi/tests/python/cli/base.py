@@ -68,6 +68,12 @@ class TestCliBase(unittest.TestCase):
     # this flag guards the first-and-only initialization.
     _initialized = False
 
+    # TODO: Remove this condition when CLI supports User automated input
+    # Commands that need User permission to run.  A plain class attribute, not
+    # something setUpClass assigns: setUpClass returns early once
+    # ``_initialized`` is set, so only the first CLI class to run would get it.
+    cmds_need_permission = {"set": ["--fan", "--memory-partition", "--compute-partition"]}
+
     @classmethod
     def setUpClass(cls):
         if TestCliBase._initialized:
@@ -87,10 +93,6 @@ class TestCliBase(unittest.TestCase):
         TestCliBase.gpus = baseline["gpus"]
         TestCliBase.sub_args = baseline["sub_args"]
         TestCliBase._initialized = True
-
-        # TODO: Remove this condition when CLI supports User automated input
-        # Commands that need User permission to run
-        cls.cmds_need_permission = {"set": ["--fan", "--memory-partition", "--compute-partition"]}
 
     @classmethod
     def _build_baseline(cls):

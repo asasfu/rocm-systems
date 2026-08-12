@@ -20,6 +20,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """CLI leaf test: set command."""
 
+import os
+
 import common.common as common
 from common.common import amdsmi
 
@@ -40,6 +42,15 @@ class TestSet(TestCliBase):
         self.common.print_func_name("")
         msg = f"{self.tab}### amd-smi set"
         self.common.print(msg)
+
+        # Nearly every `set` subcommand writes to a root-only sysfs node, and
+        # the CLI reports the refusal as a command failure. Only the handful in
+        # cmds_need_permission are filtered out downstream (they additionally
+        # need interactive input), so without this guard an unprivileged run
+        # fails on --perf-level, --profile, --perf-determinism, --clk-level and
+        # the rest rather than skipping.
+        if not self.PrintCmdsOnly and os.geteuid() != 0:
+            self.skipTest(f"{self.tab}Needs root")
 
         # Get current settings
         power_profile = {}
