@@ -2452,7 +2452,9 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBaseDynamic_t::copy_internal_to_externa
     std::visit(
         [&](const auto& x) {
           using S = std::decay_t<decltype(x)>;
-          if constexpr (std::is_integral_v<S>) {
+          if constexpr (std::is_unsigned_v<S> && std::is_unsigned_v<D>) {
+            dst = widen_keep_sentinel<D>(x);
+          } else if constexpr (std::is_integral_v<S>) {
             dst = static_cast<D>(x);
           }
         },
@@ -2963,8 +2965,12 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v18_t::copy_internal_to_external_m
       metrics_public_init.xgmi_link_speed = m_gpu_metrics_tbl.m_xgmi_link_speed;
 
       // Utilization Accumulated
-      metrics_public_init.gfx_activity_acc = m_gpu_metrics_tbl.m_gfx_activity_acc;
-      metrics_public_init.mem_activity_acc = m_gpu_metrics_tbl.m_mem_activity_acc;
+      metrics_public_init.gfx_activity_acc =
+          widen_keep_sentinel<decltype(metrics_public_init.gfx_activity_acc)>(
+              m_gpu_metrics_tbl.m_gfx_activity_acc);
+      metrics_public_init.mem_activity_acc =
+          widen_keep_sentinel<decltype(metrics_public_init.mem_activity_acc)>(
+              m_gpu_metrics_tbl.m_mem_activity_acc);
 
       // PCIE accumulated bandwidth
       metrics_public_init.pcie_bandwidth_acc = m_gpu_metrics_tbl.m_pcie_bandwidth_acc;
@@ -2984,10 +2990,14 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v18_t::copy_internal_to_external_m
           m_gpu_metrics_tbl.m_pcie_replay_rover_count_acc;
 
       // PCIE NAK sent accumulated count
-      metrics_public_init.pcie_nak_sent_count_acc = m_gpu_metrics_tbl.m_pcie_nak_sent_count_acc;
+      metrics_public_init.pcie_nak_sent_count_acc =
+          widen_keep_sentinel<decltype(metrics_public_init.pcie_nak_sent_count_acc)>(
+              m_gpu_metrics_tbl.m_pcie_nak_sent_count_acc);
 
       // PCIE NAK received accumulated count
-      metrics_public_init.pcie_nak_rcvd_count_acc = m_gpu_metrics_tbl.m_pcie_nak_rcvd_count_acc;
+      metrics_public_init.pcie_nak_rcvd_count_acc =
+          widen_keep_sentinel<decltype(metrics_public_init.pcie_nak_rcvd_count_acc)>(
+              m_gpu_metrics_tbl.m_pcie_nak_rcvd_count_acc);
 
       // Accumulated throttler residencies
       // bumped up public to uint64_t due to planned size increase for newer ASICs
@@ -3059,7 +3069,8 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v18_t::copy_internal_to_external_m
       metrics_public_init.num_partition = m_gpu_metrics_tbl.m_num_partition;
 
       metrics_public_init.pcie_lc_perf_other_end_recovery =
-          m_gpu_metrics_tbl.m_pcie_lc_perf_other_end_recovery;
+          widen_keep_sentinel<decltype(metrics_public_init.pcie_lc_perf_other_end_recovery)>(
+              m_gpu_metrics_tbl.m_pcie_lc_perf_other_end_recovery);
 
       // xcp stats
       auto priv_it = std::begin(m_gpu_metrics_tbl.m_xcp_stats);
@@ -3233,8 +3244,12 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v17_t::copy_internal_to_external_m
     metrics_public_init.xgmi_link_speed = m_gpu_metrics_tbl.m_xgmi_link_speed;
 
     // Utilization Accumulated
-    metrics_public_init.gfx_activity_acc = m_gpu_metrics_tbl.m_gfx_activity_acc;
-    metrics_public_init.mem_activity_acc = m_gpu_metrics_tbl.m_mem_activity_acc;
+    metrics_public_init.gfx_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.gfx_activity_acc)>(
+            m_gpu_metrics_tbl.m_gfx_activity_acc);
+    metrics_public_init.mem_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.mem_activity_acc)>(
+            m_gpu_metrics_tbl.m_mem_activity_acc);
 
     // PCIE accumulated bandwidth
     metrics_public_init.pcie_bandwidth_acc = m_gpu_metrics_tbl.m_pcie_bandwidth_acc;
@@ -3253,10 +3268,14 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v17_t::copy_internal_to_external_m
         m_gpu_metrics_tbl.m_pcie_replay_rover_count_acc;
 
     // PCIE NAK sent accumulated count
-    metrics_public_init.pcie_nak_sent_count_acc = m_gpu_metrics_tbl.m_pcie_nak_sent_count_acc;
+    metrics_public_init.pcie_nak_sent_count_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.pcie_nak_sent_count_acc)>(
+            m_gpu_metrics_tbl.m_pcie_nak_sent_count_acc);
 
     // PCIE NAK received accumulated count
-    metrics_public_init.pcie_nak_rcvd_count_acc = m_gpu_metrics_tbl.m_pcie_nak_rcvd_count_acc;
+    metrics_public_init.pcie_nak_rcvd_count_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.pcie_nak_rcvd_count_acc)>(
+            m_gpu_metrics_tbl.m_pcie_nak_rcvd_count_acc);
 
     // Accumulated throttler residencies
     // bumped up public to uint64_t due to planned size increase for newer ASICs
@@ -3328,7 +3347,8 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v17_t::copy_internal_to_external_m
     metrics_public_init.num_partition = m_gpu_metrics_tbl.m_num_partition;
 
     metrics_public_init.pcie_lc_perf_other_end_recovery =
-        m_gpu_metrics_tbl.m_pcie_lc_perf_other_end_recovery;
+        widen_keep_sentinel<decltype(metrics_public_init.pcie_lc_perf_other_end_recovery)>(
+            m_gpu_metrics_tbl.m_pcie_lc_perf_other_end_recovery);
 
     auto priv_it = std::begin(m_gpu_metrics_tbl.m_xcp_stats);
     for (auto pub_it = std::begin(metrics_public_init.xcp_stats);
@@ -3419,8 +3439,12 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v16_t::copy_internal_to_external_m
     metrics_public_init.xgmi_link_speed = m_gpu_metrics_tbl.m_xgmi_link_speed;
 
     // Utilization Accumulated
-    metrics_public_init.gfx_activity_acc = m_gpu_metrics_tbl.m_gfx_activity_acc;
-    metrics_public_init.mem_activity_acc = m_gpu_metrics_tbl.m_mem_activity_acc;
+    metrics_public_init.gfx_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.gfx_activity_acc)>(
+            m_gpu_metrics_tbl.m_gfx_activity_acc);
+    metrics_public_init.mem_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.mem_activity_acc)>(
+            m_gpu_metrics_tbl.m_mem_activity_acc);
 
     // PCIE accumulated bandwidth
     metrics_public_init.pcie_bandwidth_acc = m_gpu_metrics_tbl.m_pcie_bandwidth_acc;
@@ -3439,10 +3463,14 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v16_t::copy_internal_to_external_m
         m_gpu_metrics_tbl.m_pcie_replay_rover_count_acc;
 
     // PCIE NAK sent accumulated count
-    metrics_public_init.pcie_nak_sent_count_acc = m_gpu_metrics_tbl.m_pcie_nak_sent_count_acc;
+    metrics_public_init.pcie_nak_sent_count_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.pcie_nak_sent_count_acc)>(
+            m_gpu_metrics_tbl.m_pcie_nak_sent_count_acc);
 
     // PCIE NAK received accumulated count
-    metrics_public_init.pcie_nak_rcvd_count_acc = m_gpu_metrics_tbl.m_pcie_nak_rcvd_count_acc;
+    metrics_public_init.pcie_nak_rcvd_count_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.pcie_nak_rcvd_count_acc)>(
+            m_gpu_metrics_tbl.m_pcie_nak_rcvd_count_acc);
 
     // Accumulated throttler residencies
     // bumped up public to uint64_t due to planned size increase for newer ASICs
@@ -3504,7 +3532,8 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v16_t::copy_internal_to_external_m
     metrics_public_init.num_partition = m_gpu_metrics_tbl.m_num_partition;
 
     metrics_public_init.pcie_lc_perf_other_end_recovery =
-        m_gpu_metrics_tbl.m_pcie_lc_perf_other_end_recovery;
+        widen_keep_sentinel<decltype(metrics_public_init.pcie_lc_perf_other_end_recovery)>(
+            m_gpu_metrics_tbl.m_pcie_lc_perf_other_end_recovery);
 
     auto priv_it = std::begin(m_gpu_metrics_tbl.m_xcp_stats);
     for (auto pub_it = std::begin(metrics_public_init.xcp_stats);
@@ -3609,8 +3638,12 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v15_t::copy_internal_to_external_m
     metrics_public_init.xgmi_link_speed = m_gpu_metrics_tbl.m_xgmi_link_speed;
 
     // Utilization Accumulated
-    metrics_public_init.gfx_activity_acc = m_gpu_metrics_tbl.m_gfx_activity_acc;
-    metrics_public_init.mem_activity_acc = m_gpu_metrics_tbl.m_mem_activity_acc;
+    metrics_public_init.gfx_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.gfx_activity_acc)>(
+            m_gpu_metrics_tbl.m_gfx_activity_acc);
+    metrics_public_init.mem_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.mem_activity_acc)>(
+            m_gpu_metrics_tbl.m_mem_activity_acc);
 
     // PCIE accumulated bandwidth
     metrics_public_init.pcie_bandwidth_acc = m_gpu_metrics_tbl.m_pcie_bandwidth_acc;
@@ -3629,10 +3662,14 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v15_t::copy_internal_to_external_m
         m_gpu_metrics_tbl.m_pcie_replay_rover_count_acc;
 
     // PCIE NAK sent accumulated count
-    metrics_public_init.pcie_nak_sent_count_acc = m_gpu_metrics_tbl.m_pcie_nak_sent_count_acc;
+    metrics_public_init.pcie_nak_sent_count_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.pcie_nak_sent_count_acc)>(
+            m_gpu_metrics_tbl.m_pcie_nak_sent_count_acc);
 
     // PCIE NAK received accumulated count
-    metrics_public_init.pcie_nak_rcvd_count_acc = m_gpu_metrics_tbl.m_pcie_nak_rcvd_count_acc;
+    metrics_public_init.pcie_nak_rcvd_count_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.pcie_nak_rcvd_count_acc)>(
+            m_gpu_metrics_tbl.m_pcie_nak_rcvd_count_acc);
 
     // XGMI accumulated data transfer size
     // xgmi_read_data
@@ -3775,8 +3812,12 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v14_t::copy_internal_to_external_m
     metrics_public_init.xgmi_link_speed = m_gpu_metrics_tbl.m_xgmi_link_speed;
 
     // Utilization Accumulated
-    metrics_public_init.gfx_activity_acc = m_gpu_metrics_tbl.m_gfx_activity_acc;
-    metrics_public_init.mem_activity_acc = m_gpu_metrics_tbl.m_mem_activity_acc;
+    metrics_public_init.gfx_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.gfx_activity_acc)>(
+            m_gpu_metrics_tbl.m_gfx_activity_acc);
+    metrics_public_init.mem_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.mem_activity_acc)>(
+            m_gpu_metrics_tbl.m_mem_activity_acc);
 
     // PCIE accumulated bandwidth
     metrics_public_init.pcie_bandwidth_acc = m_gpu_metrics_tbl.m_pcie_bandwidth_acc;
@@ -4128,8 +4169,12 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v13_t::copy_internal_to_external_m
     metrics_public_init.pcie_link_width = m_gpu_metrics_tbl.m_pcie_link_width;
     metrics_public_init.pcie_link_speed = m_gpu_metrics_tbl.m_pcie_link_speed;
 
-    metrics_public_init.gfx_activity_acc = m_gpu_metrics_tbl.m_gfx_activity_acc;
-    metrics_public_init.mem_activity_acc = m_gpu_metrics_tbl.m_mem_activity_acc;
+    metrics_public_init.gfx_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.gfx_activity_acc)>(
+            m_gpu_metrics_tbl.m_gfx_activity_acc);
+    metrics_public_init.mem_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.mem_activity_acc)>(
+            m_gpu_metrics_tbl.m_mem_activity_acc);
 
     // temperature_hbm
     const auto temp_hbm_num_elems =
@@ -4406,8 +4451,12 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v12_t::copy_internal_to_external_m
     metrics_public_init.pcie_link_width = m_gpu_metrics_tbl.m_pcie_link_width;
     metrics_public_init.pcie_link_speed = m_gpu_metrics_tbl.m_pcie_link_speed;
 
-    metrics_public_init.gfx_activity_acc = m_gpu_metrics_tbl.m_gfx_activity_acc;
-    metrics_public_init.mem_activity_acc = m_gpu_metrics_tbl.m_mem_activity_acc;
+    metrics_public_init.gfx_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.gfx_activity_acc)>(
+            m_gpu_metrics_tbl.m_gfx_activity_acc);
+    metrics_public_init.mem_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.mem_activity_acc)>(
+            m_gpu_metrics_tbl.m_mem_activity_acc);
 
     // temperature_hbm
     const auto temp_hbm_num_elems =
@@ -4659,8 +4708,12 @@ AMGpuMetricsPublicLatestTupl_t GpuMetricsBase_v11_t::copy_internal_to_external_m
     metrics_public_init.pcie_link_width = m_gpu_metrics_tbl.m_pcie_link_width;
     metrics_public_init.pcie_link_speed = m_gpu_metrics_tbl.m_pcie_link_speed;
 
-    metrics_public_init.gfx_activity_acc = m_gpu_metrics_tbl.m_gfx_activity_acc;
-    metrics_public_init.mem_activity_acc = m_gpu_metrics_tbl.m_mem_activity_acc;
+    metrics_public_init.gfx_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.gfx_activity_acc)>(
+            m_gpu_metrics_tbl.m_gfx_activity_acc);
+    metrics_public_init.mem_activity_acc =
+        widen_keep_sentinel<decltype(metrics_public_init.mem_activity_acc)>(
+            m_gpu_metrics_tbl.m_mem_activity_acc);
 
     // temperature_hbm
     const auto temp_hbm_num_elems =

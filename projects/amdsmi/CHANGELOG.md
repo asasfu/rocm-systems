@@ -70,6 +70,9 @@ Full documentation for amd_smi_lib is available at [https://rocm.docs.amd.com/pr
 
 ### Fixed
 
+- **Fixed the widened `amdsmi_gpu_metrics_t` accumulators reporting `4294967295` instead of `N/A`**.
+  - The five accumulator counters were widened from 32-bit to 64-bit, but the amdgpu metrics table still reports them at 32 bits. Copying the table's "unset" sentinel into the wider field zero-extended it from `0xFFFFFFFF` to `0x00000000FFFFFFFF`, so it no longer matched the 64-bit sentinel every consumer checks against. `amdsmi_get_gpu_metrics_info()` and `amd-smi metric` reported an unsupported `gfx_activity_acc` / `mem_activity_acc` as a literal `4294967295` rather than `N/A`. The sentinel is now widened along with the value.
+
 - **Fixed `amd-smi ras --cper --json` emitting nothing when there are no CPER entries**.
   - The common no-entries case printed empty output, so consumers feeding stdout to `json.loads` failed with `Expecting value: line 1 column 1 (char 0)`. The command now always emits exactly one valid JSON document: `[]` when there are no entries, or a single aggregated array across all GPUs when there are. `--follow` mode stays silent until entries appear. The human-readable primary-partition warning is also suppressed in JSON mode so it no longer corrupts the output.
 
