@@ -48,6 +48,7 @@
 #include "common/common.h"
 #include "common/env_config.h"
 #include <assert.h>
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <memory>
@@ -129,6 +130,8 @@ PlatformType PlatformDetector::detectPlatform() {
     } else if (platform_str == "REAL_HARDWARE" ||
                platform_str == "REAL" || platform_str == "HW") {
       return PlatformType::REAL_HARDWARE;
+    } else if (platform_str == "WSL") {
+      return PlatformType::WSL;
     }
   }
 
@@ -143,6 +146,26 @@ PlatformType PlatformDetector::detectPlatform() {
     return PlatformType::EMULATOR;
   }
 
+  // Check WSL (via /proc/version containing "microsoft" or "WSL")
+  {
+    FILE* file = fopen("/proc/version", "r");
+    if (file) {
+      char buf[512];
+      if (fgets(buf, sizeof(buf), file)) {
+        std::string version(buf);
+        std::string version_lower(version);
+        std::transform(version_lower.begin(), version_lower.end(),
+                       version_lower.begin(), ::tolower);
+        if (version_lower.find("microsoft") != std::string::npos ||
+            version_lower.find("wsl") != std::string::npos) {
+          fclose(file);
+          return PlatformType::WSL;
+        }
+      }
+      fclose(file);
+    }
+  }
+
   // Default to real hardware
   return PlatformType::REAL_HARDWARE;
 }
@@ -155,6 +178,8 @@ const char* PlatformDetector::platformName(PlatformType platform) {
       return "EMULATOR";
     case PlatformType::FFM_SIMULATOR:
       return "FFM_SIMULATOR";
+    case PlatformType::WSL:
+      return "WSL";
     case PlatformType::UNKNOWN:
       return "UNKNOWN";
     default:

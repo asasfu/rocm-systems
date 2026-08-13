@@ -182,6 +182,23 @@ platforms:
       - rocrtstStress.Queue_CAS_Write_Index_ConcurrentTest
       - rocrtstStress.Queue_LoadStore_Write_Index_ConcurrentTest
 
+  # WSL - most tests work, but virtual memory and GPU core-dump are unsupported
+  WSL:
+    allowed_groups: ["*"]
+    blocked_tests:
+      # Virtual memory tests: hsa_amd_vmem_set_access returns HSA_STATUS_ERROR on WSL
+      - rocrtstFunc.VirtMemory_Accounting_Test
+      - rocrtstFunc.VirtMemory_NonContiguousChunks_Test
+      - rocrtstFunc.VirtMemory_GPUtoHostAccess_Test
+      # GPU core-dump tests: unsupported on WSL
+      - rocrtstFunc.GpuCoreDump_DefaultPattern
+      - rocrtstFunc.GpuCoreDump_CustomPattern
+      - rocrtstFunc.GpuCoreDump_DisableFlag
+      - rocrtstFunc.GpuCoreDump_PatternSubstitution
+      - rocrtstFunc.GpuCoreDump_InvalidPath
+      - rocrtstFunc.GpuCoreDump_ContentIntegrity
+      - rocrtstFunc.GpuCoreDump_PipePattern
+
   # FFM Simulator - only Core and Extended groups allowed
   FFM_SIMULATOR:
     allowed_groups: [Core, Extended]
