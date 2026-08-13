@@ -22,9 +22,11 @@ TEST(UnitsFrequency, ConstructionAndCount)
     EXPECT_DOUBLE_EQ(megahertz{ 2.0 }.count(), 2.0);
 }
 
-// Construction from long long/unsigned long long must be explicit at the
-// call site, since those can't always be represented exactly as a double.
+// Construction from long/long long (signed or unsigned) must be explicit at
+// the call site, since those can't always be represented exactly as a double.
 // Other implicit conversions (e.g. int) are still allowed.
+static_assert(!std::is_constructible_v<hertz, long>);
+static_assert(!std::is_constructible_v<hertz, unsigned long>);
 static_assert(!std::is_constructible_v<hertz, long long>);
 static_assert(!std::is_constructible_v<hertz, unsigned long long>);
 static_assert(std::is_constructible_v<hertz, int>);
@@ -86,9 +88,11 @@ TEST(UnitsDataSize, ConstructionAndCount)
     EXPECT_DOUBLE_EQ(megabytes{ 2.0 }.count(), 2.0);
 }
 
-// Construction from long long/unsigned long long must be explicit at the
-// call site, since those can't always be represented exactly as a double.
+// Construction from long/long long (signed or unsigned) must be explicit at
+// the call site, since those can't always be represented exactly as a double.
 // Other implicit conversions (e.g. int) are still allowed.
+static_assert(!std::is_constructible_v<bytes, long>);
+static_assert(!std::is_constructible_v<bytes, unsigned long>);
 static_assert(!std::is_constructible_v<bytes, long long>);
 static_assert(!std::is_constructible_v<bytes, unsigned long long>);
 static_assert(std::is_constructible_v<bytes, int>);
@@ -266,9 +270,11 @@ TEST(UnitsPower, ConstructionAndCount)
     EXPECT_DOUBLE_EQ(kilowatt{ 2.0 }.count(), 2.0);
 }
 
-// Construction from long long/unsigned long long must be explicit at the
-// call site, since those can't always be represented exactly as a double.
+// Construction from long/long long (signed or unsigned) must be explicit at
+// the call site, since those can't always be represented exactly as a double.
 // Other implicit conversions (e.g. int) are still allowed.
+static_assert(!std::is_constructible_v<watt, long>);
+static_assert(!std::is_constructible_v<watt, unsigned long>);
 static_assert(!std::is_constructible_v<watt, long long>);
 static_assert(!std::is_constructible_v<watt, unsigned long long>);
 static_assert(std::is_constructible_v<watt, int>);
@@ -327,4 +333,9 @@ TEST(UnitsFmtPower, AutoscaleWToMw)
 TEST(UnitsFmtPower, AutoscaleWithPrecision)
 {
     EXPECT_EQ(fmt::format("{:~.2f}", milliwatt{ 1500.0 }), "1.50 W");
+}
+
+TEST(UnitsFmtPower, AutoscaleZeroIsWattsNotNanowatts)
+{
+    EXPECT_EQ(fmt::format("{:~}", watt{ 0.0 }), "0 W");
 }

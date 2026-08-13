@@ -47,10 +47,21 @@ namespace perf
 {
 namespace
 {
+/// sysconf(_SC_PAGESIZE) returns -1 on failure; falling back to the common
+/// 4 KiB page size avoids that -1 becoming SIZE_MAX and overflowing the mmap
+/// size computation below.
+size_t
+get_page_size()
+{
+    constexpr long fallback_page_size = 4096;
+    const long     page_size          = ::sysconf(_SC_PAGESIZE);
+    return static_cast<size_t>(page_size > 0 ? page_size : fallback_page_size);
+}
+
 struct SizeParams
 {
     const size_t num_pages = 2;
-    const size_t page      = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
+    const size_t page      = get_page_size();
     const size_t data      = num_pages * page;
     const size_t mmap      = data + page;
 };

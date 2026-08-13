@@ -38,13 +38,15 @@ public:
     constexpr data_size() = default;
 
     /**
-     * Converting from `long long`/`unsigned long long` must be explicit at
-     * the call site: those types can hold values a @p Rep like `double`
+     * Converting from `long`/`long long` (signed or unsigned) must be explicit
+     * at the call site: those types can hold values a @p Rep like `double`
      * can't represent exactly, so silently narrowing them here would lose
      * precision. Other implicit conversions (e.g. `int`) are still allowed.
      */
     template <typename U>
         requires std::convertible_to<const U&, Rep> &&
+                 (!std::same_as<std::remove_cvref_t<U>, long>) &&
+                 (!std::same_as<std::remove_cvref_t<U>, unsigned long>) &&
                  (!std::same_as<std::remove_cvref_t<U>, long long>) &&
                  (!std::same_as<std::remove_cvref_t<U>, unsigned long long>)
     constexpr explicit data_size(U&& value) noexcept

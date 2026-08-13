@@ -213,13 +213,9 @@ backtrace::get_period(std::uint64_t _units)
 {
     using cast_type = std::conditional_t<std::is_floating_point<Tp>::value, Tp, double>;
 
-    double       _period = 1.0 / 1000.0;
-    std::int64_t _period_nsec =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::duration<double>{ _period })
-            .count() %
-        std::chrono::nanoseconds{ std::chrono::seconds{ 1 } }.count();
-    return static_cast<Tp>(_period_nsec) / static_cast<cast_type>(_units);
+    // fixed causal sampling period: 1 millisecond
+    constexpr std::int64_t k_period_nsec = 1'000'000;
+    return static_cast<Tp>(k_period_nsec) / static_cast<cast_type>(_units);
 }
 }  // namespace component
 }  // namespace causal

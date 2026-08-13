@@ -4,7 +4,6 @@
 #pragma once
 
 #include "common/defines.h"
-#include "common/units/units.hpp"
 #include "core/common.hpp"
 #include "core/components/fwd.hpp"
 #include "core/timemory.hpp"
@@ -72,6 +71,8 @@ struct backtrace : comp::empty_base
     auto get_index() const { return m_index; }
     auto get_stack() const { return m_stack; }
 
+    /// @param _units divides the 1 msec period, e.g. pass nanoseconds-per-unit
+    ///                to convert the result into that unit (default: nanoseconds).
     template <typename Tp = std::uint64_t>
     static Tp get_period(std::uint64_t _units = 1);
 

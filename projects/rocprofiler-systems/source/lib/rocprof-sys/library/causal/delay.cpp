@@ -64,15 +64,14 @@ compute_sleep_for_overhead()
         _stats += (_diff - _val);
     }
 
-    LOG_TRACE(
-        "[causal] overhead of std::this_thread::sleep_for(...) "
-        "invocation = {} usec +/- {} usec",
-        std::chrono::duration<double, std::micro>{
-            std::chrono::nanoseconds{ static_cast<std::int64_t>(_stats.get_mean()) } }
-            .count(),
-        std::chrono::duration<double, std::micro>{
-            std::chrono::nanoseconds{ static_cast<std::int64_t>(_stats.get_stddev()) } }
-            .count());
+    LOG_TRACE("[causal] overhead of std::this_thread::sleep_for(...) "
+              "invocation = {} usec +/- {} usec",
+              std::chrono::duration<double, std::micro>{
+                  std::chrono::duration<double, std::nano>{ _stats.get_mean() } }
+                  .count(),
+              std::chrono::duration<double, std::micro>{
+                  std::chrono::duration<double, std::nano>{ _stats.get_stddev() } }
+                  .count());
 
     tim::manager::instance()->add_metadata([_stats](auto& ar) {
         ar(tim::cereal::make_nvp("causal thread sleep overhead [nsec]", _stats));

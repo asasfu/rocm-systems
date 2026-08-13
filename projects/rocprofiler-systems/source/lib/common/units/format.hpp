@@ -224,6 +224,7 @@ private:
         constexpr double k_nw =
             static_cast<double>(std::nano::num) / static_cast<double>(std::nano::den);
         const double mag = watts_val < 0.0 ? -watts_val : watts_val;
+        if(mag == 0.0) return { watts_val, power_suffix<std::ratio<1>>::VALUE };
         if(mag >= k_kw) return { watts_val / k_kw, power_suffix<std::kilo>::VALUE };
         if(mag >= 1.0) return { watts_val, power_suffix<std::ratio<1>>::VALUE };
         if(mag >= k_mw) return { watts_val / k_mw, power_suffix<std::milli>::VALUE };

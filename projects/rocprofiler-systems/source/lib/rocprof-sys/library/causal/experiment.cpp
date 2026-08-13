@@ -8,7 +8,6 @@
 #include "common/defines.h"
 #include "common/env_vars.hpp"
 #include "common/path.hpp"
-#include "common/units/units.hpp"
 #include "core/config.hpp"
 #include "core/demangler.hpp"
 #include "core/state.hpp"
@@ -223,7 +222,7 @@ experiment::start()
     if(!selection) return false;
 
     // sampling period in nanoseconds
-    sampling_period = backtrace_causal::get_period(std::chrono::nanoseconds{ 1 }.count());
+    sampling_period = backtrace_causal::get_period();
 
     // experiment time is scaled up for longer speedups
     index           = experiment_history.size() + 1;
@@ -349,9 +348,9 @@ experiment::as_string() const
     }.count();
     _ss << std::boolalpha << "speed-up: " << std::setw(3) << virtual_speedup
         << "%, period: " << std::setw(4) << std::fixed << std::setprecision(2)
-        << std::chrono::duration<double, std::milli>{ std::chrono::nanoseconds{
-                                                          static_cast<std::int64_t>(
-                                                              sampling_period) } }
+        << std::chrono::duration<double,
+                                 std::milli>{ std::chrono::duration<double, std::nano>{
+                                                  static_cast<double>(sampling_period) } }
                .count()
         << " msec";
     if(!config::get_causal_end_to_end())

@@ -787,8 +787,7 @@ rocpd_processor_t::handle([[maybe_unused]] const cpu_pmc_sample& cpu_pmc_smpl)
                 trait::name<category::process_user_mode_time>::value,
                 trait::name<category::process_user_mode_time>::value,
                 std::chrono::duration<double>{
-                    std::chrono::nanoseconds{ static_cast<std::int64_t>(
-                        cpu_pmc_smpl.process_data.user_mode_time) } }
+                    std::chrono::nanoseconds{ cpu_pmc_smpl.process_data.user_mode_time } }
                     .count());
         }
 
@@ -798,8 +797,8 @@ rocpd_processor_t::handle([[maybe_unused]] const cpu_pmc_sample& cpu_pmc_smpl)
                 trait::name<category::process_kernel_mode_time>::value,
                 trait::name<category::process_kernel_mode_time>::value,
                 std::chrono::duration<double>{
-                    std::chrono::nanoseconds{ static_cast<std::int64_t>(
-                        cpu_pmc_smpl.process_data.kernel_mode_time) } }
+                    std::chrono::nanoseconds{
+                        cpu_pmc_smpl.process_data.kernel_mode_time } }
                     .count());
         }
     }

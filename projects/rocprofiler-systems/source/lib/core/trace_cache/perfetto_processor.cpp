@@ -1001,19 +1001,19 @@ perfetto_processor_t::handle(const cpu_pmc_sample& _cpu_sample)
                           static_cast<double>(_cpu_sample.process_data.page_faults));
 
         if(_em.bits.user_time)
-            TRACE_COUNTER(trait::name<category::process_user_mode_time>::value,
-                          process_user_track::at(0, 0), _ts,
-                          std::chrono::duration<double>{
-                              std::chrono::nanoseconds{ static_cast<std::int64_t>(
-                                  _cpu_sample.process_data.user_mode_time) } }
-                              .count());
+            TRACE_COUNTER(
+                trait::name<category::process_user_mode_time>::value,
+                process_user_track::at(0, 0), _ts,
+                std::chrono::duration<double>{
+                    std::chrono::nanoseconds{ _cpu_sample.process_data.user_mode_time } }
+                    .count());
 
         if(_em.bits.kernel_time)
             TRACE_COUNTER(trait::name<category::process_kernel_mode_time>::value,
                           process_kern_track::at(0, 0), _ts,
                           std::chrono::duration<double>{
-                              std::chrono::nanoseconds{ static_cast<std::int64_t>(
-                                  _cpu_sample.process_data.kernel_mode_time) } }
+                              std::chrono::nanoseconds{
+                                  _cpu_sample.process_data.kernel_mode_time } }
                               .count());
     }
 
