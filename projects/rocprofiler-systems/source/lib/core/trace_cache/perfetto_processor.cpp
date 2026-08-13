@@ -1001,20 +1001,28 @@ perfetto_processor_t::handle(const cpu_pmc_sample& _cpu_sample)
                           static_cast<double>(_cpu_sample.process_data.page_faults));
 
         if(_em.bits.user_time)
-            TRACE_COUNTER(
-                trait::name<category::process_user_mode_time>::value,
-                process_user_track::at(0, 0), _ts,
-                std::chrono::duration<double>{
-                    std::chrono::nanoseconds{ _cpu_sample.process_data.user_mode_time } }
-                    .count());
+        {
+            const auto user_mode_time_ns =
+                std::chrono::nanoseconds{ _cpu_sample.process_data.user_mode_time };
+            const auto user_mode_time_s =
+                duration_cast<std::chrono::seconds>(user_mode_time_ns);
+
+            TRACE_COUNTER(trait::name<category::process_user_mode_time>::value,
+                          process_user_track::at(0, 0), _ts,
+                          static_cast<double>(user_mode_time_s.count()));
+        }
 
         if(_em.bits.kernel_time)
+        {
+            const auto kernel_mode_time_ns =
+                std::chrono::nanoseconds{ _cpu_sample.process_data.kernel_mode_time };
+            const auto kernel_mode_time_s =
+                duration_cast<std::chrono::seconds>(kernel_mode_time_ns);
+
             TRACE_COUNTER(trait::name<category::process_kernel_mode_time>::value,
                           process_kern_track::at(0, 0), _ts,
-                          std::chrono::duration<double>{
-                              std::chrono::nanoseconds{
-                                  _cpu_sample.process_data.kernel_mode_time } }
-                              .count());
+                          static_cast<double>(kernel_mode_time_s.count()));
+        }
     }
 
     if(_em.bits.frequency)
