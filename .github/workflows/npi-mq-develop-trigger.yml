@@ -1,0 +1,110 @@
+# NPI MQ — Develop Push Trigger (AMD-ROCm-Internal/rocm-systems)
+#
+# Purpose: Relay the npi-mq-develop-pr-merged dispatch from the public ROCm/rocm-systems
+# repo to rocm-npi-dev, but only AFTER syncing internal develop with the public commit
+# that triggered the event.  Without this sync step, npi-merge-queue.yml could start
+# walking before the triggering commit is present in the internal mirror, causing a
+# "commit not found" error or a missed PR.
+#
+# Flow:
+#   1. Receive repository_dispatch from ROCm/rocm-systems trigger-external-workflow.yml
+#   2. Checkout internal repo's develop branch (App token for contents:write)
+#   3. git fetch develop from ROCm/rocm-systems (unauthenticated HTTPS; repo is public)
+#   4. Fast-forward push to origin/develop (fails loudly if branches diverge)
+#   5. Re-dispatch npi-mq-develop-pr-merged to rocm-npi-dev with original payload
+#
+# Secrets required:
+#   APP_ID / APP_PRIVATE_KEY                — this repo's GitHub App (contents:write)
+#   APP_ID_ROCM_NPI_DEV / APP_PRIVATE_KEY_ROCM_NPI_DEV — rocm-npi-dev dispatch App
+#   INTERNAL_ORG                            — GitHub org owning rocm-npi-dev
+#   INTERNAL_NPI_REPO                       — repository name (rocm-npi-dev)
+
+name: NPI MQ — Develop Push Trigger (rocm-systems)
+
+on:
+  repository_dispatch:
+    types: [npi-mq-develop-pr-merged]
+
+# repository_dispatch always runs from the default branch (amd-npi).
+# Serialise per source commit to avoid parallel develop syncs for burst pushes.
+concurrency:
+  group: npi-mq-develop-trigger-${{ github.event.client_payload.commit_sha }}
+  cancel-in-progress: false
+
+jobs:
+  sync-and-dispatch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Generate GitHub App token (contents write — needed to push develop)
+        id: app-token
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Generate GitHub App token for rocm-npi-dev
+        id: generate-token-rocm-npi-dev
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID_ROCM_NPI_DEV }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY_ROCM_NPI_DEV }}
+          owner: ${{ secrets.INTERNAL_ORG }}
+          repositories: ${{ secrets.INTERNAL_NPI_REPO }}
+
+      # Checkout sets up origin with the app token so the subsequent push is authenticated.
+      - name: Checkout internal develop branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: develop
+          fetch-depth: 1
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Sync internal develop from public ROCm/rocm-systems
+        run: |
+          set -euo pipefail
+
+          # Fetch develop from public repo via unauthenticated HTTPS.
+          # ROCm/rocm-systems is public, so no token is needed — same pattern as
+          # update-subtrees.yml line 54.
+          git fetch https://github.com/ROCm/rocm-systems.git develop
+
+          # TODO(npi-mq): In the future, instead of syncing all of public develop, sync
+          # only up to the commit that matches the pinned submodule head for this
+          # superrepo (rocm-systems) in ROCm/TheRock.  That way the internal mirror
+          # stays in lock-step with the TheRock-blessed snapshot rather than racing
+          # ahead of it.
+
+          # Fast-forward push to internal origin so commit objects are present before
+          # npi-merge-queue.yml runs.  --ff-only is implicit in the refspec form below;
+          # if internal develop has diverged the push will fail loudly rather than
+          # silently discarding commits.
+          git push origin FETCH_HEAD:refs/heads/develop
+          echo "Internal develop synced to $(git rev-parse FETCH_HEAD)"
+
+      - name: Re-dispatch npi-mq-develop-pr-merged to rocm-npi-dev
+        env:
+          ROCM_NPI_DEV_GH_TOKEN: ${{ steps.generate-token-rocm-npi-dev.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          # Forward the original client payload unchanged so npi-merge-queue.yml sees
+          # the same source_repo, commit_sha, pr_number, and pr_author fields that were
+          # sent by the public-side trigger.
+          PAYLOAD='${{ toJSON(github.event.client_payload) }}'
+
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $ROCM_NPI_DEV_GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ secrets.INTERNAL_ORG }}/${{ secrets.INTERNAL_NPI_REPO }}/dispatches \
+            -d "{\"event_type\":\"npi-mq-develop-pr-merged\",\"client_payload\":${PAYLOAD}}")
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Dispatched npi-mq-develop-pr-merged to rocm-npi-dev (HTTP ${HTTP_CODE})"
+          else
+            echo "ERROR: Dispatch failed (HTTP ${HTTP_CODE})"
+            cat /tmp/response.txt
+            exit 1
+          fi

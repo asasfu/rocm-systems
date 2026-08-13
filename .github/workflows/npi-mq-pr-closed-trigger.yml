@@ -1,0 +1,60 @@
+# NPI MQ — PR Closed Trigger (AMD-ROCm-Internal/rocm-systems)
+#
+# Purpose: When a merge-queue PR in this repo is closed (merged or declined), dispatch
+# npi-mq-pr-closed to rocm-npi-dev so it can:
+#   - retarget remaining open queue PRs to the new merge-base (if merged)
+#   - re-evaluate the blocker state (if the blocker PR was declined/resolved)
+#
+# Uses pull_request_target so the workflow is always read from the DEFAULT branch
+# (amd-npi) regardless of what is in the PR head branch.  The branches: filter scopes
+# it to only PRs whose BASE branch is one of the NPI branches tracked by the queue.
+#
+# Secrets required:
+#   APP_ID_ROCM_NPI_DEV / APP_PRIVATE_KEY_ROCM_NPI_DEV — rocm-npi-dev dispatch App
+#   INTERNAL_ORG                                        — GitHub org owning rocm-npi-dev
+#   INTERNAL_NPI_REPO                                   — repository name (rocm-npi-dev)
+
+name: NPI MQ — PR Closed Trigger (rocm-systems)
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches:
+      - amd-npi
+
+jobs:
+  dispatch:
+    # Only fire when an npi-merge-queue labelled PR is closed (merged or declined).
+    # The label is applied by create_prs.py when the PR is created.
+    if: contains(github.event.pull_request.labels.*.name, 'npi-merge-queue')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate GitHub App token for rocm-npi-dev
+        id: generate-token-rocm-npi-dev
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        with:
+          app-id: ${{ secrets.APP_ID_ROCM_NPI_DEV }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY_ROCM_NPI_DEV }}
+          owner: ${{ secrets.INTERNAL_ORG }}
+          repositories: ${{ secrets.INTERNAL_NPI_REPO }}
+
+      - name: Dispatch npi-mq-pr-closed to rocm-npi-dev
+        env:
+          ROCM_NPI_DEV_GH_TOKEN: ${{ steps.generate-token-rocm-npi-dev.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $ROCM_NPI_DEV_GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ secrets.INTERNAL_ORG }}/${{ secrets.INTERNAL_NPI_REPO }}/dispatches \
+            -d "{\"event_type\":\"npi-mq-pr-closed\",\"client_payload\":{\"source_repo\":\"${{ github.repository }}\",\"pr_number\":\"${{ github.event.pull_request.number }}\",\"pr_merged\":\"${{ github.event.pull_request.merged }}\",\"npi_branch\":\"${{ github.event.pull_request.base.ref }}\"}}")
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Dispatched npi-mq-pr-closed to rocm-npi-dev for PR #${{ github.event.pull_request.number }} (HTTP ${HTTP_CODE})"
+          else
+            echo "ERROR: Dispatch failed (HTTP ${HTTP_CODE})"
+            cat /tmp/response.txt
+            exit 1
+          fi
