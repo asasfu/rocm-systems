@@ -28,19 +28,48 @@
 #include <dlfcn.h>
 #include <cassert>
 #include <cstdlib>
+#include <string>
+#include <vector>
 
 namespace rocprofiler
 {
 namespace thread_trace
 {
+namespace
+{
+constexpr auto kDecoderBaseName = "librocprof-trace-decoder.so";
+}  // namespace
+
 DL::DL(const char* libpath)
 {
     if(libpath == nullptr) return;
 
-    auto path = common::filesystem::path(libpath) / "librocprof-trace-decoder.so";
+    namespace fs = common::filesystem;
 
-    handle = dlopen(path.c_str(), RTLD_LAZY | RTLD_LOCAL);
-    if(!handle) return;
+    const auto dir = fs::path(libpath);
+
+    std::vector<std::string> lib_names;
+#if defined(ROCPROFILER_ATT_DECODER_SOVERSION)
+    lib_names.emplace_back(std::string{kDecoderBaseName} + "." + ROCPROFILER_ATT_DECODER_SOVERSION);
+#endif
+    lib_names.emplace_back(kDecoderBaseName);
+
+    std::string attempted;
+    for(const auto& lib_name : lib_names)
+    {
+        const auto candidate = (dir / lib_name).string();
+        handle               = dlopen(candidate.c_str(), RTLD_LAZY | RTLD_LOCAL);
+        if(handle) break;
+        const char* err = dlerror();
+        attempted += "\n  tried '" + candidate + "': " + (err ? err : "not loadable");
+    }
+
+    if(!handle)
+    {
+        ROCP_ERROR << "Error loading trace decoder from directory '" << libpath << "':"
+                   << attempted;
+        return;
+    }
 
     att_parse_data_fn =
         reinterpret_cast<ParseFn*>(dlsym(handle, "rocprof_trace_decoder_parse_data"));
