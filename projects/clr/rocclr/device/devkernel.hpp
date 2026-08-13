@@ -218,7 +218,7 @@ class Kernel {
     bool isWavegroupKernel_;          //!< kernel uses wavegroup launch mode
     bool uniformWorkGroupSize_;       //!< uniform work group size option
     bool hasClusterAttr_;             //!< cluster metadata present in code object
-    uint8_t groupMemCarveout_;        //!< LDS carveout
+    uint8_t groupMemCarveout_ = 0;    //!< LDS carveout (0 = no per-kernel preference)
   };
 
   //! Default constructor

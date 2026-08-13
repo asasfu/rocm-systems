@@ -36,6 +36,11 @@ __global__ void fn(float* px, float* py) {
 HIP_TEST_CASE(Unit_hipFuncSetAttribute_Basic) {
   HIP_CHECK(hipFuncSetAttribute(reinterpret_cast<const void*>(&fn),
                                 hipFuncAttributeMaxDynamicSharedMemorySize, 0));
-  HIP_CHECK(hipFuncSetAttribute(reinterpret_cast<const void*>(&fn),
-                                hipFuncAttributePreferredSharedMemoryCarveout, 0));
+  // PreferredSharedMemoryCarveout is a gfx12.5+ feature; accept
+  // hipErrorNotSupported on devices that lack it instead of failing.
+  hipError_t carveoutStatus = hipFuncSetAttribute(
+      reinterpret_cast<const void*>(&fn), hipFuncAttributePreferredSharedMemoryCarveout, 0);
+  if (carveoutStatus != hipErrorNotSupported) {
+    HIP_CHECK(carveoutStatus);
+  }
 }

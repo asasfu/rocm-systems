@@ -27,6 +27,23 @@ THE SOFTWARE.
 #include <hip/hip_fp8.h>
 
 HIP_TEST_CASE(Unit_hiprtc_fp8_simple) {
+  {
+    hipDeviceProp_t gateProps;
+    HIP_CHECK(hipGetDeviceProperties(&gateProps, 0));
+    std::string arch(gateProps.gcnArchName);
+    bool fp8Supported = arch.find("gfx942") != std::string::npos ||
+                        arch.find("gfx950") != std::string::npos ||
+                        arch.find("gfx117") != std::string::npos ||  // gfx1170/1171/1172
+                        arch.find("gfx1200") != std::string::npos ||
+                        arch.find("gfx1201") != std::string::npos ||
+                        arch.find("gfx1250") != std::string::npos ||
+                        arch.find("gfx1251") != std::string::npos ||
+                        arch.find("gfx1260") != std::string::npos ||
+                        arch.find("gfx13") != std::string::npos;
+    if (!fp8Supported) {
+      HIP_SKIP_TEST("fp8 types are not supported on this device architecture.");
+    }
+  }
   constexpr const char* source = R"(
 extern "C" __global__ void float_to_fp8_to_float(float* out, float* in, bool e4m3, size_t size) {
   size_t i = threadIdx.x;

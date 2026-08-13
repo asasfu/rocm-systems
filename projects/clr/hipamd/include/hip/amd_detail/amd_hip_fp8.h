@@ -723,7 +723,7 @@ __FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t __hip_cvt_float_to_fp8(
 __FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t __hip_cvt_float_to_fp8(
     const float f, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __hip_fp8_storage_t __hip_cvt_float_to_fp8(
+__FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t __hip_cvt_float_to_fp8(
     const float f, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #endif
   if (interp == __HIP_E4M3_FNUZ || interp == __HIP_E5M2_FNUZ) {
@@ -757,7 +757,7 @@ __FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t __hip_cvt_float2_to_fp8x2(
 __FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t __hip_cvt_float2_to_fp8x2(
     const float2 f2, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __hip_fp8x2_storage_t __hip_cvt_float2_to_fp8x2(
+__FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t __hip_cvt_float2_to_fp8x2(
     const float2 f2, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #endif
   return static_cast<__hip_fp8x2_storage_t>(
@@ -782,7 +782,7 @@ __FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t __hip_cvt_double_to_fp8(
 __FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t __hip_cvt_double_to_fp8(
     const double d, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __hip_fp8_storage_t __hip_cvt_double_to_fp8(
+__FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t __hip_cvt_double_to_fp8(
     const double d, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #endif
   if (interp == __HIP_E4M3_FNUZ || interp == __HIP_E5M2_FNUZ) {
@@ -812,7 +812,7 @@ __FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t __hip_cvt_double2_to_fp8x2(
 __FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t __hip_cvt_double2_to_fp8x2(
     const double2 d2, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __hip_fp8x2_storage_t __hip_cvt_double2_to_fp8x2(
+__FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t __hip_cvt_double2_to_fp8x2(
     const double2 d2, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #endif
   return static_cast<__hip_fp8x2_storage_t>(
@@ -838,7 +838,7 @@ __FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t
 __hip_cvt_bfloat16raw_to_fp8(const __hip_bfloat16_raw hr, const __hip_saturation_t sat,
                              const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __hip_fp8_storage_t
+__FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t
 __hip_cvt_bfloat16raw_to_fp8(const __hip_bfloat16_raw hr, const __hip_saturation_t sat,
                              const __hip_fp8_interpretation_t interp) {
 #endif
@@ -864,7 +864,7 @@ __FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t
 __hip_cvt_bfloat16raw2_to_fp8x2(const __hip_bfloat162_raw hr, const __hip_saturation_t sat,
                                 const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __hip_fp8x2_storage_t
+__FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t
 __hip_cvt_bfloat16raw2_to_fp8x2(const __hip_bfloat162_raw hr, const __hip_saturation_t sat,
                                 const __hip_fp8_interpretation_t interp) {
 #endif
@@ -887,7 +887,7 @@ __hip_cvt_fp8_to_halfraw(const __hip_fp8_storage_t x, const __hip_fp8_interpreta
 __FP8_HOST_DEVICE_STATIC__ __half_raw
 __hip_cvt_fp8_to_halfraw(const __hip_fp8_storage_t x, const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __half_raw __hip_cvt_fp8_to_halfraw(const __hip_fp8_storage_t x,
+__FP8_HOST_DEVICE_STATIC__ __half_raw __hip_cvt_fp8_to_halfraw(const __hip_fp8_storage_t x,
                                                         const __hip_fp8_interpretation_t interp) {
 #endif
   if (interp == __HIP_E4M3_FNUZ || interp == __HIP_E5M2_FNUZ) {
@@ -916,7 +916,7 @@ __FP8_HOST_DEVICE_STATIC__ __half2_raw __hip_cvt_fp8x2_to_halfraw2(
 __FP8_HOST_DEVICE_STATIC__ __half2_raw __hip_cvt_fp8x2_to_halfraw2(
     const __hip_fp8x2_storage_t x, const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __half2_raw __hip_cvt_fp8x2_to_halfraw2(
+__FP8_HOST_DEVICE_STATIC__ __half2_raw __hip_cvt_fp8x2_to_halfraw2(
     const __hip_fp8x2_storage_t x, const __hip_fp8_interpretation_t interp) {
 #endif
   __half2 ret(static_cast<__half>(
@@ -942,7 +942,7 @@ __FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t __hip_cvt_halfraw_to_fp8(
 __FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t __hip_cvt_halfraw_to_fp8(
     const __half_raw x, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __hip_fp8_storage_t __hip_cvt_halfraw_to_fp8(
+__FP8_HOST_DEVICE_STATIC__ __hip_fp8_storage_t __hip_cvt_halfraw_to_fp8(
     const __half_raw x, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #endif
   return __hip_cvt_float_to_fp8(__half2float(__half(x)), sat, interp);
@@ -964,7 +964,7 @@ __FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t __hip_cvt_halfraw2_to_fp8x2(
 __FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t __hip_cvt_halfraw2_to_fp8x2(
     const __half2_raw x, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #else
-__FP8_HOST_STATIC__ __hip_fp8x2_storage_t __hip_cvt_halfraw2_to_fp8x2(
+__FP8_HOST_DEVICE_STATIC__ __hip_fp8x2_storage_t __hip_cvt_halfraw2_to_fp8x2(
     const __half2_raw x, const __hip_saturation_t sat, const __hip_fp8_interpretation_t interp) {
 #endif
   return __hip_cvt_float2_to_fp8x2(__half22float2(__half2(x)), sat, interp);
@@ -1744,7 +1744,7 @@ struct __hip_fp8x4_e4m3_fnuz {
 #if HIP_FP8_TYPE_FNUZ
   __FP8_HOST_DEVICE__ __hip_fp8x4_e4m3_fnuz(const float4 val)
 #else
-  __FP8_HOST__ __hip_fp8x4_e4m3_fnuz(const float4 val)
+  __FP8_HOST_DEVICE__ __hip_fp8x4_e4m3_fnuz(const float4 val)
 #endif
       : __x{reinterpret_cast<__hip_fp8x4_storage_t>(
             static_cast<unsigned int>(reinterpret_cast<unsigned char>(__hip_cvt_float_to_fp8(
