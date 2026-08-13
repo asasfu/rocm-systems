@@ -137,9 +137,9 @@ ROCPROFSYS_DEFINE_CONCRETE_TRAIT(provide_backtrace, sampling::sampler_t, std::fa
 ROCPROFSYS_DEFINE_CONCRETE_TRAIT(buffer_size, sampling::sampler_t,
                                  TIMEMORY_ESC(std::integral_constant<size_t, 2048>))
 
-namespace rocprofsys
-{
-namespace sampling
+using namespace std::chrono_literals;
+
+namespace rocprofsys::sampling
 {
 namespace
 {
@@ -957,13 +957,9 @@ configure(bool _setup, std::int64_t _tid)
                         "[SIG{}] Sampler for thread {} will be triggered {:.1f}x per "
                         "second of {}-time (every {:.3e} milliseconds)...",
                         itr, _tid,
-                        _timer->get_frequency(std::chrono::nanoseconds{
-                            std::chrono::seconds{
-                                1 } }.count()),
+                        _timer->get_frequency(std::chrono::nanoseconds{ 1s }.count()),
                         _type,
-                        _timer->get_period(std::chrono::nanoseconds{
-                            std::chrono::milliseconds{
-                                1 } }.count()));
+                        _timer->get_period(std::chrono::nanoseconds{ 1ms }.count()));
                 }
             }
         }
@@ -2028,7 +2024,6 @@ resume()
     unblock_samples();
 }
 
-}  // namespace sampling
-}  // namespace rocprofsys
+}  // namespace rocprofsys::sampling
 
 TIMEMORY_INVOKE_PREINIT(rocprofsys::sampling::sampling_initialization)

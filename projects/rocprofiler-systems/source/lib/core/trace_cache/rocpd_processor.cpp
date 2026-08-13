@@ -747,22 +747,20 @@ rocpd_processor_t::handle([[maybe_unused]] const cpu_pmc_sample& cpu_pmc_smpl)
 
         if(enabled_m.bits.virt_mem)
         {
-            insert_event_and_sample(
-                trait::name<category::process_virt>::value,
-                trait::name<category::process_virt>::value,
-                data_size_cast<megabytes>(
-                    bytes{ static_cast<double>(cpu_pmc_smpl.process_data.virt_mem) })
-                    .count());
+            const auto virt_mem_b =
+                bytes{ static_cast<double>(cpu_pmc_smpl.process_data.virt_mem) };
+            insert_event_and_sample(trait::name<category::process_virt>::value,
+                                    trait::name<category::process_virt>::value,
+                                    data_size_cast<megabytes>(virt_mem_b).count());
         }
 
         if(enabled_m.bits.peak_rss)
         {
-            insert_event_and_sample(
-                trait::name<category::process_peak>::value,
-                trait::name<category::process_peak>::value,
-                data_size_cast<megabytes>(
-                    bytes{ static_cast<double>(cpu_pmc_smpl.process_data.peak_rss) })
-                    .count());
+            const auto peak_rss_b =
+                bytes{ static_cast<double>(cpu_pmc_smpl.process_data.peak_rss) };
+            insert_event_and_sample(trait::name<category::process_peak>::value,
+                                    trait::name<category::process_peak>::value,
+                                    data_size_cast<megabytes>(peak_rss_b).count());
         }
 
         if(enabled_m.bits.ctx_switches)

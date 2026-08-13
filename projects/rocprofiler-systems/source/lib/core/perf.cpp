@@ -7,9 +7,9 @@
 #include <chrono>
 #include <cstdint>
 
-namespace rocprofsys
-{
-namespace perf
+using namespace std::chrono_literals;
+
+namespace rocprofsys::perf
 {
 
 event_type
@@ -155,9 +155,8 @@ void
 config_overflow_sampling(struct perf_event_attr& _pe, std::string_view _event,
                          double _freq)
 {
-    auto _period = (1.0 / _freq) *
-                   static_cast<double>(
-                       std::chrono::nanoseconds{ std::chrono::seconds{ 1 } }.count());
+    auto _period =
+        (1.0 / _freq) * static_cast<double>(std::chrono::nanoseconds{ 1s }.count());
 
     _pe.type = static_cast<int>(perf::get_event_type(_event));
     switch(_pe.type)
@@ -197,5 +196,4 @@ config_overflow_sampling(struct perf_event_attr& _pe, std::string_view _event,
         _pe.sample_period = static_cast<std::uint64_t>(_freq);
     }
 }
-}  // namespace perf
-}  // namespace rocprofsys
+}  // namespace rocprofsys::perf

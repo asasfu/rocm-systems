@@ -32,11 +32,9 @@
 #include <execinfo.h>
 #include <type_traits>
 
-namespace rocprofsys
-{
-namespace causal
-{
-namespace component
+using namespace std::chrono_literals;
+
+namespace rocprofsys::causal::component
 {
 namespace
 {
@@ -207,25 +205,13 @@ backtrace::sample(int _sig)
     ++_protect_flag;
 }
 
-template <typename Tp>
+template <typename U, typename Tp>
 Tp
-backtrace::get_period(std::uint64_t _units)
+backtrace::get_period()
 {
-    using cast_type = std::conditional_t<std::is_floating_point<Tp>::value, Tp, double>;
-
+    using cating_type = std::chrono::duration<Tp, typename U::period>;
     // fixed causal sampling period: 1 millisecond
-    constexpr std::int64_t k_period_nsec = 1'000'000;
-    return static_cast<Tp>(k_period_nsec) / static_cast<cast_type>(_units);
+    return std::chrono::duration_cast<cating_type>(1ms).count();
 }
-}  // namespace component
-}  // namespace causal
-}  // namespace rocprofsys
 
-#define INSTANTIATE_BT_CAUSAL_PERIOD(TYPE)                                               \
-    template TYPE rocprofsys::causal::component::backtrace::get_period<TYPE>(            \
-        std::uint64_t);
-
-INSTANTIATE_BT_CAUSAL_PERIOD(float)
-INSTANTIATE_BT_CAUSAL_PERIOD(double)
-INSTANTIATE_BT_CAUSAL_PERIOD(std::int64_t)
-INSTANTIATE_BT_CAUSAL_PERIOD(std::uint64_t)
+}  // namespace rocprofsys::causal::component

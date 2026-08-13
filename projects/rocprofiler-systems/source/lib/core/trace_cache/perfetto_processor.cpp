@@ -968,27 +968,32 @@ perfetto_processor_t::handle(const cpu_pmc_sample& _cpu_sample)
     if(_is_process_owner)
     {
         if(_em.bits.page_rss)
-            TRACE_COUNTER(
-                trait::name<category::process_page>::value, process_page_track::at(0, 0),
-                _ts,
-                data_size_cast<megabytes>(
-                    bytes{ static_cast<double>(_cpu_sample.process_data.page_rss) })
-                    .count());
+        {
+            const auto page_rss_b =
+                bytes{ static_cast<double>(_cpu_sample.process_data.page_rss) };
+
+            TRACE_COUNTER(trait::name<category::process_page>::value,
+                          process_page_track::at(0, 0), _ts,
+                          data_size_cast<megabytes>(page_rss_b).count());
+        }
 
         if(_em.bits.virt_mem)
-            TRACE_COUNTER(
-                trait::name<category::process_virt>::value, process_virt_track::at(0, 0),
-                _ts,
-                data_size_cast<megabytes>(
-                    bytes{ static_cast<double>(_cpu_sample.process_data.virt_mem) })
-                    .count());
+        {
+            const auto virt_mem_b =
+                bytes{ static_cast<double>(_cpu_sample.process_data.virt_mem) };
+
+            TRACE_COUNTER(trait::name<category::process_virt>::value,
+                          process_virt_track::at(0, 0), _ts,
+                          data_size_cast<megabytes>(virt_mem_b).count());
+        }
         if(_em.bits.peak_rss)
-            TRACE_COUNTER(
-                trait::name<category::process_peak>::value, process_peak_track::at(0, 0),
-                _ts,
-                data_size_cast<megabytes>(
-                    bytes{ static_cast<double>(_cpu_sample.process_data.peak_rss) })
-                    .count());
+        {
+            const auto peek_rss_b =
+                bytes{ static_cast<double>(_cpu_sample.process_data.peak_rss) };
+            TRACE_COUNTER(trait::name<category::process_peak>::value,
+                          process_peak_track::at(0, 0), _ts,
+                          data_size_cast<megabytes>(peek_rss_b).count());
+        }
 
         if(_em.bits.ctx_switches)
             TRACE_COUNTER(trait::name<category::process_context_switch>::value,

@@ -134,7 +134,7 @@ get_filters(const std::set<binary::scope_filter::filter_scope>& _scopes = {
         _filters.emplace_back(sf{ sf::FILTER_EXCLUDE, sf::FUNCTION_FILTER,
                                   "( main\\(|^main$|^main\\.cold$)" });
 
-    bool _use_default_excludes =
+    const bool _use_default_excludes =
         config::get_setting_value<bool>(
             std::string{ env_vars::CAUSAL_FUNCTION_EXCLUDE_DEFAULTS })
             .value_or(true);

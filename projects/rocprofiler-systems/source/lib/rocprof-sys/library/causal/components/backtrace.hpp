@@ -73,8 +73,8 @@ struct backtrace : comp::empty_base
 
     /// @param _units divides the 1 msec period, e.g. pass nanoseconds-per-unit
     ///                to convert the result into that unit (default: nanoseconds).
-    template <typename Tp = std::uint64_t>
-    static Tp get_period(std::uint64_t _units = 1);
+    template <typename U = std::chrono::nanoseconds, typename Tp = std::uint64_t>
+    static Tp get_period();
 
 private:
     bool                  m_selected = false;

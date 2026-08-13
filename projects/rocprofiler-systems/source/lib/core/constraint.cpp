@@ -20,9 +20,9 @@
 #include <thread>
 #include <type_traits>
 
-namespace rocprofsys
-{
-namespace constraint
+using namespace std::chrono_literals;
+
+namespace rocprofsys::constraint
 {
 namespace
 {
@@ -92,12 +92,6 @@ find_clock_identifier(const Tp& _v)
                                          _descript, _v, fmt::join(_choices, "")));
 }
 
-void
-sleep(std::uint64_t _n)
-{
-    std::this_thread::sleep_for(std::chrono::nanoseconds{ _n });
-}
-
 timespec
 get_timespec(clockid_t clock_id) noexcept
 {
@@ -127,20 +121,22 @@ get_clock_now(clockid_t clock_id) noexcept
 stages::stages()
 : init{ [](const spec&) { return state::process::get() < state::process::Finalized; } }
 , wait{ [](const spec& _spec) {
-    sleep(std::min<std::uint64_t>(
-        std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::duration<double>{ _spec.delay })
-            .count()));
+    const auto spec_delay_s = std::chrono::duration<double>{ _spec.delay };
+    const auto spec_delay_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(spec_delay_s);
+    const auto min_sleep_delay = 100ms;
+
+    std::this_thread::sleep_for(std::min(min_sleep_delay, spec_delay_ms));
     return state::process::get() < state::process::Finalized;
 } }
 , start{ [](const spec&) { return state::process::get() < state::process::Finalized; } }
 , collect{ [](const spec& _spec) {
-    sleep(std::min<std::uint64_t>(
-        std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::duration<double>{ _spec.duration })
-            .count()));
+    const auto spec_duraton_s = std::chrono::duration<double>{ _spec.duration };
+    const auto spec_duraton_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(spec_duraton_s);
+    const auto min_sleep_duration = 100ms;
+
+    std::this_thread::sleep_for(std::min(min_sleep_duration, spec_duraton_ms));
     return state::process::get() < state::process::Finalized;
 } }
 , stop{ [](const spec&) { return state::process::get() < state::process::Finalized; } }
@@ -250,7 +246,9 @@ spec::operator()(const stages& _stages) const
     if(_n < 1) _n = std::numeric_limits<std::uint64_t>::max();
 
     while(state::process::get() < state::process::Active)
-        sleep(std::chrono::nanoseconds{ std::chrono::microseconds{ 1 } }.count());
+    {
+        std::this_thread::sleep_for(1us);
+    }
 
     for(std::uint64_t i = 0; i < _n; ++i)
     {
@@ -342,22 +340,24 @@ get_trace_stages()
         return state::process::get() < state::process::Finalized;
     };
     _v.wait = [](const spec& _spec) {
-        sleep(std::min<std::uint64_t>(
-            std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::duration<double>{ _spec.delay })
-                .count()));
+        const auto spec_delay_s = std::chrono::duration<double>{ _spec.delay };
+        const auto spec_delay_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(spec_delay_s);
+        const auto min_sleep_delay = 100ms;
+
+        std::this_thread::sleep_for(std::min(min_sleep_delay, spec_delay_ms));
         return state::process::get() < state::process::Finalized;
     };
     _v.start = [](const spec&) {
         return state::process::get() < state::process::Finalized;
     };
     _v.collect = [](const spec& _spec) {
-        sleep(std::min<std::uint64_t>(
-            std::chrono::nanoseconds{ std::chrono::milliseconds{ 100 } }.count(),
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::duration<double>{ _spec.duration })
-                .count()));
+        const auto spec_duraton_s = std::chrono::duration<double>{ _spec.duration };
+        const auto spec_duraton_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(spec_duraton_s);
+        const auto min_sleep_duration = 100ms;
+
+        std::this_thread::sleep_for(std::min(min_sleep_duration, spec_duraton_ms));
         return state::process::get() < state::process::Finalized;
     };
     _v.stop = [](const spec&) {
@@ -366,5 +366,4 @@ get_trace_stages()
 
     return _v;
 }
-}  // namespace constraint
-}  // namespace rocprofsys
+}  // namespace rocprofsys::constraint
