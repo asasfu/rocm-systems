@@ -17,11 +17,11 @@ if(HIP_PLATFORM MATCHES "amd")
         launch_api.cc
         hipGetProcAddressLaunchCbExecCtrlApis.cc
     hipLaunchCooperativeKernelMultiDevice.cc
+    hipFuncSetAttribute.cc
     )
 else()
   set(TEST_SRC ${TEST_SRC}
         hipFuncSetSharedMemConfig.cc
-        hipFuncSetAttribute.cc
     )
 endif()
 

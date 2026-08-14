@@ -44,6 +44,11 @@ public:
             if (stamp.pl == 0) rt = stamp.time;
             return cur_time;
         }
+        else if (info.type == RdnaType::LONGTIME)
+        {
+            PL |= bool((contents >> 8) & 1ull);
+            return getDelta(info, contents) + cur_time;
+        }
         else if (info.type == RdnaType::TIME) { cur_time += 1; }
         return getDelta(info, contents) + cur_time;
     };
@@ -99,11 +104,11 @@ public:
 
 protected:
     std::array<int, 6> FIFO = {-1, -1, -1, -1, -1, -1};
+    TokenLookupTable lookupbits{};
 
 private:
     size_t byte_ptr = 0;
     bool bIsExt = false;
-    TokenLookupTable lookupbits{};
 };
 
 } // namespace mi400

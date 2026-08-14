@@ -15,6 +15,7 @@ Testcase Scenarios :
 */
 
 
+#include <vector>
 #include <hip_test_common.hh>
 
 
@@ -26,6 +27,17 @@ static constexpr std::initializer_list<tupletype> tableItems{
     std::make_tuple((10), 0x42, 0x101, 0x10, 0x1),
     std::make_tuple((10013), 0x5a, 0xDEADBEEF, 0xDEAD, 0xDE),
     std::make_tuple((256 * 1024 * 1024), 0xa6, 0xCAFEBABE, 0xCAFE, 0xCA)};
+
+// Level-aware table (reduces large entries at level_0 for emulation).
+static std::vector<tupletype> memsetTable() {
+  if (isQuickLevel()) {
+    return {
+        std::make_tuple((size_t)(1024 * 1024), (char)0x42, (int)0xDEADBEEF, (int16_t)0xDEAD, (char)0xDE),
+        std::make_tuple((size_t)(10), (char)0x42, (int)0x101, (int16_t)0x10, (char)0x1),
+        std::make_tuple((size_t)(10013), (char)0x5a, (int)0xDEADBEEF, (int16_t)0xDEAD, (char)0xDE)};
+  }
+  return std::vector<tupletype>(tableItems);
+}
 
 enum MemsetType { hipMemsetTypeDefault, hipMemsetTypeD8, hipMemsetTypeD16, hipMemsetTypeD32 };
 
@@ -129,7 +141,7 @@ HIP_TEST_CASE(Unit_hipMemset_SetMemoryWithOffset) {
   bool ret;
 
   std::tie(N, memsetval, memsetD32val, memsetD16val, memsetD8val) =
-      GENERATE(table<size_t, char, int, int16_t, char>(tableItems));
+      GENERATE(from_range(memsetTable()));
 
 
   SECTION("Memset with hipMemsetTypeDefault") {
@@ -171,7 +183,7 @@ HIP_TEST_CASE(Unit_hipMemsetAsync_SetMemoryWithOffset) {
   bool ret;
 
   std::tie(N, memsetval, memsetD32val, memsetD16val, memsetD8val) =
-      GENERATE(table<size_t, char, int, int16_t, char>(tableItems));
+      GENERATE(from_range(memsetTable()));
 
 
   SECTION("Memset with hipMemsetTypeDefault") {

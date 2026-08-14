@@ -41,7 +41,13 @@ hipError_t ihipOccupancyMaxActiveBlocksPerMultiprocessor(
   } else if (inputBlockSize > maxWorkGroupSize || inputBlockSize <= 0) {
     inputBlockSize = maxWorkGroupSize;
   }
-  
+
+  // Wavegroup kernels have a fixed block size set at compile time.
+  // Override inputBlockSize to the kernel's declared workgroup size.
+  if (wrkGrpInfo->isWavegroupKernel_ && wrkGrpInfo->size_ > 0) {
+    inputBlockSize = static_cast<int>(wrkGrpInfo->size_);
+  }
+
   // Find wave occupancy per CU => simd_per_cu * GPR usage
   // Limited by SPI 32 per CU, hence 8 per SIMD
   const size_t MaxWavesPerSimd = (device.isa().versionMajor() <= 9) ? 8 : 16;
@@ -53,9 +59,15 @@ hipError_t ihipOccupancyMaxActiveBlocksPerMultiprocessor(
   const size_t maxVGPRs = adjust_for_wave64
       ? device.info().vgprsPerSimd_ >> 1
       : device.info().vgprsPerSimd_;
+  // For wavegroup kernels, usedVGPRs_ is per-wavegroup so VgprWaves gives
+  // wavegroups per SIMD. wavesPerUnit converts wave slot limits to match.
+  const size_t wavesPerUnit =
+      (wrkGrpInfo->isWavegroupKernel_ && wavefrontSize > 0 && inputBlockSize > 0)
+      ? inputBlockSize / wavefrontSize : 1;
+
   const size_t VgprWaves = wrkGrpInfo->usedVGPRs_ > 0
       ? maxVGPRs / amd::alignUp(wrkGrpInfo->usedVGPRs_, VgprGranularity)
-      : MaxWavesPerSimd;
+      : MaxWavesPerSimd / wavesPerUnit;
 
   if (VgprWaves == 0) {
     // This should not happen ideally, but in case the value is
@@ -75,12 +87,12 @@ hipError_t ihipOccupancyMaxActiveBlocksPerMultiprocessor(
       ? device.isa().simdPerCU() * 2
       : device.isa().simdPerCU();
 
-  const size_t alu_occupancy = simdPerCU * std::min(MaxWavesPerSimd, GprWaves);
-  const int alu_limited_threads = static_cast<int>(alu_occupancy * wavefrontSize);
+  const size_t alu_occupancy = simdPerCU * std::min(MaxWavesPerSimd / wavesPerUnit, GprWaves);
+  const int alu_limited_threads = static_cast<int>(alu_occupancy * wavefrontSize * wavesPerUnit);
 
   const size_t total_used_lds = wrkGrpInfo->usedLDSSize_ + dynamicSMemSize;
   const int lds_occupancy_wgs = total_used_lds != 0
-      ? static_cast<int>(device.info().localMemSize_ / total_used_lds)
+      ? static_cast<int>(wrkGrpInfo->availableLDSSize_ / total_used_lds)
       : INT_MAX;
   // Calculate how many blocks of inputBlockSize we can fit per CU
   // Need to align with hardware wavefront size. If they want 65 threads, but
@@ -448,7 +460,7 @@ hipError_t ihipCreateGlobalVarObj(const char* name, hipModule_t hmod, amd::Memor
   HIP_RETURN(hipSuccess);
 }
 
-// ================================================================================================
+
 hipError_t hipOccupancyAvailableDynamicSMemPerBlock(size_t* dynamicSmemSize, const void* f,
                                                     int numBlocks, int blockSize){
   HIP_INIT_API(hipOccupancyAvailableDynamicSMemPerBlock, dynamicSmemSize, f, numBlocks, blockSize);
@@ -861,7 +873,10 @@ hipError_t hipOccupancyMaxPotentialClusterSize(int* clusterSize, const void* f,
   const amd::Device& device = *hip::getCurrentDevice()->devices()[0];
   hipFunction_t func;
   hipError_t hip_error = PlatformState::Instance().StatCO().GetFunc(&func, f, ihipGetDevice());
+  int alu_limited_threads;
+  dim3 clusterDim;
   const amd::device::Info& deviceInfo = device.info();
+  int totalClusterSize;
 
   *clusterSize = 0;
 

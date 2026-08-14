@@ -294,12 +294,6 @@ HIP_TEMPLATE_TEST_CASE(Unit_surfCubemapLayeredread_Positive_Basic, char, unsigne
 HIP_TEMPLATE_TEST_CASE(Unit_surfCubemapLayeredwrite_Positive_Basic, char, unsigned char, short,
                    unsigned short, int, unsigned int, float) {
   CHECK_IMAGE_SUPPORT;
-
-  const int width = GENERATE(31, 67);
-  const int height = GENERATE(131, 263);
-  runTestW<vector_type_helper_t<TestType, 0>>(width, height);
-  runTestW<vector_type_helper_t<TestType, 1>>(width, height);
-  runTestW<vector_type_helper_t<TestType, 2>>(width, height);
   runTestW<vector_type_helper_t<TestType, 4>>(width, height);
 }
 

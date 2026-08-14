@@ -29,7 +29,9 @@ set(TEST_SRC
 )
 
 # Append it to the list
-set(CLUSTER_SUPPORTING_GPUS "gfx1101" "gfx1250")
+# "gfx13" is a prefix match (see string(FIND) below), so it covers all
+# gfx13xx targets (gfx1310, gfx1370, ...) instead of enumerating each one.
+set(CLUSTER_SUPPORTING_GPUS "gfx1101" "gfx1250" "gfx1260" "gfx13")
 set(CLUSTER_SUPPORTED OFF)
 
 foreach(CLUSTER_SUPPORTING_GPU IN LISTS CLUSTER_SUPPORTING_GPUS)

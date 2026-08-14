@@ -80,9 +80,9 @@ class TestPGenSqtt : public TestPGen {
     TEST_ASSERT((reinterpret_cast<uintptr_t>(profile_.command_buffer.ptr) & buffer_bitmask) == 0);
 
     this->parameters = {
-        {HSA_VEN_AMD_AQLPROFILE_PARAMETER_NAME_COMPUTE_UNIT_TARGET, 1},
-        {HSA_VEN_AMD_AQLPROFILE_PARAMETER_NAME_SE_MASK, 0x55555555},
-        {static_cast<hsa_ven_amd_aqlprofile_parameter_name_t>(8), 0x1},
+        {HSA_VEN_AMD_AQLPROFILE_PARAMETER_NAME_COMPUTE_UNIT_TARGET, 0},
+        {HSA_VEN_AMD_AQLPROFILE_PARAMETER_NAME_SE_MASK, 1},
+        {HSA_VEN_AMD_AQLPROFILE_PARAMETER_NAME_SIMD_SELECTION, 0},
     };
     profile_.parameters = parameters.data();
     profile_.parameter_count = parameters.size();

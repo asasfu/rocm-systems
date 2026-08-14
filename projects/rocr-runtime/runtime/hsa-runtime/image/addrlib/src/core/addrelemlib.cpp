@@ -1,7 +1,7 @@
 /*
 ************************************************************************************************************************
 *
-*  Copyright (C) 2007-2022 Advanced Micro Devices, Inc.  All rights reserved.
+*  Copyright (C) 2007-2024 Advanced Micro Devices, Inc. All rights reserved.
 *  SPDX-License-Identifier: MIT
 *
 ***********************************************************************************************************************/
@@ -1816,5 +1816,5 @@ BOOL_32 ElemLib::IsMacroPixelPacked(
     return isMacroPixelPacked;
 }
 
-}
+} // Addr
 } //namespace rocr

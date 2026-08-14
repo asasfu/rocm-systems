@@ -13,6 +13,10 @@ int N = 8000000;
 unsigned blocksPerCU = 6;
 unsigned threadsPerBlock = 256;
 
+// Level-aware workload sizing (reduced at level_0 for emulation).
+static inline size_t streamsN() { return isQuickLevel() ? 1048576 : static_cast<size_t>(N); }
+static inline int streamsIters() { return isQuickLevel() ? 2 : p_iters; }
+
 //---
 // Test simple H2D copies and back.
 // Designed to stress a small number of simple smoke tests
@@ -25,7 +29,7 @@ void simpleVectorAdd(size_t numElements, int iters, hipStream_t stream) {
   T *A_d, *B_d, *C_d;
   T *A_h, *B_h, *C_h;
 
-  HipTest::initArrays(&A_d, &B_d, &C_d, &A_h, &B_h, &C_h, N, P::isPinned);
+  HipTest::initArrays(&A_d, &B_d, &C_d, &A_h, &B_h, &C_h, numElements, P::isPinned);
   for (size_t i = 0; i < numElements; i++) {
     A_h[i] = 1000.0f;
     B_h[i] = 2000.0f;
@@ -67,14 +71,15 @@ void simpleVectorAdd(size_t numElements, int iters, hipStream_t stream) {
 
 template <typename T, class C>
 void test_multiThread_1(hipStream_t stream0, hipStream_t stream1, bool serialize) {
-  size_t numElements = N;
+  size_t numElements = streamsN();
+  int iters = streamsIters();
 
   // Test 2 threads operating on same stream:
-  std::thread t1(simpleVectorAdd<T, HipTest::Pinned, C>, numElements, p_iters /*iters*/, stream0);
+  std::thread t1(simpleVectorAdd<T, HipTest::Pinned, C>, numElements, iters /*iters*/, stream0);
   if (serialize) {
     t1.join();
   }
-  std::thread t2(simpleVectorAdd<T, HipTest::Pinned, C>, numElements, p_iters /*iters*/, stream1);
+  std::thread t2(simpleVectorAdd<T, HipTest::Pinned, C>, numElements, iters /*iters*/, stream1);
   if (serialize) {
     t2.join();
   }
@@ -91,8 +96,10 @@ HIP_TEST_CASE(Unit_hipMultiThreadStreams1_AsyncSync) {
   hipStream_t stream;
   HIPCHECK(hipStreamCreate(&stream));
 
-  simpleVectorAdd<float, HipTest::Pinned, HipTest::MemcpyAsync>(N /*mb*/, 10 /*iters*/, stream);
-  simpleVectorAdd<float, HipTest::Pinned, HipTest::Memcpy>(N /*mb*/, 10 /*iters*/, stream);
+  simpleVectorAdd<float, HipTest::Pinned, HipTest::MemcpyAsync>(streamsN() /*numElements*/,
+                                                               streamsIters() /*iters*/, stream);
+  simpleVectorAdd<float, HipTest::Pinned, HipTest::Memcpy>(streamsN() /*numElements*/,
+                                                           streamsIters() /*iters*/, stream);
 
   HIPCHECK(hipStreamDestroy(stream));
 }

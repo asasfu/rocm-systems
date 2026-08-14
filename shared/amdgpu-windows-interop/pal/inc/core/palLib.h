@@ -1,27 +1,4 @@
-/*
- ***********************************************************************************************************************
- *
- *  Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved.
- *
- *  Permission is hereby granted, free of charge, to any person obtaining a copy
- *  of this software and associated documentation files (the "Software"), to deal
- *  in the Software without restriction, including without limitation the rights
- *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *  copies of the Software, and to permit persons to whom the Software is
- *  furnished to do so, subject to the following conditions:
- *
- *  The above copyright notice and this permission notice shall be included in all
- *  copies or substantial portions of the Software.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
- *
- **********************************************************************************************************************/
+/* Copyright (c) Advanced Micro Devices, Inc., or its affiliates. All rights reserved. */
 /**
  ***********************************************************************************************************************
  * @file  palLib.h
@@ -34,6 +11,10 @@
 #include "pal.h"
 #include "palSysMemory.h"
 #include "palDbgPrint.h"
+
+#if PAL_CLIENT_DX
+typedef struct _D3DDDI_ADAPTERCALLBACKS DxRtAdapterCallbacks;
+#endif
 
 namespace Pal
 {
@@ -50,10 +31,16 @@ enum class NullGpuId : uint32
     Navi10,        ///< 10.1.0
     Navi12,        ///< 10.1.1
     Navi14,        ///< 10.1.2
+#if PAL_BUILD_NAVI21_LITE
+    Navi21Lite,    ///< 10.2.0 but we treat it as 10.3.0
+#endif
     Navi21,        ///< 10.3.0
     Navi22,        ///< 10.3.1
     Navi23,        ///< 10.3.2
     Navi24,        ///< 10.3.4
+#if PAL_BUILD_VAN_GOGH
+    VanGogh,       ///< 10.3.3
+#endif
     Rembrandt,     ///< 10.3.5
     Raphael,       ///< 10.3.6
     Navi31,        ///< 11.0.0
@@ -62,17 +49,50 @@ enum class NullGpuId : uint32
     Phoenix1,      ///< 11.0.3
     Phoenix2,      ///< 11.0.3
     Strix1,        ///< 11.5.0
+#if PAL_BUILD_GORGON_POINT1
+    GorgonPoint1,  ///< 11.5.0
+#endif
     StrixHalo,     ///< 11.5.1
     Krackan1,      ///< 11.5.2
+#if PAL_BUILD_GORGON_POINT2
+    GorgonPoint2,  ///< 11.5.2
+#endif
     Krackan2,      ///< 11.5.3
+#if PAL_BUILD_MEDUSA1
+#if PAL_CLOSED_SOURCE
+    Medusa1_A0,    ///< 11.5.FFFE
+#endif
+    Medusa1,       ///< 11.7.0
+#endif
+#if PAL_BUILD_MEDUSA2
+    Medusa2,       ///< 11.7.1
+#endif
+#if PAL_BUILD_MEDUSA3
+    Medusa3,       ///< 11.7.2
+#endif
+#if PAL_BUILD_GAINSBOROUGH
+    Gainsborough,  ///< 11.5.4
+#endif
     Navi44,        ///< 12.0.0
     Navi48,        ///< 12.0.1
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 958
+#if PAL_BUILD_ALPHA_TRION1
+    AlphaTrion1,   ///< 13.0.1
+#endif
+#endif  // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 958
+#if PAL_BUILD_ALPHA_TRION2
+    AlphaTrion2,   ///< 13.1.0
+#endif
+#if PAL_BUILD_AT_LITE3
+    AtLite3,       ///< 13.1.65535
+#endif
+#if PAL_BUILD_GRIMLOCK1
+    Grimlock1,     ///< 13.7.0
 #endif
     Max,           ///< The maximum count of null devices.
     All,           ///< If you want to enumerate all null devices.
 };
-#endif
+#endif  // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 987
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 989
 /// Specifies which graphics IP level (GFXIP) this device has.
@@ -89,9 +109,21 @@ enum class GfxIpLevel : uint32
     GfxIp10_3,     ///< GFXIP 10.3 (Navi2x, Rembrandt, Raphael, Mendocino)
     GfxIp11_0,     ///< GFXIP 11.0 (Navi3x, Phoenix)
     GfxIp11_5,     ///< GFXIP 11.5 (Strix)
-    GfxIp12,       ///< GFXIP 12.0 (Navi4x)
-};
+#if (PAL_BUILD_MEDUSA1 || PAL_BUILD_MEDUSA2 || PAL_BUILD_MEDUSA3)
+    GfxIp11_7,     ///< GFXIP 11.7 (Medusa)
 #endif
+    GfxIp12,       ///< GFXIP 12.0 (Navi4x)
+#if PAL_BUILD_GFX13
+    GfxIp13,       ///< GFXIP 13.0 (AT)
+#if PAL_BUILD_ALPHA_TRION2
+    GfxIp13_1,     ///< GFXIP 13.1 (AT)
+#endif
+#if PAL_BUILD_GRIMLOCK1
+    GfxIp13_7,     ///< GFXIP 13.7 (GLK, AT)
+#endif
+#endif // PAL_BUILD_GFX13
+};
+#endif // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 989
 
 /// The version of a particular hardware IP in a specific ASIC.
 ///
@@ -246,6 +278,12 @@ enum class AsicRevision : uint32
     Navi22,               ///< 10.3.1
     Navi23,               ///< 10.3.2
     Navi24,               ///< 10.3.4
+#if PAL_BUILD_NAVI21_LITE
+    Navi21Lite,           ///< 10.2.0, but we treat it as 10.3.
+#endif
+#if PAL_BUILD_VAN_GOGH
+    VanGogh,              ///< 10.3.3
+#endif
     Navi31,               ///< 11.0.0
     Navi32,               ///< 11.0.1
     Navi33,               ///< 11.0.2
@@ -261,8 +299,55 @@ enum class AsicRevision : uint32
     Krackan2,             ///< 11.5.3
     Navi44,               ///< 12.0.0
     Navi48,               ///< 12.0.1
+#if PAL_BUILD_MEDUSA1
+#if PAL_CLOSED_SOURCE
+    Medusa1_A0,           ///< 11.5.FFFE
+#endif
+    Medusa1,              ///< 11.7.0
+#endif
+#if PAL_BUILD_MEDUSA2
+    Medusa2,              ///< 11.7.1
+#endif
+#if PAL_BUILD_MEDUSA3
+    Medusa3,              ///< 11.7.2
+#endif
+#if PAL_BUILD_GORGON_POINT1
+    GorgonPoint1,         ///< 11.5.0
+#endif
+#if PAL_BUILD_GORGON_POINT2
+    GorgonPoint2,         ///< 11.5.2
+#endif
+#if PAL_BUILD_GAINSBOROUGH
+    Gainsborough,         ///< 11.5.4
+#endif
+#if PAL_BUILD_GORGON_HALO
+    GorgonHalo,           ///< 11.5.1
+#endif
+#if PAL_BUILD_ALPHA_TRION2
+    AlphaTrion2_A0,       ///< 13.1.0
+    AlphaTrion2_B0,       ///< 13.1.1
+#endif  // PAL_BUILD_ALPHA_TRION2
+#if PAL_BUILD_AT_LITE3
+    AtLite3_A0,           ///< 13.1.FFFF
+    AtLite3_B0,           ///< 13.1.FFFE
+#endif  // PAL_BUILD_AT_LITE3
+#if PAL_BUILD_GRIMLOCK1
+    Grimlock1,            ///< 13.7.x
+#endif
     Count,
 // These are not included in Count, since Count is the number of unique entries
+#if PAL_BUILD_ALPHA_TRION2
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 988
+    AlphaTrion2 = AlphaTrion2_A0, ///< 13.1.0 (Needed for clients until all switch to A0/B0)
+#endif
+#endif  // PAL_BUILD_ALPHA_TRION2
+#if PAL_BUILD_AT_LITE3
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 958
+    AlphaTrion1 = AtLite3_A0, ///< 13.0.x
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION < 988
+    AlphaTrionX = AtLite3_A0, ///< 13.0.x
+#endif
+#endif  // PAL_BUILD_AT_LITE3
 };
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 987
@@ -273,7 +358,7 @@ struct NullGpuInfo
     NullGpuId   nullGpuId;  ///< ID of an ASIC that PAL supports for override purposes
     const char* pGpuName;   ///< Text name of the ASIC specified by nullGpuId
 };
-#endif
+#endif  // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 987
 
 /// Various IDs and info associated with a particular GPU.
 struct GpuInfo
@@ -300,6 +385,7 @@ extern const GpuInfo NullGpuInfoTable[static_cast<uint32>(AsicRevision::Count)];
 /// Matches the legacy NullGpuId::Default behavior (Navi31 was the first device in the old lookup table).
 constexpr AsicRevision DefaultNullDeviceRevision = AsicRevision::Navi31;
 
+#if PAL_CLIENT_OCL
 /// The client UMD must identify its API using this enum. Some UMD builds may implement multiple APIs so they must
 /// specify which API they're implementing at runtime. Note that the PAL_CLIENT macros are the preferred way to
 /// implement client-specific behavior; runtime ClientApi checks should only be used when necessary.
@@ -308,6 +394,7 @@ enum class ClientApi : uint32
     OpenCl,
     Hip
 };
+#endif
 
 /// Specifies properties for @ref IPlatform creation. Input structure to Pal::CreatePlatform().
 struct PlatformCreateInfo
@@ -358,7 +445,13 @@ struct PlatformCreateInfo
         uint32 u32All;                                  ///< Flags packed as 32-bit uint.
     } flags;                                            ///< Platform-wide creation flags.
 
+#if PAL_CLIENT_DX
+    DxRuntimeHandle              hDxRtAdapter;          ///< DX rumtime adapter handle.
+    const DxRtAdapterCallbacks*  pDxRtAdapterCallbacks; ///< DX runtime adapter callbacks.
+#endif
+#if PAL_CLIENT_OCL
     ClientApi clientApiId; ///< Client API ID.
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 987
     NullGpuId nullGpuId;   ///< @deprecated ID for the null device. Ignored unless the above flags.createNullDevice
                            ///  bit is set. Use IPlatform::CreateNullDevice(AsicRevision) instead.
@@ -494,7 +587,7 @@ Result PAL_STDCALL GetNullGpuInfoForName(
 Result PAL_STDCALL GetNullGpuInfoForAsicRevision(
     AsicRevision asicRevision,
     GpuInfo*     pGpuInfo);
-#endif
+#endif  // PAL_CLIENT_INTERFACE_MAJOR_VERSION < 987
 
 /**
  ***********************************************************************************************************************

@@ -88,6 +88,7 @@ eval_test "simple convolution kernel dry run" $tbin
 
 # Run with PMC
 export AQLPROFILE_PMC=1
+export AQLPROFILE_READ_API=0
 unset AQLPROFILE_PMC_PRIV
 unset AQLPROFILE_SQTT
 unset AQLPROFILE_SDMA
@@ -97,6 +98,7 @@ eval_test "PMC test" $tbin
 
 # Run with SQTT
 unset AQLPROFILE_PMC
+unset AQLPROFILE_READ_API
 unset AQLPROFILE_PMC_PRIV
 export AQLPROFILE_SQTT=1
 unset AQLPROFILE_SDMA

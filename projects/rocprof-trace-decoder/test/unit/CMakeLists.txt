@@ -126,6 +126,7 @@ set(TEST_FILES
     gfx10_test.cpp
     gfx11_test.cpp
     gfx12_test.cpp
+    gfx13_test.cpp
     token_stream_test.cpp
     quick_scan_api_test.cpp
     sqttparser_test.cpp
@@ -147,6 +148,7 @@ file(
     ${SRC_DIR}/gfx10/*.cpp
     ${SRC_DIR}/gfx11/*.cpp
     ${SRC_DIR}/gfx12/*.cpp
+    ${SRC_DIR}/gfx13/*.cpp
     ${SRC_DIR}/mi400/*.cpp)
 
 function(add_unit_test_executable TARGET_NAME SANITIZER_TYPE)

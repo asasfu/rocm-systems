@@ -23,9 +23,10 @@
 * DEALINGS IN THE SOFTWARE.
 */
 
+bool hsakmt_use_model = false;
+
 HSAKMT_STATUS HSAKMTAPI hsaKmtModelEnabled(bool* enable)
 {
-  *enable = false;
-  pr_warn_once("not supported\n");
+  *enable = hsakmt_use_model;
   return HSAKMT_STATUS_SUCCESS;
 }

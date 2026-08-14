@@ -166,10 +166,12 @@ enum EINST
     lds_other_simd_6,
     lds_other_simd_10,
     barrier_signal = 122,
+    lds_block_load = 128,
     dyn_vgpr = 135,
     try_lock,
     unlock,
     barrier_join,
+    wmma_xdl_32 = 142,
     icpref = 150,
     kcpref,
     salu_float3,
@@ -183,7 +185,8 @@ enum EINST
     async_store_2,
     async_store_3,
     async_store_5,
-    valut_1 = 165,
+    valut_4 = 164,
+    valut_1,
     valu_selftest,
     valu_no_exec = 169,
     vmpref,
@@ -191,21 +194,23 @@ enum EINST
     tdm_other_simd,
     lds_async_barrier,
     cluster_barrier_signal,
-    reserved_valu_16,
-    reserved_valu_32,
+    wmma_dpfp_16,
+    wmma_dpfp_32,
     wmma_spfp_16,
     wmma_xdl_8,
     wmma_xdl_16,
-    reserved_valu_1,
-    reserved_valu_4,
-    reserved_valu_2,
+    valu_dpmacc_1,
+    valu_dpmacc_4,
+    valu_dpmacc_arb_b,
     wmma_ld_scale,
     wmma_xdl_4,
     valu_dpmacc_32 = 187,
     vmem_other_simd_start,
+    sema_signal = 279,
+    sema_wait,
     block_store = 222,
     block_store_end = 255,
-    einst_final
+    valu_dpmacc_8 = 302
 };
 
 // clang-format off
@@ -290,10 +295,11 @@ static instruction_table_t& table_map_to_common_type =
     {(int) EINST::raytrace9,              {WaveInstCategory::BVH, 9}            },
     {(int) EINST::raytrace11,             {WaveInstCategory::BVH, 11}           },
     {(int) EINST::raytrace12,             {WaveInstCategory::BVH, 12}           },
-    {(int) EINST::flat_other_simd_1,      {WaveInstCategory::NONE, 0}           },
+    {(int) EINST::flat_other_simd_1,      {WaveInstCategory::FLAT_OTHER_SIMD, 1}},
 
     {(int) EINST::lds_dir_load,           {WaveInstCategory::LDS, 1}            },
     {(int) EINST::lds_param_load,         {WaveInstCategory::LDS, 1}            },
+    {(int) EINST::lds_block_load,         {WaveInstCategory::LDS, 1}            },
     {(int) EINST::salu_wr_exec,           {WaveInstCategory::SALU, 1}           },
     {(int) EINST::valu1_wr_exec,          {WaveInstCategory::VALU, 1}           },
     {(int) EINST::valu_b2_wr_exec,        {WaveInstCategory::VALU, 2}           },
@@ -319,19 +325,29 @@ static instruction_table_t& table_map_to_common_type =
     {(int) EINST::async_store_2,          {WaveInstCategory::VMEM, 2}           },
     {(int) EINST::async_store_3,          {WaveInstCategory::VMEM, 3}           },
     {(int) EINST::async_store_5,          {WaveInstCategory::VMEM, 5}           },
+    {(int) EINST::valut_1,                {WaveInstCategory::VALU, 1}           },
+    {(int) EINST::valut_4,                {WaveInstCategory::VALU, 4}           },
     {(int) EINST::valu_no_exec,           {WaveInstCategory::VALU, 1}           },
     {(int) EINST::tdm,                    {WaveInstCategory::VMEM, 1}           },
-    {(int) EINST::tdm_other_simd,         {WaveInstCategory::NONE, 0}           },
     {(int) EINST::lds_async_barrier,      {WaveInstCategory::LDS, 1}            },
     {(int) EINST::vmpref,                 {WaveInstCategory::VMEM, 1}           },
     {(int) EINST::cluster_barrier_signal, {WaveInstCategory::MSG, 1}            },
 
+    {(int) EINST::wmma_dpfp_16,           {WaveInstCategory::VALU, 16}          },
+    {(int) EINST::wmma_dpfp_32,           {WaveInstCategory::VALU, 32}          },
     {(int) EINST::wmma_spfp_16,           {WaveInstCategory::VALU, 16}          },
     {(int) EINST::wmma_xdl_4,             {WaveInstCategory::VALU, 4}           },
     {(int) EINST::wmma_xdl_8,             {WaveInstCategory::VALU, 8}           },
     {(int) EINST::wmma_xdl_16,            {WaveInstCategory::VALU, 16}          },
-    {(int) EINST::wmma_ld_scale,          {WaveInstCategory::LD_SCALE, 1}       },
+    {(int) EINST::wmma_xdl_32,            {WaveInstCategory::VALU, 32}          },
+    {(int) EINST::valu_dpmacc_1,          {WaveInstCategory::DPMACC1, 1}        },
+    {(int) EINST::valu_dpmacc_4,          {WaveInstCategory::VALU, 4}           },
+    {(int) EINST::valu_dpmacc_8,          {WaveInstCategory::VALU, 8}           },
     {(int) EINST::valu_dpmacc_32,         {WaveInstCategory::VALU, 32}          },
+    {(int) EINST::wmma_ld_scale,          {WaveInstCategory::LD_SCALE, 1}       },
+
+    {(int) EINST::sema_signal,            {WaveInstCategory::MSG, 1}            },
+    {(int) EINST::sema_wait,              {WaveInstCategory::IMMED, 1}          },
 
     {(int) EINST::lds_other_simd_1,       {WaveInstCategory::LDS_OTHER_SIMD, 1} },
     {(int) EINST::lds_other_simd_2,       {WaveInstCategory::LDS_OTHER_SIMD, 2} },
@@ -346,17 +362,20 @@ static instruction_table_t& table_map_to_common_type =
     {(int) EINST::flat_other_simd_3,      {WaveInstCategory::FLAT_OTHER_SIMD, 3}},
     {(int) EINST::flat_other_simd_4,      {WaveInstCategory::FLAT_OTHER_SIMD, 4}},
     {(int) EINST::flat_other_simd_5,      {WaveInstCategory::FLAT_OTHER_SIMD, 5}},
-    {(int) EINST::flat_other_simd_6,      {WaveInstCategory::FLAT_OTHER_SIMD, 6}},
-
-    {(int) EINST::reserved_valu_1,        {WaveInstCategory::VALU, 1}           },
-    {(int) EINST::reserved_valu_2,        {WaveInstCategory::VALU, 2}           },
-    {(int) EINST::reserved_valu_4,        {WaveInstCategory::VALU, 4}           },
-    {(int) EINST::reserved_valu_16,       {WaveInstCategory::VALU, 16}          },
-    {(int) EINST::reserved_valu_32,       {WaveInstCategory::VALU, 32}          }
+    {(int) EINST::flat_other_simd_6,      {WaveInstCategory::FLAT_OTHER_SIMD, 6}}
 };
 // clang-format on
 
-mapped_inst_t map_to_common_type(int einst, int trans2)
+std::pair<int, int> get_double_rate(uint64_t contents)
+{
+    int rate = (contents >> 28) & 0x7;
+    int dprate = 1 << (rate - 1);
+    int trans2 = (contents >> 60) & 1;
+
+    return {dprate, trans2};
+}
+
+mapped_inst_t map_to_common_type(int einst, int dpmacc, int trans2)
 {
     {
         auto it = table_map_to_common_type.find(einst);
@@ -365,6 +384,8 @@ mapped_inst_t map_to_common_type(int einst, int trans2)
 
     if (einst == (int) EINST::valut)
         return {WaveInstCategory::VALU, 4 >> trans2};
+    else if (einst == (int) EINST::valu_dpmacc_arb_b)
+        return {WaveInstCategory::VALU, dpmacc};
     else if (einst == (int) EINST::replay)
         throw std::exception();
 

@@ -1,0 +1,5 @@
+---
+TDM:
+  TDM_Basic_load_2d:
+    <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]

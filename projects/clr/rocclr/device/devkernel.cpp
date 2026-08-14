@@ -583,6 +583,9 @@ static amd_comgr_status_t populateKernelMetaV3(const amd_comgr_metadata_node_t k
     case KernelField::UniformWrokGroupSize:
       kernel->setUniformWorkGroupSize(buf.compare("1") == 0);
       break;
+    case KernelField::EnableWavegroup:
+      kernel->SetWavegroupKernel(buf.compare("true") == 0 || buf.compare("1") == 0);
+      break;
     default:
       return AMD_COMGR_STATUS_ERROR;
   }
@@ -623,6 +626,7 @@ Kernel::Kernel(const amd::Device& dev, const std::string& name, const Program& p
   workGroupInfo_.compileSizeHint_[2] = 0;
   workGroupInfo_.compileVecTypeHint_ = "";
   workGroupInfo_.isWGPMode_ = false;
+  workGroupInfo_.isWavegroupKernel_ = false;
   workGroupInfo_.uniformWorkGroupSize_ = false;
   workGroupInfo_.wavesPerSimdHint_ = 0;
   workGroupInfo_.constMemSize_ = 0;
@@ -779,12 +783,6 @@ bool Kernel::GetAttrCodePropMetadata() {
              "Cannot get program kernel metadata for %s \n", name().c_str());
     return false;
   }
-
-  // Set the workgroup information for the kernel
-  workGroupInfo_.availableLDSSize_ = device().info().localMemSizePerCU_;
-  workGroupInfo_.availableSGPRs_ = 104;
-  workGroupInfo_.availableVGPRs_ = 256;
-
   // extract the attribute metadata if there is any
   amd_comgr_status_t status = AMD_COMGR_STATUS_SUCCESS;
 
@@ -831,6 +829,14 @@ bool Kernel::GetAttrCodePropMetadata() {
     return false;
   }
 
+  // Set the workgroup information for the kernel
+  workGroupInfo_.availableSGPRs_ = 104;
+  workGroupInfo_.availableVGPRs_ = 256;
+
+  workGroupInfo_.availableLDSSize_ = device().info().localMemSizePerCU_;
+  if (device().info().shareLocalMemInWGP_ && !workGroupInfo_.isWGPMode_) {
+    workGroupInfo_.availableLDSSize_ /= 2;
+  }
   InitParameters(kernelMetaNode);
 
   return true;

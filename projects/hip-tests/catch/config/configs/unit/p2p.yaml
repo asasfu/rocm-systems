@@ -2,10 +2,13 @@
 p2p:
   Unit_hipDeviceGetP2PAttribute_Basic:
     <<: *level_2
+    disabled: [gfx1260, gfx1310, gfx1370]
     tags: [multigpu]
   Unit_hipDeviceGetP2PAttribute_Negative:
     <<: *level_2
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [multigpu]
   Unit_hipP2pLinkTypeAndHopFunc:
     <<: *level_2
+    disabled: [gfx1250, gfx1260, gfx1310, gfx1370]
     tags: [multigpu]

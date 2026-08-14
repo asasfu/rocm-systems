@@ -9,6 +9,7 @@
 #include <hip/hiprtc.h>
 
 #include <atomic>
+#include <cstdlib>
 #include <mutex>
 #include <vector>
 #include <iostream>
