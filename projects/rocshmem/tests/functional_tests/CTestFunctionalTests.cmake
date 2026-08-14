@@ -170,6 +170,7 @@ set(TEST_alltoall_wave 151)
 set(TEST_fcollect_wave 152)
 set(TEST_reduce_wave 153)
 set(TEST_teamreducescatterwave 154)
+set(TEST_buffer_register_symmetric 159)
 
 # MPI should already be found by the parent CMakeLists.txt
 # Use standard CMake MPI variables set by find_package(MPI)
@@ -464,7 +465,7 @@ endfunction()
 ###############################################################################
 
 function(add_rocshmem_functional_test)
-    set(options NO_VERIFY)
+    set(options NO_VERIFY UUID_ONLY)
     set(oneValueArgs NAME RANKS WORKGROUPS THREADS MAX_MSG_SIZE VOLUME_SIZE
                      LOCALBUFTYPE TIMEOUT TIER)  # TIER kept for backward compatibility but ignored
     set(multiValueArgs ENV_VARS EXTRA_LABELS BACKENDS GPUS TEST_VARIANTS)
@@ -501,6 +502,19 @@ function(add_rocshmem_functional_test)
 
     # Generate all variant combinations
     generate_variant_combinations("${global_variants}" "${test_variants}" variant_combinations)
+
+    # Some configurations, such as the VMM POSIX heap, cannot use rocSHMEM's
+    # MPI-based initialization path. Keep only UUID-based combinations for
+    # tests that declare that requirement.
+    if(TEST_UUID_ONLY)
+        set(uuid_combinations "")
+        foreach(combo ${variant_combinations})
+            if(combo STREQUAL "uuid" OR combo MATCHES "^uuid[+]")
+                list(APPEND uuid_combinations "${combo}")
+            endif()
+        endforeach()
+        set(variant_combinations "${uuid_combinations}")
+    endif()
 
     # Create a CTest test for each variant combination
     foreach(combo ${variant_combinations})
@@ -1390,6 +1404,44 @@ function(add_host_tests)
 endfunction()
 
 ###############################################################################
+# Symmetric User Buffer Tests
+###############################################################################
+
+function(add_symmetric_buffer_tests)
+    if(ROCM_MAJOR_VERSION LESS 7 OR
+       (ROCM_MAJOR_VERSION EQUAL 7 AND ROCM_MINOR_VERSION LESS 2))
+        message(STATUS
+            "Skipping buffer_register_symmetric functional test: "
+            "requires ROCm 7.2 or newer")
+        return()
+    endif()
+
+    # In MPI launcher mode test_driver's UUID bootstrap is implemented with
+    # PMIx. SLR always uses UUID initialization.
+    if(NOT USE_SLR_LAUNCHER AND NOT TARGET PMIx::pmix)
+        message(STATUS
+            "Skipping buffer_register_symmetric functional test: "
+            "MPI UUID bootstrap requires PMIx")
+        return()
+    endif()
+
+    begin_test_group(
+        CATEGORY "MEMORY"
+        TIER standard
+        BACKENDS "ipc;gda"
+        GPUS "all"
+        EXTRA_LABELS "RMA" "SYMMETRIC")
+        add_rocshmem_functional_test(
+            NAME buffer_register_symmetric
+            RANKS 2
+            WORKGROUPS 1
+            THREADS 1
+            UUID_ONLY
+            ENV_VARS "ROCSHMEM_HEAP_ALLOCATOR_TYPE=vmm_posix")
+    end_test_group()
+endfunction()
+
+###############################################################################
 # Register all tests
 ###############################################################################
 
@@ -1401,6 +1453,7 @@ function(register_all_functional_tests)
     add_coll_tests()
     add_stream_tests()
     add_other_tests()
+    add_symmetric_buffer_tests()
     add_heatmap_tests()
     add_tile_tests()
     add_host_tests()

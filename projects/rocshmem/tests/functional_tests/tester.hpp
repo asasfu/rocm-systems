@@ -200,7 +200,8 @@
   X(QpPingPong,                155)  \
   X(QpPutNbi,                  156)  \
   X(SdmaPingPong,              157)  \
-  X(SdmaPutNbi,                158)
+  X(SdmaPutNbi,                158)  \
+  X(BufferRegisterSymmetric,   159)
 
 #define _ROCSHMEM_ENUM_ENTRY(name, val) name##TestType = val,
 enum TestType {
