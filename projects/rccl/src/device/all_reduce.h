@@ -8,7 +8,6 @@
 #include "device.h"
 #include "collectives.h"
 #include "primitives.h"
-#include </opt/rocm/include/rocprof-trace-decoder/rocprof_trace_decoder/cxx/markers.hpp>
 
 namespace {
 // NOTE: the build-time transformer cmake/scripts/add_unroll.sh appends

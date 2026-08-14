@@ -215,6 +215,7 @@ set(SRC_FILES
   include/shmutils.h
   include/signals.h
   include/socket.h
+  include/sqtt_markers.h
   include/strongstream.h
   include/sym_kernels.h
   include/timer.h

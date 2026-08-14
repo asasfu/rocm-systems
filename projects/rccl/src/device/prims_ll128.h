@@ -6,8 +6,6 @@
  * See LICENSE.txt for license information
  ************************************************************************/
 
-#include </opt/rocm/include/rocprof-trace-decoder/rocprof_trace_decoder/cxx/markers.hpp>
-
 #define NCCL_LL128_FLAGTHREAD (NCCL_LL128_LINEELEMS - 1)
 
 #ifndef RCCL_USE_WBINVL1_VOL

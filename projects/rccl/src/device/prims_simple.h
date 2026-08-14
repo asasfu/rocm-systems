@@ -9,7 +9,6 @@
 #include "rccl_metadata.h"
 #include "network/unpack/unpack.h"
 #include <cassert>
-#include </opt/rocm/include/rocprof-trace-decoder/rocprof_trace_decoder/cxx/markers.hpp>
 
 enum primsMode {
   primsModeDefault = 0,

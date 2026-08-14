@@ -7,7 +7,7 @@
  ************************************************************************/
 
 #include "rccl_ptr.h"
-#include </opt/rocm/include/rocprof-trace-decoder/rocprof_trace_decoder/cxx/markers.hpp>
+
 // UserRegMode is accepted only to match the Primitives primary template (which
 // carries it for LL128, see primitives.h/prims_ll128.h). The LL protocol path is
 // unchanged from the baseline and ignores it.
