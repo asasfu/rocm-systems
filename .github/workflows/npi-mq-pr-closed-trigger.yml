@@ -27,7 +27,7 @@ jobs:
     # Only fire when an npi-merge-queue labelled PR is closed (merged or declined).
     # The label is applied by create_prs.py when the PR is created.
     if: contains(github.event.pull_request.labels.*.name, 'npi-merge-queue')
-    runs-on: ubuntu-latest
+    runs-on: rocm-ci-runner
 
     steps:
       - name: Generate GitHub App token for rocm-npi-dev
