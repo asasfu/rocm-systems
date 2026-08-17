@@ -215,7 +215,9 @@ module:
   Unit_hip_linker_spirv_input:
     <<: *level_2
     # Rock_Window_Failures_on_gfx1151
-    disabled: [amd_windows, amd_wsl]
+    # gfx1260/gfx1310/gfx1370: LCOMPILER-2618 - amdgcnspirv in-tree SPIR-V backend emits
+    # llvm.amdgcn.* intrinsics as unresolvable spirv.llvm_amdgcn_* imports -> hipLinkComplete Code 9
+    disabled: [amd_windows, amd_wsl, gfx1260, gfx1310, gfx1370]
     tags: [resource]
   Unit_hipLinkCreate_Negative:
     <<: *level_2
