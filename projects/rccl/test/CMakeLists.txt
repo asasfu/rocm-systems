@@ -249,6 +249,7 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
     set(TEST_FIXTURE_SOURCE_FILES
       BitOpsTests.cpp
       IommuPassthrough_test.cpp
+      MatchSubnet_test.cpp
       MiscTests.cpp
       RomeTopoConsensusTests.cpp
       EnqueueCountTests.cpp
@@ -359,10 +360,12 @@ option(OPENMP_TESTS_ENABLED "Enable OpenMP for unit tests" OFF)
       EnqueueTests.cpp
       IpcsocketTests.cpp
       TopoEnvPolicyTests.cpp
+      TopoNicFusionTests.cpp
       NetSocketTests.cpp
       PluginCompatV11_test.cpp
       ProxyTests.cpp
       RcclWrapTests.cpp
+      SocketPollTests.cpp
       TransportTests.cpp
       TimeoutTests.cpp
       mem_manager/MemManagerTests.cpp

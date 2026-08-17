@@ -18112,6 +18112,7 @@ rocprofiler-sdk:
         - architectures:
             - gfx1310
           block: GCEA_SE
+  fw-restriction-schema-version: 2
   firmware_restrictions:
     - affected_architectures:
         - gfx940
