@@ -34,3 +34,37 @@ class TestFabric(TestCliBase):
         )
         self.RunCmds(cmds)
         return
+
+    def test_flag_contract(self):
+        self.common.print_func_name("")
+
+        # Parser contract: new flags present, deprecated --info hidden.
+        (_, help_out, _) = self.util.RunCmdSync("amd-smi fabric --help")
+        help_out = help_out or ""
+        self.assertIn("--topology", help_out)
+        self.assertIn("--telemetry", help_out)
+        self.assertNotIn("--info", help_out)  # deprecated: hidden from --help
+
+        # Routing:
+        #   --topology emits the config key
+        #   --telemetry the counters key
+        # Guards the flag swap, not just that the flags parse.
+        # Key presence holds without fabric hardware: the API-error path still stores
+        # an "N/A" value under the key.
+        # Validating the actual config/counter values needs IFoE/UALink hardware
+        # and is deferred.
+        (_, topo_out, _) = self.util.RunCmdSync("amd-smi fabric --topology --json")
+        topo_out = topo_out or ""
+        self.assertIn("fabric_info", topo_out)
+        self.assertNotIn("fabric_telemetry", topo_out)
+
+        (_, telem_out, _) = self.util.RunCmdSync("amd-smi fabric --telemetry --json")
+        telem_out = telem_out or ""
+        self.assertIn("fabric_telemetry", telem_out)
+        self.assertNotIn("fabric_info", telem_out)
+
+        # --info still parses and aliases --topology (config output).
+        (_, info_out, err) = self.util.RunCmdSync("amd-smi fabric --info --json")
+        self.assertNotIn("unrecognized arguments", err or "")
+        self.assertIn("fabric_info", info_out or "")
+        return

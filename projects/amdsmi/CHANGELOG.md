@@ -21,6 +21,11 @@ Full documentation for amd_smi_lib is available at [https://rocm.docs.amd.com/pr
 - **Widened five `amdsmi_gpu_metrics_t` accumulator counters from 32-bit to 64-bit** (breaking).  
   - `gfx_activity_acc`, `mem_activity_acc`, `pcie_nak_sent_count_acc`, `pcie_nak_rcvd_count_acc`, and `pcie_lc_perf_other_end_recovery` are now `uint64_t` to match the amdgpu pmfw metrics header. Recompile callers that read these fields; the struct layout and field offsets have changed.
 
+- **Reworked the `amd-smi fabric` CLI flags** (breaking).  
+  - `--telemetry` (`-T`) now reports the per-category fabric telemetry counters. This data was previously shown by `--topology`.
+  - `--topology` (`-t`) now reports fabric device configuration (BDF, bandwidth, latency, vPoD/pPoD, accelerator state). This data was previously shown by `--info`.
+  - `--info` (`-i`) is deprecated and hidden from `--help`; it now aliases `--topology` and is slated for removal in a future ROCm release.
+
 - **Aligned the fabric telemetry and NIC firmware API surface with the unified ABI** (breaking).  
   - `amdsmi_fabric_telem_id_to_string()` now returns `amdsmi_status_t` and writes the name through a `const char**` out-parameter, instead of returning a `const char*` directly.
   - Renamed `amdsmi_nic_fw_t` to `amdsmi_nic_fw_entry_t`.

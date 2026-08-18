@@ -3297,8 +3297,8 @@ class AMDSMIParser(argparse.ArgumentParser):
         fabric_optionals_title = "Fabric arguments"
 
         # Help text for arguments
-        topology_help = "Display fabric topology data (counters per category, instance, and item)"
-        info_help = "Display fabric device configuration (BDF, bandwidth, latency, vPoD/pPoD, accelerator state)"
+        topology_help = "Display fabric device configuration (BDF, bandwidth, latency, vPoD/pPoD, accelerator state)"
+        telemetry_help = "Display fabric telemetry data (counters per category, instance, and item)"
 
         # Create fabric subparser
         fabric_parser = subparsers.add_parser(
@@ -3313,7 +3313,11 @@ class AMDSMIParser(argparse.ArgumentParser):
             "-t", "--topology", action="store_true", required=False, help=topology_help
         )
         fabric_parser.add_argument(
-            "-i", "--info", action="store_true", required=False, help=info_help
+            "-T", "--telemetry", action="store_true", required=False, help=telemetry_help
+        )
+        # Deprecated hidden alias for --topology; slated for removal in a future ROCm release
+        fabric_parser.add_argument(
+            "-i", "--info", action="store_true", required=False, help=argparse.SUPPRESS
         )
 
         # Add Universal Arguments
