@@ -94,6 +94,12 @@ Settings::Settings() {
   dynamic_queues_ = amd::IS_HIP ? DEBUG_HIP_DYNAMIC_QUEUES : false;
   // note: OCL user events don't allow CPU blocking calls in DD mode
   blocking_blit_ = amd::IS_HIP || !AMD_DIRECT_DISPATCH;
+
+  // The multi-producer AQL ring race this ordering avoids has only been observed on Intel hosts, so
+  // an untouched flag orders those alone. Setting the flag decides for every host instead, which is
+  // how the ordered path gets exercised on AMD.
+  isOrderedDoorbell_ = flagIsDefault(DEBUG_CLR_ORDER_DOORBELL) ? amd::Os::isIntelCpu()
+                                                               : DEBUG_CLR_ORDER_DOORBELL;
 }
 
 // ================================================================================================

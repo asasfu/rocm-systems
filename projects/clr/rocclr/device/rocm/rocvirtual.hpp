@@ -32,6 +32,7 @@
 #include <stack>
 
 namespace amd::roc {
+struct AqlOrderedPublishState;
 class Device;
 class Memory;
 struct ProfilingSignal;
@@ -405,7 +406,8 @@ class VirtualGPU : public device::VirtualDevice {
 
   hsa_agent_t gpu_device() const { return gpu_device_; }
   hsa_queue_t* gpu_queue() { return gpu_queue_; }
-  void set_gpu_queue(hsa_queue_t* gpu_queue) { gpu_queue_ = gpu_queue; }
+  //! Bind this vgpu to a hardware queue, picking up the queue's ordered publication state.
+  void set_gpu_queue(hsa_queue_t* gpu_queue);
 
   // Return pointer to PrintfDbg
   PrintfDbg* printfDbg() const { return printfdbg_; }
@@ -476,6 +478,18 @@ class VirtualGPU : public device::VirtualDevice {
  private:
   //! Dispatches a barrier with blocking HSA signals
   void dispatchBlockingWait();
+
+  //! Allocate AQL queue slots. With ordered publication the slots stay invisible to the GPU until
+  //! CommitAqlSlots() publishes them.
+  uint64_t ReserveAqlSlots(uint64_t packet_count);
+
+  //! Publish a reservation in global reservation order and ring the doorbell. Every reserved slot
+  //! must be published: an abandoned reservation stalls every stream sharing the HW queue.
+  void CommitAqlSlots(uint64_t start_slot, uint64_t packet_count);
+
+  //! First slot the next reservation will use. It runs ahead of the hardware write index while
+  //! other streams still have packets in flight.
+  uint64_t AqlReserveIndex() const;
 
   bool dispatchAqlPacket(hsa_kernel_dispatch_packet_t* packet, uint16_t header, uint16_t rest,
                          bool blocking = true, bool capturing = false,
@@ -592,6 +606,10 @@ class VirtualGPU : public device::VirtualDevice {
   amd::Command* command_;   //!< Current command
   hsa_agent_t gpu_device_;  //!< Physical device
   hsa_queue_t* gpu_queue_;  //!< Active queue associated with a vgpu
+  //! Reservation and ordered commit state shared by all VirtualGPUs on this pooled HW queue. Owned
+  //! by the queue pool, which outlives this object.
+  //! Null when ordered publication is disabled, which selects the plain HSA reserve path.
+  AqlOrderedPublishState* aql_ordered_publish_state_;
   hsa_barrier_and_packet_t barrier_packet_ {};
   hsa_amd_barrier_value_packet_t barrier_value_packet_ {};
 

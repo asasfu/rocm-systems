@@ -1000,9 +1000,75 @@ bool VirtualGPU::processMemObjects(const amd::Kernel& kernel, const_address para
 uint64_t VirtualGPU::getQueueID() {
   amd::ScopedLock lock(execution());
   if (gpu_queue_ == nullptr) {
-    gpu_queue_ = roc_device_.AcquireActiveNormalQueue();
+    set_gpu_queue(roc_device_.AcquireActiveNormalQueue());
   }
   return gpu_queue_->id;
+}
+
+// ================================================================================================
+// Streams outnumber hardware queues, so several VirtualGPUs end up multiplexed onto one physical
+// AQL ring, and hsa_queue_add_write_index_screlease() reserves a slot and advances the GPU-visible
+// write_dispatch_id in one step. The ring therefore advertises slots whose packets are still being
+// written, and CPF is sent to fetch one either by a doorbell from a producer holding a later slot
+// or by an HWS queue remap that re-reads write_dispatch_id. Reserving and publishing separately
+// closes both entry points, since the index only ever names fully written packets:
+//
+//   RPTR = WPTR = 0
+//   T1 claims slot 0                           (write_dispatch_id -> 1)
+//   T2 claims slot 1                           (write_dispatch_id -> 2)
+//   T2 fills slot 1 and rings doorbell(1)
+//   CPF fetches slot 0, MEC sees an INVALID header and discards the ROQ    // defined behavior
+//   CPF re-fetches slot 0, but the 64B fetch is split into smaller reads somewhere on the way
+//   the read of the last 32B returns first, carrying junk from the previous trip through the ring
+//   T1 writes the body of slot 0, then releases its header
+//   the read of the first 32B returns, carrying the header T1 just wrote
+//   CPF assembles 64B that is half junk and half fresh, and the fresh half is a valid header, so
+//   MEC runs the packet with the junk body
+//
+// "INVALID header -> discard the ROQ" only covers the first look; on the re-fetch the header is
+// valid by the time it arrives, so nothing catches the torn packet. CPF asks for the packet as one
+// 64B unit and a fetch that stayed 64B would be a consistent snapshot; on Intel hosts it does not
+// appear to stay 64B, which is why this has only been seen there and why the ordering is gated on
+// the host vendor.
+void VirtualGPU::set_gpu_queue(hsa_queue_t* gpu_queue) {
+  gpu_queue_ = gpu_queue;
+  aql_ordered_publish_state_ =
+      (gpu_queue != nullptr) ? roc_device_.GetAqlOrderedPublishState(gpu_queue) : nullptr;
+}
+
+// ================================================================================================
+uint64_t VirtualGPU::AqlReserveIndex() const {
+  return aql_ordered_publish_state_ ? aql_ordered_publish_state_->ReserveIndex()
+                                    : Hsa::queue_load_write_index_relaxed(gpu_queue_);
+}
+
+// ================================================================================================
+uint64_t VirtualGPU::ReserveAqlSlots(uint64_t packet_count) {
+  return aql_ordered_publish_state_
+             ? aql_ordered_publish_state_->Reserve(packet_count)
+             : Hsa::queue_add_write_index_screlease(gpu_queue_, packet_count);
+}
+
+// ================================================================================================
+// Order commits by reservation order.
+void VirtualGPU::CommitAqlSlots(uint64_t start_slot, uint64_t packet_count) {
+  assert(packet_count > 0);
+  const uint64_t commit_end = start_slot + packet_count;
+  if (!aql_ordered_publish_state_) {
+    Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, commit_end - 1);
+    return;
+  }
+
+  // @note: an earlier producer holding a large reservation can keep this thread spinning for as
+  //        long as it takes to write all of its packets. If that ever costs a core, back off
+  //        exponentially instead of spinning.
+  while (aql_ordered_publish_state_->CommitIndex() != start_slot) {
+    amd::Os::spinPause();
+  }
+
+  Hsa::queue_store_write_index_screlease(gpu_queue_, commit_end);
+  Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, commit_end - 1);
+  aql_ordered_publish_state_->CompleteCommit(commit_end);
 }
 
 // ================================================================================================
@@ -1020,7 +1086,7 @@ void VirtualGPU::AnalyzeAqlQueue() const {
   const uint32_t queueSize = gpu_queue_->size;
   const uint32_t queueMask = queueSize - 1;
   const uint32_t sw_queue_size = queueMask;
-  uint64_t index = Hsa::queue_load_write_index_relaxed(gpu_queue_);
+  uint64_t index = AqlReserveIndex();
   uint64_t read = Hsa::queue_load_read_index_relaxed(gpu_queue_);
   if (index > read) {
     int valid_packet_idx = 0;
@@ -1094,7 +1160,7 @@ bool VirtualGPU::dispatchGenericAqlPacket(AqlPacket* packet, uint16_t header, ui
   const uint32_t sw_queue_size = queueMask;
 
   // Check for queue full and wait if needed.
-  uint64_t index = Hsa::queue_add_write_index_screlease(gpu_queue_, 1);
+  uint64_t index = ReserveAqlSlots(1);
   setFenceDirty(true);
 
   if (addSystemScope_) {
@@ -1189,7 +1255,7 @@ bool VirtualGPU::dispatchGenericAqlPacket(AqlPacket* packet, uint16_t header, ui
           reinterpret_cast<hsa_kernel_dispatch_packet_t*>(packet)->reserved2,
           Hsa::queue_load_read_index_scacquire(gpu_queue_), index);
 
-  Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, index);
+  CommitAqlSlots(index, 1);
 
   // Mark the flag indicating if a dispatch is outstanding.
   // We are not waiting after every dispatch.
@@ -1264,7 +1330,7 @@ bool VirtualGPU::dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& pa
 
   while (processedPackets < numPackets) {
     uint64_t currentReadIndex = Hsa::queue_load_read_index_scacquire(gpu_queue_);
-    uint64_t currentWriteIndex = Hsa::queue_load_write_index_relaxed(gpu_queue_);
+    uint64_t currentWriteIndex = AqlReserveIndex();
 
     if (currentWriteIndex - currentReadIndex >= kGpuLagPackets) {
       //GPU is busy, so we can copy more packets
@@ -1283,7 +1349,7 @@ bool VirtualGPU::dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& pa
     }
 
     // Now reserve space for the batch
-    uint64_t startIndex = Hsa::queue_add_write_index_screlease(gpu_queue_, batchSize);
+    uint64_t startIndex = ReserveAqlSlots(batchSize);
 
     // Make sure the slots for the batch are free for usage
     while (((startIndex + batchSize - 1) - Hsa::queue_load_read_index_scacquire(gpu_queue_)) >
@@ -1438,8 +1504,8 @@ bool VirtualGPU::dispatchGenericAqlPacketBatch(const std::vector<AqlPacket*>& pa
     AqlPacket* aql_loc = &((AqlPacket*)(gpu_queue_->base_address))[startIndex & queueMask];
     packet_store_release(reinterpret_cast<uint32_t*>(aql_loc), doorbellHeader, firstPacketRest);
 
-    // Ring doorbell for this batch
-    Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, startIndex + batchSize - 1);
+    // Publish the batch and ring its doorbell
+    CommitAqlSlots(startIndex, batchSize);
 
     processedPackets += batchSize;
 
@@ -1537,7 +1603,7 @@ void VirtualGPU::dispatchBarrierPacket(uint16_t packetHeader, bool skipSignal,
     }
   }
 
-  uint64_t index = Hsa::queue_add_write_index_screlease(gpu_queue_, 1);
+  uint64_t index = ReserveAqlSlots(1);
   uint64_t read = Hsa::queue_load_read_index_relaxed(gpu_queue_);
 
   setFenceDirty(true);
@@ -1564,7 +1630,7 @@ void VirtualGPU::dispatchBarrierPacket(uint16_t packetHeader, bool skipSignal,
   *aql_loc = barrier_packet_;
   packet_store_release(reinterpret_cast<uint32_t*>(aql_loc), packetHeader, 0);
 
-  Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, index);
+  CommitAqlSlots(index, 1);
   ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_AQL,
           "SWq=0x%zx, HWq=0x%zx, id=%d, BarrierAND Header = 0x%x (type=%d, barrier=%d, acquire=%d,"
           " release=%d), "
@@ -1642,7 +1708,7 @@ void VirtualGPU::dispatchBarrierValuePacket(uint16_t packetHeader, bool resolveD
     setFenceDirty(false);
   }
 
-  uint64_t index = Hsa::queue_add_write_index_screlease(gpu_queue_, 1);
+  uint64_t index = ReserveAqlSlots(1);
   uint64_t read = Hsa::queue_load_read_index_relaxed(gpu_queue_);
 
   TrackQueueProgress(barrier_value_packet_, index);
@@ -1653,7 +1719,7 @@ void VirtualGPU::dispatchBarrierValuePacket(uint16_t packetHeader, bool resolveD
   *aql_loc = barrier_value_packet_;
   packet_store_release(reinterpret_cast<uint32_t*>(aql_loc), packetHeader, rest);
 
-  Hsa::signal_store_screlease(gpu_queue_->doorbell_signal, index);
+  CommitAqlSlots(index, 1);
 
   ClPrint(amd::LOG_DETAIL_DEBUG, amd::LOG_AQL,
           "SWq=0x%zx, HWq=0x%zx, id=%d, BarrierValue Header = 0x%x AmdFormat = 0x%x "
@@ -1710,6 +1776,7 @@ VirtualGPU::VirtualGPU(Device& device, bool profiling, bool cooperative,
     : device::VirtualDevice(device),
       state_(0),
       gpu_queue_(nullptr),
+      aql_ordered_publish_state_(nullptr),
       roc_device_(device),
       virtualQueue_(nullptr),
       deviceQueueSize_(0),
@@ -1786,7 +1853,7 @@ VirtualGPU::~VirtualGPU() {
   if (tracking_created_) {
     amd::ScopedLock l(execution());
     if (gpu_queue_ == nullptr) {
-      gpu_queue_ = roc_device_.AcquireActiveNormalQueue();
+      set_gpu_queue(roc_device_.AcquireActiveNormalQueue());
     }
     // Release the resources of signal
     releaseGpuMemoryFence();
@@ -1828,7 +1895,7 @@ VirtualGPU::~VirtualGPU() {
 bool VirtualGPU::create() {
   // Pick a reasonable queue size
   uint32_t queue_size = ROC_AQL_QUEUE_SIZE;
-  gpu_queue_ = roc_device_.acquireQueue(queue_size, cooperative_, cuMask_, priority_);
+  set_gpu_queue(roc_device_.acquireQueue(queue_size, cooperative_, cuMask_, priority_));
   if (!gpu_queue_) return false;
 
   if (!managed_kernarg_buffer_.Create(Device::MemorySegment::kKernArg)) {
@@ -2013,7 +2080,7 @@ void VirtualGPU::ReleaseHwQueue() {
     if (gpu_queue_ != nullptr) {
       if (IsQueueIdle()) {
         if (roc_device_.ReleaseActiveNormalQueue(gpu_queue_)) {
-          gpu_queue_ = nullptr;
+          set_gpu_queue(nullptr);
         }
       }
     }
@@ -2027,7 +2094,7 @@ void VirtualGPU::ReleaseHwQueue() {
  */
 void VirtualGPU::profilingBegin(amd::Command& command, bool sdmaProfiling) {
   if (gpu_queue_ == nullptr) {
-    gpu_queue_ = roc_device_.AcquireActiveNormalQueue();
+    set_gpu_queue(roc_device_.AcquireActiveNormalQueue());
   }
   // Track the current command
   command_ = &command;
@@ -4042,7 +4109,7 @@ void VirtualGPU::submitMarker(amd::Marker& vcmd) {
       // It should be safe to call flush directly if there are not pending dispatches without
       // HSA signal callback
       if (gpu_queue_ == nullptr) {
-        gpu_queue_ = roc_device_.AcquireActiveNormalQueue();
+        set_gpu_queue(roc_device_.AcquireActiveNormalQueue());
       }
       flush(vcmd.GetBatchHead());
     } else {

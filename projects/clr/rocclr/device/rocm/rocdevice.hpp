@@ -70,6 +70,27 @@ class Resource;
 class VirtualDevice;
 class PrintfDbg;
 
+//! Per-ring AQL slot reservation and ordered publication state.
+struct alignas(64) AqlOrderedPublishState {
+  //! Allocate slots without advancing the GPU-visible write index.
+  uint64_t Reserve(uint64_t packet_count) {
+    return reserve_index_.fetch_add(packet_count, std::memory_order_relaxed);
+  }
+
+  uint64_t ReserveIndex() const { return reserve_index_.load(std::memory_order_relaxed); }
+
+  uint64_t CommitIndex() const { return commit_index_.load(std::memory_order_acquire); }
+
+  //! Allow the next reservation to publish after this doorbell operation completes.
+  void CompleteCommit(uint64_t next_commit_index) {
+    commit_index_.store(next_commit_index, std::memory_order_release);
+  }
+
+ private:
+  alignas(64) std::atomic<uint64_t> reserve_index_{0};
+  alignas(64) std::atomic<uint64_t> commit_index_{0};
+};
+
 class ProfilingSignal : public amd::ReferenceCountedObject {
  public:
   hsa_signal_t signal_;   //!< HSA signal to track profiling information
@@ -565,6 +586,11 @@ class Device : public NullDevice {
   hsa_queue_t* AcquireActiveNormalQueue();
   bool ReleaseActiveNormalQueue(hsa_queue_t* queue);
 
+  //! Ordered publication state shared by every VirtualGPU using this physical queue. It is owned
+  //! by the queue pool, which outlives every VirtualGPU bound to the queue.
+  //! Null when ordered publication is disabled, which selects the plain HSA reserve path.
+  AqlOrderedPublishState* GetAqlOrderedPublishState(hsa_queue_t* queue);
+
   //! For the given HSA queue, return an existing hostcall buffer or create a
   //! new one. queuePool_ keeps a mapping from HSA queue to hostcall buffer.
   void* getOrCreateHostcallBuffer(hsa_queue_t* queue, bool coop_queue = false,
@@ -676,6 +702,8 @@ class Device : public NullDevice {
   struct QueueInfo {
     int refCount;           //! Reference counter. Shows how many time the queue was shared
     void* hostcallBuffer_;  //! Host call buffer for the HSA queue
+    //! Ordered publication state shared by every VirtualGPU using this physical queue.
+    AqlOrderedPublishState aqlPublishState_;
   };
 
   struct QueueCompare {
