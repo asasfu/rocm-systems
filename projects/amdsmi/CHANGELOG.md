@@ -81,6 +81,9 @@ Full documentation for amd_smi_lib is available at [https://rocm.docs.amd.com/pr
 
 ### Resolved Issues
 
+- **Fixed an uninitialized processor index that let the CPU and Core APIs read an unrelated CPU socket**.  
+  - The CPU and Core APIs reuse `AMDSmiProcessor::pindex_` as the ESMI socket or core number, and only the CPU socket and core constructors set it. A GPU, NIC, or switch handle passed to one of these APIs therefore carried an indeterminate value into ESMI. When that value was in range, the call returned another socket's telemetry with `AMDSMI_STATUS_SUCCESS`. The field now defaults to `UINT32_MAX`, so an unset index is rejected instead of answered. Calls that pass a CPU or Core handle are unaffected.
+
 - **Fixed `amd-smi set -L/--clk-limit <clk> max <value>` not enforcing caps that fall between clock levels**.
   - For `mclk` and `fclk` ONLY, which expose a discrete DPM table, the requested `max` is now rounded down to the nearest selectable clock level, so the enforced limit never exceeds the requested value.
   - `sclk` supports a continuous frequency range, so its requested `max` is honored exactly (e.g. `600` enforces a limit of 600MHz) and is not snapped.
