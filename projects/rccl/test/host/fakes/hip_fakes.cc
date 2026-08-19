@@ -248,8 +248,8 @@ void ResetHipFakes()
 // Host-memory-backed HIP VMM/stream profile.
 //
 // Sets the seams above to behaviour that lets code driving the driver VMM API
-// run to completion on a plain CPU (no GPU). Mirrors the fakes that lived in
-// test/DevRuntimeTestsStubs.cc. Opt in per test via InstallHostBackedVmm().
+// run to completion on a plain CPU (no GPU). Opt in per test via
+// InstallHostBackedVmm() (see the DevRuntime host tests).
 // ===========================================================================
 void InstallHostBackedVmm()
 {
@@ -434,10 +434,14 @@ hipError_t hipGetDevice(int* deviceId)
     return hipErrorInvalidValue;
 }
 
+// Report zero devices: the truthful host-only answer (no GPU present). Host
+// test harnesses (EnvVars) fork+call this to size GPU-dependent config; a
+// benign success with 0 lets them proceed on a plain CPU. This path is
+// exercised (unlike the fail-loud stubs below), so it must not fail loudly.
 hipError_t hipGetDeviceCount(int* count)
 {
     if (count) *count = 0;
-    return hipErrorInvalidValue;
+    return hipSuccess;
 }
 
 const char* hipGetErrorString(hipError_t) { return "[hip_fake] stub error"; }
