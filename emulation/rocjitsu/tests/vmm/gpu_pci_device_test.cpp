@@ -42,6 +42,21 @@ protected:
     return std::bit_cast<uint32_t>(raw);
   }
 
+  [[nodiscard]] uint32_t read_register_at(uint64_t byte_offset) {
+    std::array<std::byte, 4> raw{};
+    EXPECT_EQ(device_.bar_access(rocjitsu::GpuPciDevice::kRegisterBar, raw, byte_offset,
+                                 /*write=*/false),
+              4);
+    return std::bit_cast<uint32_t>(raw);
+  }
+
+  void write_register_at(uint64_t byte_offset, uint32_t value) {
+    auto raw = std::bit_cast<std::array<std::byte, 4>>(value);
+    EXPECT_EQ(device_.bar_access(rocjitsu::GpuPciDevice::kRegisterBar, raw, byte_offset,
+                                 /*write=*/true),
+              4);
+  }
+
   [[nodiscard]] const simdojo::BarSpec *bar(int index) {
     static std::vector<simdojo::BarSpec> bars;
     bars = device_.bars();
@@ -49,6 +64,76 @@ protected:
     return found == bars.end() ? nullptr : &*found;
   }
 };
+
+// A flush is issued and then waited for, and nothing else reports it finishing.
+// An unanswered acknowledge is therefore not a quiet gap in the register model
+// but a stall of the driver's full timeout, once per flush — it cost about
+// nine seconds each and eighty-eight seconds of a boot.
+//
+// The addresses here are written out rather than derived the way the device
+// derives them, because a test that recomputed them from the same segment list
+// would agree with the device about an address the driver does not use. Each is
+// `(segment + register + engine * stride) * 4`, with the register from the
+// offset headers and engine 17, which is the one the GART flush picks:
+//   GFXHUB  (0x1260 + 0x1669 + 17) * 4 == 0xa368
+//   MMHUB   (0x1a000 + 0x0599 + 17) * 4 == 0x696a8
+// The second of those is the register a guest boot was seen spinning on ten
+// million times, and only that one: a GFXHUB flush returns before touching any
+// register while the graphics block is unpowered, which holds for as long as
+// this device does not bring that block up, so every stalled flush was MMHUB's.
+TEST_F(GpuDevice, ReportsEveryVmInvalidationAlreadyComplete) {
+  ASSERT_TRUE(device_.usable());
+
+  EXPECT_EQ(read_register_at(0xa368), 0xffffffffu) << "GFXHUB engine 17 never acknowledges";
+  EXPECT_EQ(read_register_at(0x696a8), 0xffffffffu) << "MMHUB engine 17 never acknowledges";
+
+  // Engine 0 and the last engine, since the driver reaches engines by stride
+  // and modelling only the one it happens to use today would break silently.
+  EXPECT_EQ(read_register_at((0x1a000 + 0x0599) * 4), 0xffffffffu);
+  EXPECT_EQ(read_register_at((0x1a000 + 0x0599 + 17) * 4), 0xffffffffu);
+
+  // The request is written rather than read, so what is checked is that the
+  // device models it at all: an unmodelled register drops the write and reads
+  // back zero. Reading a request register back is not something the driver
+  // does, but this asserts the model, not hardware fidelity.
+  constexpr uint64_t kMmHubRequest17 = (0x1a000 + 0x0587 + 17) * 4;
+  write_register_at(kMmHubRequest17, 0x1);
+  EXPECT_EQ(read_register_at(kMmHubRequest17), 0x1u)
+      << "MMHUB engine 17's request was dropped as unmodelled";
+}
+
+// Covers the older flush path, which brackets a flush with an acquire of the
+// engine's semaphore and *releases it by writing zero*. A register that stored
+// that write would grant the first acquire and stall every flush after it, so
+// this one has to ignore writes -- which is the whole reason read-only
+// registers exist here. The version this device publishes today does not take
+// the semaphore, so this is covering the profile rather than the boot.
+//   MMHUB semaphore, engine 17: (0x1a000 + 0x0575 + 17) * 4 == 0x69618
+TEST_F(GpuDevice, KeepsGrantingTheInvalidationSemaphoreAfterItIsReleased) {
+  ASSERT_TRUE(device_.usable());
+  constexpr uint64_t kMmHubSemaphore17 = 0x69618;
+  ASSERT_EQ(read_register_at(kMmHubSemaphore17) & 0x1u, 0x1u) << "the acquire is never granted";
+
+  write_register_at(kMmHubSemaphore17, 0);
+
+  EXPECT_EQ(read_register_at(kMmHubSemaphore17) & 0x1u, 0x1u)
+      << "releasing the semaphore latched it low, so the next flush would stall";
+}
+
+// The HDP flush is a write to a hole the bus reserves rather than to any block's
+// register. An unmodelled register drops writes and reads back zero, so reading
+// back what was written is a positive check that the hole is answered -- and
+// unlike inspecting the unmodelled report, it cannot pass because the report
+// happens to be empty or its formatting changed.
+TEST_F(GpuDevice, AcceptsTheHdpFlushTheDriverIssues) {
+  ASSERT_TRUE(device_.usable());
+  constexpr uint64_t kFlushHole = 0x44000;
+
+  write_register_at(kFlushHole, 0xdeadbeef);
+
+  EXPECT_EQ(read_register_at(kFlushHole), 0xdeadbeefu)
+      << "the flush hole is not modelled, so the write was dropped";
+}
 
 // The driver's PCI table wildcards the device ID and matches on the class, so
 // this is the field that decides whether amdgpu attaches at all.
