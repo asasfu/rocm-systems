@@ -3,7 +3,11 @@
 
 #include "rocjitsu/vm/amdgpu/pci/gpu_pci_device_spec.h"
 
+#include "rocjitsu/vm/amdgpu/pci/ip_discovery_profile.h"
+#include "util/log.h"
+
 #include <algorithm>
+#include <format>
 
 namespace rocjitsu {
 namespace {
@@ -30,6 +34,30 @@ uint64_t largest_power_of_two_within(uint64_t limit) {
 /// so exposing all of one as a BAR is neither legal nor necessary: the indirect
 /// window reaches whatever the aperture does not.
 constexpr uint64_t kDefaultVramApertureBytes = 256 * 1024 * 1024;
+
+/// @brief KFD target version of the one part a discovery profile exists for.
+constexpr uint32_t kGfx1250TargetVersion = 120500;
+
+/// @brief Choose the IP blocks to describe for @p device.
+///
+/// @details gfx1250 is the only part modelled well enough to publish, and it is
+/// published for every configuration until a second profile exists: a device
+/// answering with no blocks at all would be refused by the guest driver for a
+/// reason no message would explain. A config that names a different target gets
+/// those blocks too, but says so, because the guest driver will then bind the
+/// support for the part the table describes rather than the one the rest of the
+/// configuration models.
+/// @param[in] device The configured device.
+/// @returns The blocks to describe.
+[[nodiscard]] IpDiscoverySpec discovery_spec_for(const config::KfdDeviceConfig &device) {
+  if (device.gfx_target_version != 0 && device.gfx_target_version != kGfx1250TargetVersion) {
+    util::Logger::warn(
+        std::format("gfx target {} has no discovery profile, so the table will describe gfx1250 "
+                    "and a guest driver would bind that part instead",
+                    device.gfx_target_version));
+  }
+  return gfx1250_discovery_spec();
+}
 
 } // namespace
 
@@ -59,6 +87,9 @@ GpuPciDeviceSpec gpu_pci_spec_from_config(const config::KfdDeviceConfig &device,
           : largest_power_of_two_within(std::min(device.local_mem_size, kDefaultVramApertureBytes));
   spec.doorbell_aperture_bytes = pci.doorbell_aperture_bytes;
   spec.register_aperture_bytes = pci.register_aperture_bytes;
+  // The blocks are chosen here, next to the identity, so the two describe one
+  // GPU.
+  spec.discovery = discovery_spec_for(device);
   return spec;
 }
 
