@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <format>
+#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -300,6 +301,100 @@ TEST(VfioDeviceHostLifecycle, BuildsTheSmallestBusShapeTheDeviceAccepts) {
 
   rocjitsu::VfioDeviceHost host(socket_path, gpu);
   EXPECT_TRUE(host.build()) << "and to the transport, or the two disagree";
+  host.detach();
+  std::filesystem::remove(socket_path);
+}
+
+// The message capability is three little-endian dwords and every field in it is
+// packed: the vector count is stored one less than it is, and the two offsets
+// are stored in units of eight bytes with the BAR index tucked into the three
+// bits below them. Nothing downstream rejects a bad packing -- a guest simply
+// looks for its table at whatever address comes out -- so the encoding is
+// checked here rather than by booting one and reading dmesg.
+TEST(VfioDeviceHostLifecycle, EncodesTheMessageCapabilityAGuestCanFollow) {
+  const std::string socket_path =
+      std::format("/tmp/rj-vfu-test-msix-{}.sock", static_cast<int>(::getpid()));
+  std::filesystem::remove(socket_path);
+
+  rocjitsu::config::KfdDeviceConfig identity;
+  identity.local_mem_size = 64 * 1024 * 1024;
+  rocjitsu::GpuPciDevice gpu("msix", rocjitsu::gpu_pci_spec_from_config(identity, {}), nullptr);
+  ASSERT_TRUE(gpu.usable());
+
+  rocjitsu::VfioDeviceHost host(socket_path, gpu);
+  ASSERT_TRUE(host.build());
+  std::jthread serving([&host](std::stop_token stop) { (void)host.run(stop); });
+  rocjitsu::test::VfioUserClient client;
+  bool attached = false;
+  for (int attempt = 0; attempt < 200 && !attached; ++attempt) {
+    attached = client.connect(socket_path);
+    if (!attached) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  }
+  ASSERT_TRUE(attached);
+
+  // A failed read throws rather than recording a non-fatal expectation: these
+  // return a value, so ASSERT_ is unavailable here, and continuing would walk
+  // the capability list through zeros and report a wrong pointer rather than
+  // the read that never happened.
+  const auto read_byte = [&client](uint64_t at) {
+    std::array<std::byte, 1> one{};
+    if (!client.region_read(VFU_PCI_DEV_CFG_REGION_IDX, at, one)) {
+      throw std::runtime_error(std::format("cannot read config byte at {:#x}", at));
+    }
+    return std::to_integer<uint8_t>(one[0]);
+  };
+  const auto read_dword = [&client](uint64_t at) {
+    std::array<std::byte, 4> four{};
+    if (!client.region_read(VFU_PCI_DEV_CFG_REGION_IDX, at, four)) {
+      throw std::runtime_error(std::format("cannot read config dword at {:#x}", at));
+    }
+    return std::bit_cast<uint32_t>(four);
+  };
+
+  // A capability added after the device is realized still writes itself and
+  // still writes the pointer at 0x34; the one thing left clear is this bit, and
+  // a guest reads it before it reads the pointer. So this, rather than finding
+  // the capability, is what says the ordering in build() held.
+  std::array<std::byte, 2> status{};
+  ASSERT_TRUE(client.region_read(VFU_PCI_DEV_CFG_REGION_IDX, 0x06, status));
+  ASSERT_NE(std::bit_cast<uint16_t>(status) & 0x10u, 0u)
+      << "the capability list is not advertised, so a guest never walks it";
+
+  // The point of the whole capability is to avoid a pin, whose delivery costs
+  // the guest every BAR mapping it holds. Nothing else asserts what actually
+  // reaches configuration space.
+  EXPECT_EQ(read_byte(0x3d), 0u)
+      << "a pin as well would put the client's mmap-disabling path back in reach";
+
+  // Walk the capability list the way a guest does, from the pointer at 0x34.
+  uint64_t at = read_byte(0x34);
+  uint64_t found = 0;
+  for (int hop = 0; hop < 48 && at >= 0x40; ++hop) {
+    if (read_byte(at) == PCI_CAP_ID_MSIX) {
+      found = at;
+      break;
+    }
+    at = read_byte(at + 1);
+  }
+  ASSERT_NE(found, 0u) << "no message capability is published for a guest to find";
+
+  const auto control = static_cast<uint16_t>(read_dword(found) >> 16);
+  const uint32_t table = read_dword(found + 4);
+  const uint32_t pending = read_dword(found + 8);
+
+  EXPECT_EQ((control & 0x7ffu) + 1, rocjitsu::GpuPciDevice::kMsixVectors)
+      << "the table size is stored one less than the count";
+  EXPECT_EQ(table & 0x7u, static_cast<uint32_t>(rocjitsu::GpuPciDevice::kMsixBar));
+  EXPECT_EQ(table & ~0x7u, rocjitsu::GpuPciDevice::kMsixTableOffset);
+  EXPECT_EQ(pending & 0x7u, static_cast<uint32_t>(rocjitsu::GpuPciDevice::kMsixBar));
+  EXPECT_EQ(pending & ~0x7u, rocjitsu::GpuPciDevice::kMsixPendingOffset);
+
+  serving.request_stop();
+  if (serving.joinable()) {
+    serving.join();
+  }
   host.detach();
   std::filesystem::remove(socket_path);
 }

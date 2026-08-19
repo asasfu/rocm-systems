@@ -219,6 +219,7 @@ GpuPciDevice::GpuPciDevice(std::string name, const GpuPciDeviceSpec &spec, BarAc
     return;
   }
   doorbells_.resize(spec_.doorbell_aperture_bytes);
+  msix_table_.resize(kMsixBarBytes);
 
   // One entry per dword of the aperture. Allocation blocks are a shader
   // register-file concern, so the file is created with none.
@@ -332,7 +333,18 @@ std::vector<simdojo::BarSpec> GpuPciDevice::bars() const {
   registers.size = spec_.register_aperture_bytes;
   registers.mem = true;
 
-  return {vram, doorbell, registers};
+  // This one traps because of the *pending bits*, not the table. A client
+  // services the guest's table accesses itself and tells the device which
+  // vector is armed out of band, but it reads the pending bits back out of the
+  // device, on the grounds that the device is what knows which interrupts are
+  // outstanding. A mapped page would answer those reads without the device
+  // ever seeing them.
+  simdojo::BarSpec msix;
+  msix.index = kMsixBar;
+  msix.size = kMsixBarBytes;
+  msix.mem = true;
+
+  return {vram, doorbell, registers, msix};
 }
 
 void GpuPciDevice::reset_registers() {
@@ -548,6 +560,8 @@ int64_t GpuPciDevice::bar_access(int bar, std::span<std::byte> buf, uint64_t off
     return access_registers(buf, offset, write);
   case kDoorbellBar:
     return access_memory(buf, offset, write, doorbells_);
+  case kMsixBar:
+    return access_memory(buf, offset, write, msix_table_);
   case kVramBar:
     // Reached only for a guest that did not map the aperture; a mapped one
     // never traps here.
@@ -575,6 +589,7 @@ void GpuPciDevice::reset(simdojo::ResetKind kind) {
   // memory is not cleared here: a mapping already handed out cannot be taken
   // back, which is why a device that exports one is served to a single client.
   std::ranges::fill(doorbells_, std::byte{0});
+  std::ranges::fill(msix_table_, std::byte{0});
   reset_registers();
   // The table is restored rather than assumed intact. On real hardware it lives
   // in memory the security processor reserves and the driver cannot write; here
