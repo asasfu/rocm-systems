@@ -15,9 +15,11 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <cstring>
 #include <format>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -36,7 +38,6 @@ constexpr uint64_t kMsixEntryBytes = 16;
 /// of 64 bits rather than a byte per vector.
 constexpr uint64_t kMsixPendingWordBytes = 8;
 
-/// @brief Most scatter-gather entries one guest memory transfer may span.
 /// @brief Scatter-gather entries a transfer is attempted with before the
 /// library is asked how many it actually needs.
 constexpr std::size_t kInitialSgEntries = 8;
@@ -179,6 +180,23 @@ VfioDeviceHost::~VfioDeviceHost() {
 void VfioDeviceHost::detach() {
   device_.set_irq_sink(nullptr);
   device_.set_dma_engine(nullptr);
+}
+
+bool VfioDeviceHost::ask_serving_thread(std::function<void()> work) {
+  const std::lock_guard lock(asked_mutex_);
+  // One slot, and a refusal rather than a drop. The serving thread can be parked
+  // reading from a stalled client while requests keep arriving, so something has
+  // to give; telling the caller lets it decide, where silently discarding the
+  // 65th of a backlog only looked like it had a policy.
+  // Outstanding means accepted but not yet FINISHED, not merely not yet picked
+  // up. Freeing the slot the moment the serving thread takes the work would let
+  // a second request be accepted while the first is still running, which is not
+  // the one-at-a-time contract this promises.
+  if (asked_.has_value() || asked_running_) {
+    return false;
+  }
+  asked_ = std::move(work);
+  return true;
 }
 
 bool VfioDeviceHost::build() {
@@ -345,6 +363,33 @@ VfioDeviceHost::ServeResult VfioDeviceHost::run(std::stop_token stop_token) {
       return ServeResult::Failed;
     }
 
+    // Anything another thread handed over runs here, on the serving thread and
+    // between protocol messages, so it sees the device the way a callback does.
+    // Drained before the wait rather than after it, which bounds the delay at
+    // one poll timeout rather than leaving a request until the next message.
+    std::optional<std::function<void()>> asked;
+    {
+      const std::lock_guard asked_lock(asked_mutex_);
+      asked.swap(asked_);
+      asked_running_ = asked.has_value();
+    }
+    if (asked.has_value()) {
+      const std::lock_guard lock(vfu_mutex_);
+      // The request runs on this thread, so an exception escaping it would take
+      // the process down rather than the request. Report and carry on serving:
+      // a faulty request is not a reason to drop the guest's device.
+      try {
+        (*asked)();
+      } catch (const std::exception &error) {
+        util::Logger::warn(
+            std::format("vfu: a request for the serving thread failed: {}", error.what()));
+      } catch (...) {
+        util::Logger::warn("vfu: a request for the serving thread failed");
+      }
+      const std::lock_guard asked_lock(asked_mutex_);
+      asked_running_ = false;
+    }
+
     pollfd wait = {.fd = poll_fd, .events = POLLIN, .revents = 0};
     const int ready = poll(&wait, 1, kPollTimeoutMs);
     if (ready < 0 && errno != EINTR) {
@@ -500,8 +545,17 @@ bool VfioDeviceHost::read(uint64_t guest_phys, std::span<std::byte> dst) {
 
 bool VfioDeviceHost::write(uint64_t guest_phys, std::span<const std::byte> src) {
   // vfu_sgl_write does not modify the source, but takes it as void*.
-  return copy_guest_memory(guest_phys, const_cast<std::byte *>(src.data()), src.size(),
-                           /*to_guest=*/true);
+  if (!copy_guest_memory(guest_phys, const_cast<std::byte *>(src.data()), src.size(),
+                         /*to_guest=*/true)) {
+    return false;
+  }
+  // DmaEngine::write() promises the bytes are guest-visible on return, and that
+  // writes become visible in the order they return. The copy above lands in
+  // memory the guest has mapped, so completeness is already met; this is what
+  // makes the ORDER hold, and it belongs here because this is the code that owns
+  // the transfer -- a caller cannot order stores on its behalf.
+  std::atomic_thread_fence(std::memory_order_release);
+  return true;
 }
 
 bool VfioDeviceHost::copy_guest_memory(uint64_t guest_phys, void *data, std::size_t length,
