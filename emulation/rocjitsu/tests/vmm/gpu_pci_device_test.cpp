@@ -121,6 +121,53 @@ TEST_F(GpuDevice, KeepsGrantingTheInvalidationSemaphoreAfterItIsReleased) {
       << "releasing the semaphore latched it low, so the next flush would stall";
 }
 
+// The driver says where it put the interrupt ring only by writing these
+// registers, and it says it in pieces: the address arrives shifted down by
+// eight across two registers, the size as the logarithm of a dword count, and
+// the write-pointer address split across two more. Reading that back wrongly
+// would point the device at the wrong guest memory, which is indistinguishable
+// from the driver never being interrupted.
+//   OSSSYS segment 0x10a0, all _BASE_IDX 0, so byte offset (0x10a0 + reg) * 4:
+//     IH_RB_CNTL 0x0080 -> 0x4480      IH_RB_BASE 0x0083 -> 0x448c
+//     IH_RB_BASE_HI 0x0084 -> 0x4490   WPTR_ADDR_HI 0x0085 -> 0x4494
+//     WPTR_ADDR_LO 0x0086 -> 0x4498
+TEST_F(GpuDevice, ReadsBackTheInterruptRingTheDriverProgrammed) {
+  ASSERT_TRUE(device_.usable());
+  EXPECT_EQ(device_.interrupt_ring().base, 0u) << "nothing has been programmed yet";
+  EXPECT_FALSE(device_.interrupt_ring().enabled);
+
+  // A ring at 0x1234_5678_9A00 of 256 KiB, its write pointer at 0xABCD_1000,
+  // switched on and asking for an interrupt per entry. 256 KiB is 65536 dwords,
+  // so the size field is 16.
+  constexpr uint64_t kRingBase = 0x123456789a00;
+  // Above four gigabytes on purpose: a guest with that much memory routinely
+  // puts the write pointer there, and a 32-bit value would leave the high half
+  // of the decode unproven -- deleting it entirely would still pass.
+  constexpr uint64_t kWptrAddress = 0x5abcd1000;
+  write_register_at(0x448c, static_cast<uint32_t>(kRingBase >> 8));
+  write_register_at(0x4490, static_cast<uint32_t>(kRingBase >> 40) & 0xff);
+  write_register_at(0x4498, static_cast<uint32_t>(kWptrAddress));
+  write_register_at(0x4494, static_cast<uint32_t>(kWptrAddress >> 32) & 0xffff);
+  // Size 16, enabled, interrupt per entry, and the address-space field saying
+  // these are bus addresses (2 at bit 28).
+  write_register_at(0x4480, (16u << 1) | (1u << 0) | (1u << 17) | (2u << 28));
+
+  const rocjitsu::GpuPciDevice::InterruptRing ring = device_.interrupt_ring();
+  EXPECT_EQ(ring.base, kRingBase);
+  EXPECT_EQ(ring.wptr_address, kWptrAddress);
+  EXPECT_EQ(ring.bytes, 256u * 1024) << "the size field is a logarithm of a dword count";
+  EXPECT_TRUE(ring.enabled);
+  EXPECT_TRUE(ring.raises_messages);
+  EXPECT_EQ(ring.space, rocjitsu::GpuPciDevice::InterruptRingSpace::BusAddress);
+
+  // The same registers with the space the driver uses when it loads firmware
+  // through the security processor: the addresses are then translated, and
+  // acting on them as if they were bus addresses would write somewhere real
+  // and wrong.
+  write_register_at(0x4480, (16u << 1) | (1u << 0) | (1u << 17) | (4u << 28));
+  EXPECT_EQ(device_.interrupt_ring().space, rocjitsu::GpuPciDevice::InterruptRingSpace::GpuVirtual);
+}
+
 // The HDP flush is a write to a hole the bus reserves rather than to any block's
 // register. An unmodelled register drops writes and reads back zero, so reading
 // back what was written is a positive check that the hole is answered -- and
