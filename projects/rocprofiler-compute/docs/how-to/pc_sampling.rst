@@ -209,9 +209,14 @@ Each file holds one row per instruction line, ordered by code object offset:
    * - ``Stall count``
      - Samples where the wave was stalled. Empty for ``host_trap``.
    * - ``Wave occupancy percent``
-     - Reserved; not yet collected, so empty on every row.
+     - Mean resident wave count at this instruction, divided by the accelerator's
+       maximum waves per compute unit, as a percentage from 0 to 100. Higher
+       values indicate greater wave-level resource pressure. Empty for
+       ``host_trap`` because those records do not carry a wave count.
    * - ``Active thread percent``
-     - Reserved; not yet collected, so empty on every row.
+     - Mean number of unmasked lanes at this instruction, divided by the
+       machine's wave size, as a percentage from 0 to 100. Lower values indicate
+       more control-flow divergence. Populated under both sampling methods.
    * - ``Stall <REASON>``
      - Samples stalled at this instruction for that reason.
    * - ``Source``
