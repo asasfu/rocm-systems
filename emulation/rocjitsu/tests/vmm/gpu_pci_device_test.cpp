@@ -6,6 +6,7 @@
 #include "rocjitsu/vm/amdgpu/pci/gpu_pci_device_spec.h"
 #include "rocjitsu/vm/amdgpu/pci/mmio_registers.h"
 #include "rocjitsu/vm/amdgpu/pci/register_symbols.h"
+#include "rocjitsu/vmm/vfu/bus_plan.h"
 
 #include <gtest/gtest.h>
 
@@ -133,6 +134,24 @@ TEST_F(GpuDevice, AcceptsTheHdpFlushTheDriverIssues) {
 
   EXPECT_EQ(read_register_at(kFlushHole), 0xdeadbeefu)
       << "the flush hole is not modelled, so the write was dropped";
+}
+
+// The driver asks the bus for one vector of any kind and treats not getting one
+// as fatal rather than as doing without: `pci_alloc_irq_vectors` returning
+// negative fails the interrupt block's initialization, which fails the probe.
+// So a function advertising no interrupt capability at all is refused before it
+// has raised, or failed to raise, anything.
+TEST_F(GpuDevice, AdvertisesAnInterruptTheDriverCanAllocate) {
+  const simdojo::InterruptSpec interrupts = device_.interrupts();
+
+  EXPECT_NE(interrupts.kind, simdojo::InterruptKind::None)
+      << "a device with no interrupt capability fails the driver's probe";
+  // Which kind is deliberately not asserted, so this survives the change to
+  // MSI-X. But asking for a kind the transport cannot advertise is worse than
+  // asking for none: the device is refused before it is served at all, so the
+  // guest sees no device rather than a device without interrupts.
+  EXPECT_TRUE(rocjitsu::plan_interrupts(interrupts).supported)
+      << "the transport cannot advertise the capability this device asks for";
 }
 
 // The driver's PCI table wildcards the device ID and matches on the class, so
