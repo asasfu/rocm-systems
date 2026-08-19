@@ -572,6 +572,7 @@ if(ROCJITSU_ENABLE_VFIO)
         rocjitsu_tests
         PRIVATE
             vmm/bus_plan_test.cpp
+            vmm/gpu_pci_device_test.cpp
             vmm/guest_region_map_test.cpp
             vmm/vfio_user_client.cpp
             vmm/vfio_device_host_test.cpp

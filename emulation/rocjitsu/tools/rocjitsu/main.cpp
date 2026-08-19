@@ -456,6 +456,23 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  // Serving a VMM needs the device's identity, not a simulated machine, so this
+  // is dispatched before the parse that builds one.
+  if (vfio_socket != nullptr) {
+    if (daemon_mode || attach_mode || separator_idx >= 0) {
+      std::cerr << "rocjitsu: --vfio-socket serves a VMM and cannot be combined with "
+                   "--daemon, --attach, or an application\n";
+      return 1;
+    }
+#if defined(RJ_ENABLE_VFIO_USER)
+    return rocjitsu::run_vfio_server(abs_config, vfio_socket);
+#else
+    std::cerr << "rocjitsu: this build has no vfio-user support; reconfigure with "
+                 "-DROCJITSU_ENABLE_VFIO=ON\n";
+    return 1;
+#endif
+  }
+
   rocjitsu::config::DbtGuestConfig dbt_guest_config;
   try {
     dbt_guest_config = rocjitsu::config::load_dbt_guest_config_from_file(abs_config);
@@ -477,21 +494,6 @@ int main(int argc, char *argv[]) {
   // those invocations could not clean up after themselves). Done for every mode,
   // including daemon-only, before this invocation creates its own directory.
   reap_stale_runtime_dirs();
-
-  if (vfio_socket != nullptr) {
-    if (daemon_mode || attach_mode || has_app) {
-      std::cerr << "rocjitsu: --vfio-socket serves a VMM and cannot be combined with "
-                   "--daemon, --attach, or an application\n";
-      return 1;
-    }
-#if defined(RJ_ENABLE_VFIO_USER)
-    return rocjitsu::run_vfio_server(vfio_socket);
-#else
-    std::cerr << "rocjitsu: this build has no vfio-user support; reconfigure with "
-                 "-DROCJITSU_ENABLE_VFIO=ON\n";
-    return 1;
-#endif
-  }
 
   if (daemon_mode && !has_app)
     return run_daemon_server(abs_config.c_str());
