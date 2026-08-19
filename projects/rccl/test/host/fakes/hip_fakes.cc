@@ -366,6 +366,11 @@ hipError_t hipMemRetainAllocationHandle(hipMemGenericAllocationHandle_t* handle,
     return g_hipMemRetainAllocationHandle(handle, addr);
 }
 
+hipError_t hipIpcGetMemHandle(hipIpcMemHandle_t* handle, void* devPtr)
+{
+    return g_hipIpcGetMemHandle(handle, devPtr);
+}
+
 hipError_t hipMemRelease(hipMemGenericAllocationHandle_t handle)
 {
     return g_hipMemRelease(handle);
