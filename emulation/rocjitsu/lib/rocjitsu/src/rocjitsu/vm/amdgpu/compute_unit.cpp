@@ -786,6 +786,7 @@ void ComputeUnitCore::issue_instruction(Wavefront *active) {
                         (static_cast<uint64_t>(read_sgpr(sb + ssrc0_idx + 1)) << 32);
       if (target == 0) {
         active->halt();
+        delete inst;
         return;
       }
     }
@@ -809,8 +810,10 @@ void ComputeUnitCore::issue_instruction(Wavefront *active) {
   // below; the immediate-halt case does not. onAmdgpuWavefrontHalted is the
   // authoritative terminal hook and fires in both cases — consumers should observe
   // termination there, not via the after-execute hook.
-  if (active->is_halted())
+  if (active->is_halted()) {
+    delete inst;
     return;
+  }
 
   plugin_group_->onAmdgpuAfterExecuteInstruction(active->pc, *inst, *active);
 
@@ -933,9 +936,9 @@ void ComputeUnitCore::issue_instruction(Wavefront *active) {
       auto *d = inst->data_as<VectorMemState>();
       d->issue_pc = active->pc;
     }
-    route_memory_inst(inst.get(), *active);
-    inst.release();
-  }
+    route_memory_inst(inst, *active);
+  } else
+    delete inst;
 
   active->pc += inst_size;
 
