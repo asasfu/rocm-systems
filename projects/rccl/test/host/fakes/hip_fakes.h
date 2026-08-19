@@ -70,8 +70,7 @@ extern std::function<hipError_t(void* /*data*/,
 //
 // Defaults return hipErrorInvalidValue (and zero out-params) so any call site
 // a test doesn't explicitly opt into surfaces the unexpected call loudly,
-// matching the plain fail-loud stubs these seams replaced. The p2p micro-test
-// is therefore unaffected unless it installs a profile.
+// matching the plain fail-loud stubs these seams replaced.
 extern std::function<hipError_t(void** /*ptr*/, std::size_t /*size*/,
                                 std::size_t /*alignment*/, void* /*addr*/,
                                 unsigned long long /*flags*/)>

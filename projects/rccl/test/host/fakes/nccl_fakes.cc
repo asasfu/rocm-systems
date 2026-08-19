@@ -78,21 +78,6 @@ void ncclDebugLog(ncclDebugLogLevel /*level*/,
     std::fputc('\n', stderr);
 }
 
-int64_t ncclLoadParam(char const* /*env*/,
-                      int64_t     deftVal,
-                      int64_t     /*uninitialized*/,
-                      int64_t*    cache,
-                      int8_t*     noCache)
-{
-    // Populate cache/noCache with the default so real callers (e.g.
-    // dev_runtime.cc, which invokes ncclLoadParam directly) see the
-    // compile-time default. The NCCL_PARAM bodies that p2p-test.cc
-    // redirects through g_loadParam bypass this entirely.
-    if (cache)   *cache   = deftVal;
-    if (noCache) *noCache = 0;
-    return deftVal;
-}
-
 // Default returns deftVal verbatim -- preserves the pre-hook contract that
 // every param sits at its compile-time default.
 static int64_t DefaultLoadParam(const char* /*env*/, int64_t deftVal)
@@ -101,6 +86,20 @@ static int64_t DefaultLoadParam(const char* /*env*/, int64_t deftVal)
 }
 
 std::function<int64_t(const char*, int64_t)> g_loadParam = DefaultLoadParam;
+
+int64_t ncclLoadParam(char const* env,
+                      int64_t     deftVal,
+                      int64_t     /*uninitialized*/,
+                      int64_t*    cache,
+                      int8_t*     noCache)
+{
+    // Route through the controllable seam so tests can override per-env
+    // values; populate cache/noCache with the resolved value.
+    int64_t const val = g_loadParam(env, deftVal);
+    if (cache)   *cache   = val;
+    if (noCache) *noCache = 0;
+    return val;
+}
 
 // ---------------------------------------------------------------------------
 // Seams worth controlling from tests (return failure by default)
@@ -383,11 +382,6 @@ int64_t ncclParamMultiSegmentRegister() { return 0; }
 
 // ---------------------------------------------------------------------------
 // Generic bootstrap / arg-check / registration / group stubs.
-//
-// Not p2p-specific: any host-only micro-test that #includes a production TU
-// referencing these `nccl*`/`bootstrap*` symbols links them from here rather
-// than redefining its own no-op copies. All are inert success stubs -- no
-// microtest drives a real bootstrap exchange or comm registration.
 // ---------------------------------------------------------------------------
 
 // Error string. (ncclGetErrorString is the public NCCL accessor.)
@@ -415,9 +409,8 @@ ncclResult_t ncclGroupEndInternal(ncclSimInfo_t*) { return ncclSuccess; }
 
 // Thread-local group globals. These pair with ncclGroupStart/EndInternal above
 // and are referenced by production TUs (e.g. dev_runtime.cc) that any host-only
-// micro-test #includes whole. Definitions live here so individual targets need
-// not re-declare them. Not p2p-specific, but harmless to any binary that links
-// nccl_fakes.cc without referencing them (unused symbols).
+// test #includes whole. Definitions live here so individual targets need
+// not re-declare them.
 thread_local int              ncclGroupDepth = 0;
 thread_local ncclResult_t     ncclGroupError = ncclSuccess;
 thread_local struct ncclComm* ncclGroupCommHead[ncclGroupTaskTypeNum] = {};
