@@ -796,7 +796,12 @@ void ComputeUnitCore::issue_instruction(Wavefront *active) {
   // transition rather than a per-ISA mnemonic list. See its use.
   const bool was_in_trap_handler = active->in_trap_handler();
 
-  execute_instruction(inst, *active);
+  try {
+    execute_instruction(inst, *active);
+  } catch (...) {
+    delete inst;
+    throw;
+  }
 
   // A terminating instruction (s_endpgm with no pending waits) halts the wave
   // inside execute_instruction, which frees and resets its slot. Its registers,
