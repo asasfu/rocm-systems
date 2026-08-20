@@ -249,6 +249,11 @@ static ncclResult_t ncclGdrCudaCopy(void *gdrHandle, T* dst, T* src, size_t nele
   return ncclSuccess;
 }
 
+static ncclResult_t ncclGdrCudaRead(void* gdrHandle, void* dst, const void* src, size_t size) {
+  memcpy(dst, src, size);
+  return ncclSuccess;
+}
+
 static ncclResult_t ncclGdrCudaFree(void* gdrHandle, struct ncclMemManager* manager) {
   gdr_mem_desc_t *md = (gdr_mem_desc_t*)gdrHandle;
   NCCLCHECK(ncclCudaFree(md->gdrDevMem, manager));
