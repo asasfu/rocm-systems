@@ -9,8 +9,10 @@ add_library(
     test_environment.cpp
     test_join.cpp
     test_path.cpp
+    test_pci_bdf.cpp
     test_remove_env.cpp
     test_units_typed.cpp
+    test_synchronized.cpp
     test_to_bool.cpp
     test_update_env.cpp
 )
