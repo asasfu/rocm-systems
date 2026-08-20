@@ -12,8 +12,8 @@ function(ROCPD_CONFIGURE_ROCPD_SCHEMA_FILES SCHEMA_DIR SCHEMA_BINARY_DIR)
         "rocpd_tables.sql"
         "rocpd_views.sql"
         "data_views.sql"
-        "marker_views.sql"
         "summary_views.sql"
+        "rocpd_metadata.sql"
     )
 
     foreach(SCHEMA_FILE ${SCHEMA_FILES})
@@ -52,53 +52,5 @@ function(ROCPD_CONFIGURE_ROCPD_SCHEMA_FILES SCHEMA_DIR SCHEMA_BINARY_DIR)
     )
 endfunction()
 
-set(USE_SCHEMA_FROM_ROCPROFILER_SDK_ROCPD
-    OFF
-    CACHE BOOL
-    "Use schema from rocprofiler-sdk-rocpd library"
-    FORCE
-)
-
-find_package(rocprofiler-sdk-rocpd QUIET)
-
-if(rocprofiler-sdk-rocpd_FOUND)
-    set(ROCPD_HAS_SQL_H FALSE)
-
-    if(rocprofiler-sdk-rocpd_INCLUDE_DIR)
-        set(_INCLUDE_PATH
-            "${rocprofiler-sdk-rocpd_INCLUDE_DIR}/rocprofiler-sdk-rocpd"
-        )
-        message(STATUS "${_INCLUDE_PATH}/sql.h")
-        if(EXISTS "${_INCLUDE_PATH}/sql.h")
-            set(ROCPD_HAS_SQL_H TRUE)
-        endif()
-    endif()
-
-    if(ROCPD_HAS_SQL_H)
-        set(USE_SCHEMA_FROM_ROCPROFILER_SDK_ROCPD
-            ON
-            CACHE BOOL
-            "Use schema from rocprofiler-sdk-rocpd library"
-            FORCE
-        )
-
-        message(
-            STATUS
-            "[profiler-hub] rocprofiler-sdk-rocpd found with sql.h - using latest schema files"
-        )
-    else()
-        message(
-            STATUS
-            "[profiler-hub] rocprofiler-sdk-rocpd found but sql.h missing - using local schema files"
-        )
-    endif()
-else()
-    message(
-        STATUS
-        "[profiler-hub] rocprofiler-sdk-rocpd not found - using local schema files"
-    )
-endif()
-
-if(NOT USE_SCHEMA_FROM_ROCPROFILER_SDK_ROCPD)
-    rocpd_configure_rocpd_schema_files(${SQL_SCHEMA_DIR} ${SQL_SCHEMA_BINARY_DIR})
-endif()
+#use schema from saved sql files
+rocpd_configure_rocpd_schema_files(${SQL_SCHEMA_DIR} ${SQL_SCHEMA_BINARY_DIR})
