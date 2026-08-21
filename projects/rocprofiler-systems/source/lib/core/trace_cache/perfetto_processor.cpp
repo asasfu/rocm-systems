@@ -990,11 +990,11 @@ perfetto_processor_t::handle(const cpu_pmc_sample& _cpu_sample)
         }
         if(_em.bits.peak_rss)
         {
-            const auto peek_rss_b =
+            const auto peak_rss_b =
                 bytes{ static_cast<double>(_cpu_sample.process_data.peak_rss) };
             TRACE_COUNTER(trait::name<category::process_peak>::value,
                           process_peak_track::at(0, 0), _ts,
-                          data_size_cast<megabytes>(peek_rss_b).count());
+                          data_size_cast<megabytes>(peak_rss_b).count());
         }
 
         if(_em.bits.ctx_switches)
@@ -1012,11 +1012,10 @@ perfetto_processor_t::handle(const cpu_pmc_sample& _cpu_sample)
             const auto user_mode_time_ns =
                 std::chrono::nanoseconds{ _cpu_sample.process_data.user_mode_time };
             const auto user_mode_time_s =
-                duration_cast<std::chrono::seconds>(user_mode_time_ns);
+                std::chrono::duration<double>{ user_mode_time_ns };
 
             TRACE_COUNTER(trait::name<category::process_user_mode_time>::value,
-                          process_user_track::at(0, 0), _ts,
-                          static_cast<double>(user_mode_time_s.count()));
+                          process_user_track::at(0, 0), _ts, user_mode_time_s.count());
         }
 
         if(_em.bits.kernel_time)
@@ -1024,11 +1023,10 @@ perfetto_processor_t::handle(const cpu_pmc_sample& _cpu_sample)
             const auto kernel_mode_time_ns =
                 std::chrono::nanoseconds{ _cpu_sample.process_data.kernel_mode_time };
             const auto kernel_mode_time_s =
-                duration_cast<std::chrono::seconds>(kernel_mode_time_ns);
+                std::chrono::duration<double>{ kernel_mode_time_ns };
 
             TRACE_COUNTER(trait::name<category::process_kernel_mode_time>::value,
-                          process_kern_track::at(0, 0), _ts,
-                          static_cast<double>(kernel_mode_time_s.count()));
+                          process_kern_track::at(0, 0), _ts, kernel_mode_time_s.count());
         }
     }
 

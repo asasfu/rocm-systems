@@ -78,8 +78,8 @@ ensure_ci_timeout_backtrace(double             _ci_timeout_seconds,
     while(_ci_timeout_seconds <= _factor)
         _factor /= 1.25;
 
-    std::uint64_t _ci_timeout_nitr = 0;
-    std::int64_t  _ci_timeout_nanosec =
+    std::uint64_t      _ci_timeout_nitr = 0;
+    const std::int64_t _ci_timeout_nanosec =
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::duration<double>{ _ci_timeout_seconds - _factor })
             .count();

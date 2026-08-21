@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "library/perf.hpp"
+#include "common/units/chrono.hpp"
 #include "core/locking.hpp"
 #include "core/state.hpp"
 #include "core/timemory.hpp"
@@ -189,11 +190,9 @@ perf_event::open(struct perf_event_attr& _pe, pid_t _pid, int _cpu)
 std::optional<std::string>
 perf_event::open(double _freq, std::uint32_t _batch_size, pid_t _pid, int _cpu)
 {
-    auto          _thread_state_guard = state::thread::scoped(state::thread::Internal);
-    std::uint64_t _period =
-        static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                       std::chrono::duration<double>{ 1.0 / _freq })
-                                       .count());
+    auto _thread_state_guard    = state::thread::scoped(state::thread::Internal);
+    const std::uint64_t _period = static_cast<std::uint64_t>(
+        rocprofsys::common::units::seconds_to_duration(1.0 / _freq).count());
     struct perf_event_attr _pe;
 
     if(_batch_size > 0)

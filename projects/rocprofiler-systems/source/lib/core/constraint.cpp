@@ -3,6 +3,7 @@
 
 #include "constraint.hpp"
 #include "common/env_vars.hpp"
+#include "common/units/chrono.hpp"
 #include "config.hpp"
 #include "state.hpp"
 #include "utility.hpp"
@@ -121,9 +122,8 @@ get_clock_now(clockid_t clock_id) noexcept
 stages::stages()
 : init{ [](const spec&) { return state::process::get() < state::process::Finalized; } }
 , wait{ [](const spec& _spec) {
-    const auto spec_delay_s = std::chrono::duration<double>{ _spec.delay };
-    const auto spec_delay_ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(spec_delay_s);
+    const auto spec_delay_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        rocprofsys::common::units::seconds_to_duration(_spec.delay));
     const auto min_sleep_delay = 100ms;
 
     std::this_thread::sleep_for(std::min(min_sleep_delay, spec_delay_ms));
@@ -131,12 +131,11 @@ stages::stages()
 } }
 , start{ [](const spec&) { return state::process::get() < state::process::Finalized; } }
 , collect{ [](const spec& _spec) {
-    const auto spec_duraton_s = std::chrono::duration<double>{ _spec.duration };
-    const auto spec_duraton_ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(spec_duraton_s);
+    const auto spec_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        rocprofsys::common::units::seconds_to_duration(_spec.duration));
     const auto min_sleep_duration = 100ms;
 
-    std::this_thread::sleep_for(std::min(min_sleep_duration, spec_duraton_ms));
+    std::this_thread::sleep_for(std::min(min_sleep_duration, spec_duration_ms));
     return state::process::get() < state::process::Finalized;
 } }
 , stop{ [](const spec&) { return state::process::get() < state::process::Finalized; } }
@@ -256,9 +255,7 @@ spec::operator()(const stages& _stages) const
         auto _wait = [_spec](const auto& _func, auto _dur) {
             auto _ret = true;
             auto _now = get_clock_now(_spec.clock_id.value);
-            auto _del = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                            std::chrono::duration<double>{ _dur })
-                            .count();
+            auto _del = rocprofsys::common::units::seconds_to_duration(_dur).count();
             auto _end = _now + _del;
             while(get_clock_now(_spec.clock_id.value) < _end && (_ret = _func(_spec)))
             {
@@ -340,9 +337,8 @@ get_trace_stages()
         return state::process::get() < state::process::Finalized;
     };
     _v.wait = [](const spec& _spec) {
-        const auto spec_delay_s = std::chrono::duration<double>{ _spec.delay };
-        const auto spec_delay_ms =
-            std::chrono::duration_cast<std::chrono::milliseconds>(spec_delay_s);
+        const auto spec_delay_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            rocprofsys::common::units::seconds_to_duration(_spec.delay));
         const auto min_sleep_delay = 100ms;
 
         std::this_thread::sleep_for(std::min(min_sleep_delay, spec_delay_ms));
@@ -352,12 +348,12 @@ get_trace_stages()
         return state::process::get() < state::process::Finalized;
     };
     _v.collect = [](const spec& _spec) {
-        const auto spec_duraton_s = std::chrono::duration<double>{ _spec.duration };
-        const auto spec_duraton_ms =
-            std::chrono::duration_cast<std::chrono::milliseconds>(spec_duraton_s);
+        const auto spec_duration_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                rocprofsys::common::units::seconds_to_duration(_spec.duration));
         const auto min_sleep_duration = 100ms;
 
-        std::this_thread::sleep_for(std::min(min_sleep_duration, spec_duraton_ms));
+        std::this_thread::sleep_for(std::min(min_sleep_duration, spec_duration_ms));
         return state::process::get() < state::process::Finalized;
     };
     _v.stop = [](const spec&) {
