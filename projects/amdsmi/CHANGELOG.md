@@ -14,6 +14,11 @@ Full documentation for amd_smi_lib is available at [https://rocm.docs.amd.com/pr
 
 ### Resolved Issues
 
+- **Fixed out-of-bounds reads and writes when parsing malformed CPER records**.  
+  - A record whose `record_length` is smaller than a CPER header is now dropped by the ring reader. Such a record was previously copied and then had a product serial number written past the end of the caller's buffer.
+  - `amdsmi_get_afids_from_cper` now returns `AMDSMI_STATUS_UNEXPECTED_SIZE` when `buf_size` is smaller than a CPER header, instead of reading header fields the caller never supplied.
+  - A non-standard error section whose `reg_arr_size` exceeds the fixed 128-byte register dump is now rejected and logged. Such a section previously yielded no AFID, so decoded output is unchanged for records that already decoded.
+
 - **Fixed `amd-smi set -L/--clk-limit <clk> max <value>` not enforcing caps that fall between clock levels**.  
   - For `mclk` and `fclk` ONLY, which expose a discrete DPM table, the requested `max` is now rounded down to the nearest selectable clock level, so the enforced limit never exceeds the requested value.
   - `sclk` supports a continuous frequency range, so its requested `max` is honored exactly (e.g. `600` enforces a limit of 600MHz) and is not snapped.

@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <memory>
@@ -31,6 +32,7 @@
 
 extern "C" {
 #include "ras-decode/aca_decode.h"
+#include "ras-decode/ras_decode_constants.h"
 }
 #include "amd_smi/impl/amd_smi_cper.h"
 #include "amd_smi/impl/amd_smi_cper_testing.h"
@@ -48,6 +50,29 @@ constexpr off_t kMaxCperBufferSize = 64 * 1024 * 1024;  // 64 MiB
 // Not thread-safe: only the single-threaded tests mutate it (via
 // cper_set_read_fn_for_testing); production never writes it.
 ssize_t (*g_cper_read_fn)(int, void*, size_t) = ::read;
+
+// Bounds-checked view over one raw CPER record: every structural offset in a
+// record (sec_cnt, sec_offset, ...) is untrusted, so each typed access is gated.
+class CperReader_t {
+ public:
+  CperReader_t(const void* base, size_t size)
+      : base_(static_cast<const char*>(base)), size_(size) {}
+
+  // Overflow-safe: (offset + n) is never formed.
+  bool is_buffer_fit(size_t offset, size_t needed_size) const {
+    return ((offset <= size_) && (needed_size <= (size_ - offset)));
+  }
+
+  template <typename Tp>
+  const Tp* at(size_t offset) const {
+    return is_buffer_fit(offset, sizeof(Tp)) ? reinterpret_cast<const Tp*>(base_ + offset)
+                                             : nullptr;
+  }
+
+ private:
+  const char* base_;
+  size_t size_;
+};
 
 static std::vector<const amdsmi_cper_hdr_t*> amdsmi_get_gpu_cper_headers(const char* buffer,
                                                                          size_t buffer_sz) {
@@ -76,9 +101,12 @@ static std::vector<const amdsmi_cper_hdr_t*> amdsmi_get_gpu_cper_headers(const c
     if (hdr->signature_end != 0xFFFFFFFF) {
       continue;
     }
-    // The record must fit from its start offset, not merely within buffer_sz
-    // overall, or the later memcpy of record_length bytes would read past the end.
-    if (hdr->record_length > buffer_sz - data_idx) {
+    // The record must hold a full header and fit from its start offset, not merely
+    // within buffer_sz overall. A short record leaves inject_product_serial_number
+    // reading record_length and sec_cnt from bytes the memcpy never wrote, and an
+    // overlong one would memcpy past the end.
+    if ((hdr->record_length < sizeof(amdsmi_cper_hdr_t)) ||
+        (hdr->record_length > buffer_sz - data_idx)) {
       continue;
     }
     ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[CPER] add header at data_idx: " << data_idx
@@ -234,26 +262,8 @@ static const amdsmi_cper_guid_t* get_cper_type(const amdsmi_cper_hdr_t* hdr) {
   return &hdr->notify_type;
 }
 
-static void* cper_get_sec_desc_offset(const amdsmi_cper_hdr_t* hdr, int idx) {
-  char* offset;
-
-  if (idx >= hdr->sec_cnt) return 0;
-
-  offset = (char*)hdr + sizeof(amdsmi_cper_hdr_t);
-  offset += sizeof(struct cper_sec_desc) * idx;
-
-  return offset;
-}
-
-static void* cper_get_sec_offset(const amdsmi_cper_hdr_t* hdr, int idx) {
-  struct cper_sec_desc* tmp_desc;
-
-  if (idx >= hdr->sec_cnt) return 0;
-
-  tmp_desc = reinterpret_cast<struct cper_sec_desc*>((char*)hdr + sizeof(amdsmi_cper_hdr_t) +
-                                                     sizeof(struct cper_sec_desc) * idx);
-
-  return (char*)hdr + tmp_desc->sec_offset;
+static size_t cper_sec_desc_offset(int idx) {
+  return (sizeof(amdsmi_cper_hdr_t) + (sizeof(struct cper_sec_desc) * static_cast<size_t>(idx)));
 }
 
 static int cper_dump_sec_desc(const struct cper_sec_desc* desc) {
@@ -293,10 +303,21 @@ static int aca_decode_fatal(const cper_sec_crashdump_data& data, uint32_t flag,
                      hw_revision, register_context_type);
 }
 
-static int aca_decode_corrected_error(const uint32_t* reg_dump, size_t num_bytes, uint32_t flag,
+// num_regs counts uint64_t registers, matching decode_afid's array_len. Callers
+// must reject a count above the array capacity before calling.
+static int aca_decode_corrected_error(const uint32_t* reg_dump, size_t num_regs, uint32_t flag,
                                       uint16_t hw_revision, uint16_t register_context_type) {
-  const uint64_t* register_array = reinterpret_cast<const uint64_t*>(reg_dump);
-  return decode_afid(register_array, num_bytes, flag, hw_revision, register_context_type);
+  // reg_dump is a uint32_t array inside a packed struct, reached at a section
+  // offset the record supplies, so its address carries no alignment guarantee.
+  // decode_afid reads those same bytes as uint64_t. Pointing a uint64_t* at
+  // reg_dump made every one of those loads unaligned: tolerated on x86-64,
+  // undefined behavior in the language, and a trap on targets that enforce
+  // alignment. Copying into a local the compiler has aligned costs 128 bytes of
+  // stack, makes the loads well-defined wherever the section landed, and lets
+  // this parser run clean under -fsanitize=alignment.
+  uint64_t register_array[RAS_DECODE_REGISTER_ARRAY_SIZE_128_BYTES];
+  std::memcpy(register_array, reg_dump, num_regs * sizeof(register_array[0]));
+  return decode_afid(register_array, num_regs, flag, hw_revision, register_context_type);
 }
 
 static int cper_dump_nonstd_err(const struct cper_sec_nonstd_err* nonstd_err,
@@ -335,9 +356,26 @@ exit:
 
   if (!body) return -1;
 
-  return aca_decode_corrected_error(
-      body->err_ctx.reg_dump, body->err_ctx.reg_arr_size / sizeof(uint64_t), section->flags_mask,
-      section->revision_major, body->err_ctx.reg_ctx_type);
+  // reg_arr_size is untrusted and reg_dump is fixed-size (declared uint32_t[] but
+  // consumed as uint64_t), so a larger claim describes registers the record does
+  // not carry. Reject rather than decode a truncated view of it: clamping would
+  // turn a malformed record into an AFID it never earned.
+  constexpr size_t reg_dump_bytes = sizeof(body->err_ctx.reg_dump);
+  constexpr size_t max_regs = (reg_dump_bytes / sizeof(uint64_t));
+  static_assert(max_regs == static_cast<size_t>(RAS_DECODE_REGISTER_ARRAY_SIZE_128_BYTES),
+                "Bound must stay at the largest array length decode_error_info accepts, "
+                "otherwise a full register dump is rejected instead of decoded");
+  const size_t num_regs = (body->err_ctx.reg_arr_size / sizeof(uint64_t));
+  if (num_regs > max_regs) {
+    ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[AFIDS] reg_arr_size " << std::dec
+       << body->err_ctx.reg_arr_size << " exceeds the " << reg_dump_bytes
+       << "-byte reg_dump capacity; rejecting section\n";
+    LOG_ERROR(ss);
+    return -1;
+  }
+
+  return aca_decode_corrected_error(body->err_ctx.reg_dump, num_regs, section->flags_mask,
+                                    section->revision_major, body->err_ctx.reg_ctx_type);
 }
 
 static int cper_dump_cr_fatal(const struct cper_sec_crashdump* crashdump,
@@ -388,11 +426,19 @@ static int cper_dump_cr_boot(const struct cper_sec_crashdump* crashdump,
 }
 
 static void inject_product_serial_number(amdsmi_cper_hdr_t* cper, uint64_t product_serial) {
+  // record_length was validated to fit the copied record; stop once sec_cnt walks
+  // a descriptor past it rather than writing out of bounds.
+  const size_t bound = cper->record_length;
+  const std::string serial = std::to_string(product_serial);
   for (int i = 0; i < cper_num_sec(cper); i++) {
-    void* sec_desc_offset = cper_get_sec_desc_offset(cper, i);
-    struct cper_sec_desc* sec_desc = static_cast<struct cper_sec_desc*>(sec_desc_offset);
-    strncpy(sec_desc->fru_id, std::to_string(product_serial).c_str(), sizeof(sec_desc->fru_id) - 1);
-    sec_desc->fru_id[sizeof(sec_desc->fru_id) - 1] = '\0';
+    const size_t offset = cper_sec_desc_offset(i);
+    if ((offset > bound) || (sizeof(struct cper_sec_desc) > (bound - offset))) {
+      break;
+    }
+    auto* sec_desc =
+        reinterpret_cast<struct cper_sec_desc*>(reinterpret_cast<char*>(cper) + offset);
+    strncpy(sec_desc->fru_id, serial.c_str(), (sizeof(sec_desc->fru_id) - 1));
+    sec_desc->fru_id[(sizeof(sec_desc->fru_id) - 1)] = '\0';
   }
 }
 
@@ -546,24 +592,45 @@ amdsmi_status_t amdsmi_get_gpu_cper_entries_by_path(const char* amdgpu_ring_cper
   return AMDSMI_STATUS_SUCCESS;
 }
 
-std::vector<int> cper_decode(const amdsmi_cper_hdr_t* cper) {
+std::vector<int> cper_decode(const amdsmi_cper_hdr_t* cper, size_t buf_size) {
   std::vector<int> afids;
   std::ostringstream ss;
 
-  for (int i = 0; i < cper_num_sec(cper); i++) {
-    void* sec_desc_offset = cper_get_sec_desc_offset(cper, i);
-    void* sec_offset = cper_get_sec_offset(cper, i);
-    const amdsmi_cper_guid_t* sec_guid =
-        get_sec_desc_type(static_cast<struct cper_sec_desc*>(sec_desc_offset));
-    const amdsmi_cper_guid_t* cper_guid = get_cper_type(cper);
+  // This declaration ships in the dev package, so the buf_size guard cannot live
+  // only in amdsmi_get_afids_from_cper: record_length and notify_type below are
+  // header fields an external caller may not have supplied.
+  if (buf_size < sizeof(amdsmi_cper_hdr_t)) {
+    ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[AFIDS] cper buffer size: " << std::dec
+       << buf_size << " is smaller than the cper header: (" << sizeof(amdsmi_cper_hdr_t) << ")\n";
+    LOG_ERROR(ss);
+    return afids;
+  }
 
-    cper_sec_desc* section = static_cast<struct cper_sec_desc*>(sec_desc_offset);
+  // record_length is untrusted; bound the view by the smaller of it and the
+  // caller's buffer.
+  const CperReader_t rec(cper, std::min<size_t>(cper->record_length, buf_size));
+  const amdsmi_cper_guid_t* cper_guid = get_cper_type(cper);
+
+  for (int i = 0; i < cper_num_sec(cper); i++) {
+    const struct cper_sec_desc* section = rec.at<struct cper_sec_desc>(cper_sec_desc_offset(i));
+    if (!section) {
+      ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[AFIDS] section descriptor: " << i
+         << " runs past the record; stopping\n";
+      LOG_ERROR(ss);
+      break;
+    }
+    const amdsmi_cper_guid_t* sec_guid = get_sec_desc_type(section);
     cper_dump_sec_desc(section);
 
     int afid = -1;
     if (cper_is_cr(sec_guid)) {
-      struct cper_sec_crashdump* crashdump = static_cast<struct cper_sec_crashdump*>(sec_offset);
-      if (cper_is_bt(cper_guid)) {
+      const struct cper_sec_crashdump* crashdump =
+          rec.at<struct cper_sec_crashdump>(section->sec_offset);
+      if (!crashdump) {
+        ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[AFIDS] crash dump section: " << i
+           << " out of bounds; skipping\n";
+        LOG_ERROR(ss);
+      } else if (cper_is_bt(cper_guid)) {
         ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[AFIDS] decoding boot crash dump\n";
         LOG_DEBUG(ss);
         afid = cper_dump_cr_boot(crashdump, section);
@@ -572,23 +639,30 @@ std::vector<int> cper_decode(const amdsmi_cper_hdr_t* cper) {
         LOG_DEBUG(ss);
         afid = cper_dump_cr_fatal(crashdump, section);
       }
-    } else if (cper_is_nonstd(sec_guid)) {
-      struct cper_sec_nonstd_err* crashdump = static_cast<struct cper_sec_nonstd_err*>(sec_offset);
-      ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[AFIDS] decoding non-standard error\n";
-      LOG_DEBUG(ss);
-      afid = cper_dump_nonstd_err(crashdump, section);
-    } else if (cper_is_proc_err(sec_guid)) {
-      struct cper_sec_nonstd_err* crashdump = static_cast<struct cper_sec_nonstd_err*>(sec_offset);
-      ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__
-         << "[AFIDS] decoding proc error section type\n";
-      LOG_DEBUG(ss);
-      afid = cper_dump_nonstd_err(crashdump, section);
+    } else if (cper_is_nonstd(sec_guid) || cper_is_proc_err(sec_guid)) {
+      // cper_dump_nonstd_err reads the hdr plus one body immediately after it. The
+      // body lives in a flexible array member, so it is outside sizeof() and only
+      // this explicit extent covers it; at<> below cannot re-check it.
+      const size_t need =
+          (sizeof(struct cper_sec_nonstd_err_hdr) + sizeof(struct cper_sec_nonstd_err_body));
+      if (!rec.is_buffer_fit(section->sec_offset, need)) {
+        ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[AFIDS] non-standard section: " << i
+           << " out of bounds; skipping\n";
+        LOG_ERROR(ss);
+      } else {
+        ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[AFIDS] decoding non-standard error\n";
+        LOG_DEBUG(ss);
+        afid =
+            cper_dump_nonstd_err(rec.at<struct cper_sec_nonstd_err>(section->sec_offset), section);
+      }
     } else {
       ss << __PRETTY_FUNCTION__ << "\n:" << __LINE__ << "[AFIDS] Unknown error type!!\n";
       for (size_t j = 0; j < sizeof(sec_guid->b); ++j) {
         ss << std::hex << static_cast<int>(sec_guid->b[j]) << ":";
       }
-      ss << "\n";
+      // LOG_ERROR clears the stream contents but not its format flags, so the hex
+      // above would follow this record into every later line of the decode loop.
+      ss << std::dec << "\n";
       LOG_ERROR(ss);
     }
     if (afid != -1) {
