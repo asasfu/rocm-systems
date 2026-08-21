@@ -3,9 +3,10 @@
 
 #pragma once
 
-// Opt-in header: include only in translation units that use fmt formatting.
-// WARNING: do NOT also include <fmt/chrono.h> in the same TU — it defines its
-// own formatter for std::chrono::duration and the two will collide.
+// Included by logger/debug.hpp, so every LOG_* call site gets these
+// formatters for free. WARNING: do NOT also include <fmt/chrono.h> in a TU
+// that (transitively) includes logger/debug.hpp — it defines its own
+// formatter for std::chrono::duration and the two will collide.
 #ifdef FMT_CHRONO_H_
 #    error                                                                               \
         "Do not include <fmt/chrono.h> and units/format.hpp in the same translation unit - both define fmt::formatter<std::chrono::duration>."
