@@ -32,8 +32,6 @@
 #include <execinfo.h>
 #include <type_traits>
 
-using namespace std::chrono_literals;
-
 namespace rocprofsys::causal::component
 {
 namespace
@@ -203,15 +201,6 @@ backtrace::sample(int _sig)
     }
 
     ++_protect_flag;
-}
-
-template <typename U, typename Tp>
-Tp
-backtrace::get_period()
-{
-    using casting_type = std::chrono::duration<Tp, typename U::period>;
-    // fixed causal sampling period: 1 millisecond
-    return std::chrono::duration_cast<casting_type>(1ms).count();
 }
 
 }  // namespace rocprofsys::causal::component
