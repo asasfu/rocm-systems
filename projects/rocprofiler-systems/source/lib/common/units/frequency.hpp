@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "common/units/quantity.hpp"
+
 namespace rocprofsys::inline common::units
 {
 
@@ -25,35 +27,13 @@ namespace rocprofsys::inline common::units
  * @tparam Period std::ratio giving this unit's size in hertz.
  */
 template <typename Rep, typename Period = std::ratio<1>>
-class frequency
+class frequency : public detail::quantity<Rep, Period>
 {
 public:
     using rep    = Rep;
     using period = Period;
 
-    constexpr frequency() = default;
-
-    /**
-     * Converting from `long`/`long long` (signed or unsigned) must be explicit
-     * at the call site: those types can hold values a @p Rep like `double`
-     * can't represent exactly, so silently narrowing them here would lose
-     * precision. Other implicit conversions (e.g. `int`) are still allowed.
-     */
-    template <typename U>
-        requires std::convertible_to<const U&, Rep> &&
-                 (!std::same_as<std::remove_cvref_t<U>, long>) &&
-                 (!std::same_as<std::remove_cvref_t<U>, unsigned long>) &&
-                 (!std::same_as<std::remove_cvref_t<U>, long long>) &&
-                 (!std::same_as<std::remove_cvref_t<U>, unsigned long long>)
-    constexpr explicit frequency(U&& value) noexcept
-    : m_count{ static_cast<Rep>(std::forward<U>(value)) }
-    {}
-
-    /** @return the raw count in units of @p Period (3 for `3_khz`). */
-    [[nodiscard]] constexpr Rep count() const noexcept { return m_count; }
-
-private:
-    Rep m_count{};
+    using detail::quantity<Rep, Period>::quantity;
 };
 
 using hertz     = frequency<double, std::ratio<1>>;
@@ -123,13 +103,10 @@ template <frequency_like To, frequency_like From>
 [[nodiscard]] constexpr To
 frequency_cast(const From& from) noexcept
 {
-    using from_t     = std::remove_cvref_t<From>;
-    using factor     = std::ratio_divide<typename from_t::period, typename To::period>;
-    using rep        = typename To::rep;
-    using calc       = std::common_type_t<rep, typename from_t::rep, std::intmax_t>;
-    const auto count = static_cast<calc>(from.count()) * static_cast<calc>(factor::num) /
-                       static_cast<calc>(factor::den);
-    return To{ static_cast<rep>(count) };
+    using from_t = std::remove_cvref_t<From>;
+    return To{ detail::quantity_cast_count<typename To::rep, typename To::period,
+                                           typename from_t::rep, typename from_t::period>(
+        from.count()) };
 }
 
 /**

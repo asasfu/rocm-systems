@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "common/units/quantity.hpp"
+
 namespace rocprofsys::inline common::units
 {
 
@@ -29,32 +31,13 @@ namespace rocprofsys::inline common::units
  * @tparam Scale std::ratio giving this unit's size in bytes.
  */
 template <typename Rep, typename Scale = std::ratio<1>>
-class data_size
+class data_size : public detail::quantity<Rep, Scale>
 {
 public:
     using rep   = Rep;
     using scale = Scale;
 
-    constexpr data_size() = default;
-
-    /**
-     * Converting from `long`/`long long` (signed or unsigned) must be explicit
-     * at the call site: those types can hold values a @p Rep like `double`
-     * can't represent exactly, so silently narrowing them here would lose
-     * precision. Other implicit conversions (e.g. `int`) are still allowed.
-     */
-    template <typename U>
-        requires std::convertible_to<const U&, Rep> &&
-                 (!std::same_as<std::remove_cvref_t<U>, long>) &&
-                 (!std::same_as<std::remove_cvref_t<U>, unsigned long>) &&
-                 (!std::same_as<std::remove_cvref_t<U>, long long>) &&
-                 (!std::same_as<std::remove_cvref_t<U>, unsigned long long>)
-    constexpr explicit data_size(U&& value) noexcept
-    : m_count{ static_cast<Rep>(std::forward<U>(value)) }
-    {}
-
-    /** @return the raw count in units of @p Scale (3 for `3_kb`). */
-    [[nodiscard]] constexpr Rep count() const noexcept { return m_count; }
+    using detail::quantity<Rep, Scale>::quantity;
 
     /**
      * This size as a raw count of bytes (35840 for `35_kb`).
@@ -73,13 +56,10 @@ public:
     [[nodiscard]] constexpr Rep to_bytes() const noexcept
     {
         using calc = std::common_type_t<Rep, std::intmax_t>;
-        return static_cast<Rep>(static_cast<calc>(m_count) *
+        return static_cast<Rep>(static_cast<calc>(this->count()) *
                                 static_cast<calc>(Scale::num) /
                                 static_cast<calc>(Scale::den));
     }
-
-private:
-    Rep m_count{};
 };
 
 namespace detail
@@ -195,13 +175,10 @@ template <data_size_like To, data_size_like From>
 [[nodiscard]] constexpr To
 data_size_cast(const From& from) noexcept
 {
-    using from_t     = std::remove_cvref_t<From>;
-    using factor     = std::ratio_divide<typename from_t::scale, typename To::scale>;
-    using rep        = typename To::rep;
-    using calc       = std::common_type_t<rep, typename from_t::rep, std::intmax_t>;
-    const auto count = static_cast<calc>(from.count()) * static_cast<calc>(factor::num) /
-                       static_cast<calc>(factor::den);
-    return To{ static_cast<rep>(count) };
+    using from_t = std::remove_cvref_t<From>;
+    return To{ detail::quantity_cast_count<typename To::rep, typename To::scale,
+                                           typename from_t::rep, typename from_t::scale>(
+        from.count()) };
 }
 
 /**

@@ -24,15 +24,17 @@
 #include "common/units/frequency.hpp"
 #include "common/units/power.hpp"
 
-// ---------------------------------------------------------------------------
-// fmt::formatter<rocprofsys::common::units::frequency<Rep, Period>>
-//
-// Default:   fmt::format("{}", 2_mhz)         -> "2 MHz"
-// Autoscale: fmt::format("{:~}", 50000000_hz) -> "50 MHz"
-//            Composes with specs: "{:~.2f}"   -> "1.50 kHz"
-// ---------------------------------------------------------------------------
-template <typename Rep, typename Period>
-struct fmt::formatter<rocprofsys::common::units::frequency<Rep, Period>>
+namespace rocprofsys::inline common::units::detail
+{
+
+/**
+ * Shared parse() for the fmt::formatter specializations below: recognises a
+ * leading `~` as the autoscale flag, then delegates the rest of the format
+ * spec to a wrapped fmt::formatter<CountRep>. Each specialization derives from
+ * this instead of repeating the identical parse()/member pair.
+ */
+template <typename CountRep>
+struct autoscale_parser
 {
     constexpr auto parse(fmt::format_parse_context& ctx) -> decltype(ctx.begin())
     {
@@ -46,22 +48,40 @@ struct fmt::formatter<rocprofsys::common::units::frequency<Rep, Period>>
         return m_count_formatter.parse(ctx);
     }
 
+protected:
+    fmt::formatter<CountRep> m_count_formatter;
+    bool                     m_autoscale = false;
+};
+
+}  // namespace rocprofsys::inline common::units::detail
+
+// ---------------------------------------------------------------------------
+// fmt::formatter<rocprofsys::common::units::frequency<Rep, Period>>
+//
+// Default:   fmt::format("{}", 2_mhz)         -> "2 MHz"
+// Autoscale: fmt::format("{:~}", 50000000_hz) -> "50 MHz"
+//            Composes with specs: "{:~.2f}"   -> "1.50 kHz"
+// ---------------------------------------------------------------------------
+template <typename Rep, typename Period>
+struct fmt::formatter<rocprofsys::common::units::frequency<Rep, Period>>
+: rocprofsys::common::units::detail::autoscale_parser<Rep>
+{
     template <typename FormatContext>
     auto format(const rocprofsys::common::units::frequency<Rep, Period>& value,
                 FormatContext&                                           ctx) const
     {
-        if(m_autoscale)
+        if(this->m_autoscale)
         {
             using rocprofsys::common::units::frequency_cast;
             using rocprofsys::common::units::hertz;
             const auto freq_hz =
                 static_cast<double>(frequency_cast<hertz>(value).count());
             const auto [scaled, suffix] = autoscale_freq(freq_hz);
-            auto out = m_count_formatter.format(static_cast<Rep>(scaled), ctx);
+            auto out = this->m_count_formatter.format(static_cast<Rep>(scaled), ctx);
             return fmt::format_to(out, " {}", suffix);
         }
         using rocprofsys::common::units::frequency_suffix;
-        auto out = m_count_formatter.format(value.count(), ctx);
+        auto out = this->m_count_formatter.format(value.count(), ctx);
         return fmt::format_to(out, " {}", frequency_suffix<Period>::VALUE);
     }
 
@@ -81,9 +101,6 @@ private:
         if(mag >= k_khz) return { freq_hz / k_khz, frequency_suffix<std::kilo>::VALUE };
         return { freq_hz, frequency_suffix<std::ratio<1>>::VALUE };
     }
-
-    fmt::formatter<Rep> m_count_formatter;
-    bool                m_autoscale = false;
 };
 
 // ---------------------------------------------------------------------------
@@ -97,35 +114,24 @@ private:
 // ---------------------------------------------------------------------------
 template <typename Rep, typename Scale>
 struct fmt::formatter<rocprofsys::common::units::data_size<Rep, Scale>>
+: rocprofsys::common::units::detail::autoscale_parser<Rep>
 {
-    constexpr auto parse(fmt::format_parse_context& ctx) -> decltype(ctx.begin())
-    {
-        const auto* pos = ctx.begin();
-        if(pos != ctx.end() && *pos == '~')
-        {
-            m_autoscale = true;
-            ++pos;
-            ctx.advance_to(pos);
-        }
-        return m_count_formatter.parse(ctx);
-    }
-
     template <typename FormatContext>
     auto format(const rocprofsys::common::units::data_size<Rep, Scale>& value,
                 FormatContext&                                          ctx) const
     {
-        if(m_autoscale)
+        if(this->m_autoscale)
         {
             using rocprofsys::common::units::bytes;
             using rocprofsys::common::units::data_size_cast;
             const auto bytes_val =
                 static_cast<double>(data_size_cast<bytes>(value).count());
             const auto [scaled, suffix] = autoscale_size(bytes_val);
-            auto out = m_count_formatter.format(static_cast<Rep>(scaled), ctx);
+            auto out = this->m_count_formatter.format(static_cast<Rep>(scaled), ctx);
             return fmt::format_to(out, " {}", suffix);
         }
         using rocprofsys::common::units::data_size_suffix;
-        auto out = m_count_formatter.format(value.count(), ctx);
+        auto out = this->m_count_formatter.format(value.count(), ctx);
         return fmt::format_to(out, " {}", data_size_suffix<Scale>::VALUE);
     }
 
@@ -168,9 +174,6 @@ private:
         }
         return { bytes_val, data_size_suffix<std::ratio<1>>::VALUE };
     }
-
-    fmt::formatter<Rep> m_count_formatter;
-    bool                m_autoscale = false;
 };
 
 // ---------------------------------------------------------------------------
@@ -181,34 +184,23 @@ private:
 // ---------------------------------------------------------------------------
 template <typename Rep, typename Period>
 struct fmt::formatter<rocprofsys::common::units::power<Rep, Period>>
+: rocprofsys::common::units::detail::autoscale_parser<Rep>
 {
-    constexpr auto parse(fmt::format_parse_context& ctx) -> decltype(ctx.begin())
-    {
-        const auto* pos = ctx.begin();
-        if(pos != ctx.end() && *pos == '~')
-        {
-            m_autoscale = true;
-            ++pos;
-            ctx.advance_to(pos);
-        }
-        return m_count_formatter.parse(ctx);
-    }
-
     template <typename FormatContext>
     auto format(const rocprofsys::common::units::power<Rep, Period>& value,
                 FormatContext&                                       ctx) const
     {
-        if(m_autoscale)
+        if(this->m_autoscale)
         {
             using rocprofsys::common::units::power_cast;
             using rocprofsys::common::units::watt;
             const auto watts_val = static_cast<double>(power_cast<watt>(value).count());
             const auto [scaled, suffix] = autoscale_power(watts_val);
-            auto out = m_count_formatter.format(static_cast<Rep>(scaled), ctx);
+            auto out = this->m_count_formatter.format(static_cast<Rep>(scaled), ctx);
             return fmt::format_to(out, " {}", suffix);
         }
         using rocprofsys::common::units::power_suffix;
-        auto out = m_count_formatter.format(value.count(), ctx);
+        auto out = this->m_count_formatter.format(value.count(), ctx);
         return fmt::format_to(out, " {}", power_suffix<Period>::VALUE);
     }
 
@@ -232,9 +224,6 @@ private:
         if(mag >= k_uw) return { watts_val / k_uw, power_suffix<std::micro>::VALUE };
         return { watts_val / k_nw, power_suffix<std::nano>::VALUE };
     }
-
-    fmt::formatter<Rep> m_count_formatter;
-    bool                m_autoscale = false;
 };
 
 // ---------------------------------------------------------------------------
@@ -245,37 +234,29 @@ private:
 // ---------------------------------------------------------------------------
 template <typename Rep, typename Period>
 struct fmt::formatter<std::chrono::duration<Rep, Period>>
+: rocprofsys::common::units::detail::autoscale_parser<double>
 {
-    constexpr auto parse(fmt::format_parse_context& ctx) -> decltype(ctx.begin())
-    {
-        const auto* pos = ctx.begin();
-        if(pos != ctx.end() && *pos == '~')
-        {
-            m_autoscale = true;
-            ++pos;
-            ctx.advance_to(pos);
-        }
-        return m_count_formatter.parse(ctx);
-    }
-
     template <typename FormatContext>
     auto format(const std::chrono::duration<Rep, Period>& value, FormatContext& ctx) const
     {
-        if(m_autoscale)
+        if(this->m_autoscale)
         {
             const auto [scaled, suffix] = autoscale_duration(value);
-            auto out                    = m_count_formatter.format(scaled, ctx);
+            auto out                    = this->m_count_formatter.format(scaled, ctx);
             return fmt::format_to(out, " {}", suffix);
         }
-        auto out = m_count_formatter.format(static_cast<double>(value.count()), ctx);
+        auto out =
+            this->m_count_formatter.format(static_cast<double>(value.count()), ctx);
         using rocprofsys::common::units::duration_suffix;
         return fmt::format_to(out, " {}", duration_suffix<Period>::VALUE);
     }
 
 private:
-    /// Uses duration<double, TargetPeriod> cast rather than dividing by a tiny
-    /// constant to avoid FP rounding errors (e.g. 250000ns -> "250 us" not "250.000...03
-    /// us").
+    /**
+     * Uses duration<double, TargetPeriod> cast rather than dividing by a tiny
+     * constant to avoid FP rounding errors (e.g. 250000ns -> "250 us" not
+     * "250.000...03 us").
+     */
     static auto autoscale_duration(const std::chrono::duration<Rep, Period>& dur)
         -> std::pair<double, std::string_view>
     {
@@ -303,7 +284,4 @@ private:
         return { std::chrono::duration<double, std::nano>(dur).count(),
                  duration_suffix<std::nano>::VALUE };
     }
-
-    fmt::formatter<double> m_count_formatter;
-    bool                   m_autoscale = false;
 };
