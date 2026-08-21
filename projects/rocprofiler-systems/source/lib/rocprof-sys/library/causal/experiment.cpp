@@ -343,7 +343,7 @@ std::string
 experiment::as_string() const
 {
     std::stringstream _ss{};
-    auto              _dur = std::chrono::duration<double>{
+    const auto        _dur = std::chrono::duration<double>{
         std::chrono::nanoseconds{ experiment_time }
     }.count();
     _ss << std::boolalpha << "speed-up: " << std::setw(3) << virtual_speedup

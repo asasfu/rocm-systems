@@ -495,8 +495,7 @@ perform_experiment_impl(std::shared_ptr<std::promise<void>> _started)  // NOLINT
     {
         LOG_DEBUG("[causal] delaying experimentation for {} seconds...", _delay_sec);
         std::this_thread::yield();
-        std::this_thread::sleep_for(std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::duration<double>{ _delay_sec }));
+        std::this_thread::sleep_for(std::chrono::duration<double>{ _delay_sec });
     }
 
     auto _impl_count        = 0;

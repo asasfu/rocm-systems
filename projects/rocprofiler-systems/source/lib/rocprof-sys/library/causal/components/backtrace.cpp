@@ -209,9 +209,9 @@ template <typename U, typename Tp>
 Tp
 backtrace::get_period()
 {
-    using cating_type = std::chrono::duration<Tp, typename U::period>;
+    using casting_type = std::chrono::duration<Tp, typename U::period>;
     // fixed causal sampling period: 1 millisecond
-    return std::chrono::duration_cast<cating_type>(1ms).count();
+    return std::chrono::duration_cast<casting_type>(1ms).count();
 }
 
 }  // namespace rocprofsys::causal::component

@@ -100,12 +100,10 @@ ensure_ci_timeout_backtrace(double             _ci_timeout_seconds,
             return;
         }
 
-        auto         _tids = pthread_gotcha::get_native_handles();
-        std::int64_t _ci_timeout_pause =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::duration<double>{ _factor })
-                .count() /
-            (3 * (_tids.size() + 1));
+        auto       _tids = pthread_gotcha::get_native_handles();
+        const auto _ci_timeout_pause =
+            std::chrono::duration<double>(_factor) / (3 * (_tids.size() + 1));
+
         auto _kill_thread = [_ci_timeout_pause](auto _handle) {
             // execute the pthread_kill and wait until ci_timeout_backtrace increments
             // ci_timeout_backtrace_global_done (or 50 iterations pass) to avoid
@@ -134,8 +132,9 @@ ensure_ci_timeout_backtrace(double             _ci_timeout_seconds,
 
             // wait until the signal has been delivered
             while(ci_timeout_backtrace_global_done == _done_v && _n++ < 50)
-                std::this_thread::sleep_for(
-                    std::chrono::nanoseconds{ _ci_timeout_pause });
+            {
+                std::this_thread::sleep_for(_ci_timeout_pause);
+            }
         };
 
         _tids.erase(main_thread_native_handle);
