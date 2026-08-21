@@ -953,13 +953,13 @@ configure(bool _setup, std::int64_t _tid)
                     dynamic_cast<const timer*>(_sampler->get_trigger(itr));
                 if(_timer)
                 {
+                    constexpr std::int64_t nsec_per_sec  = 1'000'000'000;
+                    constexpr std::int64_t nsec_per_msec = 1'000'000;
                     LOG_INFO(
                         "[SIG{}] Sampler for thread {} will be triggered {:.1f}x per "
                         "second of {}-time (every {:.3e} milliseconds)...",
-                        itr, _tid,
-                        _timer->get_frequency(std::chrono::nanoseconds{ 1s }.count()),
-                        _type,
-                        _timer->get_period(std::chrono::nanoseconds{ 1ms }.count()));
+                        itr, _tid, _timer->get_frequency(nsec_per_sec), _type,
+                        _timer->get_period(nsec_per_msec));
                 }
             }
         }

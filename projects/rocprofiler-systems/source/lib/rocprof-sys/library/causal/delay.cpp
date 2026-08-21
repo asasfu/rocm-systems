@@ -65,7 +65,7 @@ compute_sleep_for_overhead()
     }
 
     LOG_TRACE("[causal] overhead of std::this_thread::sleep_for(...) "
-              "invocation = {} +/- {} ",
+              "invocation = {} +/- {}",
               std::chrono::duration<double, std::micro>{
                   std::chrono::duration<double, std::nano>{ _stats.get_mean() } },
               std::chrono::duration<double, std::micro>{
