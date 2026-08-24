@@ -554,6 +554,8 @@ public:
 class Vop3p : public IsaInstruction<Isa> {
 public:
   Vop3p(std::string_view mnemonic, const Vop3pMachineInst *inst, ExecuteFn exec_fn);
+  bool uses_vop3p_absolute_source_syntax() const;
+  uint32_t vop3p_encoded_source_count() const;
   bool has_encoded_literal32() const;
   static Result validate_encoding([[maybe_unused]] std::string_view mnemonic,
                                   const Vop3pMachineInst *inst,
@@ -564,6 +566,7 @@ public:
       return emit_error.emit() << "DPP and literal operands cannot be combined";
     return Result::success();
   }
+  void append_src_operand(std::string &out, uint8_t operand_index) const override;
   void build_modifiers(std::string &out) const override;
   void implicit_uses(RegisterSet &uses) const override;
   bool has_lit_0();
@@ -630,9 +633,16 @@ public:
 class Mimg : public IsaInstruction<Isa> {
 public:
   Mimg(std::string_view mnemonic, const MimgMachineInst *inst, ExecuteFn exec_fn);
+  bool omits_gfx11_mimg_dim_dmask() const;
+  uint32_t gfx11_mimg_nsa_group_width(uint32_t index, uint32_t vaddr_words) const;
+  void capture_nsa_words(const MachineInst *inst, const Operand *vaddr);
+  void append_src_operand(std::string &out, uint8_t operand_index) const override;
+  void build_modifiers(std::string &out) const override;
   bool has_nsa();
   using OpEncoding = MimgMachineInst;
   const OpEncoding inst_;
+  std::array<uint32_t, 5> raw_words_{};
+  const Operand *nsa_vaddr_operand_ = nullptr;
 };
 
 class Exp : public IsaInstruction<Isa> {

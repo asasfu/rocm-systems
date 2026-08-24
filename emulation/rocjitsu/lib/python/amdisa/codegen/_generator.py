@@ -2904,7 +2904,115 @@ class CodeGenerator:
                 # constructor, so the encoding base just passes through.
                 mnemonic_expr = 'mnemonic'
 
+            absolute_source_modifier_opcodes = [
+                inst.opcode
+                for inst in inst_enc.insts
+                if inst.name in profile.vop3p_absolute_source_instructions
+            ]
+            if absolute_source_modifier_opcodes:
+                public_members.append(
+                    cgen.Line('bool uses_vop3p_absolute_source_syntax() const;')
+                )
+                class_func_impls.append(
+                    cgen.Line(
+                        self._opcode_predicate_helper_impl(
+                            inst_enc,
+                            'uses_vop3p_absolute_source_syntax',
+                            sorted(set(absolute_source_modifier_opcodes)),
+                        )
+                    )
+                )
+
+            gfx11_mimg_no_dim_dmask_opcodes = []
+            if profile.renders_gfx11_image_syntax and enc_upper == 'ENC_MIMG':
+                gfx11_mimg_no_dim_dmask_opcodes = [
+                    inst.opcode
+                    for inst in inst_enc.insts
+                    if inst.name in profile.gfx11_mimg_fixed_vaddr_words
+                ]
+                if gfx11_mimg_no_dim_dmask_opcodes:
+                    public_members.append(
+                        cgen.Line('bool omits_gfx11_mimg_dim_dmask() const;')
+                    )
+                    class_func_impls.append(
+                        cgen.Line(
+                            self._opcode_predicate_helper_impl(
+                                inst_enc,
+                                'omits_gfx11_mimg_dim_dmask',
+                                sorted(set(gfx11_mimg_no_dim_dmask_opcodes)),
+                            )
+                        )
+                    )
+
+                nsa_group_rules = []
+                for inst in inst_enc.insts:
+                    groups = profile.gfx11_mimg_nsa_group_words.get(inst.name)
+                    if groups is not None:
+                        nsa_group_rules.append((inst.opcode, *groups))
+                if nsa_group_rules:
+                    public_members.append(
+                        cgen.Line(
+                            'uint32_t gfx11_mimg_nsa_group_width('
+                            'uint32_t index, uint32_t vaddr_words) const;'
+                        )
+                    )
+                    nsa_group_lines = [
+                        f'uint32_t {inst_enc.fmt_enc_name}::gfx11_mimg_nsa_group_width('
+                        'uint32_t index, uint32_t vaddr_words) const {',
+                        '  switch (inst_.op) {',
+                    ]
+                    for opcode, default_groups, a16_groups in nsa_group_rules:
+                        nsa_group_lines.extend(
+                            (
+                                f'  case {opcode}:',
+                                '    if (inst_.a16) {',
+                                '      static constexpr uint8_t widths[] = {'
+                                + ', '.join(str(width) for width in a16_groups)
+                                + '};',
+                                f'      return index < {len(a16_groups)} ? widths[index] : 0;',
+                                '    }',
+                                '    {',
+                                '      static constexpr uint8_t widths[] = {'
+                                + ', '.join(str(width) for width in default_groups)
+                                + '};',
+                                f'      return index < {len(default_groups)} ? widths[index] : 0;',
+                                '    }',
+                            )
+                        )
+                    nsa_group_lines.extend(
+                        (
+                            '  default:',
+                            '    if (index < 4) return 1;',
+                            '    return index == 4 && vaddr_words > 4 ? vaddr_words - 4 : 0;',
+                            '  }',
+                            '}',
+                        )
+                    )
+                    class_func_impls.append(cgen.Line('\n'.join(nsa_group_lines)))
+
             modifier_lines = ''
+            if profile.renders_gfx11_image_syntax and enc_upper == 'ENC_MIMG':
+                modifier_lines += (
+                    'if (!omits_gfx11_mimg_dim_dmask()) {'
+                    'modifiers_ += " dmask:0x"; '
+                    'modifiers_ += "0123456789abcdef"[inst->dmask & 0xfu]; }'
+                    'if (!omits_gfx11_mimg_dim_dmask()) {'
+                    'static constexpr std::string_view dims[] = {'
+                    '"1D", "2D", "3D", "CUBE", "1D_ARRAY", '
+                    '"2D_ARRAY", "2D_MSAA", "2D_MSAA_ARRAY"};'
+                    'modifiers_ += " dim:SQ_RSRC_IMG_";'
+                    'modifiers_ += dims[inst->dim & 7u];}'
+                    'if (!omits_gfx11_mimg_dim_dmask()) {'
+                    'if (inst->unorm) modifiers_ += " unorm";'
+                    'if (inst->glc) modifiers_ += " glc";'
+                    'if (inst->slc) modifiers_ += " slc";'
+                    'if (inst->dlc) modifiers_ += " dlc";'
+                    'if (inst->r128) modifiers_ += " r128";'
+                    'if (inst->tfe) modifiers_ += " tfe";'
+                    'if (inst->lwe) modifiers_ += " lwe";'
+                    'if (inst->d16) modifiers_ += " d16";}'
+                    'if (inst->a16) modifiers_ += " a16";'
+                )
             for mod in profile.encoding_modifiers(inst_enc.enc_name):
                 if not mod.preamble and mod.field not in enc_field_names:
                     continue
@@ -2930,10 +3038,15 @@ class CodeGenerator:
                         if self.semantics
                         else None
                     )
-                    if sem is not None and sem.semantic_class in (
-                        'ds_read2',
-                        'ds_write2',
-                        'ds_atomic2',
+                    if (
+                        sem is not None
+                        and sem.semantic_class
+                        in (
+                            'ds_read2',
+                            'ds_write2',
+                            'ds_atomic2',
+                        )
+                        or (profile.split_ds_2addr_offsets and '_2ADDR_' in inst.name)
                     ):
                         split_offset_opcodes.append(inst.opcode)
                 if split_offset_opcodes:
@@ -2963,6 +3076,48 @@ class CodeGenerator:
                     'if (offset) modifiers_ += " offset:" + std::to_string(offset);'
                     '}'
                     'if (inst->gds) modifiers_ += " gds";'
+                )
+            if absolute_source_modifier_opcodes:
+                public_members.append(
+                    cgen.Line('uint32_t vop3p_encoded_source_count() const;')
+                )
+                class_func_impls.append(
+                    cgen.Line(
+                        f'uint32_t {inst_enc.fmt_enc_name}::vop3p_encoded_source_count() const {{ '
+                        'uint32_t count = 0; '
+                        'for (uint8_t src = 0; src < num_src_; ++src) { '
+                        'if (src_operands_[src]->is_fieldless()) continue; '
+                        'bool repeats_dst = false; '
+                        'for (uint8_t dst = 0; dst < num_dst_; ++dst) '
+                        'repeats_dst |= src_operands_[src] == dst_operands_[dst]; '
+                        'if (!repeats_dst) ++count; } return count; }'
+                    )
+                )
+                absolute_syntax = (
+                    'uses_vop3p_absolute_source_syntax()'
+                    if absolute_source_modifier_opcodes
+                    else 'false'
+                )
+                modifier_lines += (
+                    'amdgpu::vop::append_vop3p_disassembly('
+                    'modifiers_, inst->op_sel, '
+                    'inst->op_sel_hi | (inst->op_sel_hi_2 << 2), '
+                    f'{absolute_syntax} ? 0 : inst->neg, '
+                    f'{absolute_syntax} ? 0 : inst->neg_hi, inst->clamp, '
+                    f'{absolute_syntax} ? 3 : vop3p_encoded_source_count(), '
+                    f'!{absolute_syntax});'
+                )
+            dpp16_modifier_line = ''
+            if absolute_source_modifier_opcodes and dpp_struct is not None:
+                dpp_has_fi = str(
+                    self._machine_inst_struct_has_field(dpp_struct, 'fi')
+                ).lower()
+                dpp16_modifier_line = (
+                    'if (inst_.src0 == amdgpu::SRC_DPP) '
+                    'amdgpu::dpp::append_dpp16_disassembly('
+                    'out, dpp_ctrl_, dpp_row_mask_, dpp_bank_mask_, '
+                    f'dpp_bound_ctrl_, dpp_fi_, {dpp_has_fi}, '
+                    'amdgpu::dpp::DppCtrlDialect::Gfx10Plus);'
                 )
             dpp8_modifier_line = ''
             if dpp8_struct is not None:
@@ -3210,6 +3365,96 @@ class CodeGenerator:
                     f'{{{size_line}}}'
                 )
             class_func_impls.append(cgen.Line(class_ctor_impl))
+
+            if profile.renders_gfx11_image_syntax and enc_upper == 'ENC_MIMG':
+                public_members.append(
+                    cgen.Line(
+                        'void capture_nsa_words(const MachineInst *inst, '
+                        'const Operand *vaddr);'
+                    )
+                )
+                public_members.append(
+                    cgen.Line(
+                        'void append_src_operand(std::string &out, '
+                        'uint8_t operand_index) const override;'
+                    )
+                )
+                class_func_impls.append(
+                    cgen.Line(
+                        f'void {inst_enc.fmt_enc_name}::capture_nsa_words('
+                        'const MachineInst *inst, const Operand *vaddr) {\n'
+                        '  if (!inst_.nsa) return;\n'
+                        '  nsa_vaddr_operand_ = vaddr;\n'
+                        '  size_ = sizeof(OpEncoding) + sizeof(MachineInst);\n'
+                        '  std::memcpy(raw_words_.data(), inst, size_);\n'
+                        '  raw_encoding_ = raw_words_.data();\n'
+                        '}'
+                    )
+                )
+                class_func_impls.append(
+                    cgen.Line(
+                        f'void {inst_enc.fmt_enc_name}::append_src_operand('
+                        'std::string &out, uint8_t operand_index) const {\n'
+                        '  const Operand *operand = src_operands_[operand_index];\n'
+                        '  if (!inst_.nsa || operand != nsa_vaddr_operand_) {\n'
+                        '    Instruction::append_src_operand(out, operand_index);\n'
+                        '    return;\n'
+                        '  }\n'
+                        '  const uint32_t vaddr_words = (operand->size_bits() + 31) / 32;\n'
+                        '  out += "[";\n'
+                        '  uint32_t consumed_words = 0;\n'
+                        '  for (uint32_t index = 0; index < 5 && consumed_words < vaddr_words; ++index) {\n'
+                        '    const uint32_t group_words = gfx11_mimg_nsa_group_width(index, vaddr_words);\n'
+                        '    if (group_words == 0) break;\n'
+                        '    if (index != 0) out += ", ";\n'
+                        '    const uint32_t selector = index == 0\n'
+                        '        ? inst_.vaddr\n'
+                        '        : (raw_words_[2] >> ((index - 1) * 8)) & 0xffu;\n'
+                        '    if (group_words > 1) {\n'
+                        '      out += "v[" + std::to_string(selector) + ":";\n'
+                        '      out += std::to_string(selector + group_words - 1) + "]";\n'
+                        '    } else {\n'
+                        '      out += "v" + std::to_string(selector);\n'
+                        '    }\n'
+                        '    consumed_words += group_words;\n'
+                        '  }\n'
+                        '  out += "]";\n'
+                        '}'
+                    )
+                )
+
+            if absolute_source_modifier_opcodes:
+                public_members.append(
+                    cgen.Line(
+                        'void append_src_operand(std::string &out, '
+                        'uint8_t operand_index) const override;'
+                    )
+                )
+                class_func_impls.append(
+                    cgen.Line(
+                        f'void {inst_enc.fmt_enc_name}::append_src_operand('
+                        'std::string &out, uint8_t operand_index) const {\n'
+                        '  const Operand *operand = src_operands_[operand_index];\n'
+                        '  if (!uses_vop3p_absolute_source_syntax() || operand_index >= 3) {\n'
+                        '    Instruction::append_src_operand(out, operand_index);\n'
+                        '    return;\n'
+                        '  }\n'
+                        '  if ((inst_.neg >> operand_index) & 1u) out += \'-\';\n'
+                        '  const bool absolute = ((inst_.neg_hi >> operand_index) & 1u) != 0;\n'
+                        '  if (absolute) out += \'|\';\n'
+                        '  const uint32_t selector = operand_index == 0 ? inst_.src0\n'
+                        '      : (operand_index == 1 ? inst_.src1 : inst_.src2);\n'
+                        '  if (selector == 255) {\n'
+                        '    out += "lit(";\n'
+                        '    out += operand->name();\n'
+                        '    out += \')\';\n'
+                        '  } else {\n'
+                        '    out += operand->name();\n'
+                        '  }\n'
+                        '  if (absolute) out += \'|\';\n'
+                        '}'
+                    )
+                )
             # Generate build_modifiers() override for encoding bases
             # that have modifier flags (memory instructions). This is
             # called lazily by disassemble() instead of eagerly in the
@@ -3218,7 +3463,9 @@ class CodeGenerator:
             # they appended to modifiers_ and accessed inst->field.
             # Rewrite to append to 'out' and access via local pointer.
             modifier_impl = (
-                modifier_lines.replace('modifiers_', 'out') + dpp8_modifier_line
+                modifier_lines.replace('modifiers_', 'out')
+                + dpp16_modifier_line
+                + dpp8_modifier_line
             )
             modifier_prologue = (
                 '  auto *inst = &inst_;\n  (void)inst;\n'
@@ -3431,6 +3678,13 @@ class CodeGenerator:
                     cgen.Statement(
                         f'std::array<uint32_t, {raw_word_count}> raw_words_{{}}'
                     )
+                )
+            elif profile.renders_gfx11_image_syntax and enc_upper == 'ENC_MIMG':
+                class_members.append(
+                    cgen.Statement('std::array<uint32_t, 5> raw_words_{}')
+                )
+                class_members.append(
+                    cgen.Statement('const Operand *nsa_vaddr_operand_ = nullptr')
                 )
             if inst_enc.has_implied_literal_ops:
                 class_members.append(cgen.Statement('uint32_t literal_ = 0'))
@@ -4314,6 +4568,45 @@ class CodeGenerator:
             return None
         return 'vflat_vaddr_bits(reinterpret_cast<const OpEncoding *>(inst))'
 
+    def _mimg_operand_size_expr(
+        self, enc_name: str, inst_name: str, opnd_name: str
+    ) -> str | None:
+        if (
+            not self.isa_spec.profile.renders_gfx11_image_syntax
+            or enc_name.upper() != 'ENC_MIMG'
+        ):
+            return None
+        if opnd_name == 'vdata':
+            fixed_words = self.isa_spec.profile.gfx11_mimg_fixed_vdata_words.get(
+                inst_name
+            )
+            if fixed_words is not None:
+                return str(fixed_words * 32)
+            gather = str(
+                inst_name.upper().startswith('IMAGE_GATHER')
+                or inst_name
+                in self.isa_spec.profile.gfx11_mimg_gather_style_instructions
+            ).lower()
+            return (
+                'mimg_vdata_bits(reinterpret_cast<const OpEncoding *>(inst), '
+                f'{gather})'
+            )
+        if opnd_name == 'vaddr':
+            fixed_words = self.isa_spec.profile.gfx11_mimg_fixed_vaddr_words.get(
+                inst_name
+            )
+            if fixed_words is not None:
+                default_words, a16_words = fixed_words
+                return (
+                    '(reinterpret_cast<const OpEncoding *>(inst)->a16 ? '
+                    f'{a16_words * 32} : {default_words * 32})'
+                )
+            return (
+                'mimg_vaddr_bits(reinterpret_cast<const OpEncoding *>(inst), '
+                f'"{inst_name.lower()}")'
+            )
+        return None
+
     @staticmethod
     def _emit_buffer_vaddr_helpers(
         helper_name: str, machine_inst_type: str, *, templated: bool
@@ -4340,6 +4633,68 @@ class CodeGenerator:
             uint32_t vflat_vaddr_bits(const VmemMachineInst *inst) {
               // SADDR == NULL selects a 64-bit vector address; otherwise VADDR is a 32-bit offset.
               return inst->saddr == OPR_SREG_NULL ? 64 : 32;
+            }
+            } // namespace''')
+
+    @staticmethod
+    def _emit_gfx11_mimg_helpers() -> str:
+        return textwrap.dedent('''\
+            namespace {
+            template <typename MimgMachineInst>
+            uint32_t mimg_vdata_bits(const MimgMachineInst *inst, bool gather4) {
+              uint32_t words = gather4 ? 4u : 0u;
+              if (!gather4) {
+                uint32_t mask = inst->dmask & 0xfu;
+                while (mask) {
+                  words += mask & 1u;
+                  mask >>= 1;
+                }
+                if (words == 0)
+                  words = 1;
+              }
+              if (inst->d16)
+                words = (words + 1) / 2;
+              if (inst->tfe)
+                ++words;
+              return words * 32;
+            }
+
+            bool mimg_name_has_token(std::string_view name, std::string_view token) {
+              size_t pos = 0;
+              while (pos < name.size()) {
+                const size_t end = name.find('_', pos);
+                const size_t count = end == std::string_view::npos ? name.size() - pos : end - pos;
+                if (name.substr(pos, count) == token)
+                  return true;
+                if (end == std::string_view::npos)
+                  break;
+                pos = end + 1;
+              }
+              return false;
+            }
+
+            template <typename MimgMachineInst>
+            uint32_t mimg_vaddr_bits(const MimgMachineInst *inst, std::string_view name) {
+              static constexpr uint8_t coords[] = {1, 2, 3, 3, 2, 3, 3, 4};
+              static constexpr uint8_t gradients[] = {2, 4, 6, 4, 2, 4, 4, 4};
+              const uint32_t dim = inst->dim & 7u;
+              const bool resinfo = name == "image_get_resinfo";
+              const bool gradient = mimg_name_has_token(name, "d") ||
+                                    mimg_name_has_token(name, "cd");
+              const bool g16 = mimg_name_has_token(name, "g16");
+              const bool lod = resinfo || mimg_name_has_token(name, "mip") ||
+                               mimg_name_has_token(name, "l") ||
+                               mimg_name_has_token(name, "cl");
+              uint32_t words = mimg_name_has_token(name, "c") ? 1u : 0u;
+              words += mimg_name_has_token(name, "o") ? 1u : 0u;
+              words += mimg_name_has_token(name, "b") ? 1u : 0u;
+              const uint32_t coord_words = (resinfo ? 0u : coords[dim]) + (lod ? 1u : 0u);
+              words += inst->a16 ? (coord_words + 1) / 2 : coord_words;
+              if (gradient) {
+                const uint32_t gradient_words = gradients[dim];
+                words += g16 ? ((gradient_words / 2 + 1) & ~1u) : gradient_words;
+              }
+              return (words == 0 ? 1u : words) * 32;
             }
             } // namespace''')
 
@@ -8766,6 +9121,10 @@ class CodeGenerator:
                                 enc.enc_name, opnd.name
                             )
                         if opnd_size_expr is None:
+                            opnd_size_expr = self._mimg_operand_size_expr(
+                                enc.enc_name, inst.name, opnd.name
+                            )
+                        if opnd_size_expr is None:
                             opnd_size_expr = str(opnd.size)
                         # The gfx1250 MRISA describes VOP3 compare masks with
                         # the legacy 64-bit width. gfx1250 is wave32-only: V_CMP
@@ -8961,6 +9320,12 @@ class CodeGenerator:
                                     has_acc_cd_field='acc_cd' in inst_field_names,
                                 )
                             )
+                            if (
+                                profile.renders_gfx11_image_syntax
+                                and enc.enc_name.upper() == 'ENC_MIMG'
+                                and opnd.name in ('srsrc', 'ssamp')
+                            ):
+                                operand_value = f'({operand_value} * 4)'
                             opnd_ctor_init.append(
                                 f'{opnd.name}({opnd_size_expr}, '
                                 f'OperandType::{opr_type}, '
@@ -9142,7 +9507,15 @@ class CodeGenerator:
                     # so the encoding base gets a string_view to static storage.
                     rule = self.isa_spec.profile.mnemonic_rule(enc.enc_name)
                     full_mnemonic = inst.mnemonic + (rule.suffix or '')
-                    mnemonic_expr = f'"{full_mnemonic}"'
+                    rendered_mnemonic = (
+                        inst.mnemonic
+                        if (
+                            inst.name == 'V_SWAP_B16'
+                            and profile.uses_packed_16bit_e32_source_selectors
+                        )
+                        else full_mnemonic
+                    )
+                    mnemonic_expr = f'"{rendered_mnemonic}"'
                     _, dpp8_struct = self._vop_dpp_struct_names(enc.enc_name)
                     if dpp8_struct is not None:
                         compact_encoding = enc.enc_name.upper() in (
@@ -9161,7 +9534,7 @@ class CodeGenerator:
                         mnemonic_expr = (
                             'amdgpu::dpp::is_src_dpp8('
                             'reinterpret_cast<const OpEncoding*>(inst)->src0) ? '
-                            f'"{dpp8_mnemonic}" : "{full_mnemonic}"'
+                            f'"{dpp8_mnemonic}" : "{rendered_mnemonic}"'
                         )
                     if supports_sdwa_extension and self._instruction_supports_sdwa(
                         inst, enc.enc_name
@@ -9256,6 +9629,15 @@ class CodeGenerator:
                         }
                     )
                     ctor_body_parts = list(opnd_body)
+                    if self.isa_spec.profile.renders_gfx11_image_syntax and (
+                        enc.enc_name.upper() == 'ENC_MIMG'
+                        or inst.name == 'V_SWAP_B16'
+                        or inst.name
+                        in self.isa_spec.profile.vop3p_absolute_source_instructions
+                    ):
+                        ctor_body_parts.append(
+                            'omit_repeated_destination_sources_ = true;'
+                        )
                     fieldless_caps_guards: dict[str, str] = {}
                     factory_validation_parts: list[str] = []
                     factory_op_encoding = f'{inst.fmt_true_enc_name}::OpEncoding'
@@ -9912,6 +10294,25 @@ class CodeGenerator:
                                         'amdgpu::SRC_SDWA) '
                                         f'[[unlikely]] return emit_error.emit() << "{inst.name} does not support SDWA";'
                                     )
+
+                    if (
+                        inst.name == 'V_SWAP_B16'
+                        and profile.uses_packed_16bit_e32_source_selectors
+                    ):
+                        for opnd in inst.operands:
+                            if opnd.name == 'src0':
+                                ctor_body_parts.append(
+                                    ' src0 = Operand(16, OperandType::OPR_VGPR, '
+                                    'static_cast<unsigned short>('
+                                    'reinterpret_cast<const OpEncoding *>(inst)->src0 & 0xffu), '
+                                    'true, true);'
+                                )
+
+                    if (
+                        profile.renders_gfx11_image_syntax
+                        and enc.enc_name.upper() == 'ENC_MIMG'
+                    ):
+                        ctor_body_parts.append('capture_nsa_words(inst, &vaddr);')
 
                     # Apply the fieldless-operand capability policy once, after
                     # every ctor-body reassignment. Fieldless operands are built
@@ -11390,6 +11791,13 @@ class CodeGenerator:
                     class_func_impls.model.insert(
                         0, cgen.Line(self._emit_vflat_helpers())
                     )
+                elif (
+                    enc.enc_name.upper() == 'ENC_MIMG'
+                    and self.isa_spec.profile.renders_gfx11_image_syntax
+                ):
+                    class_func_impls.model.insert(
+                        0, cgen.Line(self._emit_gfx11_mimg_helpers())
+                    )
 
                 if (
                     self.isa_spec.arch_name.lower() in {'cdna2', 'cdna3', 'cdna4'}
@@ -12715,6 +13123,26 @@ inline void unpack_6bit(const uint32_t dwords[6], uint8_t vals[32]) {{
                     f'  {wc}'
                     f'  return std::format("vmcnt({{}}) expcnt({{}}) lgkmcnt({{}})", '
                     f'vmcnt, expcnt, lgkmcnt);\n'
+                    f'}}'
+                )
+            elif (
+                t == 'OPR_SENDMSG_RTN' and self.isa_spec.profile.sendmsg_return_symbolic
+            ):
+                switch_cases.append(
+                    f'case OperandType::{t}: {{\n'
+                    f'  switch (static_cast<uint32_t>(encoding_value_) & 0xFFFF) {{\n'
+                    f'  case 128: return "sendmsg(MSG_RTN_GET_DOORBELL)";\n'
+                    f'  case 129: return "sendmsg(MSG_RTN_GET_DDID)";\n'
+                    f'  case 130: return "sendmsg(MSG_RTN_GET_TMA)";\n'
+                    f'  case 131: return "sendmsg(MSG_RTN_GET_REALTIME)";\n'
+                    f'  case 132: return "sendmsg(MSG_RTN_SAVE_WAVE)";\n'
+                    f'  case 133: return "sendmsg(MSG_RTN_GET_TBA)";\n'
+                    f'  case 134: return "sendmsg(MSG_RTN_GET_TBA_TO_PC)";\n'
+                    f'  default: break;\n'
+                    f'  }}\n'
+                    f'  const uint32_t value = static_cast<uint32_t>(encoding_value_) & 0xFFFF;\n'
+                    f'  if (value <= 0xFF) return std::format("sendmsg({{}}, 0, 0)", value);\n'
+                    f'  return std::to_string(encoding_value_);\n'
                     f'}}'
                 )
             else:

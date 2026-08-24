@@ -1303,6 +1303,31 @@ bool Vop3::has_dpp16() {
   return (((inst_.src0 == 250) && (inst_.src1 != 255)) && (inst_.src2 != 255));
 }
 
+bool Vop3p::uses_vop3p_absolute_source_syntax() const {
+  switch (inst_.op) {
+  case 32:
+  case 33:
+  case 34:
+    return true;
+  default:
+    return false;
+  }
+}
+
+uint32_t Vop3p::vop3p_encoded_source_count() const {
+  uint32_t count = 0;
+  for (uint8_t src = 0; src < num_src_; ++src) {
+    if (src_operands_[src]->is_fieldless())
+      continue;
+    bool repeats_dst = false;
+    for (uint8_t dst = 0; dst < num_dst_; ++dst)
+      repeats_dst |= src_operands_[src] == dst_operands_[dst];
+    if (!repeats_dst)
+      ++count;
+  }
+  return count;
+}
+
 bool Vop3p::has_encoded_literal32() const {
   switch (inst_.op) {
   case 1:
@@ -1354,7 +1379,43 @@ Vop3p::Vop3p(std::string_view mnemonic, const Vop3pMachineInst *inst, ExecuteFn 
   raw_encoding_ = raw_words_.data();
 }
 
+void Vop3p::append_src_operand(std::string &out, uint8_t operand_index) const {
+  const Operand *operand = src_operands_[operand_index];
+  if (!uses_vop3p_absolute_source_syntax() || operand_index >= 3) {
+    Instruction::append_src_operand(out, operand_index);
+    return;
+  }
+  if ((inst_.neg >> operand_index) & 1u)
+    out += '-';
+  const bool absolute = ((inst_.neg_hi >> operand_index) & 1u) != 0;
+  if (absolute)
+    out += '|';
+  const uint32_t selector =
+      operand_index == 0 ? inst_.src0 : (operand_index == 1 ? inst_.src1 : inst_.src2);
+  if (selector == 255) {
+    out += "lit(";
+    out += operand->name();
+    out += ')';
+  } else {
+    out += operand->name();
+  }
+  if (absolute)
+    out += '|';
+}
+
 void Vop3p::build_modifiers(std::string &out) const {
+  auto *inst = &inst_;
+  (void)inst;
+  amdgpu::vop::append_vop3p_disassembly(
+      out, inst->op_sel, inst->op_sel_hi | (inst->op_sel_hi_2 << 2),
+      uses_vop3p_absolute_source_syntax() ? 0 : inst->neg,
+      uses_vop3p_absolute_source_syntax() ? 0 : inst->neg_hi, inst->clamp,
+      uses_vop3p_absolute_source_syntax() ? 3 : vop3p_encoded_source_count(),
+      !uses_vop3p_absolute_source_syntax());
+  if (inst_.src0 == amdgpu::SRC_DPP)
+    amdgpu::dpp::append_dpp16_disassembly(out, dpp_ctrl_, dpp_row_mask_, dpp_bank_mask_,
+                                          dpp_bound_ctrl_, dpp_fi_, true,
+                                          amdgpu::dpp::DppCtrlDialect::Gfx10Plus);
   if (amdgpu::dpp::is_src_dpp8(inst_.src0))
     amdgpu::dpp::append_dpp8_disassembly(out, dpp8_lane_sel_, dpp_fi_);
 }
@@ -1440,10 +1501,14 @@ bool Ds::uses_split_ds_offsets() const {
   switch (inst_.op) {
   case 14:
   case 15:
+  case 46:
+  case 47:
   case 55:
   case 56:
   case 78:
   case 79:
+  case 110:
+  case 111:
   case 119:
   case 120:
     return true;
@@ -1525,12 +1590,121 @@ void Mtbuf::build_modifiers(std::string &out) const {
     out += " slc";
 }
 
+bool Mimg::omits_gfx11_mimg_dim_dmask() const {
+  switch (inst_.op) {
+  case 25:
+  case 26:
+    return true;
+  default:
+    return false;
+  }
+}
+
+uint32_t Mimg::gfx11_mimg_nsa_group_width(uint32_t index, uint32_t vaddr_words) const {
+  switch (inst_.op) {
+  case 25:
+    if (inst_.a16) {
+      static constexpr uint8_t widths[] = {1, 1, 3, 3};
+      return index < 4 ? widths[index] : 0;
+    }
+    {
+      static constexpr uint8_t widths[] = {1, 1, 3, 3, 3};
+      return index < 5 ? widths[index] : 0;
+    }
+  case 26:
+    if (inst_.a16) {
+      static constexpr uint8_t widths[] = {2, 1, 3, 3};
+      return index < 4 ? widths[index] : 0;
+    }
+    {
+      static constexpr uint8_t widths[] = {2, 1, 3, 3, 3};
+      return index < 5 ? widths[index] : 0;
+    }
+  default:
+    if (index < 4)
+      return 1;
+    return index == 4 && vaddr_words > 4 ? vaddr_words - 4 : 0;
+  }
+}
+
 Mimg::Mimg(std::string_view mnemonic, const MimgMachineInst *inst, ExecuteFn exec_fn)
     : IsaInstruction<Isa>(mnemonic, exec_fn), inst_(*inst) {
   size_ = sizeof(OpEncoding);
   raw_encoding_ = reinterpret_cast<const uint32_t *>(&inst_);
   encoding_id_ = raw_encoding_[0] >> 23;
   opcode_ = inst_.op;
+}
+
+void Mimg::capture_nsa_words(const MachineInst *inst, const Operand *vaddr) {
+  if (!inst_.nsa)
+    return;
+  nsa_vaddr_operand_ = vaddr;
+  size_ = sizeof(OpEncoding) + sizeof(MachineInst);
+  std::memcpy(raw_words_.data(), inst, size_);
+  raw_encoding_ = raw_words_.data();
+}
+
+void Mimg::append_src_operand(std::string &out, uint8_t operand_index) const {
+  const Operand *operand = src_operands_[operand_index];
+  if (!inst_.nsa || operand != nsa_vaddr_operand_) {
+    Instruction::append_src_operand(out, operand_index);
+    return;
+  }
+  const uint32_t vaddr_words = (operand->size_bits() + 31) / 32;
+  out += "[";
+  uint32_t consumed_words = 0;
+  for (uint32_t index = 0; index < 5 && consumed_words < vaddr_words; ++index) {
+    const uint32_t group_words = gfx11_mimg_nsa_group_width(index, vaddr_words);
+    if (group_words == 0)
+      break;
+    if (index != 0)
+      out += ", ";
+    const uint32_t selector =
+        index == 0 ? inst_.vaddr : (raw_words_[2] >> ((index - 1) * 8)) & 0xffu;
+    if (group_words > 1) {
+      out += "v[" + std::to_string(selector) + ":";
+      out += std::to_string(selector + group_words - 1) + "]";
+    } else {
+      out += "v" + std::to_string(selector);
+    }
+    consumed_words += group_words;
+  }
+  out += "]";
+}
+
+void Mimg::build_modifiers(std::string &out) const {
+  auto *inst = &inst_;
+  (void)inst;
+  if (!omits_gfx11_mimg_dim_dmask()) {
+    out += " dmask:0x";
+    out += "0123456789abcdef"[inst->dmask & 0xfu];
+  }
+  if (!omits_gfx11_mimg_dim_dmask()) {
+    static constexpr std::string_view dims[] = {"1D",       "2D",       "3D",      "CUBE",
+                                                "1D_ARRAY", "2D_ARRAY", "2D_MSAA", "2D_MSAA_ARRAY"};
+    out += " dim:SQ_RSRC_IMG_";
+    out += dims[inst->dim & 7u];
+  }
+  if (!omits_gfx11_mimg_dim_dmask()) {
+    if (inst->unorm)
+      out += " unorm";
+    if (inst->glc)
+      out += " glc";
+    if (inst->slc)
+      out += " slc";
+    if (inst->dlc)
+      out += " dlc";
+    if (inst->r128)
+      out += " r128";
+    if (inst->tfe)
+      out += " tfe";
+    if (inst->lwe)
+      out += " lwe";
+    if (inst->d16)
+      out += " d16";
+  }
+  if (inst->a16)
+    out += " a16";
 }
 
 bool Mimg::has_nsa() { return (inst_.nsa == 1); }
