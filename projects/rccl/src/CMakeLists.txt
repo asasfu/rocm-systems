@@ -215,7 +215,6 @@ set(SRC_FILES
   include/shmutils.h
   include/signals.h
   include/socket.h
-  include/sqtt_markers.h
   include/strongstream.h
   include/sym_kernels.h
   include/timer.h
@@ -787,6 +786,7 @@ target_include_directories(rccl PRIVATE ${HIPIFY_DIR}/gensrc)
 target_include_directories(rccl PRIVATE ${HSA_INCLUDE_PATH})
 target_include_directories(rccl PRIVATE ${SMI_INCLUDE_DIR})
 target_include_directories(rccl PRIVATE ${ROCMCORE_PATH}/include)
+target_include_directories(rccl PRIVATE /opt/rocm/include/rocprof-trace-decoder)
 if(DEMANGLE_DIR)
   target_include_directories(rccl PRIVATE ${DEMANGLE_DIR})
 endif()
