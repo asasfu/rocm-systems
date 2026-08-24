@@ -1147,24 +1147,101 @@ SDMAQueue::SDMAQueue(WDDMDevice* device, void* ring, uint64_t cmdbuf_size, uint3
       thread_stop_(false),
       ib_size(0),
       ib_start_addr(0) {
+  // Native SDMA user queue: submit through the WDDM HwQueue path instead of the
+  // SWS translation thread when HWS is enabled and the KMD advertises support.
+  native_sdma_ = use_hws && device->IsSdmaSupported();
   bool ret = device->CreateQueue(this);
   assert(ret);
 
-  thread_ = std::thread(SdmaThread, this);
+  if (!native_sdma_)
+    thread_ = std::thread(SdmaThread, this);
 }
 
 SDMAQueue::~SDMAQueue() {
-  thread_cond_lock_.lock();
-  thread_stop_ = true;
-  thread_cond_lock_.unlock();
-  thread_cond_.notify_one();
-  thread_.join();
+  if (!native_sdma_) {
+    thread_cond_lock_.lock();
+    thread_stop_ = true;
+    thread_cond_lock_.unlock();
+    thread_cond_.notify_one();
+    thread_.join();
+  }
 
   device->DestroyQueue(this);
 }
 
+// Write SDMA NOP fill to pad the ring to a boundary.
+static void SdmaNopFill(void* dst, size_t size_bytes) {
+  std::memset(dst, 0, size_bytes);
+  *reinterpret_cast<uint32_t*>(dst) = static_cast<uint32_t>((size_bytes / 4 - 1) << 16);
+}
+
+// Write a SDMA FENCE packet (16 bytes) at dst. Returns 16.
+static size_t SdmaFencePacket(void* dst, int gfx_major, uint64_t fence_va, uint32_t fence_id) {
+  uint32_t* dw = reinterpret_cast<uint32_t*>(dst);
+  // op=5 (FENCE), mtype=3 in bits[17:16], sys=1 in bit[20] for gfx12
+  if (gfx_major >= 12)
+    dw[0] = 5u | (3u << 16) | (1u << 20);
+  else
+    dw[0] = 5u | (3u << 16);  // mtype=3 for gfx10+
+  dw[1] = static_cast<uint32_t>(fence_va);
+  dw[2] = static_cast<uint32_t>(fence_va >> 32);
+  dw[3] = fence_id;
+  return 16;
+}
+
+// Write a SDMA TRAP packet (8 bytes) at dst. Returns 8.
+static size_t SdmaTrapPacket(void* dst) {
+  uint32_t* dw = reinterpret_cast<uint32_t*>(dst);
+  dw[0] = 6u;  // op=6 (TRAP)
+  dw[1] = 0;
+  return 8;
+}
+
 void SDMAQueue::RingDoorbell(uint64_t value) {
-  pr_debug("ringdoorbell %#" PRIx64 " %#" PRIx64 "\n", wptr_pre_, wptr_next_);
+  if (native_sdma_) {
+    // Append FENCE+TRAP to the ring at `value` (byte offset from ring base),
+    // then hand the advanced wptr to KMD via SubmitToSdmaHwQueue.
+    // BlitSdma writes DMA payload into the ring and calls hsaKmtQueueRingDoorbell
+    // which lands here; it does NOT call SdmaQueue::RingDoorbell (ROCr signal path),
+    // so the FENCE/TRAP must be emitted here, not in ROCr.
+    uint64_t wptr = value;  // byte offset past user payload
+    const uint64_t ring_size = cmdbuf_size;
+    char* ring_base = reinterpret_cast<char*>(cmdbuf_addr);
+    const uint64_t fence_va = hwqueue_progress_fence_va_;
+    const uint32_t fence_id = static_cast<uint32_t>(++hwqueue_fence_id_);
+    const int gfx_major = device->Major();
+
+    // Emit FENCE (16 bytes) then TRAP (8 bytes), padding with NOPs if a packet
+    // would straddle the ring end.
+    auto emit = [&](size_t pkt_size, auto build_fn) {
+      size_t off = static_cast<size_t>(wptr % ring_size);
+      if (off + pkt_size > static_cast<size_t>(ring_size)) {
+        size_t tail = static_cast<size_t>(ring_size) - off;
+        SdmaNopFill(ring_base + off, tail);
+        wptr += tail;
+        off = 0;
+      }
+      wptr += build_fn(ring_base + off);
+    };
+
+    emit(16, [&](char* dst) { return SdmaFencePacket(dst, gfx_major, fence_va, fence_id); });
+    emit(8,  [&](char* dst) { return SdmaTrapPacket(dst); });
+
+    pr_err("[sdma] RingDoorbell native wptr=0x%" PRIx64 "->0x%" PRIx64
+           " fence_va=0x%" PRIx64 " fence_id=%u gfx%d\n",
+           value, wptr, fence_va, fence_id, gfx_major);
+
+    // Update wptr_next_ so ROCr's queue_wptr_ (which points here) reflects the
+    // bytes we consumed for FENCE+TRAP.  Without this, ROCr sees wptr < GPU rptr
+    // and believes the ring is nearly full, deadlocking the next blit submission.
+    wptr_next_ = wptr;
+
+    if (!device->SubmitToSdmaHwQueue(this, wptr))
+      assert(!"SDMA doorbell failed!");
+    return;
+  }
+
+  pr_err("[sdma] RingDoorbell SWS wptr_pre=0x%" PRIx64 " wptr_next=0x%" PRIx64 "\n", wptr_pre_, wptr_next_);
   thread_cond_lock_.lock();
 
   wptr_queue_.emplace_back(wptr_pre_, wptr_next_);
@@ -1175,11 +1252,16 @@ void SDMAQueue::RingDoorbell(uint64_t value) {
 }
 
 hsa_status_t SDMAQueue::Init(void) {
-  hsa_status_t ret = use_hws ? HwsInit() : SwsInit();
-  if (ret) return ret;
+  if (native_sdma_)
+    pr_rocr_info("SDMA queue: native user queue (WDDM HwQueue submit)\n");
+  else
+    pr_rocr_info("SDMA queue: legacy SWS translation thread\n");
 
+  // Zero the ring before HwsInit so the init FENCE+TRAP written by CreateHwQueue
+  // is not overwritten.  For the SWS path the order doesn't matter.
   std::memset((char*)cmdbuf_addr, 0, cmdbuf_size);
 
+  hsa_status_t ret = use_hws ? HwsInit() : SwsInit();
   return ret;
 }
 
@@ -1194,6 +1276,8 @@ int SDMAQueue::PreparePacket(uint32_t offset, uint64_t size) {
 }
 
 hsa_status_t SDMAQueue::Submit(void) {
+  pr_err("[sdma] Submit native=%d hws=%d ib_start=0x%" PRIx64 " ib_size=0x%" PRIx64 " rptr_next=0x%" PRIx64 "\n",
+         (int)native_sdma_, (int)use_hws, ib_start_addr, ib_size, rptr_next);
   if (!device->WaitPagingFence(this)) return HSA_STATUS_ERROR;
 
   int ret = use_hws ? HwsSubmit(ib_start_addr, ib_size, rptr_next)
