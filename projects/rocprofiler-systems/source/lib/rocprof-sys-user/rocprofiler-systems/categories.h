@@ -34,6 +34,7 @@ extern "C"
     /// @typedef rocprofsys_category_t
     /// @brief Identifier for categories
     ///
+    // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,modernize-use-using) -- C API
     typedef enum ROCPROFSYS_CATEGORIES
     {
         // Do not use first enum value
@@ -141,6 +142,7 @@ extern "C"
     /// if the data type is not a pointer, pass the address of
     /// data.
     /// @typedef ROCPROFSYS_ANNOTATION_TYPE rocprofsys_annotation_type_t
+    // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,modernize-use-using) -- C API
     typedef enum ROCPROFSYS_ANNOTATION_TYPE
     {
         // Do not use first enum value
@@ -222,6 +224,7 @@ extern "C"
     /// }
     /// @endcode
     /// @typedef rocprofsys_annotation rocprofsys_annotation_t
+    // NOLINTNEXTLINE(modernize-use-using) -- C API
     typedef struct rocprofsys_annotation
     {
         /// label for annotation
