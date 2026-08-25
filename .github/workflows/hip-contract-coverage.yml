@@ -17,6 +17,7 @@ name: HIP contract-test coverage
 # test and keep both current.
 
 on:
+  workflow_call:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
