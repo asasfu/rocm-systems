@@ -63,7 +63,7 @@ jobs:
     # workflow_call interface, while `ref:` selects the TheRock checkout that
     # actually runs configure_multi_arch_ci.py. Restore both to `main` once
     # that PR merges.
-    uses: ROCm/TheRock/.github/workflows/setup_multi_arch.yml@users/dravindr/host-asan-presubmit
+    uses: ROCm/TheRock/.github/workflows/setup_multi_arch.yml@users/raramakr/asan-presubmit-test
     with:
       build_variant: "asan"
       # Only applies to workflow_dispatch; a pull_request trigger starts from
@@ -77,14 +77,10 @@ jobs:
       # Run on every PR with no ci:asan / ci:host-asan label, and allocate an
       # ASAN sandbox test runner on the pull_request trigger.
       asan_presubmit: true
-      # PR test:* labels must not widen the pinned test scope.
-      lock_test_labels: true
       # The sanity check currently reports a LeakSanitizer failure originating
       # in libamdhip64, which would otherwise hide every hip-tests and rocrtst
       # result behind it. Sanity still runs and still reports its own status.
-      sanity_blocks_components: false
-      # Post-processing that a partial build cannot satisfy.
-      validate_artifact_structure: false
+      #sanity_blocks_components: false
       build_native_linux: false
       build_python_packages: false
       build_pytorch: false
@@ -92,7 +88,7 @@ jobs:
       prebuilt_stages: ${{ inputs.prebuilt_stages || '' }}
       baseline_run_id: ${{ inputs.baseline_run_id || '' }}
       repository: ROCm/TheRock
-      ref: "users/dravindr/host-asan-presubmit"
+      ref: "users/raramakr/asan-presubmit-test"
       external_repo: '{"repository":"${{ github.repository }}","ref":"${{ github.sha }}"}'
 
   linux_build_and_test:
@@ -106,7 +102,7 @@ jobs:
     # TEMPORARY: see the note on the setup job. Restore to `main` once
     # https://github.com/ROCm/TheRock/pull/7311 merges. The `ref:` input below
     # already follows setup's resolved commit, so it needs no change.
-    uses: ROCm/TheRock/.github/workflows/multi_arch_ci_linux.yml@users/dravindr/host-asan-presubmit
+    uses: ROCm/TheRock/.github/workflows/multi_arch_ci_linux.yml@users/raramakr/asan-presubmit-test
     with:
       build_config: ${{ needs.setup.outputs.linux_build_config }}
       test_labels: ${{ needs.setup.outputs.linux_test_labels }}
