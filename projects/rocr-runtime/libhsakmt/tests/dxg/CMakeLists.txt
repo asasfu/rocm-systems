@@ -18,6 +18,23 @@ set_target_properties(
 
 add_test(NAME dxg-snapshot-refcount COMMAND dxg-snapshot-refcount-test)
 
+add_executable(
+    kfd-lifecycle-test
+    kfd_lifecycle_test.cpp
+    ../../../runtime/hsa-runtime/core/driver/kfd/amd_kfd_lifecycle.cpp
+)
+target_include_directories(
+    kfd-lifecycle-test
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../../tests
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../../runtime/hsa-runtime
+)
+set_target_properties(
+    kfd-lifecycle-test
+    PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON
+)
+
+add_test(NAME kfd-lifecycle COMMAND kfd-lifecycle-test)
+
 # ---------------------------------------------------------------------------
 # Installed public headers: is the dev package self-contained?
 #
