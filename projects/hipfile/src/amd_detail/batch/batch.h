@@ -423,6 +423,8 @@ public:
     ///
     /// @note This is an All or None operation.
     ///
+    /// @throws InvalidBatchHandle if the Context is terminating.
+    ///
     void submitOperations(BatchOperations ops) override;
 
     ///
@@ -437,10 +439,15 @@ public:
     ///
     /// @brief Cancel outstanding operations from this Context.
     ///
+    /// @note Does nothing if the Context is already terminated.
+    ///
     void cancelOperations() override;
 
     ///
     /// @brief Cancel outstanding operations from this Context and wait for running ops
+    ///
+    /// @note This terminates the Context: further submissions are rejected with
+    ///       InvalidBatchHandle. Calling it more than once is safe.
     ///
     void cancelOperationsAndWait() override;
 
@@ -464,6 +471,8 @@ private:
     std::vector<std::shared_ptr<IBatchOperation>> completed_ops;
 
     /// Task group used for all submitted operations owned by this context.
+    /// Released by cancelOperationsAndWait(); a null task_group means the
+    /// context is terminating and will not accept new operations.
     std::unique_ptr<ITaskGroup> task_group;
 
     BatchContext(unsigned capacity);

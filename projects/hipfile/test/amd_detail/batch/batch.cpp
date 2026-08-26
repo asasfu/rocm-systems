@@ -869,6 +869,38 @@ TEST_F(HipFileBatchContext, CancelOperationsAndWaitCancelsAndWaitsForTaskGroup)
     ASSERT_NO_THROW(_context->cancelOperationsAndWait());
 }
 
+TEST_F(HipFileBatchContext, CancelOperationsAndWaitIsIdempotent)
+{
+    EXPECT_CALL(*mock_task_group, cancel()).Times(1);
+    EXPECT_CALL(*mock_task_group, wait()).Times(1);
+
+    ASSERT_NO_THROW(_context->cancelOperationsAndWait());
+    // The task group has been released, so the second call must not touch it.
+    ASSERT_NO_THROW(_context->cancelOperationsAndWait());
+}
+
+TEST_F(HipFileBatchContext, CancelOperationsAfterTerminationIsIgnored)
+{
+    EXPECT_CALL(*mock_task_group, cancel()).Times(1);
+    EXPECT_CALL(*mock_task_group, wait()).Times(1);
+
+    ASSERT_NO_THROW(_context->cancelOperationsAndWait());
+    ASSERT_NO_THROW(_context->cancelOperations());
+}
+
+TEST_F(HipFileBatchContext, SubmitAfterTerminationThrowsInvalidBatchHandle)
+{
+    EXPECT_CALL(*mock_task_group, cancel()).Times(1);
+    EXPECT_CALL(*mock_task_group, wait()).Times(1);
+
+    ASSERT_NO_THROW(_context->cancelOperationsAndWait());
+
+    // markPending() must not be called, so a StrictMock operation without
+    // expectations is enough to catch the operation being accepted.
+    auto op = std::make_shared<StrictMock<MBatchOperation>>();
+    ASSERT_THROW(_context->submitOperations(BatchOperations{op}), InvalidBatchHandle);
+}
+
 TEST_F(HipFileBatchContext, CancelOperationsCancelsPendingOperations)
 {
     auto op1 = std::make_shared<StrictMock<MBatchOperation>>();

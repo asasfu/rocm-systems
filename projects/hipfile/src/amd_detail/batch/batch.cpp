@@ -341,9 +341,22 @@ BatchContext::submitOperations(BatchOperations pending_ops)
     if (pending_ops.empty()) {
         throw std::invalid_argument("ops must not be empty");
     }
+
+    auto self = shared_from_this();
+
+    // The task group is accessed under context_mutex, and the operations are
+    // enqueued while it is held. cancelOperationsAndWait() releases the task
+    // group under the same lock, so holding it here is what makes the
+    // "terminating" check below reliable. ITaskGroup::run() only queues work
+    // onto the thread pool, so the queued lambda's use of context_mutex cannot
+    // deadlock this thread.
     {
         std::lock_guard<std::mutex> _lock{context_mutex};
 
+        if (task_group == nullptr) {
+            // The context is being torn down, so no new work may be queued.
+            throw InvalidBatchHandle();
+        }
         if (pending_ops.size() > capacity - (submitted_ops.size() + completed_ops.size())) {
             throw BatchFull();
         }
@@ -352,25 +365,24 @@ BatchContext::submitOperations(BatchOperations pending_ops)
             op->markPending();
         }
         submitted_ops.insert(pending_ops.begin(), pending_ops.end());
-    }
 
-    auto self = shared_from_this();
-    for (const auto &op : pending_ops) {
-        task_group->run([self, op]() {
-            op->run();
-            {
-                std::lock_guard<std::mutex> _lock{self->context_mutex};
+        for (const auto &op : pending_ops) {
+            task_group->run([self, op]() {
+                op->run();
+                {
+                    std::lock_guard<std::mutex> _lock{self->context_mutex};
 
-                // A cancel may have moved this operation to completed_ops
-                // already. Cancellation only stops queued work that has not
-                // started, so this work may still run after the operation was
-                // canceled. See completeCanceledOperations().
-                if (auto node = self->submitted_ops.extract(op); !node.empty()) {
-                    self->completed_ops.push_back(std::move(node.value()));
+                    // A cancel may have moved this operation to completed_ops
+                    // already. Cancellation only stops queued work that has not
+                    // started, so this work may still run after the operation was
+                    // canceled. See completeCanceledOperations().
+                    if (auto node = self->submitted_ops.extract(op); !node.empty()) {
+                        self->completed_ops.push_back(std::move(node.value()));
+                    }
                 }
-            }
-            self->status_cv.notify_all();
-        });
+                self->status_cv.notify_all();
+            });
+        }
     }
 }
 
@@ -425,6 +437,11 @@ BatchContext::cancelOperations()
 {
     std::lock_guard<std::mutex> lock{context_mutex};
 
+    if (task_group == nullptr) {
+        // The context has already been torn down, so there is nothing running
+        // left to cancel.
+        return;
+    }
     task_group->cancel();
     completeCanceledOperations();
     status_cv.notify_all();
@@ -433,13 +450,23 @@ BatchContext::cancelOperations()
 void
 BatchContext::cancelOperationsAndWait()
 {
+    // Release the task group while holding the lock. A null task_group marks
+    // this context as terminating, which stops submitOperations() from queuing
+    // more work onto the group we are about to drain.
+    std::unique_ptr<ITaskGroup> group;
     {
         std::lock_guard<std::mutex> lock{context_mutex};
 
-        task_group->cancel();
+        if (task_group == nullptr) {
+            return;
+        }
+        group = std::move(task_group);
+        group->cancel();
         completeCanceledOperations();
     }
-    task_group->wait();
+    // Waiting cannot be done under the lock: queued work needs context_mutex
+    // to move its operation to completed_ops.
+    group->wait();
     {
         std::lock_guard<std::mutex> lock{context_mutex};
         status_cv.notify_all();
