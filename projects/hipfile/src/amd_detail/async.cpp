@@ -60,6 +60,8 @@ AsyncMonitor::completeOp(AsyncOp *op)
         if (auto found = submitted_ops.find(op); found == submitted_ops.end()) {
             throw std::invalid_argument("Op does not appear in submitted_ops");
         }
+        op->file.reset();
+        op->buffer.reset();
         completed_ops.push_back(op);
     }
     cv.notify_one();
