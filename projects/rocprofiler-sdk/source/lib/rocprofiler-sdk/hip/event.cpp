@@ -364,6 +364,7 @@ event_record_impl(hipEvent_t event, hipStream_t stream)
     return ret;
 }
 
+#if HIP_RUNTIME_API_TABLE_STEP_VERSION >= 10
 hipError_t
 event_record_with_flags_impl(hipEvent_t event, hipStream_t stream, unsigned int flags)
 {
@@ -374,6 +375,7 @@ event_record_with_flags_impl(hipEvent_t event, hipStream_t stream, unsigned int 
         check_coalesced_record(reinterpret_cast<uint64_t>(event));
     return ret;
 }
+#endif
 
 void
 check_deferred_wait(uint64_t hip_event_handle)
