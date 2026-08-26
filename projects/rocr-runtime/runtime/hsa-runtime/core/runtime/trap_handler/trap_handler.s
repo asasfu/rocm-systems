@@ -635,7 +635,7 @@ trap_entry:
 .else
   s_and_b32                             ttmp4, ttmp6, 0x1ffffff         // extract low 25 bits from ttmp6 (DispatchPktIndx[24:0])
 .endif
-  s_store_dwordx2                       ttmp[4:5], ttmp[2:3], 0x38      // ttmp[4:5] is correlation ID. Store correlation_id to sample
+  s_store_dwordx2                       ttmp[4:5], ttmp[2:3], 0x38 glc  // ttmp[4:5] is correlation ID. Store correlation_id to sample
   // get_correlation_id() -- end //
 
   // complete stores before returning
