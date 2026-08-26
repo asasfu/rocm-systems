@@ -6,7 +6,7 @@
 #include <type_traits>
 
 #include "common/units/format.hpp"
-#include "common/units/units.hpp"
+#include "common/units/frequency.hpp"
 
 using namespace rocprofsys::common::units;
 using namespace rocprofsys::common::units::literals;

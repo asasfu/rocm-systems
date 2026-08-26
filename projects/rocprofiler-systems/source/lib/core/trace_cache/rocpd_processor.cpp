@@ -4,7 +4,7 @@
 #include "core/trace_cache/rocpd_processor.hpp"
 #include "agent.hpp"
 #include "common/md5sum.hpp"
-#include "common/units/units.hpp"
+#include "common/units/data_size.hpp"
 #include "core/agent_manager.hpp"
 #include "core/common_types.hpp"
 #include "core/config.hpp"

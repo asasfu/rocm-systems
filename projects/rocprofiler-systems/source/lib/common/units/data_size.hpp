@@ -115,37 +115,37 @@ struct data_size_suffix;
 template <>
 struct data_size_suffix<std::ratio<1>>
 {
-    static constexpr std::string_view VALUE = "B";
+    static constexpr std::string_view k_value = "B";
 };
 template <>
 struct data_size_suffix<std::kilo>
 {
-    static constexpr std::string_view VALUE = "KB";
+    static constexpr std::string_view k_value = "KB";
 };
 template <>
 struct data_size_suffix<std::mega>
 {
-    static constexpr std::string_view VALUE = "MB";
+    static constexpr std::string_view k_value = "MB";
 };
 template <>
 struct data_size_suffix<std::giga>
 {
-    static constexpr std::string_view VALUE = "GB";
+    static constexpr std::string_view k_value = "GB";
 };
 template <>
 struct data_size_suffix<std::tera>
 {
-    static constexpr std::string_view VALUE = "TB";
+    static constexpr std::string_view k_value = "TB";
 };
 template <>
 struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB>>
 {
-    static constexpr std::string_view VALUE = "KiB";
+    static constexpr std::string_view k_value = "KiB";
 };
 template <>
 struct data_size_suffix<std::ratio<detail::BYTES_PER_KIB * detail::BYTES_PER_KIB>>
 {
-    static constexpr std::string_view VALUE = "MiB";
+    static constexpr std::string_view k_value = "MiB";
 };
 template <>
 struct data_size_suffix<

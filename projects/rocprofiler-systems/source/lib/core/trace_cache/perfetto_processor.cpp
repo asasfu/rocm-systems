@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "core/trace_cache/perfetto_processor.hpp"
-#include "common/units/units.hpp"
+#include "common/units/data_size.hpp"
 #include "core/agent_manager.hpp"
 #include "core/categories.hpp"
 #include "core/common.hpp"

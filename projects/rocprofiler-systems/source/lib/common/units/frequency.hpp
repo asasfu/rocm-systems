@@ -17,7 +17,7 @@ namespace rocprofsys::inline common::units
 {
 
 /**
- * A frequency value, modelled on std::chrono::duration.
+ * A frequency k_value, modelled on std::chrono::duration.
  *
  * Stores a count of @p Period hertz, where @p Period is a std::ratio relative
  * to one hertz. `frequency<double, std::kilo>{3}` therefore represents 3 kHz.
@@ -70,22 +70,22 @@ struct frequency_suffix;
 template <>
 struct frequency_suffix<std::ratio<1>>
 {
-    static constexpr std::string_view VALUE = "Hz";
+    static constexpr std::string_view k_value = "Hz";
 };
 template <>
 struct frequency_suffix<std::kilo>
 {
-    static constexpr std::string_view VALUE = "kHz";
+    static constexpr std::string_view k_value = "kHz";
 };
 template <>
 struct frequency_suffix<std::mega>
 {
-    static constexpr std::string_view VALUE = "MHz";
+    static constexpr std::string_view k_value = "MHz";
 };
 template <>
 struct frequency_suffix<std::giga>
 {
-    static constexpr std::string_view VALUE = "GHz";
+    static constexpr std::string_view k_value = "GHz";
 };
 
 /**
@@ -96,7 +96,7 @@ struct frequency_suffix<std::giga>
  *
  * @tparam To   target frequency type.
  * @tparam From source frequency type (deduced).
- * @param  from value to convert.
+ * @param  from k_value to convert.
  * @return @p from expressed in @p To's unit.
  */
 template <frequency_like To, frequency_like From>
@@ -143,14 +143,14 @@ namespace literals
 {
 
 // clang-format off
-constexpr hertz     operator""_hz (long double value)        noexcept { return hertz{static_cast<double>(value)}; }
-constexpr hertz     operator""_hz (unsigned long long value) noexcept { return hertz{static_cast<double>(value)}; }
-constexpr kilohertz operator""_khz(long double value)        noexcept { return kilohertz{static_cast<double>(value)}; }
-constexpr kilohertz operator""_khz(unsigned long long value) noexcept { return kilohertz{static_cast<double>(value)}; }
-constexpr megahertz operator""_mhz(long double value)        noexcept { return megahertz{static_cast<double>(value)}; }
-constexpr megahertz operator""_mhz(unsigned long long value) noexcept { return megahertz{static_cast<double>(value)}; }
-constexpr gigahertz operator""_ghz(long double value)        noexcept { return gigahertz{static_cast<double>(value)}; }
-constexpr gigahertz operator""_ghz(unsigned long long value) noexcept { return gigahertz{static_cast<double>(value)}; }
+constexpr hertz     operator""_hz (long double k_value)        noexcept { return hertz{static_cast<double>(k_value)}; }
+constexpr hertz     operator""_hz (unsigned long long k_value) noexcept { return hertz{static_cast<double>(k_value)}; }
+constexpr kilohertz operator""_khz(long double k_value)        noexcept { return kilohertz{static_cast<double>(k_value)}; }
+constexpr kilohertz operator""_khz(unsigned long long k_value) noexcept { return kilohertz{static_cast<double>(k_value)}; }
+constexpr megahertz operator""_mhz(long double k_value)        noexcept { return megahertz{static_cast<double>(k_value)}; }
+constexpr megahertz operator""_mhz(unsigned long long k_value) noexcept { return megahertz{static_cast<double>(k_value)}; }
+constexpr gigahertz operator""_ghz(long double k_value)        noexcept { return gigahertz{static_cast<double>(k_value)}; }
+constexpr gigahertz operator""_ghz(unsigned long long k_value) noexcept { return gigahertz{static_cast<double>(k_value)}; }
 // clang-format on
 
 }  // namespace literals

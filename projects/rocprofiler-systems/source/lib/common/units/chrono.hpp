@@ -40,11 +40,11 @@ seconds_to_duration(double seconds) noexcept
     {
         return std::chrono::nanoseconds::zero();
     }
-    constexpr double max_sec =
+    constexpr double k_max_sec =
         static_cast<double>(std::numeric_limits<rep>::max()) / std::nano::den;
-    return seconds >= max_sec ? std::chrono::nanoseconds::max()
-                              : std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                    std::chrono::duration<double>{ seconds });
+    return seconds >= k_max_sec ? std::chrono::nanoseconds::max()
+                                : std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                      std::chrono::duration<double>{ seconds });
 }
 
 /**
@@ -60,32 +60,32 @@ struct duration_suffix;
 template <>
 struct duration_suffix<std::nano>
 {
-    static constexpr std::string_view VALUE = "ns";
+    static constexpr std::string_view k_value = "ns";
 };
 template <>
 struct duration_suffix<std::micro>
 {
-    static constexpr std::string_view VALUE = "us";
+    static constexpr std::string_view k_value = "us";
 };
 template <>
 struct duration_suffix<std::milli>
 {
-    static constexpr std::string_view VALUE = "ms";
+    static constexpr std::string_view k_value = "ms";
 };
 template <>
 struct duration_suffix<std::ratio<1>>
 {
-    static constexpr std::string_view VALUE = "s";
+    static constexpr std::string_view k_value = "s";
 };
 template <>
 struct duration_suffix<std::ratio<detail::SECONDS_PER_MINUTE>>
 {
-    static constexpr std::string_view VALUE = "min";
+    static constexpr std::string_view k_value = "min";
 };
 template <>
 struct duration_suffix<std::ratio<detail::SECONDS_PER_HOUR>>
 {
-    static constexpr std::string_view VALUE = "h";
+    static constexpr std::string_view k_value = "h";
 };
 
 }  // namespace rocprofsys::inline common::units

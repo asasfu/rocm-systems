@@ -4,7 +4,7 @@
 #include "perfetto.hpp"
 #include "common/env_vars.hpp"
 #include "common/path.hpp"
-#include "common/units/units.hpp"
+#include "common/units/data_size.hpp"
 #include "config.hpp"
 #include "library/runtime.hpp"
 #include "output_file_registry.hpp"
