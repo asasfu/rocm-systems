@@ -458,7 +458,22 @@ get_active_event_context()
 void
 record_event_info(uint64_t hip_event_handle, event_record_info_t info)
 {
-    get_event_info_map()->wlock([&](auto& map) { map[hip_event_handle] = info; });
+    auto old_signal = uint64_t{0};
+    get_event_info_map()->wlock([&](auto& map) {
+        auto it = map.find(hip_event_handle);
+        if(it != map.end()) old_signal = it->second.original_signal;
+        map[hip_event_handle] = info;
+    });
+
+    if(old_signal != 0 && old_signal != info.original_signal)
+    {
+        auto pw = consume_pending_wait(old_signal);
+        if(pw.corr_id_ref)
+        {
+            pw.corr_id_ref->sub_kern_count();
+            pw.corr_id_ref->sub_ref_count();
+        }
+    }
 }
 
 event_record_info_t
@@ -490,6 +505,27 @@ erase_event_info(uint64_t hip_event_handle)
             pw.corr_id_ref->sub_ref_count();
         }
     }
+
+    get_pending_wait_map()->wlock([&](auto& map) {
+        for(auto it = map.begin(); it != map.end();)
+        {
+            if(it->second.hip_event_handle == hip_event_handle)
+            {
+                if(it->second.corr_id_ref)
+                {
+                    it->second.corr_id_ref->sub_kern_count();
+                    it->second.corr_id_ref->sub_ref_count();
+                }
+                it = map.erase(it);
+                g_pending_wait_count.fetch_sub(1, std::memory_order_release);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+    });
+
     get_event_info_map()->wlock([&](auto& map) { map.erase(hip_event_handle); });
     get_coalesce_group_map()->wlock([&](auto& map) { map.erase(hip_event_handle); });
 }
