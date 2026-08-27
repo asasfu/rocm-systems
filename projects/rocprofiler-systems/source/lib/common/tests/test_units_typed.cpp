@@ -3,10 +3,13 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <type_traits>
 
+#include "common/units/data_size.hpp"
 #include "common/units/format.hpp"
 #include "common/units/frequency.hpp"
+#include "common/units/power.hpp"
 
 using namespace rocprofsys::common::units;
 using namespace rocprofsys::common::units::literals;

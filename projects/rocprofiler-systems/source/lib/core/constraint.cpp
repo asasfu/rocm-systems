@@ -14,14 +14,13 @@
 
 #include <spdlog/fmt/ranges.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <ratio>
 #include <string>
 #include <thread>
 #include <type_traits>
-
-using namespace std::chrono_literals;
 
 namespace rocprofsys::constraint
 {
@@ -124,7 +123,7 @@ stages::stages()
 , wait{ [](const spec& _spec) {
     const auto spec_delay_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         rocprofsys::common::units::seconds_to_duration(_spec.delay));
-    const auto min_sleep_delay = 100ms;
+    const auto min_sleep_delay = std::chrono::milliseconds{ 100 };
 
     std::this_thread::sleep_for(std::min(min_sleep_delay, spec_delay_ms));
     return state::process::get() < state::process::Finalized;
@@ -133,7 +132,7 @@ stages::stages()
 , collect{ [](const spec& _spec) {
     const auto spec_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         rocprofsys::common::units::seconds_to_duration(_spec.duration));
-    const auto min_sleep_duration = 100ms;
+    const auto min_sleep_duration = std::chrono::milliseconds{ 100 };
 
     std::this_thread::sleep_for(std::min(min_sleep_duration, spec_duration_ms));
     return state::process::get() < state::process::Finalized;
@@ -246,30 +245,36 @@ spec::operator()(const stages& _stages) const
 
     while(state::process::get() < state::process::Active)
     {
-        std::this_thread::sleep_for(1us);
+        std::this_thread::sleep_for(std::chrono::microseconds{ 1 });
     }
 
     for(std::uint64_t i = 0; i < _n; ++i)
     {
-        auto _spec = spec{ clock_id, delay, duration, i, repeat };
-        auto _wait = [_spec](const auto& _func, auto _dur) {
-            auto _ret = true;
-            auto _now = get_clock_now(_spec.clock_id.value);
-            auto _del = rocprofsys::common::units::seconds_to_duration(_dur).count();
-            auto _end = _now + _del;
-            while(get_clock_now(_spec.clock_id.value) < _end && (_ret = _func(_spec)))
+        auto       specificitaions = spec{ clock_id, delay, duration, i, repeat };
+        const auto wait            = [specificitaions](const auto& func, auto dur) {
+            auto       ret = true;
+            const auto now = get_clock_now(specificitaions.clock_id.value);
+            const auto del = rocprofsys::common::units::seconds_to_duration(dur).count();
+            const auto end = now + del;
+            while(get_clock_now(specificitaions.clock_id.value) < end)
             {
+                ret = func(specificitaions);
+                if(!ret)
+                {
+                    break;
+                }
             }
-            return _ret;
+            return ret;
         };
 
         LOG_DEBUG("Executing constraint spec {} of {} :: delay: {:.3f}, "
                   "duration: {:.3f}, clock: {}",
-                  i, _spec.repeat, _spec.delay, _spec.duration,
-                  _spec.clock_id.as_string());
-        if(_stages.init(_spec) && _wait(_stages.wait, _spec.delay) &&
-           _stages.start(_spec) && _wait(_stages.collect, _spec.duration) &&
-           _stages.stop(_spec))
+                  i, specificitaions.repeat, specificitaions.delay,
+                  specificitaions.duration, specificitaions.clock_id.as_string());
+        if(_stages.init(specificitaions) && wait(_stages.wait, specificitaions.delay) &&
+           _stages.start(specificitaions) &&
+           wait(_stages.collect, specificitaions.duration) &&
+           _stages.stop(specificitaions))
         {
         }
         else
@@ -339,7 +344,7 @@ get_trace_stages()
     _v.wait = [](const spec& _spec) {
         const auto spec_delay_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             rocprofsys::common::units::seconds_to_duration(_spec.delay));
-        const auto min_sleep_delay = 100ms;
+        const auto min_sleep_delay = std::chrono::milliseconds{ 100 };
 
         std::this_thread::sleep_for(std::min(min_sleep_delay, spec_delay_ms));
         return state::process::get() < state::process::Finalized;
@@ -351,7 +356,7 @@ get_trace_stages()
         const auto spec_duration_ms =
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 rocprofsys::common::units::seconds_to_duration(_spec.duration));
-        const auto min_sleep_duration = 100ms;
+        const auto min_sleep_duration = std::chrono::milliseconds{ 100 };
 
         std::this_thread::sleep_for(std::min(min_sleep_duration, spec_duration_ms));
         return state::process::get() < state::process::Finalized;

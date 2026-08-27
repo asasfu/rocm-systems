@@ -96,9 +96,18 @@ private:
         constexpr double k_khz =
             static_cast<double>(std::kilo::num) / static_cast<double>(std::kilo::den);
         const double mag = freq_hz < 0.0 ? -freq_hz : freq_hz;
-        if(mag >= k_ghz) return { freq_hz / k_ghz, frequency_suffix<std::giga>::k_value };
-        if(mag >= k_mhz) return { freq_hz / k_mhz, frequency_suffix<std::mega>::k_value };
-        if(mag >= k_khz) return { freq_hz / k_khz, frequency_suffix<std::kilo>::k_value };
+        if(mag >= k_ghz)
+        {
+            return { freq_hz / k_ghz, frequency_suffix<std::giga>::k_value };
+        }
+        if(mag >= k_mhz)
+        {
+            return { freq_hz / k_mhz, frequency_suffix<std::mega>::k_value };
+        }
+        if(mag >= k_khz)
+        {
+            return { freq_hz / k_khz, frequency_suffix<std::kilo>::k_value };
+        }
         return { freq_hz, frequency_suffix<std::ratio<1>>::k_value };
     }
 };
@@ -154,23 +163,19 @@ private:
         const double mag = bytes_val < 0.0 ? -bytes_val : bytes_val;
         if(mag >= k_tb)
         {
-            return { bytes_val / k_tb,
-                     data_size_suffix<typename terabytes::scale>::k_value };
+            return { bytes_val / k_tb, data_size_suffix<terabytes::scale>::k_value };
         }
         if(mag >= k_gb)
         {
-            return { bytes_val / k_gb,
-                     data_size_suffix<typename gigabytes::scale>::k_value };
+            return { bytes_val / k_gb, data_size_suffix<gigabytes::scale>::k_value };
         }
         if(mag >= k_mb)
         {
-            return { bytes_val / k_mb,
-                     data_size_suffix<typename megabytes::scale>::k_value };
+            return { bytes_val / k_mb, data_size_suffix<megabytes::scale>::k_value };
         }
         if(mag >= k_kb)
         {
-            return { bytes_val / k_kb,
-                     data_size_suffix<typename kilobytes::scale>::k_value };
+            return { bytes_val / k_kb, data_size_suffix<kilobytes::scale>::k_value };
         }
         return { bytes_val, data_size_suffix<std::ratio<1>>::k_value };
     }
@@ -217,11 +222,26 @@ private:
         constexpr double k_nw =
             static_cast<double>(std::nano::num) / static_cast<double>(std::nano::den);
         const double mag = watts_val < 0.0 ? -watts_val : watts_val;
-        if(mag == 0.0) return { watts_val, power_suffix<std::ratio<1>>::k_value };
-        if(mag >= k_kw) return { watts_val / k_kw, power_suffix<std::kilo>::k_value };
-        if(mag >= 1.0) return { watts_val, power_suffix<std::ratio<1>>::k_value };
-        if(mag >= k_mw) return { watts_val / k_mw, power_suffix<std::milli>::k_value };
-        if(mag >= k_uw) return { watts_val / k_uw, power_suffix<std::micro>::k_value };
+        if(mag == 0.0)
+        {
+            return { watts_val, power_suffix<std::ratio<1>>::k_value };
+        }
+        if(mag >= k_kw)
+        {
+            return { watts_val / k_kw, power_suffix<std::kilo>::k_value };
+        }
+        if(mag >= 1.0)
+        {
+            return { watts_val, power_suffix<std::ratio<1>>::k_value };
+        }
+        if(mag >= k_mw)
+        {
+            return { watts_val / k_mw, power_suffix<std::milli>::k_value };
+        }
+        if(mag >= k_uw)
+        {
+            return { watts_val / k_uw, power_suffix<std::micro>::k_value };
+        }
         return { watts_val / k_nw, power_suffix<std::nano>::k_value };
     }
 };

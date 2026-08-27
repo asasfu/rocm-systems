@@ -4,12 +4,9 @@
 #pragma once
 
 #include <compare>
-#include <concepts>
-#include <cstdint>
 #include <ratio>
 #include <string_view>
 #include <type_traits>
-#include <utility>
 
 #include "common/units/quantity.hpp"
 

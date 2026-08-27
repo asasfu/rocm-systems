@@ -15,8 +15,8 @@ namespace rocprofsys::inline common::units
 namespace detail
 {
 
-inline constexpr std::intmax_t SECONDS_PER_MINUTE = 60;
-inline constexpr std::intmax_t SECONDS_PER_HOUR   = 3600;
+inline constexpr std::intmax_t k_seconds_per_minute = 60;
+inline constexpr std::intmax_t k_seconds_per_hour   = 3600;
 
 }  // namespace detail
 
@@ -78,12 +78,12 @@ struct duration_suffix<std::ratio<1>>
     static constexpr std::string_view k_value = "s";
 };
 template <>
-struct duration_suffix<std::ratio<detail::SECONDS_PER_MINUTE>>
+struct duration_suffix<std::ratio<detail::k_seconds_per_minute>>
 {
     static constexpr std::string_view k_value = "min";
 };
 template <>
-struct duration_suffix<std::ratio<detail::SECONDS_PER_HOUR>>
+struct duration_suffix<std::ratio<detail::k_seconds_per_hour>>
 {
     static constexpr std::string_view k_value = "h";
 };
