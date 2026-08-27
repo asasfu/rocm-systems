@@ -2595,6 +2595,11 @@ if(RJ_ENABLE_HIP_TESTS)
         )
         rj_add_hip_test_case(
             hip_memcpy_test
+            "HipMemcpyTest.RoundTripPageableAbovePinThreshold"
+            CONFIG ${RJ_HIP_TEST_CONFIG}
+        )
+        rj_add_hip_test_case(
+            hip_memcpy_test
             "HipMemcpyTest.DeviceToDevice"
             CONFIG ${RJ_HIP_TEST_CONFIG}
         )
@@ -2686,6 +2691,7 @@ if(RJ_ENABLE_HIP_TESTS)
             DaemonTest.AttachExecFailurePreservesDaemonSocket
             DaemonTest.HipMemcpyRoundTripFloat
             DaemonTest.HipMemcpyRoundTripInt
+            DaemonTest.HipMemcpyRoundTripPageableAbovePinThreshold
             DaemonTest.HipMemcpyDeviceToDevice
             DaemonTest.TwoIndependentClients
             DaemonTest.InterposerDupReopenAfterPrimaryOverwriteRemote

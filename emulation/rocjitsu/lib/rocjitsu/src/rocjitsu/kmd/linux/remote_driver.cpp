@@ -24,6 +24,13 @@
 #include <poll.h>
 #include <sys/eventfd.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
+#ifndef PR_SET_PTRACER
+// Yama's ptrace-scope exception list. Absent from some libc header sets even
+// where the running kernel implements it, so the call below is worth keeping
+// unconditional; the kernel answers EINVAL when it is genuinely unsupported.
+#define PR_SET_PTRACER 0x59616d61
+#endif
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -66,6 +73,45 @@ constexpr bool has_embedded_pointers(unsigned long request) {
 int transport_errno() {
   const int err = errno;
   return err > 0 ? -err : -EIO;
+}
+
+/// @brief Permit the daemon on @p socket to read and write this address space.
+///
+/// @details Host memory that never became a daemon mapping is reachable only by
+/// the daemon reaching into this process. Its memory bridge already assumes it
+/// can, through process_vm_readv/writev, and GPU access to such memory is
+/// serviced no other way -- pageable buffers the runtime pinned through the KFD
+/// SVM API, above all, since that registration produces no shared backing the
+/// way a USERPTR allocation does. Those calls are nonetheless refused by
+/// default: the daemon is forked as this process's child, and Yama's default
+/// ptrace_scope admits a ptracer only over its own descendants, never over its
+/// own ancestor. Naming the daemon a permitted ptracer restores the access the
+/// bridge was written to have; without it every such access fails EPERM and the
+/// SDMA copy that needed it never completes.
+///
+/// The peer PID comes from the kernel rather than from the daemon, so this
+/// names exactly the process on the other end of this socket. The grant widens
+/// nothing that was not already true: the daemon's own client library is this
+/// LD_PRELOAD, and is already executing inside this address space.
+///
+/// Best effort, and deliberately silent. Where Yama is absent or disabled the
+/// syscall is redundant because the access already succeeds, and where
+/// ptrace_scope forbids attaching outright there is nothing to restore.
+void authorize_daemon_address_space_access(int socket) {
+  ucred peer{};
+  socklen_t peer_size = sizeof(peer);
+  if (getsockopt(socket, SOL_SOCKET, SO_PEERCRED, &peer, &peer_size) != 0 ||
+      peer_size != sizeof(peer) || peer.pid <= 0)
+    return;
+  // Never name a peer belonging to another user. PR_SET_PTRACER relaxes Yama
+  // alone; the ordinary ptrace credential check still stands behind it, so a
+  // cross-user peer could not attach even if named here. Refusing anyway keeps
+  // the exception list from ever holding a process this client did not expect
+  // to be served by, which is the property worth preserving if a socket is ever
+  // reached by something other than the daemon that forked us.
+  if (peer.uid != geteuid())
+    return;
+  prctl(PR_SET_PTRACER, static_cast<unsigned long>(peer.pid), 0, 0, 0);
 }
 
 /// @brief Safe wrapper around syscall(SYS_mmap, ...) that avoids UB from
@@ -285,6 +331,7 @@ int RemoteDriver::poison_stream() {
 
 int RemoteDriver::open() {
   assert(sock_ >= 0 && "open called on disconnected RemoteDriver");
+  authorize_daemon_address_space_access(sock_);
   closing_.store(false, std::memory_order_release);
   has_gpu_info_ = false;
   gpu_info_ = {};
