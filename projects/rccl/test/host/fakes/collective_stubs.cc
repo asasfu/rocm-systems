@@ -24,6 +24,7 @@
 #include "rma/rma.h"
 #include "rma/rma_ce.h"
 #include "argcheck.h"
+#include "utils.h"
 #include "dev_runtime.h"
 #include "transport.h"
 #include "os.h"
@@ -51,6 +52,11 @@ ncclResult_t ncclDevrCommCreateInternal(struct ncclComm*, struct ncclDevCommRequ
 ncclResult_t ncclDevrWindowRegisterInGroup(struct ncclComm*, void*, size_t, int,
                                            struct ncclWindow_vidmem**) { ::abort(); }
 void freeDevCommRequirements(struct ncclDevCommRequirements*) { ::abort(); }
+
+// utils.h -- the inline ncclMemoryStack::allocate references this spill path.
+// Tests that push onto a comm's memScoped size the stack so the in-hunk fast
+// path is always taken, so this is a link-satisfier that must never be reached.
+void* ncclMemoryStack::allocateSpilled(struct ncclMemoryStack*, size_t, size_t) { ::abort(); }
 
 // mem_manager.h
 ncclResult_t ncclCommMemSuspend(struct ncclComm*) { ::abort(); }

@@ -52,6 +52,10 @@ class GroupEndInternalTest : public ::testing::Test {
  protected:
   std::unique_ptr<ncclComm> comm_;
   std::unique_ptr<ncclAsyncJob> job_;
+  // Backing storage for comm_->memScoped so ncclGroupCommJoin's push takes the
+  // in-hunk fast path instead of spilling to ncclMemoryStack::allocateSpilled
+  // (which the host-only link deliberately omits).
+  std::vector<char> memScopedBuf_;
 
   // Records every ncclCommSetAsyncError state pushed to comm_.
   std::vector<ncclResult_t> asyncStates_;
@@ -70,6 +74,18 @@ class GroupEndInternalTest : public ::testing::Test {
 
     comm_ = std::make_unique<ncclComm>();  // value-initialised => zeroed
     comm_->groupJob = nullptr;
+    // A comm not currently in a group carries the 0x1 "not joined" sentinel in
+    // each groupNext slot; ncclGroupCommJoin keys off it to decide to insert.
+    for (int type = 0; type < ncclGroupTaskTypeNum; ++type)
+      comm_->groupNext[type] = reinterpret_cast<struct ncclComm*>(0x1);
+    // groupLaunch's cleanup pops comm->memScoped (ncclGroupCommLeave), balancing
+    // the push ncclGroupCommJoin does; construct it over a fixture-owned buffer
+    // so the push allocates in-hunk and never reaches allocateSpilled.
+    memScopedBuf_.assign(1 << 16, 0);
+    ncclMemoryStackConstruct(&comm_->memScoped);
+    comm_->memScoped.topFrame.bumper = reinterpret_cast<uintptr_t>(memScopedBuf_.data());
+    comm_->memScoped.topFrame.end =
+        reinterpret_cast<uintptr_t>(memScopedBuf_.data() + memScopedBuf_.size());
 
     g_commSetAsyncError = [this](struct ncclComm*, ncclResult_t state) {
       asyncStates_.push_back(state);
@@ -102,6 +118,20 @@ class GroupEndInternalTest : public ::testing::Test {
     ncclGroupBlocking = blocking;
     ncclIntruQueueEnqueue(&ncclAsyncJobs, job_.get());
   }
+
+  // Enter a group carrying only a comm on a task chain -- no pending async init
+  // jobs, no preconnect. This is the collective-only group shape: work to launch
+  // lives on ncclGroupCommHead, not on the ncclAsyncJobs queue. The comm joins
+  // the (lighter) symmetric-register chain, whose launch over empty task queues
+  // is a no-op, so the group's path selection can be observed without standing
+  // up the full collective launch pipeline.
+  void EnterGroupWithOneCommHeadNoAsyncJob(int blocking) {
+    comm_->config.blocking = blocking;
+
+    ncclGroupStartInternal();  // ncclGroupDepth = 1
+    ncclGroupCommJoin(comm_.get(), ncclGroupTaskTypeSymRegister);
+    ncclGroupBlocking = blocking;
+  }
 };
 
 // The fix: a non-blocking group carrying pending init work must return
@@ -119,6 +149,29 @@ TEST_F(GroupEndInternalTest, NonBlockingGroupWithPendingJob_ReturnsInProgress) {
 // is what lets the caller subsequently poll or abort it.
 TEST_F(GroupEndInternalTest, NonBlockingGroupWithPendingJob_PublishesGroupJobOnComm) {
   EnterGroupWithOnePendingJob(/*blocking=*/0);
+
+  (void)ncclGroupEndInternal();
+
+  EXPECT_NE(nullptr, comm_->groupJob);
+}
+
+// A non-blocking group whose only work is a comm on a task chain (no pending
+// async init jobs, no preconnect) must also hand off to a background thread and
+// return ncclInProgress -- the path selection depends only on config.blocking,
+// not on whether the work happens to sit on the async-jobs queue. RCCL long
+// carried an extra `&& (preconnectHead || !asyncJobs.empty())` term on this gate
+// that upstream NCCL dropped at v2.30.7; with it, this comm-head-only group
+// wrongly fell through to the blocking path and ran synchronously on the caller.
+TEST_F(GroupEndInternalTest, NonBlockingGroupWithCommHeadOnly_ReturnsInProgress) {
+  EnterGroupWithOneCommHeadNoAsyncJob(/*blocking=*/0);
+
+  EXPECT_EQ(ncclInProgress, ncclGroupEndInternal());
+}
+
+// And, as with the async-job case, the non-blocking comm-head path publishes a
+// group job on the communicator so the caller can poll or abort it.
+TEST_F(GroupEndInternalTest, NonBlockingGroupWithCommHeadOnly_PublishesGroupJobOnComm) {
+  EnterGroupWithOneCommHeadNoAsyncJob(/*blocking=*/0);
 
   (void)ncclGroupEndInternal();
 
