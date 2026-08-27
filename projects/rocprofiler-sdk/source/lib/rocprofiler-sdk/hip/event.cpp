@@ -205,7 +205,7 @@ thread_local active_event_context_t g_active_event_ctx = {};
 
 using event_info_map_t     = std::unordered_map<uint64_t, event_record_info_t>;
 using coalesce_group_map_t = std::unordered_map<uint64_t, coalesce_group_ptr_t>;
-using pending_wait_map_t   = std::unordered_map<uint64_t, pending_wait_t>;
+using pending_wait_map_t   = std::unordered_multimap<uint64_t, pending_wait_t>;
 
 using stream_is_capturing_fn_t = hipError_t (*)(hipStream_t, hipStreamCaptureStatus*);
 
@@ -467,9 +467,10 @@ record_event_info(uint64_t hip_event_handle, event_record_info_t info)
 
     if(old_signal != 0 && old_signal != info.original_signal)
     {
-        auto pw = consume_pending_wait(old_signal);
-        if(pw.corr_id_ref)
+        for(;;)
         {
+            auto pw = consume_pending_wait(old_signal);
+            if(!pw.corr_id_ref) break;
             pw.corr_id_ref->sub_kern_count();
             pw.corr_id_ref->sub_ref_count();
         }
@@ -498,9 +499,10 @@ erase_event_info(uint64_t hip_event_handle)
     auto info = lookup_event_info(hip_event_handle);
     if(info.original_signal != 0)
     {
-        auto pw = consume_pending_wait(info.original_signal);
-        if(pw.corr_id_ref)
+        for(;;)
         {
+            auto pw = consume_pending_wait(info.original_signal);
+            if(!pw.corr_id_ref) break;
             pw.corr_id_ref->sub_kern_count();
             pw.corr_id_ref->sub_ref_count();
         }
@@ -543,25 +545,8 @@ lookup_coalesce_group(uint64_t hip_event_handle)
 void
 register_pending_wait(uint64_t signal_handle, pending_wait_t pw)
 {
-    pending_wait_t replaced{};
-    get_pending_wait_map()->wlock([&](auto& map) {
-        auto it = map.find(signal_handle);
-        if(it != map.end())
-        {
-            replaced   = std::move(it->second);
-            it->second = std::move(pw);
-        }
-        else
-        {
-            map.emplace(signal_handle, std::move(pw));
-            g_pending_wait_count.fetch_add(1, std::memory_order_release);
-        }
-    });
-    if(replaced.corr_id_ref)
-    {
-        replaced.corr_id_ref->sub_kern_count();
-        replaced.corr_id_ref->sub_ref_count();
-    }
+    get_pending_wait_map()->wlock([&](auto& map) { map.emplace(signal_handle, std::move(pw)); });
+    g_pending_wait_count.fetch_add(1, std::memory_order_release);
 }
 
 bool
