@@ -440,6 +440,43 @@ TEST(Gfx1250SimulationTest, GlobalStoreWritesVisibleMemory) {
     EXPECT_EQ(sim.memory->read32(output_addr + lane * sizeof(uint32_t)), 1u) << "lane " << lane;
 }
 
+/// @brief A GLOBAL saddr access sign-extends its VGPR offset on gfx1250.
+/// @details LLVM gates this on hasSignedGVSOffset and hands a negative offset to
+/// the saddr form whenever an access walks backwards from its base, so the case
+/// arises from ordinary reversed iteration. Zero-extending -4 puts the access
+/// 4 GiB above the allocation rather than one dword below it, which lands on
+/// nothing and is dropped, making the symptom silently missing data rather than
+/// a fault.
+TEST(Gfx1250SimulationTest, GlobalStoreSignExtendsNegativeSaddrVgprOffset) {
+  constexpr uint64_t kernel_addr = 0x10000;
+  constexpr uint64_t base_addr = 0x2000;
+  constexpr uint32_t marker = 0xA5A5A5A5u;
+
+  const uint32_t code[] = {
+      0xBE8400FFu,    static_cast<uint32_t>(base_addr), // s_mov_b32 s4, base_addr
+      0xBE850080u,                                      // s_mov_b32 s5, 0
+      0x7E0002FFu,    0xFFFFFFFCu,                      // v_mov_b32_e32 v0, -4
+      0x7E0202FFu,    marker,                           // v_mov_b32_e32 v1, marker
+      0xEE068004u,    0x00800000u,
+      0x00000000u, // global_store_b32 v0, v1, s[4:5]
+      0xBFC10000u, // s_wait_storecnt 0
+      S_ENDPGM_GFX12,
+  };
+
+  Gfx1250Sim sim;
+  uint64_t kernel_object = sim.write_kernel(kernel_addr, code, std::size(code));
+  sim.memory->write32(base_addr - sizeof(uint32_t), 0);
+  sim.memory->write32(base_addr, 0);
+
+  test::AqlQueue queue(sim.memory, sim.cp());
+  queue.dispatch(kernel_object, 32, 32);
+  sim.engine->run();
+  sim.soc->flush_all();
+
+  EXPECT_EQ(sim.memory->read32(base_addr - sizeof(uint32_t)), marker);
+  EXPECT_EQ(sim.memory->read32(base_addr), 0u);
+}
+
 TEST(Gfx1250SimulationTest, BufferStoreUsesM0Soffset) {
   constexpr uint64_t kernel_addr = 0x10000;
   constexpr uint64_t output_addr = 0x2000;
